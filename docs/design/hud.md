@@ -41,14 +41,26 @@ Do not show betting percentages. A lead bar is share of combined fantasy points 
 
 Coordinates are **percent of canvas**. Each id is independently placed, hidden, resized, locked, and given fill opacity.
 
-- Meta: `meta.league`, `meta.week`, `meta.live`
-- Identity: `team.mine.name`, `team.opp.name`
-- Scores: `score.mine`, `score.opp`, `score.delta` (lead pill)
-- Rails (split name vs points): `col.mine.pos|name|nfl|pts`, `col.opp.*`
-- Bench: `bench.mine`, `bench.opp` (hidden in watch templates)
-- Alerts: `toast.slot` — compact chip by default; full-width crawler only when `showCrawler` is on (**Broadcast L**, **Corners**)
+- Meta: `meta.league`, `meta.week` (hidden in every canned preset), `meta.live` (1px lime live/replay pip, no ON AIR wordmark)
+- Identity: `team.mine.name`, `team.opp.name` — 11px uppercase tracking, above the team score
+- Scores: `score.mine`, `score.opp` (loudest number, ~32px compact), `score.delta` (tiny lead next to your score, not a third scoreboard)
+- Rails: `col.mine.pos|name|pts`, `col.opp.pos|name|pts` — position 11px muted, last name 13–14px, pts 14px tabular. `col.*.nfl` stays in the catalog but is hidden.
+- Bench / alerts: `bench.mine`, `bench.opp`, `toast.slot` stay in the catalog, hidden in every canned preset. No crawler, no toast chips, no marquee.
 
-Default preset **RedZone**: your rail on the **left** edge only (last names + pts, compact). NFL RedZone already owns the right ~20% (`x >= 80`) plus a top banner (`y < 12`) and bottom ticker (`y > 82`) — leave those empty. Opponent rail and benches hidden. Toast is a chip to the right of the left rail, still in the left ~32%.
+Visible HUD is **names, scores, and both starter rails**. Last names only (`overlayName`). No NFL city tags.
+
+### Score ticks (inline, not tape)
+
+When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`), then after ~1.1s crossfades to the new total. Lime eases off over ~1.6s total back to ice (`#7DD3FC`, you) or steel (`#94A3B8`, them). Drops/corrections skip the celebration and just update the number. Zero-change polls never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, and Board starter/team totals.
+
+Default preset **RedZone**: both lineups stacked on the **left** so NFL RedZone keeps the right ~20% (`x >= 80`), top banner (`y < 12`), and bottom ticker (`y > 82`).
+
+```
+y 14–22  YOUR name + YOUR score + tiny lead
+y 22–48  YOUR starters  pos | name | pts
+y 50–56  THEIR name + THEIR score
+y 56–80  THEIR starters pos | name | pts
+```
 
 Watch templates (Studio dropdown order): **RedZone**, **National**, **Ticket**, then Minimal, Broadcast L, Corners, PiP, Custom.
 
@@ -62,11 +74,13 @@ Occupied broadcast chrome — do not park visible widgets here:
 | `x > 78` on Ticket | Optional YouTube TV / Sunday Ticket right panel (~25%) |
 | Center `x 22–78`, `y 22–86` | Live video. Stay off it. |
 
-**National:** scores in the upper-right cluster at `y 13–21` (below leftover Fox Box / CBS Eyebar, above the play). Dual skinny rails `y 22–74`, ~11% wide, inset ~1.5% from the edges. No full-width crawler.
+**National:** dual skinny rails — them left, you right — with names + scores above each rail, `y >= 13`, `y+h <= 86`. No crawler.
 
-**Ticket:** left-only, `x <= 78`, `y 14–82`. Top bar ~9% and bottom controls ~12% auto-hide.
+**Ticket:** stacked like RedZone (both teams), left-only, `x <= 78`, `y 14–82`.
 
-Saved `presetId`s are kept; unknown ids fall back to RedZone. `user.1` clones the RedZone map until you drag.
+**Broadcast L / Corners / PiP:** same widget visibility (both starter rails). **Minimal:** scores only.
+
+Saved `presetId`s are kept; unknown ids fall back to RedZone. `user.1` clones the stacked RedZone map until you drag.
 
 Rails group by default (`groupedRails`). Ungroup to place columns separately. `trackLock` keeps row Y/H aligned.
 

@@ -106,13 +106,12 @@ export const PRESET_LABELS: Record<OverlayPresetId, string> = {
 
 export const presetShowsCrawler = (presetId: OverlayPresetId): boolean => {
   switch (presetId) {
-    case 'broadcast-l':
-    case 'corners':
-      return true
     case 'redzone':
     case 'national':
     case 'ticket':
     case 'minimal':
+    case 'broadcast-l':
+    case 'corners':
     case 'pip':
     case 'user.1':
       return false
@@ -131,7 +130,7 @@ export const coversLiveVideo = (row: OverlayWidgetInstance): boolean =>
   row.y < 86 &&
   row.y + row.h > 22
 
-const SMOKE = 0.28
+const SMOKE = 0.16
 
 const box = (
   id: OverlayWidgetId,
@@ -173,27 +172,65 @@ const layout = (
   showCrawler: presetShowsCrawler(presetId)
 })
 
-const redzoneWidgets = (): OverlayWidgetInstance[] => [
-  compact('meta.live', 1.5, 14, 4.5, 2.2),
-  compact('team.mine.name', 1.5, 16.5, 12, 3),
-  compact('score.mine', 1.5, 19.5, 12, 6.5),
-  compact('score.delta', 1.5, 26.2, 12, 3),
-  compact('meta.week', 1.5, 14, 5, 2.2, { hidden: true }),
-  compact('meta.league', 1.5, 14, 12, 2.2, { hidden: true }),
-  compact('team.opp.name', 1.5, 16.5, 12, 3, { hidden: true }),
-  compact('score.opp', 1.5, 19.5, 12, 6.5, { hidden: true }),
-  compact('col.mine.pos', 1.5, 31, 2, 48),
-  compact('col.mine.name', 3.5, 31, 6.2, 48),
-  compact('col.mine.nfl', 9.7, 31, 3.8, 48, { hidden: true }),
-  compact('col.mine.pts', 9.7, 31, 3.8, 48),
-  compact('col.opp.pos', 1.5, 31, 2, 48, { hidden: true }),
-  compact('col.opp.name', 1.5, 31, 6.2, 48, { hidden: true }),
-  compact('col.opp.nfl', 1.5, 31, 3.8, 48, { hidden: true }),
-  compact('col.opp.pts', 1.5, 31, 3.8, 48, { hidden: true }),
-  compact('bench.mine', 1.5, 31, 12, 8, { hidden: true }),
-  compact('bench.opp', 1.5, 31, 12, 8, { hidden: true }),
-  compact('toast.slot', 15, 14, 16, 6)
+const hide = (
+  id: OverlayWidgetId,
+  x: number,
+  y: number,
+  w = 12,
+  h = 6
+): OverlayWidgetInstance => compact(id, x, y, w, h, { hidden: true })
+
+const stackedLeft = (): OverlayWidgetInstance[] => [
+  compact('meta.live', 14.8, 14.2, 1.2, 1.2),
+  compact('team.mine.name', 1.5, 14, 13, 2.2),
+  compact('score.mine', 1.5, 16.4, 8.4, 5.4),
+  compact('score.delta', 10.2, 17.4, 4.2, 3.6),
+  compact('col.mine.pos', 1.5, 22, 3.5, 26),
+  compact('col.mine.name', 5, 22, 7, 26),
+  compact('col.mine.pts', 12, 22, 4.2, 26),
+  compact('team.opp.name', 1.5, 50, 14.7, 2.2),
+  compact('score.opp', 1.5, 52.4, 14.7, 3.4),
+  compact('col.opp.pos', 1.5, 56, 3.5, 24),
+  compact('col.opp.name', 5, 56, 7, 24),
+  compact('col.opp.pts', 12, 56, 4.2, 24),
+  hide('meta.league', 1.5, 22),
+  hide('meta.week', 1.5, 22, 5, 2),
+  hide('col.mine.nfl', 12, 22, 4.2, 26),
+  hide('col.opp.nfl', 12, 56, 4.2, 24),
+  hide('bench.mine', 1.5, 22),
+  hide('bench.opp', 1.5, 56),
+  hide('toast.slot', 1.5, 22)
 ]
+
+const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetInstance[] => {
+  const railH = 52
+  const railY = 22
+  const nameY = 13
+  const scoreY = 15.4
+  return [
+    compact('meta.live', mineX + 12.2, nameY + 0.2, 1.2, 1.2),
+    compact('team.opp.name', oppX, nameY, 14.5, 2.2),
+    compact('score.opp', oppX, scoreY, 14.5, scoreH),
+    compact('col.opp.pos', oppX, railY, 3.5, railH),
+    compact('col.opp.name', oppX + 3.5, railY, 7, railH),
+    compact('col.opp.pts', oppX + 10.5, railY, 4, railH),
+    compact('team.mine.name', mineX, nameY, 13.5, 2.2),
+    compact('score.mine', mineX, scoreY, 9, scoreH),
+    compact('score.delta', mineX + 9.2, scoreY + 1, 4.2, 3.6),
+    compact('col.mine.pos', mineX, railY, 3.5, railH),
+    compact('col.mine.name', mineX + 3.5, railY, 7, railH),
+    compact('col.mine.pts', mineX + 10.5, railY, 4, railH),
+    hide('meta.league', mineX, railY),
+    hide('meta.week', mineX, railY, 5, 2),
+    hide('col.mine.nfl', mineX + 10.5, railY, 4, railH),
+    hide('col.opp.nfl', oppX + 10.5, railY, 4, railH),
+    hide('bench.mine', mineX, railY),
+    hide('bench.opp', oppX, railY),
+    hide('toast.slot', mineX, railY)
+  ]
+}
+
+const redzoneWidgets = (): OverlayWidgetInstance[] => stackedLeft()
 
 export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
   switch (presetId) {
@@ -201,137 +238,57 @@ export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
       return layout('redzone', redzoneWidgets())
     case 'user.1':
       return layout('user.1', redzoneWidgets())
-    case 'national':
-      return layout('national', [
-        compact('team.mine.name', 74, 13, 8, 2.4),
-        compact('score.mine', 74, 15.5, 8, 5.5),
-        compact('score.delta', 82.5, 15.5, 5, 5.5),
-        compact('team.opp.name', 88, 13, 10, 2.4),
-        compact('score.opp', 88, 15.5, 10, 5.5),
-        compact('meta.live', 82.5, 13, 5, 2.2),
-        compact('meta.week', 74, 13, 5, 2.2, { hidden: true }),
-        compact('meta.league', 74, 13, 12, 2.2, { hidden: true }),
-        compact('col.opp.pos', 1.5, 22, 2, 52),
-        compact('col.opp.name', 3.5, 22, 6, 52),
-        compact('col.opp.nfl', 1.5, 22, 3, 52, { hidden: true }),
-        compact('col.opp.pts', 9.5, 22, 3, 52),
-        compact('col.mine.pos', 87.5, 22, 2, 52),
-        compact('col.mine.name', 89.5, 22, 6, 52),
-        compact('col.mine.nfl', 87.5, 22, 3, 52, { hidden: true }),
-        compact('col.mine.pts', 95.5, 22, 3, 52),
-        compact('toast.slot', 74, 76, 24, 6),
-        compact('bench.mine', 87.5, 22, 12, 8, { hidden: true }),
-        compact('bench.opp', 1.5, 22, 12, 8, { hidden: true })
-      ])
     case 'ticket':
-      return layout('ticket', [
-        compact('team.mine.name', 2, 14, 8, 2.4),
-        compact('score.mine', 2, 16.5, 8, 5.5),
-        compact('score.delta', 10.5, 16.5, 5, 5.5),
-        compact('team.opp.name', 16, 14, 8, 2.4),
-        compact('score.opp', 16, 16.5, 8, 5.5),
-        compact('meta.live', 24.5, 16.5, 5, 2.2),
-        compact('meta.week', 2, 14, 5, 2.2, { hidden: true }),
-        compact('meta.league', 2, 14, 12, 2.2, { hidden: true }),
-        compact('col.mine.pos', 2, 26, 2, 48),
-        compact('col.mine.name', 4, 26, 6, 48),
-        compact('col.mine.nfl', 2, 26, 3, 48, { hidden: true }),
-        compact('col.mine.pts', 10, 26, 3.8, 48),
-        compact('col.opp.pos', 2, 26, 2, 48, { hidden: true }),
-        compact('col.opp.name', 2, 26, 6, 48, { hidden: true }),
-        compact('col.opp.nfl', 2, 26, 3, 48, { hidden: true }),
-        compact('col.opp.pts', 2, 26, 3.8, 48, { hidden: true }),
-        compact('bench.mine', 2, 26, 12, 8, { hidden: true }),
-        compact('bench.opp', 2, 26, 12, 8, { hidden: true }),
-        compact('toast.slot', 2, 76, 18, 6)
-      ])
+      return layout('ticket', stackedLeft())
+    case 'national':
+      return layout('national', dualRails(84.5, 1.5, 5.6))
     case 'broadcast-l':
-      return layout('broadcast-l', [
-        box('meta.live', 1.5, 14, 4.5, 2.2),
-        box('meta.week', 6.2, 14, 5, 2.2),
-        box('meta.league', 1.5, 14, 12, 2.2, { hidden: true }),
-        box('team.mine.name', 1.5, 16.5, 11, 2.4),
-        box('score.mine', 1.5, 19, 11, 6),
-        box('score.delta', 1.5, 74, 11, 4),
-        box('col.mine.pos', 1.5, 27, 2, 46),
-        box('col.mine.name', 3.5, 27, 6, 46),
-        box('col.mine.nfl', 9.5, 27, 3, 46, { hidden: true }),
-        box('col.mine.pts', 9.5, 27, 3, 46),
-        box('team.opp.name', 87.5, 16.5, 11, 2.4),
-        box('score.opp', 87.5, 19, 11, 6),
-        box('col.opp.pts', 87.5, 27, 3, 46),
-        box('col.opp.name', 90.5, 27, 6, 46),
-        box('col.opp.nfl', 96.5, 27, 2, 46, { hidden: true }),
-        box('col.opp.pos', 96.5, 27, 2, 46),
-        box('toast.slot', 1.5, 79, 20, 5),
-        box('bench.mine', 1.5, 68, 11, 8, { hidden: true }),
-        box('bench.opp', 87.5, 68, 11, 8, { hidden: true })
-      ])
+      return layout('broadcast-l', dualRails(84.5, 1.5, 5.6))
     case 'corners':
-      return layout('corners', [
-        box('score.mine', 2, 14, 10, 7),
-        box('team.mine.name', 2, 21.2, 10, 2.4),
-        box('score.delta', 2, 23.8, 10, 3.5),
-        box('score.opp', 88, 14, 10, 7),
-        box('team.opp.name', 88, 21.2, 10, 2.4),
-        box('meta.live', 88, 23.8, 5, 2.2),
-        box('meta.week', 93.2, 23.8, 4.8, 2.2),
-        box('col.mine.pos', 1.5, 28, 2, 44),
-        box('col.mine.name', 3.5, 28, 6, 44),
-        box('col.mine.nfl', 9.5, 28, 3.5, 44, { hidden: true }),
-        box('col.mine.pts', 9.5, 28, 3.5, 44),
-        box('col.opp.pts', 87, 28, 3.5, 44),
-        box('col.opp.name', 90.5, 28, 6, 44),
-        box('col.opp.nfl', 96.5, 28, 2, 44, { hidden: true }),
-        box('col.opp.pos', 96.5, 28, 2, 44),
-        box('meta.league', 2, 73, 16, 2.2, { hidden: true }),
-        box('toast.slot', 2, 76, 16, 6),
-        box('bench.mine', 1.5, 64, 12, 8, { hidden: true }),
-        box('bench.opp', 86, 64, 12, 8, { hidden: true })
-      ])
+      return layout('corners', dualRails(84.5, 1.5, 5.6))
     case 'pip':
       return layout('pip', [
-        box('meta.league', 78, 14, 12, 2.2),
-        box('meta.live', 90.5, 14, 7.5, 2.2),
-        box('meta.week', 78, 14, 6, 2.2, { hidden: true }),
-        box('team.mine.name', 78, 16.5, 10, 2.2),
-        box('score.mine', 78, 18.8, 10, 5),
-        box('score.delta', 88.5, 18.8, 4.5, 5),
-        box('team.opp.name', 93.2, 16.5, 4.8, 2.2),
-        box('score.opp', 93.2, 18.8, 4.8, 5),
-        box('col.mine.pos', 78, 25, 2, 46),
-        box('col.mine.name', 80, 25, 5.5, 46),
-        box('col.mine.nfl', 85.5, 25, 3, 46, { hidden: true }),
-        box('col.mine.pts', 85.5, 25, 3.2, 46),
-        box('col.opp.pts', 88.8, 25, 2.8, 46),
-        box('col.opp.name', 91.6, 25, 5, 46),
-        box('col.opp.nfl', 96.6, 25, 1.9, 46, { hidden: true }),
-        box('col.opp.pos', 96.6, 25, 1.9, 46),
-        box('toast.slot', 78, 74, 20, 8),
-        box('bench.mine', 78, 64, 10, 8, { hidden: true }),
-        box('bench.opp', 88.8, 64, 9.2, 8, { hidden: true })
+        compact('meta.live', 96.8, 14.2, 1.2, 1.2),
+        compact('team.mine.name', 78, 14, 18, 2),
+        compact('score.mine', 78, 16.2, 12, 4),
+        compact('score.delta', 90.5, 16.6, 6.5, 3.2),
+        compact('col.mine.pos', 78, 21, 3.5, 26),
+        compact('col.mine.name', 81.5, 21, 7, 26),
+        compact('col.mine.pts', 88.5, 21, 9.5, 26),
+        compact('team.opp.name', 78, 50, 20, 2),
+        compact('score.opp', 78, 52.2, 20, 3.6),
+        compact('col.opp.pos', 78, 56.2, 3.5, 24),
+        compact('col.opp.name', 81.5, 56.2, 7, 24),
+        compact('col.opp.pts', 88.5, 56.2, 9.5, 24),
+        hide('meta.league', 78, 21),
+        hide('meta.week', 78, 21, 5, 2),
+        hide('col.mine.nfl', 88.5, 21, 9.5, 26),
+        hide('col.opp.nfl', 88.5, 56.2, 9.5, 24),
+        hide('bench.mine', 78, 21),
+        hide('bench.opp', 78, 56.2),
+        hide('toast.slot', 78, 21)
       ])
     case 'minimal':
       return layout('minimal', [
-        box('score.mine', 78, 14, 8, 7),
-        box('team.mine.name', 78, 21.2, 8, 2.4),
-        box('score.delta', 86.5, 14, 5, 7),
-        box('score.opp', 92, 14, 6, 7),
-        box('team.opp.name', 92, 21.2, 6, 2.4),
-        box('meta.live', 86.5, 21.2, 5, 2.4),
-        box('meta.week', 78, 14, 8, 3, { hidden: true }),
-        box('meta.league', 78, 14, 18, 3, { hidden: true }),
-        box('toast.slot', 78, 14, 20, 8, { hidden: true }),
-        box('col.mine.pos', 78, 25, 2.5, 46, { hidden: true }),
-        box('col.mine.name', 80.5, 25, 6, 46, { hidden: true }),
-        box('col.mine.nfl', 86.5, 25, 3.5, 46, { hidden: true }),
-        box('col.mine.pts', 86.5, 25, 3.5, 46, { hidden: true }),
-        box('col.opp.pos', 96, 25, 2.5, 46, { hidden: true }),
-        box('col.opp.name', 87, 25, 6, 46, { hidden: true }),
-        box('col.opp.nfl', 83, 25, 3.5, 46, { hidden: true }),
-        box('col.opp.pts', 82.3, 25, 4.5, 46, { hidden: true }),
-        box('bench.mine', 78, 60, 10, 8, { hidden: true }),
-        box('bench.opp', 88, 60, 10, 8, { hidden: true })
+        compact('meta.live', 86.5, 13.2, 1.2, 1.2),
+        compact('team.mine.name', 78, 13, 10, 2.2),
+        compact('score.mine', 78, 15.4, 8, 5.6),
+        compact('score.delta', 86.4, 16.4, 4.4, 3.6),
+        compact('team.opp.name', 91.2, 13, 6.8, 2.2),
+        compact('score.opp', 91.2, 15.4, 6.8, 5.6),
+        hide('meta.week', 78, 13, 8, 3),
+        hide('meta.league', 78, 13, 18, 3),
+        hide('toast.slot', 78, 13, 20, 8),
+        hide('col.mine.pos', 78, 25, 2.5, 46),
+        hide('col.mine.name', 80.5, 25, 6, 46),
+        hide('col.mine.nfl', 86.5, 25, 3.5, 46),
+        hide('col.mine.pts', 86.5, 25, 3.5, 46),
+        hide('col.opp.pos', 96, 25, 2.5, 46),
+        hide('col.opp.name', 87, 25, 6, 46),
+        hide('col.opp.nfl', 83, 25, 3.5, 46),
+        hide('col.opp.pts', 82.3, 25, 4.5, 46),
+        hide('bench.mine', 78, 60, 10, 8),
+        hide('bench.opp', 88, 60, 10, 8)
       ])
     default: {
       const _never: never = presetId

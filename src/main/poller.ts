@@ -368,7 +368,7 @@ const schedule = (live: boolean): void => {
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => {
     void refresh()
-  }, pollIntervalMs(live))
+  }, isReplayMode() ? 3_000 : pollIntervalMs(live))
 }
 
 export const startPoller = (): void => {

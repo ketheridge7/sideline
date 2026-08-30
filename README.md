@@ -38,7 +38,7 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 ## Overlay
 
 - Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) edits layout.
-- Default layout is **RedZone**: a compact left-edge rail so NFL RedZone’s right score column, top banner, and bottom ticker stay clear. **National** and **Ticket** are the other watch templates.
+- Default layout is **RedZone**: both lineups stacked on the left so NFL RedZone’s right score column, top banner, and bottom ticker stay clear. Score ticks flash lime `+N` on the pts cell, then settle. **National** and **Ticket** are the other watch templates.
 - Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)
 - Center ~60% of the canvas stays empty so live video is the product. See [`docs/design/hud.md`](docs/design/hud.md) for occupied zones.

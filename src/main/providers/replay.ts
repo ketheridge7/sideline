@@ -51,8 +51,8 @@ export const loadReplayBundle = (): ReplayBundle => {
 }
 
 const bump = (value: number): number => {
-  const extra = Math.min(tick * 0.35, 18) + (tick % 3) * 0.15
-  return Math.round((value + extra) * 100) / 100
+  const extra = Math.min(tick * 1.2, 24)
+  return Math.round((value + extra) * 10) / 10
 }
 
 export const replayNfl = (): NflState => {

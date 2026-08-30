@@ -98,7 +98,7 @@ export const OverlayStudio = ({
           </select>
         </label>
         <p className="text-xs text-muted">
-          RedZone, National, and Ticket are watch templates. Hide or drag any widget after.
+          RedZone, National, and Ticket show names, scores, and both starter rails. Hide or drag any widget after.
         </p>
 
         <div className="relative aspect-video overflow-hidden border border-line bg-bg">
