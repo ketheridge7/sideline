@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
 import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
 import { formatDelta, formatScore, overlayName } from '../shared/format'
-import { HudCrawler } from '../shared/HudCrawler'
+import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { nflTeamLabel, visibleInjury } from '@shared/display'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
@@ -99,7 +99,7 @@ const RailColumn = ({
   const rows = Math.max(players.length, 1)
   return (
     <div
-      className={`flex h-full min-h-0 flex-col ${hash === 'you' ? 'border-l-2 border-you/70' : ''} ${
+      className={`flex h-full min-h-0 min-w-0 flex-col ${hash === 'you' ? 'border-l-2 border-you/70' : ''} ${
         hash === 'them' ? 'border-r-2 border-them/70' : ''
       }`}
     >
@@ -173,12 +173,14 @@ export const OverlayWidgetView = ({
   id,
   hud,
   surface,
-  density
+  density,
+  showCrawler
 }: {
   id: OverlayWidgetId
   hud: OverlayHudState
   surface: OverlaySurface
   density: OverlayDensity
+  showCrawler: boolean
 }): JSX.Element => {
   const resolved = resolveDensity(surface, density)
   switch (id) {
@@ -221,7 +223,7 @@ export const OverlayWidgetView = ({
       return (
         <div
           className={`flex h-full items-end truncate font-cond font-bold uppercase tracking-[0.14em] text-you ${
-            resolved === 'large' ? 'text-[26px]' : 'text-lg'
+            resolved === 'large' ? 'text-[26px]' : resolved === 'compact' ? 'text-sm' : 'text-lg'
           }`}
         >
           {hud.myName}
@@ -231,7 +233,7 @@ export const OverlayWidgetView = ({
       return (
         <div
           className={`flex h-full items-end justify-end truncate font-cond font-bold uppercase tracking-[0.14em] text-them ${
-            resolved === 'large' ? 'text-[26px]' : 'text-lg'
+            resolved === 'large' ? 'text-[26px]' : resolved === 'compact' ? 'text-sm' : 'text-lg'
           }`}
         >
           {hud.oppName}
@@ -254,7 +256,7 @@ export const OverlayWidgetView = ({
       return (
         <div
           className={`flex h-full flex-col items-center justify-center border border-you/40 px-2 font-cond font-extrabold uppercase tracking-[0.14em] tabular-nums ${deltaClass} ${
-            resolved === 'large' ? 'text-3xl' : 'text-xl'
+            resolved === 'large' ? 'text-3xl' : resolved === 'compact' ? 'text-sm' : 'text-xl'
           }`}
         >
           <span className="text-[10px] tracking-[0.2em] text-muted">Lead</span>
@@ -297,7 +299,7 @@ export const OverlayWidgetView = ({
                 }
               ]
             : []
-      return <HudCrawler events={events} />
+      return showCrawler ? <HudCrawler events={events} /> : <ToastChip events={events} />
     }
     default: {
       const _never: never = id

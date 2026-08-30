@@ -45,10 +45,28 @@ Coordinates are **percent of canvas**. Each id is independently placed, hidden, 
 - Identity: `team.mine.name`, `team.opp.name`
 - Scores: `score.mine`, `score.opp`, `score.delta` (lead pill)
 - Rails (split name vs points): `col.mine.pos|name|nfl|pts`, `col.opp.*`
-- Bench: `bench.mine`, `bench.opp` (hidden in Broadcast L)
-- Alerts: `toast.slot` (moving crawler when tape/toasts exist)
+- Bench: `bench.mine`, `bench.opp` (hidden in watch templates)
+- Alerts: `toast.slot` — compact chip by default; full-width crawler only when `showCrawler` is on (**Broadcast L**, **Corners**)
 
-Default preset **Broadcast L**: left spine your rail + lead pill; right spine their rail; bottom crawler; center ~60% empty. Also: Corners, PiP, Minimal, plus `user.1`.
+Default preset **RedZone**: your rail on the **left** edge only (last names + pts, compact). NFL RedZone already owns the right ~20% (`x >= 80`) plus a top banner (`y < 12`) and bottom ticker (`y > 82`) — leave those empty. Opponent rail and benches hidden. Toast is a chip to the right of the left rail, still in the left ~32%.
+
+Watch templates (Studio dropdown order): **RedZone**, **National**, **Ticket**, then Minimal, Broadcast L, Corners, PiP, Custom.
+
+Occupied broadcast chrome — do not park visible widgets here:
+
+| Zone | Occupancy |
+| --- | --- |
+| `y < 12` | Network eyebar / RedZone banner |
+| `y > 82` (RedZone / Ticket) or `y+h > 86` (National) | Bottom ticker + modern scorebug |
+| `x >= 80` on RedZone | Persistent RedZone score/stat rail (full height) |
+| `x > 78` on Ticket | Optional YouTube TV / Sunday Ticket right panel (~25%) |
+| Center `x 22–78`, `y 22–86` | Live video. Stay off it. |
+
+**National:** scores in the upper-right cluster at `y 13–21` (below leftover Fox Box / CBS Eyebar, above the play). Dual skinny rails `y 22–74`, ~11% wide, inset ~1.5% from the edges. No full-width crawler.
+
+**Ticket:** left-only, `x <= 78`, `y 14–82`. Top bar ~9% and bottom controls ~12% auto-hide.
+
+Saved `presetId`s are kept; unknown ids fall back to RedZone. `user.1` clones the RedZone map until you drag.
 
 Rails group by default (`groupedRails`). Ungroup to place columns separately. `trackLock` keeps row Y/H aligned.
 

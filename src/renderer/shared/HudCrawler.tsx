@@ -61,6 +61,16 @@ export const TapeItem = ({ event }: { event: TapeEvent }): JSX.Element => {
   )
 }
 
+export const ToastChip = ({ events }: { events: TapeEvent[] }): JSX.Element => {
+  const event = events[0]
+  if (!event) return <div className="h-full w-full" />
+  return (
+    <div className="flex h-full min-w-0 items-center overflow-hidden px-2" aria-live="polite">
+      <TapeItem event={event} />
+    </div>
+  )
+}
+
 export const HudCrawler = ({ events }: { events: TapeEvent[] }): JSX.Element => {
   if (events.length === 0) {
     return <div className="h-full w-full" />

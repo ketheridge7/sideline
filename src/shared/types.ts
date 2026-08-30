@@ -170,7 +170,7 @@ export const emptyAppState = (): AppState => ({
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',
   overlayEditMode: false,
-  overlayLayout: layoutFromPreset('broadcast-l'),
+  overlayLayout: layoutFromPreset('redzone'),
   lastToast: null,
   lanOverlayEnabled: false,
   lanOverlayHost: null,
