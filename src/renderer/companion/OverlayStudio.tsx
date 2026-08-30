@@ -12,11 +12,17 @@ import {
   type OverlayWidgetId
 } from '@shared/overlayLayout'
 import type { AppState } from '@shared/types'
+import { toOverlayHud } from '@shared/types'
+import { smokeFill } from '../overlay/density'
+import { OverlayWidgetView } from '../overlay/Widgets'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
   return window.sideline
 }
+
+const PREVIEW_W = 1280
+const PREVIEW_H = 720
 
 export const OverlayStudio = ({
   state,
@@ -26,6 +32,7 @@ export const OverlayStudio = ({
   onClose: () => void
 }): JSX.Element => {
   const layout = state.overlayLayout
+  const hud = toOverlayHud(state)
   const [selected, setSelected] = useState<OverlayWidgetId>('score.mine')
   const current = layout.widgets.find((row) => row.id === selected)
 
@@ -41,11 +48,7 @@ export const OverlayStudio = ({
     <aside className="flex w-[280px] shrink-0 flex-col border-l border-line bg-card">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <h2 className="font-cond text-sm font-bold uppercase tracking-[0.16em]">Overlay Studio</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="cursor-pointer text-xs text-muted hover:text-text"
-        >
+        <button type="button" onClick={onClose} className="cursor-pointer text-xs text-muted hover:text-text">
           Close
         </button>
       </div>
@@ -55,8 +58,8 @@ export const OverlayStudio = ({
           <button
             type="button"
             onClick={() => void api().toggleOverlay()}
-            className={`flex-1 cursor-pointer rounded-md border px-2 py-1.5 text-xs font-semibold uppercase ${
-              state.overlayVisible ? 'border-you/50 text-you' : 'border-line text-muted'
+            className={`flex-1 cursor-pointer border px-2 py-1.5 text-xs font-semibold uppercase ${
+              state.overlayVisible ? 'border-lime text-lime' : 'border-line text-muted'
             }`}
             aria-pressed={state.overlayVisible}
           >
@@ -65,8 +68,8 @@ export const OverlayStudio = ({
           <button
             type="button"
             onClick={() => void api().setOverlayEditMode(!state.overlayEditMode)}
-            className={`flex-1 cursor-pointer rounded-md border px-2 py-1.5 text-xs font-semibold uppercase ${
-              state.overlayEditMode ? 'border-you/50 text-you' : 'border-line text-muted'
+            className={`flex-1 cursor-pointer border px-2 py-1.5 text-xs font-semibold uppercase ${
+              state.overlayEditMode ? 'border-you text-you' : 'border-line text-muted'
             }`}
             aria-pressed={state.overlayEditMode}
             disabled={!state.overlayVisible}
@@ -84,7 +87,7 @@ export const OverlayStudio = ({
           <select
             value={layout.presetId}
             onChange={(event) => handlePreset(event.target.value as OverlayPresetId)}
-            className="cursor-pointer rounded-md border border-line bg-bg px-2 py-1.5 text-sm text-text"
+            className="cursor-pointer border border-line bg-bg px-2 py-1.5 text-sm text-text"
             aria-label="Overlay preset"
           >
             {OVERLAY_PRESET_IDS.map((id) => (
@@ -95,7 +98,36 @@ export const OverlayStudio = ({
           </select>
         </label>
 
-        <div className="relative aspect-video overflow-hidden rounded-sm border border-line bg-bg">
+        <div className="relative aspect-video overflow-hidden border border-line bg-bg">
+          <div
+            className="pointer-events-none absolute left-0 top-0 origin-top-left"
+            style={{
+              width: PREVIEW_W,
+              height: PREVIEW_H,
+              transform: 'scale(0.2)'
+            }}
+          >
+            {layout.widgets.map((widget) => {
+              if (widget.hidden) return null
+              const fill = smokeFill('desktop', widget.opacity)
+              return (
+                <div
+                  key={widget.id}
+                  className="absolute overflow-hidden"
+                  style={{
+                    left: `${widget.x}%`,
+                    top: `${widget.y}%`,
+                    width: `${widget.w}%`,
+                    height: `${widget.h}%`,
+                    background: `rgba(7, 8, 10, ${fill})`,
+                    color: '#F4F6F8'
+                  }}
+                >
+                  <OverlayWidgetView id={widget.id} hud={hud} surface="desktop" density={widget.density} />
+                </div>
+              )
+            })}
+          </div>
           {layout.widgets.map((widget) =>
             widget.hidden ? null : (
               <button
@@ -103,7 +135,7 @@ export const OverlayStudio = ({
                 type="button"
                 onClick={() => setSelected(widget.id)}
                 className={`absolute cursor-pointer ${
-                  selected === widget.id ? 'bg-you/40' : 'bg-you/15'
+                  selected === widget.id ? 'outline outline-1 outline-you' : ''
                 }`}
                 style={{
                   left: `${widget.x}%`,
@@ -213,7 +245,7 @@ export const OverlayStudio = ({
         <button
           type="button"
           onClick={() => handlePreset(layout.presetId === 'user.1' ? 'broadcast-l' : layout.presetId)}
-          className="cursor-pointer rounded-md border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text"
+          className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text"
         >
           Revert preset
         </button>

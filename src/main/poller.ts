@@ -1,7 +1,9 @@
-import type { AppState, League, Matchup, NflState, ToastPayload, Transaction } from '@shared/types'
+import type { AppState, League, Matchup, MatchupBoard, NflState, TapeEvent, ToastPayload, Transaction } from '@shared/types'
 import { emptyAppState, leagueKey, parseLeagueKey, toOverlayHud } from '@shared/types'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
+import { toMatchupBoard } from '@shared/display'
+import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape } from '@shared/tape'
 import { isLikelyLive, pollIntervalMs } from './liveWindow'
 import { getPlayerMap } from './providers/playerCache'
 import {
@@ -47,6 +49,9 @@ let overlayEditMode = false
 let lastToast: ToastPayload | null = null
 const seenTx = new Map<string, Set<string>>()
 const seededTx = new Set<string>()
+const prevPlayerPts = new Map<string, number>()
+const prevInjury = new Map<string, string>()
+let liveTape: TapeEvent[] = []
 let lastState: AppState = emptyAppState()
 
 export const currentState = (): AppState => lastState
@@ -272,19 +277,41 @@ export const refresh = async (): Promise<AppState> => {
       const key = leagueKey(league.provider, league.id)
       return key === selectedKey || settings.pinnedLeagueKeys.includes(key)
     })
-    const needsPlayers =
-      !replay &&
-      (selected?.provider === 'sleeper' || txTargets.some((league) => league.provider === 'sleeper'))
+    const boardTargets = leagues.length > 0 ? leagues : []
+    const needsPlayers = !replay && leagues.some((league) => league.provider === 'sleeper')
     const players = needsPlayers ? await getPlayerMap() : {}
-    matchup = await loadMatchup(selected, nfl, cookies, players)
-    for (const league of txTargets) {
+    const matchupByKey = new Map<string, Matchup>()
+    for (const league of boardTargets) {
+      try {
+        const loaded = await loadMatchup(league, nfl, cookies, players)
+        if (loaded) matchupByKey.set(leagueKey(league.provider, league.id), loaded)
+      } catch {
+        // board cards stay empty if a single league fails
+      }
+    }
+    matchup = selected ? (matchupByKey.get(leagueKey(selected.provider, selected.id)) ?? null) : null
+    const boards: MatchupBoard[] = leagues.map((league) =>
+      toMatchupBoard(league, matchupByKey.get(leagueKey(league.provider, league.id)) ?? null)
+    )
+
+    const snapshotTape: TapeEvent[] = []
+    const scored: TapeEvent[] = []
+    for (const league of txTargets.length > 0 ? txTargets : boardTargets) {
+      const loaded = matchupByKey.get(leagueKey(league.provider, league.id))
+      if (loaded) {
+        scored.push(...scoreTapeFromDiff(league, loaded, prevPlayerPts))
+        scored.push(...injuryTapeFromDiff(league, loaded, prevInjury))
+      }
       try {
         const rows = await loadTransactions(league, nfl, cookies, players)
         emitNewTransactions(league, rows)
+        for (const row of rows) snapshotTape.push(transactionToTape(league, row))
       } catch {
         // transaction polling is best-effort
       }
     }
+    liveTape = mergeTape(scored, liveTape, 16)
+    const tape = mergeTape(liveTape, snapshotTape, 24)
 
     const state: AppState = {
       sleeperConnected: replay || Boolean(sleeperUser),
@@ -296,6 +323,8 @@ export const refresh = async (): Promise<AppState> => {
       pinnedLeagueKeys: settings.pinnedLeagueKeys,
       selectedLeagueKey: selectedKey,
       matchup,
+      boards,
+      tape,
       overlayPort: runtime.overlayPort(),
       overlayVisible,
       overlayHotkey: settings.overlayHotkey,

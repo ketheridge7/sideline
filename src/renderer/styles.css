@@ -1,20 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #050505;
-  --color-card: #0c0c0a;
-  --color-line: #242420;
-  --color-text: #f2f0e8;
-  --color-muted: #8a8778;
-  --color-win: #e6b422;
-  --color-loss: #e63946;
-  --color-gold: #e6b422;
-  --color-you: #e6b422;
-  --color-them: #8a9ba8;
-  --color-air: #e63946;
-  --color-live: #e63946;
-  --color-sleeper: #38bdf8;
-  --color-espn: #e63946;
+  --color-bg: #07080a;
+  --color-card: #101216;
+  --color-line: #1e232b;
+  --color-text: #f4f6f8;
+  --color-muted: #94a3b8;
+  --color-you: #7dd3fc;
+  --color-them: #94a3b8;
+  --color-lime: #b6ff3b;
+  --color-air: #ff4d4d;
+  --color-live: #b6ff3b;
+  --color-sleeper: #22d3ee;
+  --color-espn: #dc143c;
   --font-sans: "Barlow", "Segoe UI", system-ui, sans-serif;
   --font-cond: "Barlow Condensed", "Segoe UI Condensed", "Arial Narrow", sans-serif;
 }
@@ -27,9 +25,10 @@ body,
 
 body {
   margin: 0;
-  background: #050505;
-  color: #f2f0e8;
+  background: #07080a;
+  color: #f4f6f8;
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   user-select: none;
 }
 
@@ -40,7 +39,7 @@ select {
 }
 
 :focus-visible {
-  outline: 2px solid #e6b422;
+  outline: 2px solid #7dd3fc;
   outline-offset: 2px;
 }
 
@@ -56,6 +55,35 @@ select {
 
 .no-drag {
   -webkit-app-region: no-drag;
+}
+
+@keyframes tape-crawl {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.tape-crawl {
+  display: flex;
+  width: max-content;
+  animation: tape-crawl 32s linear infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.live-dot {
+  animation: live-pulse 1.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
