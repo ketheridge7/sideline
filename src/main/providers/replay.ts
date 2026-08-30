@@ -67,14 +67,19 @@ export const replaySleeperLeagues = (nfl: NflState): League[] => {
 export const replaySleeperMatchup = (): Matchup | null => {
   const data = loadReplayBundle()
   tick += 1
-  const matchups = data.sleeperMatchups.map((row) => ({
-    ...row,
-    points: bump(row.points ?? 0),
-    custom_points: null,
-    players_points: row.players_points
-      ? Object.fromEntries(Object.entries(row.players_points).map(([id, value]) => [id, bump(value)]))
-      : row.players_points
-  }))
+  const matchups = data.sleeperMatchups.map((row) => {
+    const pointsMap = row.players_points ? { ...row.players_points } : undefined
+    const featured = row.starters?.[0]
+    if (pointsMap && featured && typeof pointsMap[featured] === 'number') {
+      pointsMap[featured] = bump(pointsMap[featured])
+    }
+    return {
+      ...row,
+      points: bump(row.points ?? 0),
+      custom_points: null,
+      players_points: pointsMap
+    }
+  })
   return toMatchup({
     userId: data.sleeperUser.user_id,
     rosters: data.sleeperRosters,
@@ -141,7 +146,8 @@ export const replayEspnMatchup = (): Matchup | null => {
   }): void => {
     if (!side) return
     if (typeof side.totalPointsLive === 'number') side.totalPointsLive = bump(side.totalPointsLive)
-    for (const entry of side.rosterForCurrentScoringPeriod?.entries ?? []) {
+    for (const [index, entry] of (side.rosterForCurrentScoringPeriod?.entries ?? []).entries()) {
+      if (index > 0) continue
       const pool = entry.playerPoolEntry
       if (typeof pool?.appliedStatTotal === 'number') pool.appliedStatTotal = bump(pool.appliedStatTotal)
       for (const stat of pool?.player?.stats ?? []) {
