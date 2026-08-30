@@ -1,0 +1,20 @@
+[
+  {
+    "transaction_id": "tx-1",
+    "type": "waiver",
+    "status": "complete",
+    "status_updated": 1734300000000,
+    "created": 1734290000000,
+    "adds": { "411": 1 },
+    "drops": { "412": 1 }
+  },
+  {
+    "transaction_id": "tx-2",
+    "type": "free_agent",
+    "status": "complete",
+    "status_updated": 1734310000000,
+    "created": 1734305000000,
+    "adds": { "406": 1 },
+    "drops": null
+  }
+]

@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #050505;
+  --color-card: #0c0c0a;
+  --color-line: #242420;
+  --color-text: #f2f0e8;
+  --color-muted: #8a8778;
+  --color-win: #e6b422;
+  --color-loss: #e63946;
+  --color-gold: #e6b422;
+  --color-you: #e6b422;
+  --color-them: #8a9ba8;
+  --color-air: #e63946;
+  --color-live: #e63946;
+  --color-sleeper: #38bdf8;
+  --color-espn: #e63946;
+  --font-sans: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --font-cond: "Barlow Condensed", "Segoe UI Condensed", "Arial Narrow", sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #050505;
+  color: #f2f0e8;
+  font-family: var(--font-sans);
+  user-select: none;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid #e6b422;
+  outline-offset: 2px;
+}
+
+.overlay-root,
+.overlay-root body,
+.overlay-root #root {
+  background: transparent;
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

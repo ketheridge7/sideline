@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Sideline</string>
+  <string name="setup_title">Sideline TV</string>
+  <string name="setup_blurb">The PC runs Sideline. This app only draws the HUD over whatever is already on the TV.</string>
+  <string name="host_hint">PC IPv4 (192.168.x.x)</string>
+  <string name="port_hint">Port</string>
+  <string name="token_hint">Token</string>
+  <string name="permission">Grant overlay permission</string>
+  <string name="permission_on">Overlay permission is on.</string>
+  <string name="test_overlay">Show test overlay</string>
+  <string name="hide_test">Hide test overlay</string>
+  <string name="start_hud">Start HUD</string>
+  <string name="stop_hud">Stop HUD</string>
+  <string name="corner">Corner</string>
+  <string name="size">Size</string>
+  <string name="opacity">Opacity</string>
+  <string name="bad_host">Host must be a private IPv4 address on your LAN.</string>
+  <string name="need_permission">Allow Display over other apps first.</string>
+  <string name="channel_name">Sideline overlay</string>
+  <string name="hud_running">Sideline HUD is on</string>
+  <string name="spike_running">Test overlay is on</string>
+</resources>

@@ -1,0 +1,15 @@
+node_modules
+out
+dist
+release
+.eslintcache
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+tv/.gradle
+tv/build
+tv/app/build
+tv/local.properties
+tv/.idea

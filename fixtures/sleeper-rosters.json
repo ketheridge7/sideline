@@ -1,0 +1,14 @@
+[
+  {
+    "roster_id": 1,
+    "owner_id": "1001",
+    "co_owners": null,
+    "settings": { "wins": 8, "losses": 5, "ties": 0 }
+  },
+  {
+    "roster_id": 2,
+    "owner_id": "1002",
+    "co_owners": null,
+    "settings": { "wins": 7, "losses": 6, "ties": 0 }
+  }
+]

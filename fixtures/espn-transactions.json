@@ -1,0 +1,17 @@
+{
+  "transactions": [
+    {
+      "id": "espn-tx-1",
+      "type": "WAIVER",
+      "status": "EXECUTED",
+      "proposedDate": 1734320000000,
+      "items": [
+        {
+          "playerId": 3918298,
+          "type": "ADD",
+          "player": { "fullName": "Bench Bat" }
+        }
+      ]
+    }
+  ]
+}

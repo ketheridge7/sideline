@@ -1,0 +1,22 @@
+{
+  "401": { "name": "Jalen Hurts", "position": "QB", "nflTeam": "PHI" },
+  "403": { "name": "Saquon Barkley", "position": "RB", "nflTeam": "PHI" },
+  "404": { "name": "Jahmyr Gibbs", "position": "RB", "nflTeam": "DET" },
+  "405": { "name": "Amon-Ra St. Brown", "position": "WR", "nflTeam": "DET" },
+  "406": { "name": "CeeDee Lamb", "position": "WR", "nflTeam": "DAL" },
+  "407": { "name": "Travis Kelce", "position": "TE", "nflTeam": "KC" },
+  "408": { "name": "Justin Tucker", "position": "K", "nflTeam": "BAL" },
+  "409": { "name": "Eagles D/ST", "position": "DEF", "nflTeam": "PHI" },
+  "410": { "name": "Nico Collins", "position": "WR", "nflTeam": "HOU" },
+  "411": { "name": "Rico Dowdle", "position": "RB", "nflTeam": "CAR" },
+  "412": { "name": "Alexander Mattison", "position": "RB", "nflTeam": "MIA" },
+  "501": { "name": "Josh Allen", "position": "QB", "nflTeam": "BUF" },
+  "502": { "name": "Derrick Henry", "position": "RB", "nflTeam": "BAL" },
+  "503": { "name": "Breece Hall", "position": "RB", "nflTeam": "NYJ" },
+  "504": { "name": "Justin Jefferson", "position": "WR", "nflTeam": "MIN" },
+  "505": { "name": "Tyreek Hill", "position": "WR", "nflTeam": "MIA" },
+  "506": { "name": "George Kittle", "position": "TE", "nflTeam": "SF" },
+  "507": { "name": "Harrison Butker", "position": "K", "nflTeam": "KC" },
+  "508": { "name": "Ravens D/ST", "position": "DEF", "nflTeam": "BAL" },
+  "509": { "name": "A.J. Brown", "position": "WR", "nflTeam": "PHI" }
+}

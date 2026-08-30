@@ -1,0 +1,12 @@
+[
+  {
+    "user_id": "1001",
+    "display_name": "Sideline Demo",
+    "metadata": { "team_name": "Sunday Night Lights" }
+  },
+  {
+    "user_id": "1002",
+    "display_name": "Rival GM",
+    "metadata": { "team_name": "Gridiron Ghosts" }
+  }
+]

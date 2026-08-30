@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <!-- Android domain-config cannot express RFC1918 CIDR. Cleartext is allowed
+       at the platform layer; OverlayService refuses non-private hosts at runtime. -->
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>
