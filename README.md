@@ -1,6 +1,6 @@
 # Sideline
 
-Second-screen fantasy companion for NFL Sundays. One Electron app, two windows: a glanceable companion board and a compact always-on-top overlay. Same live data, no backend.
+Second-screen fantasy companion for NFL Sundays. One Electron app, two windows: a glanceable companion board and a compact always-on-top overlay. Same live data, no backend. Visual language is **Sunday Tape** — ice / lime / alert on near-black, not gold Booth.
 
 **Sleeper** uses the official read-only HTTP API. **ESPN** access is unofficial, uses your own login, and is for personal companion use only.
 
@@ -17,7 +17,7 @@ Preseason / no live scoring yet? Replay a completed 2025 week with jittered tota
 npm run replay
 ```
 
-That loads both a Sleeper board and an ESPN board so you can flip the switcher and watch scores tick.
+That loads both a Sleeper board and an ESPN board so you can flip the watchlist and watch scores tick.
 
 ## Connect
 
@@ -37,9 +37,10 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 
 ## Overlay
 
-- Companion: **Overlay** button, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac)
+- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) edits layout.
+- Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)
-- Overlay stays interactive and draggable in v1. Click-through is later.
+- Center ~60% of the canvas stays empty so live video is the product.
 
 ### TV / LAN
 
@@ -55,7 +56,7 @@ Google TV overlay app: see [`tv/README.md`](tv/README.md).
 
 ## Out of scope
 
-Yahoo, pick'em, DFS, betting, chat, drafts, and any write actions (lineups, waivers).
+Yahoo, pick'em, DFS, betting, odds, moneylines, sportsbook UI, chat, drafts, and any write actions (lineups, waivers).
 
 ## Build
 

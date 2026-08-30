@@ -1,3 +1,4 @@
+import { visibleInjury } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import type { EspnCookies } from './espnClient'
@@ -80,12 +81,72 @@ const teamRecord = (team: Record<string, unknown>): string => {
   return `${wins}-${losses}`
 }
 
-const ownerName = (team: Record<string, unknown>): string => str(team.abbrev) || 'Owner'
+export const ESPN_PRO_TEAM: Record<number, string> = {
+  0: 'FA',
+  1: 'ATL',
+  2: 'BUF',
+  3: 'CHI',
+  4: 'CIN',
+  5: 'CLE',
+  6: 'DAL',
+  7: 'DEN',
+  8: 'DET',
+  9: 'GB',
+  10: 'TEN',
+  11: 'IND',
+  12: 'KC',
+  13: 'LV',
+  14: 'LAR',
+  15: 'MIA',
+  16: 'MIN',
+  17: 'NE',
+  18: 'NO',
+  19: 'NYG',
+  20: 'NYJ',
+  21: 'PHI',
+  22: 'ARI',
+  23: 'PIT',
+  24: 'LAC',
+  25: 'SF',
+  26: 'SEA',
+  27: 'TB',
+  28: 'WSH',
+  29: 'CAR',
+  30: 'JAX',
+  33: 'BAL',
+  34: 'HOU'
+}
 
-const toTeam = (team: Record<string, unknown>): Team => ({
+export const espnTeamAbbr = (proTeamId?: number): string => {
+  if (proTeamId == null) return ''
+  return ESPN_PRO_TEAM[proTeamId] ?? ''
+}
+
+export const espnInjuryLabel = (status?: string): string | undefined =>
+  visibleInjury(status) ?? undefined
+
+const membersOf = (payload: Record<string, unknown>): Record<string, unknown>[] =>
+  asArray(payload.members).filter(isRecord)
+
+const ownerName = (team: Record<string, unknown>, members: Record<string, unknown>[]): string => {
+  const ownerId = str(team.primaryOwner)
+  if (ownerId) {
+    const member = members.find((row) => {
+      const id = str(row.id)
+      return Boolean(id && swidNorm(id) === swidNorm(ownerId))
+    })
+    const name =
+      (member && (str(member.displayName) || [str(member.firstName), str(member.lastName)].filter(Boolean).join(' '))) ||
+      ''
+    if (name.trim()) return name.trim()
+  }
+  return ''
+}
+
+const toTeam = (team: Record<string, unknown>, members: Record<string, unknown>[]): Team => ({
   id: String(team.id ?? ''),
   name: teamName(team),
-  owner: ownerName(team),
+  owner: ownerName(team, members),
   record: teamRecord(team)
 })
 
@@ -95,8 +156,8 @@ const entryToPlayer = (entry: EspnRosterEntry): Player => {
     playerId: String(entry.playerId ?? ''),
     name: player?.fullName || String(entry.playerId ?? ''),
     position: POSITION_BY_ID[player?.defaultPositionId ?? -1] ?? '',
-    nflTeam: player?.proTeamId != null ? String(player.proTeamId) : '',
-    status: player?.injuryStatus,
+    nflTeam: espnTeamAbbr(player?.proTeamId),
+    status: espnInjuryLabel(player?.injuryStatus),
     points: getAppliedTotal(entry)
   }
 }
@@ -167,9 +228,10 @@ export const toEspnMatchup = (args: {
     const away = isRecord(row.away) ? row.away : null
     return num(home?.teamId) === myId || num(away?.teamId) === myId
   })
+  const members = membersOf(args.payload)
   if (!game) {
     return {
-      myTeam: toTeam(myTeamRaw),
+      myTeam: toTeam(myTeamRaw, members),
       oppTeam: null,
       myPoints: 0,
       oppPoints: 0,
@@ -196,8 +258,8 @@ export const toEspnMatchup = (args: {
     .map(entryToPlayer)
   const oppBench = oppEntries.filter((entry) => BENCH_SLOT_IDS.has(entry.lineupSlotId ?? -1)).map(entryToPlayer)
   return {
-    myTeam: toTeam(myTeamRaw),
-    oppTeam: oppTeamRaw ? toTeam(oppTeamRaw) : null,
+    myTeam: toTeam(myTeamRaw, members),
+    oppTeam: oppTeamRaw ? toTeam(oppTeamRaw, members) : null,
     myPoints: sideTotal(mySide),
     oppPoints: oppSide ? sideTotal(oppSide) : 0,
     starters,

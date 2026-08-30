@@ -17,6 +17,13 @@ describe('layoutFromPreset', () => {
     expect(layout.widgets.find((row) => row.id === 'col.mine.nfl')?.hidden).toBe(true)
     expect(layout.widgets.find((row) => row.id === 'bench.mine')?.hidden).toBe(true)
     expect(layout.widgets.find((row) => row.id === 'col.mine.pts')?.hidden).toBe(false)
+    expect(layout.widgets.find((row) => row.id === 'toast.slot')?.w).toBe(100)
+    expect(layout.widgets.find((row) => row.id === 'toast.slot')?.y).toBe(95)
+    const coveringCenter = layout.widgets.filter(
+      (row) =>
+        !row.hidden && row.x < 78 && row.x + row.w > 22 && row.y < 90 && row.y + row.h > 10
+    )
+    expect(coveringCenter.map((row) => row.id)).toEqual([])
   })
 
   it('hides rails in Minimal', () => {

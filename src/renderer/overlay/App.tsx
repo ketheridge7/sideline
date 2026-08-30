@@ -114,7 +114,7 @@ export const OverlayApp = (): JSX.Element => {
           className="pointer-events-none absolute inset-0 opacity-30"
           style={{
             backgroundImage:
-              'linear-gradient(to right, rgba(242,240,232,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(242,240,232,0.12) 1px, transparent 1px)',
+              'linear-gradient(to right, rgba(125,211,252,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(125,211,252,0.12) 1px, transparent 1px)',
             backgroundSize: '12.5% 12.5%'
           }}
           aria-hidden="true"
@@ -142,10 +142,10 @@ export const OverlayApp = (): JSX.Element => {
               top: `${widget.y}%`,
               width: `${widget.w}%`,
               height: `${widget.h}%`,
-              background: `rgba(5, 5, 5, ${fill})`,
-              outline: active ? '1px dashed #E6B422' : 'none',
-              color: '#F2F0E8',
-              textShadow: fill < 0.2 ? '0 0 2px #050505' : undefined
+              background: `rgba(7, 8, 10, ${fill})`,
+              outline: active ? '1px dashed #7DD3FC' : 'none',
+              color: '#F4F6F8',
+              textShadow: fill < 0.2 ? '0 0 2px #07080A' : undefined
             }}
             onPointerDown={(event) => startDrag(event, widget.id, false)}
           >

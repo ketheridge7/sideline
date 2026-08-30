@@ -2,10 +2,10 @@ import { useEffect, type JSX } from 'react'
 import type { AppState, ToastPayload } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { HudBench } from '../shared/HudBench'
-import { HudCrawler } from '../shared/HudCrawler'
 import { HudScoreboard } from '../shared/HudScoreboard'
 import { LineupRow } from '../shared/LineupRow'
-import { ChannelStrip } from './ChannelStrip'
+import { ScoringTape } from './ScoringTape'
+import { Watchlist } from './Watchlist'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -15,18 +15,29 @@ const api = (): NonNullable<Window['sideline']> => {
 export const BoardScreen = ({
   state,
   toasts,
+  history,
   studioOpen,
-  onStudio
+  onStudio,
+  onBoards
 }: {
   state: AppState
   toasts: ToastPayload[]
+  history: Record<string, number[]>
   studioOpen: boolean
   onStudio: (open: boolean) => void
+  onBoards: () => void
 }): JSX.Element => {
   const league = state.leagues.find(
     (row) => leagueKey(row.provider, row.id) === state.selectedLeagueKey
   )
   const matchup = state.matchup
+  const tape = state.tape.length > 0 ? state.tape : toasts.map((toast) => ({
+    id: toast.id,
+    at: Date.now(),
+    kind: 'status' as const,
+    player: toast.title,
+    detail: toast.body
+  }))
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent): void => {
@@ -63,66 +74,65 @@ export const BoardScreen = ({
     return () => window.removeEventListener('keydown', handleKey)
   }, [onStudio, state.leagues, state.overlayEditMode, state.pinnedLeagueKeys, state.selectedLeagueKey, studioOpen])
 
-  if (!league || !matchup) {
-    return (
-      <div className="p-8 text-sm text-muted">
-        Pin a Sunday board, then open it. Sideline shows one matchup at a time.
-      </div>
-    )
-  }
-
-  const rows = Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1)
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ChannelStrip state={state} />
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex flex-wrap items-center gap-3 px-5 py-2 text-xs text-muted">
-            {state.pollingLive ? (
-              <span className="font-cond font-bold uppercase tracking-[0.2em] text-air">On air</span>
-            ) : null}
-            {state.replay ? (
-              <span className="font-cond font-bold uppercase tracking-[0.2em] text-you">Replay</span>
-            ) : null}
-            {state.lastUpdated ? (
-              <span>
-                {new Date(state.lastUpdated).toLocaleTimeString()} · {state.pollingLive ? '10s' : '30s'}
-              </span>
-            ) : null}
+    <div className="flex h-full min-h-0">
+      <Watchlist state={state} history={history} onBoards={onBoards} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {!league || !matchup ? (
+          <div className="p-8 text-sm text-muted">
+            Pin a Sunday board, then open it. Sideline shows one matchup at a time.
           </div>
-          <HudScoreboard matchup={matchup} />
-          <section className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-auto bg-line">
-            <div className="bg-card px-5 py-3">
-              <h2 className="mb-2 font-cond text-xs font-bold uppercase tracking-[0.2em] text-you">
-                Your starters
-              </h2>
-              {Array.from({ length: rows }, (_, index) => (
-                <LineupRow
-                  key={matchup.starters[index]?.playerId ?? `mine-${index}`}
-                  player={matchup.starters[index]}
-                />
-              ))}
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
+              {state.pollingLive ? (
+                <span className="flex items-center gap-1.5 font-cond font-bold text-air">
+                  <span className="live-dot inline-block h-1.5 w-1.5 bg-air" aria-hidden="true" />
+                  On air
+                </span>
+              ) : null}
+              {state.replay ? (
+                <span className="font-cond font-bold text-lime">Replay</span>
+              ) : null}
+              {state.lastUpdated ? (
+                <span>
+                  {new Date(state.lastUpdated).toLocaleTimeString()} · {state.pollingLive ? '10s' : '30s'}
+                </span>
+              ) : null}
             </div>
-            <div className="bg-card px-5 py-3">
-              <h2 className="mb-2 text-right font-cond text-xs font-bold uppercase tracking-[0.2em] text-them">
-                Their starters
-              </h2>
-              {Array.from({ length: rows }, (_, index) => (
-                <LineupRow
-                  key={matchup.oppStarters?.[index]?.playerId ?? `opp-${index}`}
-                  player={matchup.oppStarters?.[index]}
-                  mirror
-                />
-              ))}
+            <HudScoreboard matchup={matchup} />
+            <section className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-hidden bg-line">
+              <div className="min-h-0 overflow-auto bg-card px-4 py-2">
+                <h2 className="mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-you">You</h2>
+                {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
+                  <LineupRow
+                    key={matchup.starters[index]?.playerId ?? `mine-${index}`}
+                    player={matchup.starters[index]}
+                    you
+                  />
+                ))}
+              </div>
+              <div className="min-h-0 overflow-auto bg-card px-4 py-2">
+                <h2 className="mb-1 text-right font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-them">
+                  Them
+                </h2>
+                {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
+                  <LineupRow
+                    key={matchup.oppStarters?.[index]?.playerId ?? `opp-${index}`}
+                    player={matchup.oppStarters?.[index]}
+                    mirror
+                  />
+                ))}
+              </div>
+            </section>
+            <div className="grid grid-cols-2">
+              <HudBench players={matchup.bench} label="Bench" />
+              <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
             </div>
-          </section>
-          <div className="grid grid-cols-2">
-            <HudBench players={matchup.bench} label="Bench" />
-            <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
-          </div>
-          <HudCrawler toasts={toasts} />
-        </div>
+          </>
+        )}
       </div>
+      <ScoringTape events={tape} />
     </div>
   )
 }

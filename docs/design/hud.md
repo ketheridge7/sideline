@@ -1,14 +1,14 @@
-# Sideline HUD — Booth + Hashmark
+# Sideline HUD — Sunday Tape
 
-Locked spec for the Sunday watch companion and overlay. Sleeper is the production API. ESPN reuses the same widgets and `Matchup` model later. This file is the visual/system source of truth; do not invent a second overlay language.
+Locked spec for the Sunday watch companion and Hashmark overlay. Sleeper is the production API. ESPN reuses the same widgets and `Matchup` model (cookie login on this machine). This file is the visual/system source of truth; do not invent a second overlay language.
 
-**Out of scope:** waivers, standings, chat, player research, multi-league tickers, write actions.
+**Out of scope:** betting / odds / moneylines, DFS, Yahoo, chat, drafts, write actions (lineups, waivers).
 
 ---
 
 ## Product split
 
-- **Companion = Booth.** Board is the production truck for **one** matchup: scores, both full lineups, both benches, live crawler, Overlay Studio.
+- **Companion.** Board is the production truck for **one** matchup: left watchlist of pinned leagues, center you-vs-them board, right scoring TAPE, Overlay Studio.
 - **Overlay = Hashmark.** One fullscreen transparent canvas. Modules sit on the **sidelines**; the center stays empty so live video is the product. Smoke panes, never a near-opaque card.
 - **Editor.** Companion Overlay Studio is canonical. Desktop overlay can enter Edit (`Ctrl/Cmd+Shift+E`) to drag/resize. TV (`?tv=1`) and OBS (`?surface=obs`) never mount edit chrome, even if `?edit=1` is appended.
 
@@ -16,21 +16,24 @@ Screens stay **Board / Boards / Connect**. Overlay is a window, not a fourth nav
 
 ---
 
-## Tokens (provider-agnostic)
+## Tokens (Sunday Tape)
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `--bg` | `#050505` | OLED |
-| `--card` | `#0C0C0A` | Warm film |
-| `--line` | `#242420` | Hairline |
-| `--text` | `#F2F0E8` | Ivory |
-| `--muted` | `#8A8778` | Meta |
-| `--you` | `#E6B422` | Home / your hash / lead delta |
-| `--them` | `#8A9BA8` | Away. Opponent is not “loss” |
-| `--air` | `#E63946` | ON AIR, crawler, injury labels |
-| Sleeper / ESPN | cyan / red | **10px stamps only** |
+| `--bg` | `#07080A` | OLED |
+| `--card` | `#101216` | Panels |
+| `--line` | `#1E232B` | Hairline |
+| `--text` | `#F4F6F8` | Primary |
+| `--muted` | `#94A3B8` | Meta / them steel |
+| `--you` | `#7DD3FC` | Ice — your hash, lead, selected |
+| `--them` | `#94A3B8` | Opponent. Not “loss” |
+| `--lime` | `#B6FF3B` | Just scored / HUD on |
+| `--air` | `#FF4D4D` | ON AIR, injury, waiver |
+| Sleeper / ESPN | cyan / crimson | **tiny stamps only** |
 
-Type: Barlow + Barlow Condensed. Data radii 0–2px. No `backdrop-filter`. Overlay fill ≤ ~28% smoke (TV floor 40%). Type stays full contrast.
+Type: Barlow + Barlow Condensed (condensed grotesk for scores/headers, UI sans for body). Data radii 0–2px. Tabular nums. Overlay fill ≤ ~28% smoke (TV floor 40%). Type stays full contrast. One focal matchup; rails sit at ~60% visual weight.
+
+Do not show betting percentages. A lead bar is share of combined fantasy points plus a delta, not a win probability.
 
 ---
 
@@ -40,12 +43,12 @@ Coordinates are **percent of canvas**. Each id is independently placed, hidden, 
 
 - Meta: `meta.league`, `meta.week`, `meta.live`
 - Identity: `team.mine.name`, `team.opp.name`
-- Scores: `score.mine`, `score.opp`, `score.delta`
+- Scores: `score.mine`, `score.opp`, `score.delta` (lead pill)
 - Rails (split name vs points): `col.mine.pos|name|nfl|pts`, `col.opp.*`
 - Bench: `bench.mine`, `bench.opp` (hidden in Broadcast L)
-- Alerts: `toast.slot`
+- Alerts: `toast.slot` (moving crawler when tape/toasts exist)
 
-Default preset **Broadcast L**: left spine your rail + bottom ledger; right spine their rail; center ~60% empty. Also: Corners, PiP, Minimal, plus `user.1`.
+Default preset **Broadcast L**: left spine your rail + lead pill; right spine their rail; bottom crawler; center ~60% empty. Also: Corners, PiP, Minimal, plus `user.1`.
 
 Rails group by default (`groupedRails`). Ungroup to place columns separately. `trackLock` keeps row Y/H aligned.
 
@@ -55,7 +58,7 @@ Watch mode: Electron `setIgnoreMouseEvents(true, { forward: true })`. Edit: mous
 
 ## HUD payload
 
-`OverlayHudState` is provider-agnostic: scores, both starters, both benches, week, `pollingLive`, last toast, `layout`. Adapters map transactions to `trade | add | drop | add_drop | status`. Do not branch overlay markup on `provider === 'sleeper'`.
+`OverlayHudState` is provider-agnostic: scores, both starters, both benches, week, `pollingLive`, last toast, `tape`, `layout`. Adapters map transactions to `trade | add | drop | add_drop | status`. Score ticks and injuries append to `tape` only from real diffs. Do not branch overlay markup on `provider === 'sleeper'`.
 
 Layout persists in `sideline-settings.json` and is pushed on the same SSE `/events` payload so OBS and Google TV update when Studio saves.
 
@@ -63,16 +66,17 @@ Layout persists in `sideline-settings.json` and is pushed on the same SSE `/even
 
 ## Companion Board
 
-- Channel strip of pinned leagues (not a `<select>`)
-- Compressed scoreboard (amber you / steel them)
-- Slot-aligned starters + horizontal bench chip rails
-- Bottom crawler for transactions
-- Overlay Studio drawer: HUD power, Edit, presets, kit (eye/lock), opacity, rail grouping
+- Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle.
+- Center: one Kalshi-style head-to-head (huge you vs them, lead bar / delta), slot-aligned starters, horizontal bench chips.
+- Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin — never fake play-by-play.
+- No NFL game ticker unless a sports-data feed already exists (it does not).
+- Top bar: SIDELINE wordmark, week, BOARD / BOARDS / CONNECT, HUD toggle, quiet Studio.
+- Overlay Studio: real mini HUD preview, not gold rectangles.
 
 Keyboard: `[` `]` channels, `O` HUD, `E` Studio, `Esc` close Studio.
 
 ---
 
-## ESPN later
+## ESPN
 
-Connect/Boards stay provider-specific. Board, overlay widgets, layout JSON, and crawler consume only `Matchup` + `OverlayHudState`. ESPN cookies never leave the machine.
+Connect/Boards stay provider-specific. Board, overlay widgets, layout JSON, tape, and crawler consume only `Matchup` + `OverlayHudState` + `TapeEvent`. ESPN cookies never leave the machine. Adapter maps `proTeamId` to NFL abbreviations and only surfaces real injury/IR — never raw `ACTIVE` / `INJURY_RESERVE` / owner abbrev.

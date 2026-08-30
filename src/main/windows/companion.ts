@@ -12,12 +12,12 @@ export const createCompanionWindow = (): BrowserWindow => {
   }
 
   const win = new BrowserWindow({
-    width: 1120,
-    height: 760,
-    minWidth: 800,
-    minHeight: 560,
+    width: 1440,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 700,
     title: 'Sideline',
-    backgroundColor: '#050505',
+    backgroundColor: '#07080A',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

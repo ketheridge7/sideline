@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
-import type { OverlayHudState, Player } from '@shared/types'
+import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
 import { formatDelta, formatScore, overlayName } from '../shared/format'
+import { HudCrawler } from '../shared/HudCrawler'
+import { nflTeamLabel, visibleInjury } from '@shared/display'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
 
@@ -73,9 +75,7 @@ const YardNumber = ({
       className="font-cond font-extrabold leading-none tabular-nums"
       style={{
         fontSize: scorePx(density),
-        color: flash ? color : 'rgba(242, 240, 232, 0.18)',
-        WebkitTextStroke: `1.5px ${color}`,
-        paintOrder: 'stroke fill'
+        color: flash ? '#B6FF3B' : color
       }}
     >
       {formatScore(value)}
@@ -127,7 +127,9 @@ const RailColumn = ({
             }
           }
         }
-        const muted = field === 'nfl' || !player
+        const muted = field === 'nfl' || field === 'pos' || !player
+        const injury = field === 'name' ? visibleInjury(player?.status) : null
+        const bodyText = field === 'nfl' ? nflTeamLabel(player?.nflTeam) || '—' : body
         return (
           <div
             key={player?.playerId ?? `${field}-${index}`}
@@ -135,7 +137,10 @@ const RailColumn = ({
               field === 'pts' ? 'tabular-nums font-bold' : 'font-semibold'
             } ${muted ? 'text-muted' : 'text-text'} ${nameSize(density)}`}
           >
-            <span className="w-full truncate">{body}</span>
+            <span className="w-full truncate">
+              {bodyText}
+              {injury ? <span className="ml-1 text-air">{injury}</span> : null}
+            </span>
           </div>
         )
       })}
@@ -163,28 +168,6 @@ const BenchList = ({
     ))}
   </div>
 )
-
-const ToastSlot = ({ hud, density }: { hud: OverlayHudState; density: Density }): JSX.Element => {
-  const [visible, setVisible] = useState<string | null>(null)
-  useEffect(() => {
-    if (!hud.toast) {
-      setVisible(null)
-      return
-    }
-    setVisible(hud.toast.id)
-    const timer = window.setTimeout(() => setVisible(null), 4000)
-    return () => window.clearTimeout(timer)
-  }, [hud.toast])
-  if (!hud.toast || visible !== hud.toast.id) return <></>
-  return (
-    <div className={`flex h-full items-center px-2 ${density === 'large' ? 'text-lg' : 'text-sm'}`}>
-      <div>
-        <div className="font-semibold">{hud.toast.title}</div>
-        <div className="text-muted">{hud.toast.body}</div>
-      </div>
-    </div>
-  )
-}
 
 export const OverlayWidgetView = ({
   id,
@@ -256,22 +239,25 @@ export const OverlayWidgetView = ({
       )
     case 'score.mine':
       return (
-        <YardNumber value={hud.myPoints} color="#E6B422" density={resolved} />
+        <YardNumber value={hud.myPoints} color="#7DD3FC" density={resolved} />
       )
     case 'score.opp':
       return (
         <div className="flex h-full justify-end">
-          <YardNumber value={hud.oppPoints} color="#8A9BA8" density={resolved} />
+          <YardNumber value={hud.oppPoints} color="#94A3B8" density={resolved} />
         </div>
       )
     case 'score.delta': {
-      const deltaClass = hud.delta > 0 ? 'text-you' : hud.delta < 0 ? 'text-muted' : 'text-muted'
+      const leading = hud.delta > 0
+      const trailing = hud.delta < 0
+      const deltaClass = leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
       return (
         <div
-          className={`flex h-full items-center justify-center font-cond font-extrabold tabular-nums ${deltaClass} ${
-            resolved === 'large' ? 'text-4xl' : 'text-[28px]'
+          className={`flex h-full flex-col items-center justify-center border border-you/40 px-2 font-cond font-extrabold uppercase tracking-[0.14em] tabular-nums ${deltaClass} ${
+            resolved === 'large' ? 'text-3xl' : 'text-xl'
           }`}
         >
+          <span className="text-[10px] tracking-[0.2em] text-muted">Lead</span>
           {formatDelta(hud.delta)}
         </div>
       )
@@ -296,8 +282,23 @@ export const OverlayWidgetView = ({
       return <BenchList players={hud.myBench} density={resolved} align="left" />
     case 'bench.opp':
       return <BenchList players={hud.oppBench} density={resolved} align="right" />
-    case 'toast.slot':
-      return <ToastSlot hud={hud} density={resolved} />
+    case 'toast.slot': {
+      const events: TapeEvent[] =
+        hud.tape.length > 0
+          ? hud.tape
+          : hud.toast
+            ? [
+                {
+                  id: hud.toast.id,
+                  at: Date.now(),
+                  kind: 'status',
+                  player: hud.toast.title,
+                  detail: hud.toast.body
+                }
+              ]
+            : []
+      return <HudCrawler events={events} />
+    }
     default: {
       const _never: never = id
       return _never

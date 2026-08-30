@@ -70,7 +70,10 @@ export const replaySleeperMatchup = (): Matchup | null => {
   const matchups = data.sleeperMatchups.map((row) => ({
     ...row,
     points: bump(row.points ?? 0),
-    custom_points: null
+    custom_points: null,
+    players_points: row.players_points
+      ? Object.fromEntries(Object.entries(row.players_points).map(([id, value]) => [id, bump(value)]))
+      : row.players_points
   }))
   return toMatchup({
     userId: data.sleeperUser.user_id,
@@ -100,11 +103,54 @@ export const replayEspnMatchup = (): Matchup | null => {
   const data = loadReplayBundle()
   tick += 1
   const payload = JSON.parse(JSON.stringify(data.espnLeague)) as {
-    schedule?: Array<{ home?: { totalPointsLive?: number }; away?: { totalPointsLive?: number } }>
+    schedule?: Array<{
+      home?: {
+        totalPointsLive?: number
+        rosterForCurrentScoringPeriod?: {
+          entries?: Array<{
+            playerPoolEntry?: {
+              appliedStatTotal?: number
+              player?: { stats?: Array<{ appliedTotal?: number; statSourceId?: number }> }
+            }
+          }>
+        }
+      }
+      away?: {
+        totalPointsLive?: number
+        rosterForCurrentScoringPeriod?: {
+          entries?: Array<{
+            playerPoolEntry?: {
+              appliedStatTotal?: number
+              player?: { stats?: Array<{ appliedTotal?: number; statSourceId?: number }> }
+            }
+          }>
+        }
+      }
+    }>
   }
-  const game = payload.schedule?.[0]
-  if (game?.home) game.home.totalPointsLive = bump(game.home.totalPointsLive ?? 0)
-  if (game?.away) game.away.totalPointsLive = bump(game.away.totalPointsLive ?? 0)
+  const bumpRoster = (side?: {
+    totalPointsLive?: number
+    rosterForCurrentScoringPeriod?: {
+      entries?: Array<{
+        playerPoolEntry?: {
+          appliedStatTotal?: number
+          player?: { stats?: Array<{ appliedTotal?: number; statSourceId?: number }> }
+        }
+      }>
+    }
+  }): void => {
+    if (!side) return
+    if (typeof side.totalPointsLive === 'number') side.totalPointsLive = bump(side.totalPointsLive)
+    for (const entry of side.rosterForCurrentScoringPeriod?.entries ?? []) {
+      const pool = entry.playerPoolEntry
+      if (typeof pool?.appliedStatTotal === 'number') pool.appliedStatTotal = bump(pool.appliedStatTotal)
+      for (const stat of pool?.player?.stats ?? []) {
+        if (typeof stat.appliedTotal === 'number') stat.appliedTotal = bump(stat.appliedTotal)
+      }
+    }
+  }
+  bumpRoster(payload.schedule?.[0]?.home)
+  bumpRoster(payload.schedule?.[0]?.away)
   return toEspnMatchup({
     payload,
     cookies: { espn_s2: 'replay', SWID: '{11111111-1111-1111-1111-111111111111}' },

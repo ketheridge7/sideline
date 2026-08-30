@@ -48,12 +48,12 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
               if (event.key === 'Enter') void handleSleeper()
             }}
             placeholder="sleeper username"
-            className="min-w-0 flex-1 rounded-md border border-line bg-bg px-3 py-2 text-sm"
+            className="min-w-0 flex-1 rounded-sm border border-line bg-bg px-3 py-2 text-sm"
           />
           <button
             type="button"
             onClick={() => void handleSleeper()}
-            className="cursor-pointer rounded-md bg-you px-4 py-2 text-sm font-medium text-bg"
+            className="cursor-pointer bg-you px-4 py-2 text-sm font-medium text-bg"
           >
             Connect
           </button>
@@ -61,7 +61,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
             <button
               type="button"
               onClick={() => void api().disconnectSleeper()}
-              className="cursor-pointer rounded-md border border-line px-3 py-2 text-sm text-muted"
+              className="cursor-pointer rounded-sm border border-line px-3 py-2 text-sm text-muted"
             >
               Disconnect
             </button>
@@ -84,7 +84,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
           <button
             type="button"
             onClick={() => void handleEspn()}
-            className="cursor-pointer rounded-md bg-espn px-4 py-2 text-sm font-medium text-white"
+            className="cursor-pointer bg-espn px-4 py-2 text-sm font-medium text-white"
           >
             Sign in with ESPN
           </button>
@@ -92,7 +92,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
             <button
               type="button"
               onClick={() => void api().disconnectEspn()}
-              className="cursor-pointer rounded-md border border-line px-3 py-2 text-sm text-muted"
+              className="cursor-pointer rounded-sm border border-line px-3 py-2 text-sm text-muted"
             >
               Disconnect
             </button>
@@ -117,12 +117,12 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
               if (event.key === 'Enter') void handlePaste()
             }}
             placeholder="paste ESPN league ID"
-            className="min-w-0 flex-1 rounded-md border border-line bg-bg px-3 py-2 text-sm"
+            className="min-w-0 flex-1 rounded-sm border border-line bg-bg px-3 py-2 text-sm"
           />
           <button
             type="button"
             onClick={() => void handlePaste()}
-            className="cursor-pointer rounded-md border border-line px-4 py-2 text-sm"
+            className="cursor-pointer border border-line px-4 py-2 text-sm"
           >
             Add league
           </button>
@@ -153,7 +153,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
                   <input
                     readOnly
                     value={`http://${state.lanOverlayHost}:${state.overlayPort}/overlay?k=${state.overlayToken}&tv=1`}
-                    className="rounded-md border border-line bg-bg px-3 py-2 font-mono text-xs"
+                    className="border border-line bg-bg px-3 py-2 font-mono text-xs"
                     onFocus={(event) => event.currentTarget.select()}
                     aria-label="LAN overlay URL"
                   />
@@ -175,7 +175,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
       {message ? <p className="text-sm text-muted">{message}</p> : null}
       {state.error ? <p className="text-sm text-air">{state.error}</p> : null}
       {state.replay ? (
-        <p className="text-sm text-you">Replay mode is on — jittered 2025 fixtures, both providers loaded.</p>
+        <p className="text-sm text-lime">Replay mode is on — jittered 2025 fixtures, both providers loaded.</p>
       ) : null}
     </div>
   )

@@ -2,6 +2,39 @@ import type { OverlayLayout } from './overlayLayout'
 import { layoutFromPreset } from './overlayLayout'
 import type { TransactionKind } from './transactionKind'
 
+export type TapeKind = TransactionKind | 'score' | 'injury'
+
+export type TapeEvent = {
+  id: string
+  at: number
+  kind: TapeKind
+  player: string
+  detail: string
+  delta?: number
+  leagueKey?: string
+  leagueName?: string
+}
+
+export type ScorerChip = {
+  playerId: string
+  name: string
+  position: string
+  points: number
+  delta?: number
+}
+
+export type MatchupBoard = {
+  key: string
+  leagueName: string
+  provider: Provider
+  week: number
+  myName: string
+  oppName: string | null
+  myPoints: number
+  oppPoints: number
+  lastScorers: ScorerChip[]
+}
+
 export type Provider = 'sleeper' | 'espn'
 
 export type League = {
@@ -71,6 +104,7 @@ export type OverlayHudState = {
   replay: boolean
   pollingLive: boolean
   toast: ToastPayload | null
+  tape: TapeEvent[]
   layout: OverlayLayout
   overlayEditMode: boolean
 }
@@ -91,6 +125,8 @@ export type AppState = {
   pinnedLeagueKeys: string[]
   selectedLeagueKey: string | null
   matchup: Matchup | null
+  boards: MatchupBoard[]
+  tape: TapeEvent[]
   overlayPort: number
   overlayVisible: boolean
   overlayHotkey: string
@@ -128,6 +164,8 @@ export const emptyAppState = (): AppState => ({
   pinnedLeagueKeys: [],
   selectedLeagueKey: null,
   matchup: null,
+  boards: [],
+  tape: [],
   overlayPort: 7333,
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',
@@ -162,6 +200,7 @@ const hudShell = (state: AppState): Omit<
   replay: state.replay,
   pollingLive: state.pollingLive,
   toast: state.lastToast,
+  tape: state.tape,
   layout: state.overlayLayout,
   overlayEditMode: state.overlayEditMode
 })
