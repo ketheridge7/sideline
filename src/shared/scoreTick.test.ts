@@ -40,6 +40,8 @@ describe('scoreTickPhase', () => {
     expect(scoreTickPhase(SCORE_TICK_SETTLE_MS - 1, true)).toBe('settle')
     expect(scoreTickPhase(SCORE_TICK_SETTLE_MS, true)).toBe('idle')
     expect(scoreTickLimeT(0, true)).toBe(1)
+    expect(scoreTickLimeT(SCORE_TICK_DELTA_MS - 1, true)).toBe(1)
+    expect(scoreTickLimeT(SCORE_TICK_DELTA_MS, true)).toBeLessThan(1)
     expect(scoreTickLimeT(SCORE_TICK_SETTLE_MS, true)).toBe(0)
   })
 })

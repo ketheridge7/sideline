@@ -8,6 +8,7 @@ import {
 import { formatScore } from './format'
 
 const LIME = '#B6FF3B'
+const SETTLE_MS = SCORE_TICK_SETTLE_MS - SCORE_TICK_DELTA_MS
 
 export const ScoreTick = ({
   value,
@@ -25,7 +26,6 @@ export const ScoreTick = ({
   const prev = useRef<number | null>(null)
   const [delta, setDelta] = useState(0)
   const [phase, setPhase] = useState<'idle' | 'delta' | 'settle'>('idle')
-  const [lime, setLime] = useState(false)
 
   useEffect(() => {
     const last = prev.current
@@ -39,17 +39,13 @@ export const ScoreTick = ({
     if (!change) return
     if (!change.celebrate) {
       setPhase('idle')
-      setLime(false)
       return
     }
     setDelta(change.delta)
     setPhase('delta')
-    setLime(true)
-    const ease = window.setTimeout(() => setLime(false), 30)
     const settle = window.setTimeout(() => setPhase('settle'), SCORE_TICK_DELTA_MS)
     const done = window.setTimeout(() => setPhase('idle'), SCORE_TICK_SETTLE_MS)
     return () => {
-      window.clearTimeout(ease)
       window.clearTimeout(settle)
       window.clearTimeout(done)
     }
@@ -61,7 +57,8 @@ export const ScoreTick = ({
 
   const showDelta = phase === 'delta'
   const justify = align === 'right' ? 'justify-end' : 'justify-start'
-  const color = lime ? LIME : restColor
+  const color = phase === 'delta' ? LIME : restColor
+  const colorTransition = phase === 'settle' ? `color ${SETTLE_MS}ms linear` : 'color 0s'
 
   return (
     <span
@@ -69,7 +66,7 @@ export const ScoreTick = ({
       style={{
         ...style,
         color,
-        transition: lime ? 'opacity 200ms ease' : 'color 1.57s linear, opacity 200ms ease'
+        transition: `${colorTransition}, opacity 200ms ease`
       }}
       data-score-tick={phase}
     >

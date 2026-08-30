@@ -39,7 +39,19 @@ export const scoreTickLabel = (phase: ScoreTickPhase, value: number, delta: numb
 }
 
 export const scoreTickLimeT = (elapsedMs: number, celebrating: boolean): number => {
-  if (!celebrating || elapsedMs < 0) return 0
-  if (elapsedMs >= SCORE_TICK_SETTLE_MS) return 0
-  return Math.max(0, 1 - elapsedMs / SCORE_TICK_SETTLE_MS)
+  const phase = scoreTickPhase(elapsedMs, celebrating)
+  switch (phase) {
+    case 'delta':
+      return 1
+    case 'settle': {
+      const span = SCORE_TICK_SETTLE_MS - SCORE_TICK_DELTA_MS
+      return Math.max(0, 1 - (elapsedMs - SCORE_TICK_DELTA_MS + 1) / (span + 1))
+    }
+    case 'idle':
+      return 0
+    default: {
+      const _never: never = phase
+      return _never
+    }
+  }
 }
