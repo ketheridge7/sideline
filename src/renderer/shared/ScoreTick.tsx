@@ -1,26 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import {
+  SCORE_TICK_DELTA_MS,
   SCORE_TICK_SETTLE_MS,
   scoreTickChange,
-  scoreTickLabel,
-  scoreTickLimeT,
-  scoreTickPhase
+  scoreTickLabel
 } from '@shared/scoreTick'
 import { formatScore } from './format'
 
 const LIME = '#B6FF3B'
-
-const parseHex = (hex: string): [number, number, number] => {
-  const raw = hex.replace('#', '')
-  return [parseInt(raw.slice(0, 2), 16), parseInt(raw.slice(2, 4), 16), parseInt(raw.slice(4, 6), 16)]
-}
-
-const mixHex = (from: string, to: string, t: number): string => {
-  const a = parseHex(from)
-  const b = parseHex(to)
-  const m = a.map((channel, index) => Math.round(channel + (b[index] - channel) * t))
-  return `rgb(${m[0]}, ${m[1]}, ${m[2]})`
-}
 
 export const ScoreTick = ({
   value,
@@ -36,8 +23,9 @@ export const ScoreTick = ({
   align?: 'left' | 'right'
 }): JSX.Element => {
   const prev = useRef<number | null>(null)
-  const [flash, setFlash] = useState<{ delta: number; started: number } | null>(null)
-  const [now, setNow] = useState(0)
+  const [delta, setDelta] = useState(0)
+  const [phase, setPhase] = useState<'idle' | 'delta' | 'settle'>('idle')
+  const [lime, setLime] = useState(false)
 
   useEffect(() => {
     const last = prev.current
@@ -50,52 +38,44 @@ export const ScoreTick = ({
     prev.current = value
     if (!change) return
     if (!change.celebrate) {
-      setFlash(null)
+      setPhase('idle')
+      setLime(false)
       return
     }
-    setFlash({ delta: change.delta, started: performance.now() })
+    setDelta(change.delta)
+    setPhase('delta')
+    setLime(true)
+    const ease = window.setTimeout(() => setLime(false), 30)
+    const settle = window.setTimeout(() => setPhase('settle'), SCORE_TICK_DELTA_MS)
+    const done = window.setTimeout(() => setPhase('idle'), SCORE_TICK_SETTLE_MS)
+    return () => {
+      window.clearTimeout(ease)
+      window.clearTimeout(settle)
+      window.clearTimeout(done)
+    }
   }, [value])
-
-  useEffect(() => {
-    if (!flash) return
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (reduce) {
-      setFlash(null)
-      return
-    }
-    let frame = 0
-    const loop = (stamp: number): void => {
-      if (stamp - flash.started >= SCORE_TICK_SETTLE_MS) {
-        setFlash(null)
-        return
-      }
-      setNow(stamp)
-      frame = window.requestAnimationFrame(loop)
-    }
-    frame = window.requestAnimationFrame(loop)
-    return () => window.cancelAnimationFrame(frame)
-  }, [flash])
 
   if (value == null || !Number.isFinite(value)) {
     return <span className={className}>—</span>
   }
 
-  const elapsed = flash ? now - flash.started : 0
-  const phase = scoreTickPhase(elapsed, Boolean(flash))
-  const limeT = scoreTickLimeT(elapsed, Boolean(flash))
-  const color = limeT > 0 ? mixHex(restColor, LIME, limeT) : restColor
   const showDelta = phase === 'delta'
   const justify = align === 'right' ? 'justify-end' : 'justify-start'
+  const color = lime ? LIME : restColor
 
   return (
     <span
       className={`score-tick ${className ?? ''}`.trim()}
-      style={{ ...style, color }}
+      style={{
+        ...style,
+        color,
+        transition: lime ? 'opacity 200ms ease' : 'color 1.57s linear, opacity 200ms ease'
+      }}
       data-score-tick={phase}
     >
       <span className="invisible tabular-nums">{formatScore(value)}</span>
       <span className={`score-tick-slot ${justify}`} style={{ opacity: showDelta ? 1 : 0 }}>
-        {scoreTickLabel('delta', value, flash?.delta ?? 0)}
+        {scoreTickLabel('delta', value, delta)}
       </span>
       <span className={`score-tick-slot ${justify}`} style={{ opacity: showDelta ? 0 : 1 }}>
         {formatScore(value)}
