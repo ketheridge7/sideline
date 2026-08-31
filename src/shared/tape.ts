@@ -1,7 +1,7 @@
 import type { League, Matchup, Player, TapeEvent, Transaction } from './types'
 import { leagueKey } from './types'
 import { transactionKindLabel } from './transactionKind'
-import { visibleInjury } from './display'
+import { tapePlayerLabel, visibleInjury } from './display'
 
 const allPlayers = (matchup: Matchup): Player[] => [
   ...matchup.starters,
@@ -39,8 +39,8 @@ export const scoreTapeFromDiff = (
       id: `score:${key}:${player.points}`,
       at: Date.now(),
       kind: 'score',
-      player: player.name,
-      detail: player.position,
+      player: tapePlayerLabel(player),
+      detail: player.lastPlay || player.position,
       delta,
       leagueKey: prefix,
       leagueName: league.name
@@ -67,8 +67,8 @@ export const injuryTapeFromDiff = (
       id: `inj:${key}:${next}`,
       at: Date.now(),
       kind: 'injury',
-      player: player.name,
-      detail: next,
+      player: tapePlayerLabel(player),
+      detail: player.lastPlay || next,
       leagueKey: prefix,
       leagueName: league.name
     })

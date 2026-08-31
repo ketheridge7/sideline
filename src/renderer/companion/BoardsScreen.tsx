@@ -1,9 +1,10 @@
 import type { JSX } from 'react'
-import { Pin } from 'lucide-react'
+import { Pin, Users } from 'lucide-react'
 import { parseLeagueKey, type AppState, type MatchupBoard } from '@shared/types'
-import { formatScore, overlayName } from '../shared/format'
+import { formatDelta, formatScore, overlayName } from '../shared/format'
 import { LeadBar } from '../shared/LeadBar'
 import { ProviderBadge } from '../shared/ProviderBadge'
+import { LiveScoringRail } from './LiveScoringRail'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -35,6 +36,12 @@ const BoardCard = ({
         <span className="min-w-0 flex-1 truncate font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           {board.leagueName}
         </span>
+        {board.size ? (
+          <span className="flex items-center gap-1 font-cond text-[10px] font-bold uppercase tracking-wide text-muted">
+            <Users className="h-3 w-3" aria-hidden="true" />
+            {board.size}
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={onPin}
@@ -49,7 +56,7 @@ const BoardCard = ({
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <div>
             <div className="truncate text-[12px] font-medium">{board.myName}</div>
-            <div className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${leadMine ? 'text-you' : 'text-text'}`}>
+            <div className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${leadMine ? 'text-you' : 'text-them'}`}>
               {formatScore(board.myPoints)}
             </div>
           </div>
@@ -58,7 +65,7 @@ const BoardCard = ({
             <div className="truncate text-[12px] font-medium text-muted">{board.oppName ?? 'BYE'}</div>
             <div
               className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${
-                leadMine ? 'text-text' : 'text-you'
+                leadMine ? 'text-them' : 'text-you'
               }`}
             >
               {formatScore(board.oppPoints)}
@@ -70,19 +77,25 @@ const BoardCard = ({
         </div>
         {board.lastScorers.length > 0 ? (
           <div className="mt-3">
-            <div className="mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-muted">Live</div>
+            <div className="mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+              Last score
+            </div>
             <div className="flex flex-wrap gap-1.5">
-              {board.lastScorers.map((chip) => (
-                <div key={chip.playerId} className="border border-line bg-bg px-1.5 py-1">
-                  <div className="flex items-center gap-1">
-                    <span className="font-cond text-[9px] font-bold uppercase text-muted">{chip.position}</span>
-                    <span className="text-[11px]">{overlayName(chip.name)}</span>
+              {board.lastScorers.map((chip) => {
+                const delta = chip.delta ?? 0
+                const tone = delta < 0 ? 'text-air' : 'text-lime'
+                return (
+                  <div key={chip.playerId} className="border border-line bg-bg px-1.5 py-1">
+                    <div className="flex items-center gap-1">
+                      <span className="font-cond text-[9px] font-bold uppercase text-muted">{chip.position}</span>
+                      <span className="text-[11px]">{overlayName(chip.name)}</span>
+                    </div>
+                    <div className={`font-cond text-xs font-bold tabular-nums ${tone}`}>
+                      {chip.delta != null ? formatDelta(chip.delta) : formatScore(chip.points)}
+                    </div>
                   </div>
-                  <div className="font-cond text-xs font-bold tabular-nums text-lime">
-                    {formatScore(chip.points)}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         ) : null}
@@ -126,7 +139,9 @@ export const BoardsScreen = ({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0">
+      <LiveScoringRail events={state.tape} onOpenBoard={onOpenBoard} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-line px-5 py-2 text-[11px] uppercase tracking-[0.16em] text-muted">
         <span>{state.boards.length} matchups</span>
         <span className="flex items-center gap-1.5">
@@ -148,7 +163,7 @@ export const BoardsScreen = ({
               }}
               onPin={() => handlePin(board.key)}
               onRemove={
-                board.provider === 'espn'
+                board.provider === 'espn' && !state.replay
                   ? () => {
                       const parsed = parseLeagueKey(board.key)
                       if (parsed) void api().removeEspnLeague(parsed.id)
@@ -158,6 +173,7 @@ export const BoardsScreen = ({
             />
           ))}
         </div>
+      </div>
       </div>
     </div>
   )

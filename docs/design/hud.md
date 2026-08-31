@@ -51,7 +51,9 @@ Visible HUD is **names, scores, and both starter rails**. Last names only (`over
 
 ### Score ticks (inline, not tape)
 
-When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`), then after ~1.1s crossfades to the new total. Lime eases off over ~1.6s total back to ice (`#7DD3FC`, you) or steel (`#94A3B8`, them). Drops/corrections skip the celebration and just update the number. Zero-change polls never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, and Board starter/team totals.
+When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`) for the full ~1.1s beat (limeT held at 1), then eases to the new total. Lime eases off over ~1.6s total back to ice (`#7DD3FC`, you) or steel (`#94A3B8`, them).
+
+When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
 
 Default preset **RedZone**: both lineups stacked on the **left** so NFL RedZone keeps the right ~20% (`x >= 80`), top banner (`y < 12`), and bottom ticker (`y > 82`).
 
@@ -100,8 +102,8 @@ Layout persists in `sideline-settings.json` and is pushed on the same SSE `/even
 
 - Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle.
 - Center: one Kalshi-style head-to-head (huge you vs them, lead bar / delta), slot-aligned starters, horizontal bench chips.
-- Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin — never fake play-by-play.
-- No NFL game ticker unless a sports-data feed already exists (it does not).
+- Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
+- Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, BOARD / BOARDS / CONNECT, HUD toggle, quiet Studio.
 - Overlay Studio: real mini HUD preview, not gold rectangles.
 

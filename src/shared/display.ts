@@ -24,6 +24,19 @@ export const nflTeamLabel = (value: string | undefined): string => {
   return value
 }
 
+export const lastName = (name: string): string => {
+  if (/D\/ST|DST|\bDEF\b/i.test(name)) return name
+  const parts = name.trim().split(/\s+/)
+  if (parts.length <= 1) return name
+  return parts[parts.length - 1]
+}
+
+export const tapePlayerLabel = (player: Player): string => {
+  const team = nflTeamLabel(player.nflTeam)
+  const name = lastName(player.name)
+  return team ? `${name} ${team}` : name
+}
+
 export const leadShare = (mine: number, opp: number): { mine: number; opp: number } => {
   const total = mine + opp
   if (!(total > 0)) return { mine: 0.5, opp: 0.5 }
@@ -49,19 +62,36 @@ const chipFrom = (player: Player, delta?: number): ScorerChip => ({
   name: player.name,
   position: player.position,
   points: player.points ?? 0,
-  delta
+  delta: delta ?? player.tickDelta
 })
 
 export const liveScorers = (matchup: Matchup | null, limit = 3): ScorerChip[] => {
   if (!matchup) return []
-  return [...matchup.starters]
-    .filter((player) => typeof player.points === 'number' && player.points > 0)
-    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+  const roster = [...matchup.starters, ...matchup.oppStarters]
+  const ticked = roster.filter((player) => typeof player.tickDelta === 'number' && player.tickDelta !== 0)
+  const pool = ticked.length > 0 ? ticked : roster.filter((player) => typeof player.points === 'number' && player.points > 0)
+  return [...pool]
+    .sort((a, b) => {
+      const aDelta = Math.abs(a.tickDelta ?? 0)
+      const bDelta = Math.abs(b.tickDelta ?? 0)
+      if (aDelta !== bDelta) return bDelta - aDelta
+      return (b.points ?? 0) - (a.points ?? 0)
+    })
     .slice(0, limit)
     .map((player) => chipFrom(player))
 }
 
-export const toMatchupBoard = (league: League, matchup: Matchup | null): MatchupBoard => ({
+export type MatchupBoardExtra = {
+  lastScorers?: ScorerChip[]
+  leadSpark?: number[]
+  size?: number
+}
+
+export const toMatchupBoard = (
+  league: League,
+  matchup: Matchup | null,
+  extra?: MatchupBoardExtra
+): MatchupBoard => ({
   key: leagueKey(league.provider, league.id),
   leagueName: league.name,
   provider: league.provider,
@@ -70,5 +100,7 @@ export const toMatchupBoard = (league: League, matchup: Matchup | null): Matchup
   oppName: matchup?.oppTeam?.name ?? null,
   myPoints: matchup?.myPoints ?? 0,
   oppPoints: matchup?.oppPoints ?? 0,
-  lastScorers: liveScorers(matchup)
+  lastScorers: extra?.lastScorers?.length ? extra.lastScorers.slice(0, 3) : liveScorers(matchup),
+  leadSpark: extra?.leadSpark,
+  size: extra?.size
 })

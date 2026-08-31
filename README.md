@@ -11,13 +11,13 @@ npm install
 npm start
 ```
 
-Preseason / no live scoring yet? Replay a completed 2025 week with jittered totals:
+Preseason / no live scoring yet? Replay a scripted Sunday so Board, Boards, and the overlay look like the watch mockups (mixed leagues, +/- tape, INJ/waiver, ON AIR ticker):
 
 ```bash
 npm run replay
 ```
 
-That loads both a Sleeper board and an ESPN board so you can flip the watchlist and watch scores tick.
+Replay is fixture-only. It does not call a sports-data API and does not capture ESPN passwords.
 
 ## Connect
 
@@ -38,7 +38,7 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 ## Overlay
 
 - Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) edits layout.
-- Default layout is **RedZone**: both lineups stacked on the left so NFL RedZone’s right score column, top banner, and bottom ticker stay clear. Score ticks flash lime `+N` on the pts cell, then settle. **National** and **Ticket** are the other watch templates.
+- Default layout is **RedZone**: both lineups stacked on the left so NFL RedZone’s right score column, top banner, and bottom ticker stay clear. Score ticks flash lime `+N` or alert red `-N` on the pts cell, then settle. **National** and **Ticket** are the other watch templates.
 - Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)
 - Center ~60% of the canvas stays empty so live video is the product. See [`docs/design/hud.md`](docs/design/hud.md) for occupied zones.

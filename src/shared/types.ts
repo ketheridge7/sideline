@@ -13,6 +13,7 @@ export type TapeEvent = {
   delta?: number
   leagueKey?: string
   leagueName?: string
+  period?: string
 }
 
 export type ScorerChip = {
@@ -33,6 +34,8 @@ export type MatchupBoard = {
   myPoints: number
   oppPoints: number
   lastScorers: ScorerChip[]
+  leadSpark?: number[]
+  size?: number
 }
 
 export type Provider = 'sleeper' | 'espn'
@@ -59,6 +62,8 @@ export type Player = {
   points?: number
   status?: string
   nflTeam: string
+  lastPlay?: string
+  tickDelta?: number
 }
 
 export type Matchup = {
@@ -85,6 +90,16 @@ export type NflState = {
   season: string
   leagueSeason: string
   seasonType: string
+}
+
+export type NflTickerGame = {
+  id: string
+  away: string
+  awayScore: number
+  home: string
+  homeScore: number
+  clock: string
+  final?: boolean
 }
 
 export type OverlayHudState = {
@@ -127,6 +142,7 @@ export type AppState = {
   matchup: Matchup | null
   boards: MatchupBoard[]
   tape: TapeEvent[]
+  nflTicker: NflTickerGame[]
   overlayPort: number
   overlayVisible: boolean
   overlayHotkey: string
@@ -166,6 +182,7 @@ export const emptyAppState = (): AppState => ({
   matchup: null,
   boards: [],
   tape: [],
+  nflTicker: [],
   overlayPort: 7333,
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',

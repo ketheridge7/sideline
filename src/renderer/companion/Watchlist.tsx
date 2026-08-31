@@ -37,7 +37,8 @@ export const Watchlist = ({
           channels.map((board) => {
             const selected = state.selectedLeagueKey === board.key
             const delta = Math.round((board.myPoints - board.oppPoints) * 100) / 100
-            const spark = history[board.key] ?? []
+            const spark =
+              (history[board.key]?.length ?? 0) >= 2 ? history[board.key] : (board.leadSpark ?? [])
             return (
               <button
                 key={board.key}

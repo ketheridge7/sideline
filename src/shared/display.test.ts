@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { leadShare, liveScorers, nflTeamLabel, sparklinePoints, toMatchupBoard, visibleInjury } from './display'
+import { lastName, leadShare, liveScorers, nflTeamLabel, sparklinePoints, toMatchupBoard, visibleInjury } from './display'
 import type { League, Matchup } from './types'
 
 const league: League = {
@@ -37,6 +37,14 @@ describe('visibleInjury', () => {
   })
 })
 
+describe('lastName', () => {
+  it('keeps DST labels and otherwise uses the last token', () => {
+    expect(lastName('Jahmyr Gibbs')).toBe('Gibbs')
+    expect(lastName('Eagles D/ST')).toBe('Eagles D/ST')
+    expect(lastName('Hurts')).toBe('Hurts')
+  })
+})
+
 describe('nflTeamLabel', () => {
   it('drops leaked numeric proTeamIds', () => {
     expect(nflTeamLabel('12')).toBe('')
@@ -66,7 +74,11 @@ describe('toMatchupBoard', () => {
     const board = toMatchupBoard(league, matchup)
     expect(board.key).toBe('sleeper:1')
     expect(board.myPoints).toBe(142.8)
-    expect(board.lastScorers.map((row) => row.name)).toEqual(['Jahmyr Gibbs', 'Josh Allen'])
+    expect(board.lastScorers.map((row) => row.name)).toEqual([
+      'Jahmyr Gibbs',
+      'Josh Allen',
+      'Derrick Henry'
+    ])
     expect(liveScorers(null)).toEqual([])
   })
 })

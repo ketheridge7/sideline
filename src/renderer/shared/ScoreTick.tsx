@@ -3,12 +3,64 @@ import {
   SCORE_TICK_DELTA_MS,
   SCORE_TICK_SETTLE_MS,
   scoreTickChange,
-  scoreTickLabel
+  scoreTickLabel,
+  type ScoreTickKind,
+  type ScoreTickPhase
 } from '@shared/scoreTick'
 import { formatScore } from './format'
 
 const LIME = '#B6FF3B'
+const AIR = '#FF4D4D'
 const SETTLE_MS = SCORE_TICK_SETTLE_MS - SCORE_TICK_DELTA_MS
+
+export const useScoreTick = (
+  value: number | null | undefined
+): { phase: ScoreTickPhase; delta: number; kind: ScoreTickKind | null } => {
+  const prev = useRef<number | null>(null)
+  const [delta, setDelta] = useState(0)
+  const [kind, setKind] = useState<ScoreTickKind | null>(null)
+  const [phase, setPhase] = useState<ScoreTickPhase>('idle')
+
+  useEffect(() => {
+    const last = prev.current
+    if (typeof value !== 'number') return
+    if (last == null) {
+      prev.current = value
+      return
+    }
+    const change = scoreTickChange(last, value)
+    prev.current = value
+    if (!change) return
+    setDelta(change.delta)
+    setKind(change.kind)
+    setPhase('delta')
+    const settle = window.setTimeout(() => setPhase('settle'), SCORE_TICK_DELTA_MS)
+    const done = window.setTimeout(() => {
+      setPhase('idle')
+      setKind(null)
+    }, SCORE_TICK_SETTLE_MS)
+    return () => {
+      window.clearTimeout(settle)
+      window.clearTimeout(done)
+    }
+  }, [value])
+
+  return { phase, delta, kind }
+}
+
+export const LastTickMark = ({ value }: { value: number | null | undefined }): JSX.Element | null => {
+  const { kind, phase } = useScoreTick(value)
+  if (!kind || phase === 'idle') return null
+  return (
+    <span
+      className={`shrink-0 text-[9px] leading-none ${kind === 'down' ? 'text-air' : 'text-lime'}`}
+      data-last-tick={kind}
+      aria-hidden="true"
+    >
+      {kind === 'down' ? '▼' : '▲'}
+    </span>
+  )
+}
 
 export const ScoreTick = ({
   value,
@@ -23,33 +75,7 @@ export const ScoreTick = ({
   style?: CSSProperties
   align?: 'left' | 'right'
 }): JSX.Element => {
-  const prev = useRef<number | null>(null)
-  const [delta, setDelta] = useState(0)
-  const [phase, setPhase] = useState<'idle' | 'delta' | 'settle'>('idle')
-
-  useEffect(() => {
-    const last = prev.current
-    if (typeof value !== 'number') return
-    if (last == null) {
-      prev.current = value
-      return
-    }
-    const change = scoreTickChange(last, value)
-    prev.current = value
-    if (!change) return
-    if (!change.celebrate) {
-      setPhase('idle')
-      return
-    }
-    setDelta(change.delta)
-    setPhase('delta')
-    const settle = window.setTimeout(() => setPhase('settle'), SCORE_TICK_DELTA_MS)
-    const done = window.setTimeout(() => setPhase('idle'), SCORE_TICK_SETTLE_MS)
-    return () => {
-      window.clearTimeout(settle)
-      window.clearTimeout(done)
-    }
-  }, [value])
+  const { phase, delta, kind } = useScoreTick(value)
 
   if (value == null || !Number.isFinite(value)) {
     return <span className={className}>—</span>
@@ -57,7 +83,8 @@ export const ScoreTick = ({
 
   const showDelta = phase === 'delta'
   const justify = align === 'right' ? 'justify-end' : 'justify-start'
-  const color = phase === 'delta' ? LIME : restColor
+  const flashColor = kind === 'down' ? AIR : LIME
+  const color = phase === 'delta' ? flashColor : restColor
   const colorTransition = phase === 'settle' ? `color ${SETTLE_MS}ms linear` : 'color 0s'
 
   return (
@@ -69,6 +96,7 @@ export const ScoreTick = ({
         transition: `${colorTransition}, opacity 200ms ease`
       }}
       data-score-tick={phase}
+      data-score-tick-kind={kind ?? undefined}
     >
       <span className="invisible tabular-nums">{formatScore(value)}</span>
       <span className={`score-tick-slot ${justify}`} style={{ opacity: showDelta ? 1 : 0 }}>

@@ -1,12 +1,17 @@
 export const SCORE_TICK_DELTA_MS = 1100
 export const SCORE_TICK_SETTLE_MS = 1600
 
+export type ScoreTickKind = 'up' | 'down'
+
 export type ScoreTickChange = {
   delta: number
+  kind: ScoreTickKind
   celebrate: boolean
 }
 
 export type ScoreTickPhase = 'idle' | 'delta' | 'settle'
+
+export type ScoreTickActive = boolean | ScoreTickKind | null | undefined
 
 const round1 = (value: number): number => Math.round(value * 10) / 10
 
@@ -20,11 +25,15 @@ export const scoreTickChange = (
   if (!Number.isFinite(prev) || !Number.isFinite(next)) return null
   const delta = round1(round1(next) - round1(prev))
   if (delta === 0) return null
-  return { delta, celebrate: delta > 0 }
+  const kind: ScoreTickKind = delta > 0 ? 'up' : 'down'
+  return { delta, kind, celebrate: kind === 'up' }
 }
 
-export const scoreTickPhase = (elapsedMs: number, celebrating: boolean): ScoreTickPhase => {
-  if (!celebrating || elapsedMs < 0) return 'idle'
+export const scoreTickActive = (active: ScoreTickActive): boolean =>
+  active === true || active === 'up' || active === 'down'
+
+export const scoreTickPhase = (elapsedMs: number, active: ScoreTickActive): ScoreTickPhase => {
+  if (!scoreTickActive(active) || elapsedMs < 0) return 'idle'
   if (elapsedMs < SCORE_TICK_DELTA_MS) return 'delta'
   if (elapsedMs < SCORE_TICK_SETTLE_MS) return 'settle'
   return 'idle'
@@ -38,8 +47,8 @@ export const scoreTickLabel = (phase: ScoreTickPhase, value: number, delta: numb
   return format1(value)
 }
 
-export const scoreTickLimeT = (elapsedMs: number, celebrating: boolean): number => {
-  const phase = scoreTickPhase(elapsedMs, celebrating)
+const flashT = (elapsedMs: number, active: ScoreTickActive): number => {
+  const phase = scoreTickPhase(elapsedMs, active)
   switch (phase) {
     case 'delta':
       return 1
@@ -54,4 +63,13 @@ export const scoreTickLimeT = (elapsedMs: number, celebrating: boolean): number 
       return _never
     }
   }
+}
+
+export const scoreTickLimeT = (elapsedMs: number, active: ScoreTickActive): number => {
+  const up = active === true || active === 'up'
+  return flashT(elapsedMs, up)
+}
+
+export const scoreTickRedT = (elapsedMs: number, active: ScoreTickActive): number => {
+  return flashT(elapsedMs, active === 'down')
 }

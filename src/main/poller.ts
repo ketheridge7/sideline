@@ -27,14 +27,17 @@ import {
   toEspnTransactions
 } from './providers/espnAdapter'
 import {
+  FEATURED_LEAGUE_KEY,
+  bumpReplayTick,
   isReplayMode,
-  replayEspnLeague,
-  replayEspnMatchup,
-  replayEspnTransactions,
+  replayBoardMeta,
+  replayEspnLeagues,
+  replayMatchup,
   replayNfl,
+  replayNflTicker,
+  replaySeedTape,
   replaySleeperLeagues,
-  replaySleeperMatchup,
-  replaySleeperTransactions
+  replayTransactions
 } from './providers/replay'
 import { runtime } from './runtime'
 import { overlayLanState } from './server'
@@ -141,7 +144,7 @@ const discoverEspnLeagues = async (
   cookies: EspnCookies | null,
   nfl: NflState
 ): Promise<League[]> => {
-  if (isReplayMode()) return [replayEspnLeague(nfl)]
+  if (isReplayMode()) return replayEspnLeagues(nfl)
   const ids = [...loadSettings().espnLeagueIds]
   const found: League[] = []
   if (cookies) {
@@ -180,7 +183,7 @@ const sleeperMatchup = async (
   nfl: NflState,
   players: Record<string, CachedPlayer>
 ): Promise<Matchup | null> => {
-  if (isReplayMode()) return replaySleeperMatchup()
+  if (isReplayMode()) return replayMatchup(league)
   if (!sleeperUser) return null
   const [rosters, users, matchups] = await Promise.all([
     getRosters(league.id),
@@ -195,7 +198,7 @@ const espnMatchup = async (
   nfl: NflState,
   cookies: EspnCookies | null
 ): Promise<Matchup | null> => {
-  if (isReplayMode()) return replayEspnMatchup()
+  if (isReplayMode()) return replayMatchup(league)
   const payload = await fetchLeague({
     season: nfl.leagueSeason,
     leagueId: league.id,
@@ -228,9 +231,7 @@ const loadTransactions = async (
   cookies: EspnCookies | null,
   players: Record<string, CachedPlayer>
 ): Promise<Transaction[]> => {
-  if (isReplayMode()) {
-    return league.provider === 'sleeper' ? replaySleeperTransactions() : replayEspnTransactions()
-  }
+  if (isReplayMode()) return replayTransactions(league)
   if (league.provider === 'sleeper') {
     return toTransactions(await getTransactions(league.id, nfl.displayWeek), players)
   }
@@ -260,22 +261,29 @@ export const refresh = async (): Promise<AppState> => {
     const espnLeagues = await discoverEspnLeagues(cookies, nfl)
     leagues = [...sleeperLeagues, ...espnLeagues]
 
+    const pinnedKeys = replay
+      ? leagues.map((league) => leagueKey(league.provider, league.id))
+      : settings.pinnedLeagueKeys
+
     let selectedKey = settings.selectedLeagueKey
     if (selectedKey && !leagues.some((league) => leagueKey(league.provider, league.id) === selectedKey)) {
       selectedKey = null
     }
     if (!selectedKey && leagues.length > 0) {
-      const pinned = settings.pinnedLeagueKeys.find((key) =>
+      const pinned = pinnedKeys.find((key) =>
         leagues.some((league) => leagueKey(league.provider, league.id) === key)
       )
-      selectedKey = pinned ?? leagueKey(leagues[0].provider, leagues[0].id)
+      const featured = leagues.some((league) => leagueKey(league.provider, league.id) === FEATURED_LEAGUE_KEY)
+        ? FEATURED_LEAGUE_KEY
+        : null
+      selectedKey = featured ?? pinned ?? leagueKey(leagues[0].provider, leagues[0].id)
       saveSettings({ selectedLeagueKey: selectedKey })
     }
 
     const selected = leagues.find((league) => leagueKey(league.provider, league.id) === selectedKey)
     const txTargets = leagues.filter((league) => {
       const key = leagueKey(league.provider, league.id)
-      return key === selectedKey || settings.pinnedLeagueKeys.includes(key)
+      return key === selectedKey || pinnedKeys.includes(key)
     })
     const boardTargets = leagues.length > 0 ? leagues : []
     const needsPlayers = !replay && leagues.some((league) => league.provider === 'sleeper')
@@ -291,7 +299,11 @@ export const refresh = async (): Promise<AppState> => {
     }
     matchup = selected ? (matchupByKey.get(leagueKey(selected.provider, selected.id)) ?? null) : null
     const boards: MatchupBoard[] = leagues.map((league) =>
-      toMatchupBoard(league, matchupByKey.get(leagueKey(league.provider, league.id)) ?? null)
+      toMatchupBoard(
+        league,
+        matchupByKey.get(leagueKey(league.provider, league.id)) ?? null,
+        replay ? replayBoardMeta(league) : undefined
+      )
     )
 
     const snapshotTape: TapeEvent[] = []
@@ -310,8 +322,8 @@ export const refresh = async (): Promise<AppState> => {
         // transaction polling is best-effort
       }
     }
-    liveTape = mergeTape(scored, liveTape, 16)
-    const tape = mergeTape(liveTape, snapshotTape, 24)
+    liveTape = mergeTape(scored, liveTape, 24)
+    const tape = mergeTape(liveTape, [...(replay ? replaySeedTape() : []), ...snapshotTape], 32)
 
     const state: AppState = {
       sleeperConnected: replay || Boolean(sleeperUser),
@@ -320,11 +332,12 @@ export const refresh = async (): Promise<AppState> => {
       espnNeedsRelogin: replay ? false : espnNeedsRelogin && !cookies,
       nfl,
       leagues,
-      pinnedLeagueKeys: settings.pinnedLeagueKeys,
+      pinnedLeagueKeys: pinnedKeys,
       selectedLeagueKey: selectedKey,
       matchup,
       boards,
       tape,
+      nflTicker: replay ? replayNflTicker() : [],
       overlayPort: runtime.overlayPort(),
       overlayVisible,
       overlayHotkey: settings.overlayHotkey,
@@ -338,6 +351,7 @@ export const refresh = async (): Promise<AppState> => {
       error
     }
     broadcast(state)
+    if (replay) bumpReplayTick()
     schedule(live)
     return state
   } catch (caught) {
