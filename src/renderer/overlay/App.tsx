@@ -154,6 +154,7 @@ export const OverlayApp = (): JSX.Element => {
               hud={hud}
               surface={surface}
               density={widget.density}
+              showCrawler={layout.showCrawler}
             />
             {active ? (
               <button

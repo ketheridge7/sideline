@@ -97,6 +97,9 @@ export const OverlayStudio = ({
             ))}
           </select>
         </label>
+        <p className="text-xs text-muted">
+          RedZone, National, and Ticket show names, scores, and both starter rails. Hide or drag any widget after.
+        </p>
 
         <div className="relative aspect-video overflow-hidden border border-line bg-bg">
           <div
@@ -123,7 +126,13 @@ export const OverlayStudio = ({
                     color: '#F4F6F8'
                   }}
                 >
-                  <OverlayWidgetView id={widget.id} hud={hud} surface="desktop" density={widget.density} />
+                  <OverlayWidgetView
+                    id={widget.id}
+                    hud={hud}
+                    surface="desktop"
+                    density={widget.density}
+                    showCrawler={layout.showCrawler}
+                  />
                 </div>
               )
             })}
@@ -244,7 +253,7 @@ export const OverlayStudio = ({
 
         <button
           type="button"
-          onClick={() => handlePreset(layout.presetId === 'user.1' ? 'broadcast-l' : layout.presetId)}
+          onClick={() => handlePreset(layout.presetId === 'user.1' ? 'redzone' : layout.presetId)}
           className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text"
         >
           Revert preset

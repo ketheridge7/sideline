@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
 import type { Matchup } from '@shared/types'
-import { formatScore } from './format'
 import { LeadBar } from './LeadBar'
+import { ScoreTick } from './ScoreTick'
 
 export const HudScoreboard = ({ matchup }: { matchup: Matchup }): JSX.Element => {
   const bye = !matchup.oppTeam
@@ -16,9 +16,11 @@ export const HudScoreboard = ({ matchup }: { matchup: Matchup }): JSX.Element =>
             {matchup.myTeam.name}
           </div>
           <div className="text-[11px] text-muted">{matchup.myTeam.record}</div>
-          <div className="mt-1 font-cond text-6xl font-extrabold leading-none tabular-nums">
-            {formatScore(matchup.myPoints)}
-          </div>
+          <ScoreTick
+            value={matchup.myPoints}
+            restColor="#F4F6F8"
+            className="mt-1 font-cond text-6xl font-extrabold leading-none"
+          />
         </div>
         <LeadBar mine={matchup.myPoints} opp={matchup.oppPoints} />
         <div className="text-right">
@@ -29,9 +31,12 @@ export const HudScoreboard = ({ matchup }: { matchup: Matchup }): JSX.Element =>
             {matchup.oppTeam?.name ?? 'BYE'}
           </div>
           <div className="text-[11px] text-muted">{matchup.oppTeam?.record ?? ''}</div>
-          <div className="mt-1 font-cond text-6xl font-extrabold leading-none tabular-nums text-them">
-            {formatScore(matchup.oppPoints)}
-          </div>
+          <ScoreTick
+            value={matchup.oppPoints}
+            restColor="#94A3B8"
+            align="right"
+            className="mt-1 font-cond text-6xl font-extrabold leading-none"
+          />
         </div>
       </div>
     </div>

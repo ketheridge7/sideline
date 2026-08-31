@@ -41,14 +41,48 @@ Do not show betting percentages. A lead bar is share of combined fantasy points 
 
 Coordinates are **percent of canvas**. Each id is independently placed, hidden, resized, locked, and given fill opacity.
 
-- Meta: `meta.league`, `meta.week`, `meta.live`
-- Identity: `team.mine.name`, `team.opp.name`
-- Scores: `score.mine`, `score.opp`, `score.delta` (lead pill)
-- Rails (split name vs points): `col.mine.pos|name|nfl|pts`, `col.opp.*`
-- Bench: `bench.mine`, `bench.opp` (hidden in Broadcast L)
-- Alerts: `toast.slot` (moving crawler when tape/toasts exist)
+- Meta: `meta.league`, `meta.week` (hidden in every canned preset), `meta.live` (1px lime live/replay pip, no ON AIR wordmark)
+- Identity: `team.mine.name`, `team.opp.name` — 11px uppercase tracking, above the team score
+- Scores: `score.mine`, `score.opp` (loudest number, ~32px compact), `score.delta` (tiny lead next to your score, not a third scoreboard)
+- Rails: `col.mine.pos|name|pts`, `col.opp.pos|name|pts` — position 11px muted, last name 13–14px, pts 14px tabular. `col.*.nfl` stays in the catalog but is hidden.
+- Bench / alerts: `bench.mine`, `bench.opp`, `toast.slot` stay in the catalog, hidden in every canned preset. No crawler, no toast chips, no marquee.
 
-Default preset **Broadcast L**: left spine your rail + lead pill; right spine their rail; bottom crawler; center ~60% empty. Also: Corners, PiP, Minimal, plus `user.1`.
+Visible HUD is **names, scores, and both starter rails**. Last names only (`overlayName`). No NFL city tags.
+
+### Score ticks (inline, not tape)
+
+When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`) for the full ~1.1s beat (limeT held at 1), then eases to the new total. Lime eases off over ~1.6s total back to ice (`#7DD3FC`, you) or steel (`#94A3B8`, them).
+
+When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
+
+Default preset **RedZone**: both lineups stacked on the **left** so NFL RedZone keeps the right ~20% (`x >= 80`), top banner (`y < 12`), and bottom ticker (`y > 82`).
+
+```
+y 14–22  YOUR name + YOUR score + tiny lead
+y 22–48  YOUR starters  pos | name | pts
+y 50–56  THEIR name + THEIR score
+y 56–80  THEIR starters pos | name | pts
+```
+
+Watch templates (Studio dropdown order): **RedZone**, **National**, **Ticket**, then Minimal, Broadcast L, Corners, PiP, Custom.
+
+Occupied broadcast chrome — do not park visible widgets here:
+
+| Zone | Occupancy |
+| --- | --- |
+| `y < 12` | Network eyebar / RedZone banner |
+| `y > 82` (RedZone / Ticket) or `y+h > 86` (National) | Bottom ticker + modern scorebug |
+| `x >= 80` on RedZone | Persistent RedZone score/stat rail (full height) |
+| `x > 78` on Ticket | Optional YouTube TV / Sunday Ticket right panel (~25%) |
+| Center `x 22–78`, `y 22–86` | Live video. Stay off it. |
+
+**National:** dual skinny rails — them left, you right — with names + scores above each rail, `y >= 13`, `y+h <= 86`. No crawler.
+
+**Ticket:** stacked like RedZone (both teams), left-only, `x <= 78`, `y 14–82`.
+
+**Broadcast L / Corners / PiP:** same widget visibility (both starter rails). **Minimal:** scores only.
+
+Saved `presetId`s are kept; unknown ids fall back to RedZone. `user.1` clones the stacked RedZone map until you drag.
 
 Rails group by default (`groupedRails`). Ungroup to place columns separately. `trackLock` keeps row Y/H aligned.
 
@@ -68,8 +102,8 @@ Layout persists in `sideline-settings.json` and is pushed on the same SSE `/even
 
 - Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle.
 - Center: one Kalshi-style head-to-head (huge you vs them, lead bar / delta), slot-aligned starters, horizontal bench chips.
-- Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin — never fake play-by-play.
-- No NFL game ticker unless a sports-data feed already exists (it does not).
+- Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
+- Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, BOARD / BOARDS / CONNECT, HUD toggle, quiet Studio.
 - Overlay Studio: real mini HUD preview, not gold rectangles.
 

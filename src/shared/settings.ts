@@ -17,7 +17,7 @@ export const defaultSettings = (): Settings => ({
   espnLeagueIds: [],
   pinnedLeagueKeys: [],
   selectedLeagueKey: null,
-  overlayLayout: layoutFromPreset('broadcast-l'),
+  overlayLayout: layoutFromPreset('redzone'),
   overlayDisplayId: null,
   overlayHotkey: 'CommandOrControl+Shift+O',
   overlayEditHotkey: 'CommandOrControl+Shift+E',

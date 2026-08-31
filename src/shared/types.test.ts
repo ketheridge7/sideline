@@ -44,7 +44,7 @@ describe('toOverlayHud', () => {
     expect(hud.oppName).toBe('—')
     expect(hud.myBench).toEqual([])
     expect(hud.tape).toEqual([])
-    expect(hud.layout.presetId).toBe('broadcast-l')
+    expect(hud.layout.presetId).toBe('redzone')
   })
 })
 

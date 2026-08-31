@@ -6,6 +6,7 @@ import { HudScoreboard } from '../shared/HudScoreboard'
 import { LineupRow } from '../shared/LineupRow'
 import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
+import { NflTicker } from './NflTicker'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -75,8 +76,9 @@ export const BoardScreen = ({
   }, [onStudio, state.leagues, state.overlayEditMode, state.pinnedLeagueKeys, state.selectedLeagueKey, studioOpen])
 
   return (
-    <div className="flex h-full min-h-0">
-      <Watchlist state={state} history={history} onBoards={onBoards} />
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1">
+        <Watchlist state={state} history={history} onBoards={onBoards} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {!league || !matchup ? (
           <div className="p-8 text-sm text-muted">
@@ -133,6 +135,8 @@ export const BoardScreen = ({
         )}
       </div>
       <ScoringTape events={tape} />
+      </div>
+      {state.replay ? <NflTicker games={state.nflTicker} /> : null}
     </div>
   )
 }

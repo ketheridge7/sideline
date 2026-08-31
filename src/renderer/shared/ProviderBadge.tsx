@@ -13,7 +13,7 @@ export const ProviderBadge = ({
   if (stamp) {
     return (
       <span
-        className={`inline-block h-1.5 w-1.5 shrink-0 ${sleeper ? 'bg-sleeper' : 'bg-espn'}`}
+        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${sleeper ? 'bg-sleeper' : 'bg-espn'}`}
         title={label}
         aria-label={label}
       />

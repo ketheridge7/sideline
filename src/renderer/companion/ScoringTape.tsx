@@ -18,7 +18,7 @@ const kindBadge = (event: TapeEvent): { label: string; className: string } => {
       return { label: 'Inj', className: 'text-air' }
     case 'add':
     case 'add_drop':
-      return { label: 'Waiver', className: 'text-air' }
+      return { label: 'Waiver', className: 'text-lime' }
     case 'trade':
       return { label: 'Trade', className: 'text-lime' }
     case 'drop':
@@ -47,6 +47,7 @@ export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element =>
         ) : (
           events.map((event) => {
             const badge = kindBadge(event)
+            const scoreDelta = event.kind === 'score' && event.delta != null
             return (
               <div key={event.id} className="border-b border-line px-3 py-2">
                 <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-muted">
@@ -54,8 +55,20 @@ export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element =>
                   {event.leagueName ? <span className="truncate">{event.leagueName}</span> : null}
                 </div>
                 <div className="mt-0.5 flex items-baseline gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{event.player}</span>
-                  <span className={`shrink-0 font-cond text-sm font-bold uppercase tabular-nums ${badge.className}`}>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium uppercase">
+                    {event.player}
+                    {event.kind === 'score' && event.detail ? (
+                      <span className="ml-1.5 font-normal text-muted">{event.detail}</span>
+                    ) : null}
+                  </span>
+                  <span
+                    className={`shrink-0 font-cond text-sm font-bold uppercase tabular-nums ${badge.className}`}
+                    data-tape-delta={scoreDelta ? event.delta : undefined}
+                    data-score-tick={scoreDelta ? 'delta' : undefined}
+                    data-score-tick-kind={
+                      scoreDelta ? ((event.delta ?? 0) < 0 ? 'down' : 'up') : undefined
+                    }
+                  >
                     {badge.label}
                   </span>
                 </div>

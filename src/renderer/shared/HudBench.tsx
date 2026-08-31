@@ -1,7 +1,8 @@
 import type { JSX } from 'react'
 import type { Player } from '@shared/types'
 import { nflTeamLabel, visibleInjury } from '@shared/display'
-import { formatScore, overlayName } from './format'
+import { overlayName } from './format'
+import { LastTickMark, ScoreTick } from './ScoreTick'
 
 export const HudBench = ({
   players,
@@ -42,9 +43,12 @@ export const HudBench = ({
               <span className="font-cond uppercase text-muted">{injury || player.position || 'BN'}</span>{' '}
               {overlayName(player.name)}{' '}
               <span className="uppercase text-muted">{nflTeamLabel(player.nflTeam)}</span>{' '}
-              <span className="tabular-nums text-muted">
-                {player.points == null ? '—' : formatScore(player.points)}
-              </span>
+              <LastTickMark value={player.points} />
+              <ScoreTick
+                value={player.points}
+                restColor="#94A3B8"
+                className="inline-block font-cond text-xs font-bold tabular-nums"
+              />
             </div>
           )
         })}

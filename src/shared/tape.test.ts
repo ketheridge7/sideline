@@ -44,7 +44,7 @@ describe('scoreTapeFromDiff', () => {
     expect(next).toHaveLength(1)
     expect(next[0]?.kind).toBe('score')
     expect(next[0]?.delta).toBe(2.4)
-    expect(next[0]?.player).toBe('Hurts')
+    expect(next[0]?.player).toBe('Hurts PHI')
   })
 })
 
