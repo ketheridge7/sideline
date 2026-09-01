@@ -1,9 +1,13 @@
 import type { OverlayLayout } from '@shared/overlayLayout'
-import type { AppState, ToastPayload } from '@shared/types'
+import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
 
 export type SidelineApi = {
   getState: () => Promise<AppState>
   onState: (cb: (state: AppState) => void) => () => void
+  onTick: (cb: (tick: CompanionTick) => void) => () => void
+  onBoards: (cb: (patch: CompanionBoardsPatch) => void) => () => void
+  onLive: (cb: (patch: CompanionHudPatch) => void) => () => void
+  onHud: (cb: (hud: OverlayHudState) => void) => () => void
   onToast: (cb: (toast: ToastPayload) => void) => () => void
   connectSleeper: (username: string) => Promise<{ ok: boolean; error?: string }>
   disconnectSleeper: () => Promise<void>

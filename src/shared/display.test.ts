@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { lastName, leadShare, liveScorers, nflTeamLabel, sparklinePoints, toMatchupBoard, visibleInjury } from './display'
-import type { League, Matchup } from './types'
+import { applyCompanionHudPatch, lastName, leadShare, liveScorers, nflTeamLabel, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
   id: '1',
@@ -28,7 +28,7 @@ describe('visibleInjury', () => {
   it('hides roster noise and keeps real injury/IR', () => {
     expect(visibleInjury('ACTIVE')).toBeNull()
     expect(visibleInjury('NORMAL')).toBeNull()
-    expect(visibleInjury('INJURY_RESERVE')).toBe('IR')
+    expect(visibleInjury('Injured Reserve')).toBe('IR')
     expect(visibleInjury('injury-reserve')).toBe('IR')
     expect(visibleInjury('OUT')).toBe('OUT')
     expect(visibleInjury('Questionable')).toBe('Q')
@@ -80,5 +80,54 @@ describe('toMatchupBoard', () => {
       'Derrick Henry'
     ])
     expect(liveScorers(null)).toEqual([])
+  })
+
+  it('prefers players who just ticked over season-long top scorers', () => {
+    const ticking: Matchup = {
+      ...matchup,
+      starters: [
+        { playerId: '1', name: 'Jahmyr Gibbs', position: 'RB', nflTeam: 'DET', points: 24.6 },
+        { playerId: '2', name: 'Josh Allen', position: 'QB', nflTeam: 'BUF', points: 18.2, tickDelta: 6.4 }
+      ]
+    }
+    expect(liveScorers(ticking, 1).map((row) => row.name)).toEqual(['Josh Allen'])
+  })
+})
+
+describe('upsertMatchupBoard', () => {
+  it('replaces a board in place and appends an unknown key', () => {
+    const first = toMatchupBoard(league, matchup)
+    const updated = toMatchupBoard(league, { ...matchup, myPoints: 150 })
+    const other = toMatchupBoard({ ...league, id: '2', name: 'Other' }, matchup)
+    expect(upsertMatchupBoard([first], updated).map((row) => row.myPoints)).toEqual([150])
+    expect(upsertMatchupBoard([first], other).map((row) => row.key)).toEqual(['sleeper:1', 'sleeper:2'])
+  })
+})
+
+describe('applyCompanionHudPatch', () => {
+  it('upserts the selected LEAGUES card from the live matchup without a boards payload', () => {
+    const first = toMatchupBoard(league, matchup)
+    const other = toMatchupBoard({ ...league, id: '2', name: 'Other' }, matchup)
+    const current = {
+      ...emptyAppState(),
+      leagues: [league, { ...league, id: '2', name: 'Other' }],
+      selectedLeagueKey: 'sleeper:1',
+      boards: [first, other],
+      matchup
+    }
+    const next = applyCompanionHudPatch(current, {
+      matchup: { ...matchup, myPoints: 150.4, oppPoints: 131.2 },
+      tape: [],
+      nflTicker: [],
+      pollingLive: true,
+      overlayEditMode: false,
+      lastUpdated: 9,
+      pollMs: 12,
+      liveCallMs: 40
+    })
+    expect(next.matchup?.myPoints).toBe(150.4)
+    expect(next.pollingLive).toBe(true)
+    expect(next.boards.map((row) => row.myPoints)).toEqual([150.4, 142.8])
+    expect(next.boards[1]?.leagueName).toBe('Other')
   })
 })

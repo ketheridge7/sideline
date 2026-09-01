@@ -28,9 +28,6 @@ export const BoardScreen = ({
   onStudio: (open: boolean) => void
   onBoards: () => void
 }): JSX.Element => {
-  const league = state.leagues.find(
-    (row) => leagueKey(row.provider, row.id) === state.selectedLeagueKey
-  )
   const matchup = state.matchup
   const tape = state.tape.length > 0 ? state.tape : toasts.map((toast) => ({
     id: toast.id,
@@ -80,7 +77,7 @@ export const BoardScreen = ({
       <div className="flex min-h-0 flex-1">
         <Watchlist state={state} history={history} onBoards={onBoards} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {!league || !matchup ? (
+        {!matchup ? (
           <div className="p-8 text-sm text-muted">
             Pin a Sunday board, then open it. Sideline shows one matchup at a time.
           </div>
@@ -98,7 +95,9 @@ export const BoardScreen = ({
               ) : null}
               {state.lastUpdated ? (
                 <span>
-                  {new Date(state.lastUpdated).toLocaleTimeString()} · {state.pollingLive ? '10s' : '30s'}
+                  {new Date(state.lastUpdated).toLocaleTimeString()} · {state.pollingLive ? '3s' : '30s'}
+                  {state.pollMs != null ? ` · ${state.pollMs}ms` : ''}
+                  {state.liveCallMs != null ? ` · live ${state.liveCallMs}ms` : ''}
                 </span>
               ) : null}
             </div>
@@ -136,7 +135,7 @@ export const BoardScreen = ({
       </div>
       <ScoringTape events={tape} />
       </div>
-      {state.replay ? <NflTicker games={state.nflTicker} /> : null}
+      {state.nflTicker.length > 0 ? <NflTicker games={state.nflTicker} /> : null}
     </div>
   )
 }

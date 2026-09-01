@@ -1,5 +1,5 @@
 import { BrowserWindow, session } from 'electron'
-import type { EspnCookies } from '../providers/espnClient'
+import { normalizeEspnCookies, type EspnCookies } from '../providers/espnClient'
 
 const PARTITION = 'persist:espn'
 
@@ -16,7 +16,7 @@ export const readEspnCookies = async (): Promise<EspnCookies | null> => {
   const espn_s2 = all.find((cookie) => cookie.name === 'espn_s2')?.value
   const SWID = all.find((cookie) => cookie.name === 'SWID')?.value
   if (!espn_s2 || !SWID) return null
-  return { espn_s2, SWID }
+  return normalizeEspnCookies({ espn_s2, SWID })
 }
 
 export const clearEspnCookies = async (): Promise<void> => {

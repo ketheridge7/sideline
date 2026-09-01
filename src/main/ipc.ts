@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, markEspnRelogin, refresh, removeEspnLeagueId, setOverlayVisible } from './poller'
+import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, markEspnRelogin, refresh, removeEspnLeagueId, setOverlayVisible } from './poller'
 import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
@@ -14,21 +14,25 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:disconnectSleeper', () => disconnectSleeper())
   ipcMain.handle('sideline:signInEspn', async () => {
     const result = await openEspnLogin()
-    if (result.ok) markEspnRelogin(false)
-    await refresh()
+    if (result.ok) {
+      invalidateEspnSession()
+      markEspnRelogin(false)
+    }
+    await refresh({ waitForBoards: true })
     return result
   })
   ipcMain.handle('sideline:disconnectEspn', async () => {
     await clearEspnCookies()
+    invalidateEspnSession()
     saveSettings({ espnLeagueIds: [] })
     markEspnRelogin(false)
-    await refresh()
+    await refresh({ waitForBoards: true })
   })
   ipcMain.handle('sideline:addEspnLeague', (_event, leagueId: string) => addEspnLeagueId(leagueId))
   ipcMain.handle('sideline:removeEspnLeague', (_event, leagueId: string) => removeEspnLeagueId(leagueId))
   ipcMain.handle('sideline:setPinned', async (_event, keys: string[]) => {
     saveSettings({ pinnedLeagueKeys: keys })
-    await refresh()
+    await refresh({ waitForBoards: true })
   })
   ipcMain.handle('sideline:selectLeague', async (_event, key: string | null) => {
     saveSettings({ selectedLeagueKey: key })

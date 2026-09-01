@@ -53,7 +53,7 @@ Google TV overlay app: see [`tv/README.md`](tv/README.md).
 
 ## Polling
 
-~30s idle, ~10s when games are likely live (regular/postseason, America/New_York: Sunday from 12:55p, Monday from 7p, Thursday from 7:30p). Sleeper's player map is cached locally once per day. Stay well under Sleeper's 1000 req/min guidance.
+~30s idle, ~3s **start-to-start** when an NFL game is actually `in` on ESPN's public scoreboard (calendar window is only the fallback if that fetch fails; ESPN `lm-api-reads` sends `Cache-Control: max-age=3`). ESPN fantasy uses the unofficial `lm-api-reads` JSON views (not HTML scrape); live ticks request `mMatchupScore` / `mLiveScoring` for the current week, with `mTeam` cached from discovery or a one-time parallel fetch. Selected + pinned scoring GETs start before the public NFL scoreboard download (~251KB); that download is cached 10s so a 3s scoring tick does not re-download it, and it does not block the LEAGUES list. Other boards reuse the last snapshot for ~30s, and those snapshots persist to disk for 12 hours so a restart can paint the LEAGUES grid immediately. Sleeper matchups refresh every tick on the hot path; rosters/users and league lists cache ~5 min in memory, and persist to disk for 12 hours so a restart can overlay live `/matchups` without waiting on those GETs. Player map is daily (30s timeout on first download). Stay well under Sleeper's 1000 req/min guidance.
 
 ## Out of scope
 

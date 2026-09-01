@@ -43,8 +43,8 @@ export const TopBar = ({
       <nav className="ml-auto flex items-center gap-1">
         {(
           [
-            ['board', 'Board'],
-            ['boards', 'Boards'],
+            ['board', 'Scoreboard'],
+            ['boards', 'Leagues'],
             ['connect', 'Connect']
           ] as const
         ).map(([id, label]) => (

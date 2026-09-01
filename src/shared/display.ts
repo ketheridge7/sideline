@@ -1,5 +1,5 @@
-import type { League, Matchup, MatchupBoard, Player, ScorerChip } from './types'
-import { leagueKey } from './types'
+import type { AppState, CompanionHudPatch, League, Matchup, MatchupBoard, Player, ScorerChip } from './types'
+import { leagueKey, parseLeagueKey } from './types'
 
 const HIDDEN_STATUS = new Set(['', 'ACTIVE', 'NORMAL', 'HEALTHY', 'NA', 'N/A'])
 
@@ -7,7 +7,7 @@ export const visibleInjury = (status?: string): string | null => {
   if (!status) return null
   const key = status.trim().toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
   if (!key || HIDDEN_STATUS.has(key) || HIDDEN_STATUS.has(key.replace(/\s+/g, ''))) return null
-  if (key === 'INJURY RESERVE' || key === 'IR') return 'IR'
+  if (key === 'INJURY RESERVE' || key === 'INJURED RESERVE' || key === 'IR') return 'IR'
   if (key === 'QUESTIONABLE') return 'Q'
   if (key === 'DOUBTFUL') return 'D'
   if (key === 'OUT') return 'OUT'
@@ -104,3 +104,30 @@ export const toMatchupBoard = (
   leadSpark: extra?.leadSpark,
   size: extra?.size
 })
+
+export const upsertMatchupBoard = (boards: MatchupBoard[], next: MatchupBoard): MatchupBoard[] => {
+  const index = boards.findIndex((row) => row.key === next.key)
+  if (index < 0) return [...boards, next]
+  return boards.map((row, rowIndex) => (rowIndex === index ? next : row))
+}
+
+export const applyCompanionHudPatch = (current: AppState, patch: CompanionHudPatch): AppState => {
+  const next: AppState = { ...current, ...patch }
+  const matchup = next.matchup
+  const key = current.selectedLeagueKey
+  if (!matchup || !key) return next
+  const parsed = parseLeagueKey(key)
+  const league: League | undefined =
+    current.leagues.find((row) => leagueKey(row.provider, row.id) === key) ??
+    (parsed
+      ? {
+          id: parsed.id,
+          name: matchup.myTeam.name,
+          provider: parsed.provider,
+          season: current.nfl?.leagueSeason ?? '',
+          week: current.nfl?.displayWeek ?? 0
+        }
+      : undefined)
+  if (!league) return next
+  return { ...next, boards: upsertMatchupBoard(current.boards, toMatchupBoard(league, matchup)) }
+}

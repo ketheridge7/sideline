@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyAppState, toOverlayHud } from './types'
+import { emptyAppState, overlayHudUnchanged, toOverlayHud } from './types'
 import { layoutFromPreset } from './overlayLayout'
 import { mapTransactionKind } from './transactionKind'
 
@@ -37,6 +37,7 @@ describe('toOverlayHud', () => {
     expect(hud.tape).toEqual([])
     expect(hud.layout.presetId).toBe('minimal')
     expect(hud.delta).toBe(2)
+    expect(hud.nflTicker).toEqual([])
   })
 
   it('fills BYE and empty benches when no matchup', () => {
@@ -45,6 +46,78 @@ describe('toOverlayHud', () => {
     expect(hud.myBench).toEqual([])
     expect(hud.tape).toEqual([])
     expect(hud.layout.presetId).toBe('redzone')
+  })
+
+  it('paints overlay scores from a matchup before league discovery returns', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:899513'
+    state.nfl = {
+      week: 1,
+      displayWeek: 1,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular'
+    }
+    state.matchup = {
+      myTeam: { id: 'a', name: 'Sideline Squad', owner: 'Me', record: '0-0' },
+      oppTeam: { id: 'b', name: 'Rival Club', owner: 'You', record: '0-0' },
+      myPoints: 88.4,
+      oppPoints: 70.1,
+      starters: [{ playerId: '1', name: 'Live QB', position: 'QB', nflTeam: 'KC', points: 12.4 }],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+    const hud = toOverlayHud(state)
+    expect(hud.myPoints).toBe(88.4)
+    expect(hud.oppPoints).toBe(70.1)
+    expect(hud.provider).toBe('espn')
+    expect(hud.week).toBe(1)
+    expect(hud.myStarters[0]?.name).toBe('Live QB')
+  })
+
+  it('forwards the NFL ticker onto the overlay HUD', () => {
+    const state = emptyAppState()
+    state.nflTicker = [
+      { id: '1', away: 'KC', awayScore: 14, home: 'BUF', homeScore: 10, clock: 'Q2 4:12' }
+    ]
+    expect(toOverlayHud(state).nflTicker).toEqual(state.nflTicker)
+  })
+})
+
+describe('overlayHudUnchanged', () => {
+  it('ignores lastUpdated so rest-board paints do not redraw the overlay', () => {
+    const state = emptyAppState()
+    state.matchup = {
+      myTeam: { id: 'a', name: 'Mine', owner: 'Me', record: '1-0' },
+      oppTeam: { id: 'b', name: 'Yours', owner: 'You', record: '0-1' },
+      myPoints: 20,
+      oppPoints: 18,
+      starters: [{ playerId: '1', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 12 }],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+    const first = toOverlayHud({ ...state, lastUpdated: 1 })
+    const later = toOverlayHud({ ...state, lastUpdated: 2 })
+    expect(overlayHudUnchanged(first, later)).toBe(true)
+    const matchup = state.matchup
+    if (!matchup) throw new Error('expected matchup')
+    const scored = toOverlayHud({
+      ...state,
+      lastUpdated: 3,
+      matchup: { ...matchup, myPoints: 21 }
+    })
+    expect(overlayHudUnchanged(first, scored)).toBe(false)
+    const ticked = toOverlayHud({
+      ...state,
+      lastUpdated: 4,
+      matchup: {
+        ...matchup,
+        starters: [{ playerId: '1', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 12, tickDelta: 0.5 }]
+      }
+    })
+    expect(overlayHudUnchanged(first, ticked)).toBe(false)
   })
 })
 

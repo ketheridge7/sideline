@@ -3,7 +3,7 @@ import { createReadStream, existsSync, statSync } from 'fs'
 import { extname, join, sep } from 'path'
 import { is } from '@electron-toolkit/utils'
 import type { OverlayHudState } from '@shared/types'
-import { emptyAppState, toOverlayHud } from '@shared/types'
+import { emptyAppState, overlayHudUnchanged, toOverlayHud } from '@shared/types'
 import {
   generateOverlayToken,
   lanBindHost,
@@ -24,6 +24,7 @@ const MIME: Record<string, string> = {
 }
 
 const clients = new Set<ServerResponse>()
+let lastHud: OverlayHudState | null = null
 let lastEvent = `data: ${JSON.stringify(toOverlayHud(emptyAppState()))}\n\n`
 let server: Server | null = null
 let boundPort = 7333
@@ -37,6 +38,8 @@ export const overlayLanState = (): { enabled: boolean; token: string | null; hos
 })
 
 export const publishOverlay = (hud: OverlayHudState): void => {
+  if (lastHud && overlayHudUnchanged(lastHud, hud)) return
+  lastHud = hud
   lastEvent = `data: ${JSON.stringify(hud)}\n\n`
   for (const client of clients) client.write(lastEvent)
 }
@@ -187,4 +190,5 @@ export const stopOverlayServer = async (): Promise<void> => {
   await closeServer()
   sessionToken = null
   lanEnabled = false
+  lastHud = null
 }

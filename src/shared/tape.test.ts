@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape } from './tape'
+import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from './tape'
 import type { League, Matchup, TapeEvent } from './types'
 
 const league: League = {
@@ -68,5 +68,29 @@ describe('mergeTape', () => {
       { id: 'b', at: 1, kind: 'add', player: 'B', detail: 'add' }
     ]
     expect(mergeTape(live, snap, 2).map((row) => row.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('withTickDeltas', () => {
+  it('stamps the point delta after the first sample so live chips can show who just scored', () => {
+    const prev = new Map<string, number>()
+    const first = withTickDeltas(league, matchup(12), prev)
+    expect(first.starters[0]?.tickDelta).toBeUndefined()
+    scoreTapeFromDiff(league, first, prev)
+    const second = withTickDeltas(league, matchup(14.4), prev)
+    expect(second.starters[0]?.tickDelta).toBe(2.4)
+  })
+
+  it('clears a stale tick when points did not change', () => {
+    const prev = new Map<string, number>([['sleeper:1:1', 14.4]])
+    const next = withTickDeltas(league, matchup(14.4), prev)
+    expect(next.starters[0]?.tickDelta).toBeUndefined()
+  })
+
+  it('clears a leftover tick when this poll has no previous sample', () => {
+    const leftover = matchup(14.4)
+    leftover.starters[0] = { ...leftover.starters[0]!, tickDelta: 3.2 }
+    const next = withTickDeltas(league, leftover, new Map())
+    expect(next.starters[0]?.tickDelta).toBeUndefined()
   })
 })

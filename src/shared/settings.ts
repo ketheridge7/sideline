@@ -2,6 +2,7 @@ import { layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './over
 
 export type Settings = {
   sleeperUsername: string | null
+  sleeperUserId: string | null
   espnLeagueIds: string[]
   pinnedLeagueKeys: string[]
   selectedLeagueKey: string | null
@@ -14,6 +15,7 @@ export type Settings = {
 
 export const defaultSettings = (): Settings => ({
   sleeperUsername: null,
+  sleeperUserId: null,
   espnLeagueIds: [],
   pinnedLeagueKeys: [],
   selectedLeagueKey: null,
@@ -29,6 +31,7 @@ export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
   return {
     ...base,
     ...parsed,
+    sleeperUserId: typeof parsed.sleeperUserId === 'string' && parsed.sleeperUserId ? parsed.sleeperUserId : null,
     overlayLayout: parseOverlayLayout(parsed.overlayLayout ?? base.overlayLayout),
     overlayDisplayId: typeof parsed.overlayDisplayId === 'number' ? parsed.overlayDisplayId : null
   }

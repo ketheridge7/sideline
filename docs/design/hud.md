@@ -12,7 +12,7 @@ Locked spec for the Sunday watch companion and Hashmark overlay. Sleeper is the 
 - **Overlay = Hashmark.** One fullscreen transparent canvas. Modules sit on the **sidelines**; the center stays empty so live video is the product. Smoke panes, never a near-opaque card.
 - **Editor.** Companion Overlay Studio is canonical. Desktop overlay can enter Edit (`Ctrl/Cmd+Shift+E`) to drag/resize. TV (`?tv=1`) and OBS (`?surface=obs`) never mount edit chrome, even if `?edit=1` is appended.
 
-Screens stay **Board / Boards / Connect**. Overlay is a window, not a fourth nav destination.
+Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a fourth nav destination.
 
 ---
 
@@ -104,7 +104,7 @@ Layout persists in `sideline-settings.json` and is pushed on the same SSE `/even
 - Center: one Kalshi-style head-to-head (huge you vs them, lead bar / delta), slot-aligned starters, horizontal bench chips.
 - Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
 - Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
-- Top bar: SIDELINE wordmark, week, BOARD / BOARDS / CONNECT, HUD toggle, quiet Studio.
+- Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle, quiet Studio.
 - Overlay Studio: real mini HUD preview, not gold rectangles.
 
 Keyboard: `[` `]` channels, `O` HUD, `E` Studio, `Esc` close Studio.

@@ -15,6 +15,7 @@ import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
 import { smokeFill } from '../overlay/density'
 import { OverlayWidgetView } from '../overlay/Widgets'
+import { NflTicker } from './NflTicker'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -136,6 +137,11 @@ export const OverlayStudio = ({
                 </div>
               )
             })}
+            {hud.nflTicker.length > 0 ? (
+              <div className="absolute bottom-0 left-0 right-0">
+                <NflTicker games={hud.nflTicker} variant="overlay" />
+              </div>
+            ) : null}
           </div>
           {layout.widgets.map((widget) =>
             widget.hidden ? null : (

@@ -20,6 +20,34 @@ export const transactionToTape = (league: League, row: Transaction): TapeEvent =
   leagueName: league.name
 })
 
+export const withTickDeltas = (
+  league: Pick<League, 'provider' | 'id'>,
+  matchup: Matchup,
+  prev: Map<string, number>
+): Matchup => {
+  const prefix = leagueKey(league.provider, league.id)
+  const tick = (player: Player): Player => {
+    if (typeof player.points !== 'number') {
+      return player.tickDelta == null ? player : { ...player, tickDelta: undefined }
+    }
+    const key = `${prefix}:${player.playerId}`
+    const last = prev.get(key)
+    if (typeof last !== 'number') {
+      return player.tickDelta == null ? player : { ...player, tickDelta: undefined }
+    }
+    const delta = Math.round((player.points - last) * 100) / 100
+    if (delta === 0) return { ...player, tickDelta: undefined }
+    return { ...player, tickDelta: delta }
+  }
+  return {
+    ...matchup,
+    starters: matchup.starters.map(tick),
+    bench: matchup.bench.map(tick),
+    oppStarters: matchup.oppStarters.map(tick),
+    oppBench: matchup.oppBench.map(tick)
+  }
+}
+
 export const scoreTapeFromDiff = (
   league: League,
   matchup: Matchup,

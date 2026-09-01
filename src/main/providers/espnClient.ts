@@ -1,7 +1,11 @@
+import { fetchJson, HttpError, type FetchPriority } from '../http'
+
 export type EspnCookies = {
   espn_s2: string
   SWID: string
 }
+
+export type EspnFantasyFilter = Record<string, unknown>
 
 export class EspnHttpError extends Error {
   status: number
@@ -18,8 +22,6 @@ const FAN_HOST = 'https://fan.api.espn.com'
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
 const safeDecode = (value: string): string => {
   try {
     return decodeURIComponent(value)
@@ -28,43 +30,75 @@ const safeDecode = (value: string): string => {
   }
 }
 
+export const normalizeEspnCookies = (cookies: EspnCookies): EspnCookies => ({
+  espn_s2: safeDecode(cookies.espn_s2),
+  SWID: safeDecode(cookies.SWID)
+})
+
 const cookieHeader = (cookies: EspnCookies): string =>
   `espn_s2=${cookies.espn_s2}; SWID=${cookies.SWID}`
 
 type FetchOpts = {
   url: string
   cookies: EspnCookies | null
+  filter?: EspnFantasyFilter
+  timeoutMs?: number
+  retries?: number
+  priority?: FetchPriority
 }
 
-const fetchOnce = async (opts: FetchOpts): Promise<Response> => {
+const headersFor = (opts: FetchOpts): Record<string, string> => {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'User-Agent': USER_AGENT
   }
   if (opts.cookies) headers.Cookie = cookieHeader(opts.cookies)
-  return fetch(opts.url, { headers })
+  if (opts.filter) headers['X-Fantasy-Filter'] = JSON.stringify(opts.filter)
+  return headers
 }
 
 const fetchEspn = async (opts: FetchOpts): Promise<unknown> => {
-  let res = await fetchOnce(opts)
-  if (res.status === 401 && opts.cookies) {
-    res = await fetchOnce({
+  const request = (cookies: EspnCookies | null): Promise<unknown> =>
+    fetchJson({
       url: opts.url,
-      cookies: { ...opts.cookies, espn_s2: safeDecode(opts.cookies.espn_s2) }
+      headers: headersFor({ ...opts, cookies }),
+      timeoutMs: opts.timeoutMs ?? 5_000,
+      retries: opts.retries ?? 0,
+      priority: opts.priority,
+      useEspnSession: true
     })
+
+  const normalized = opts.cookies ? normalizeEspnCookies(opts.cookies) : null
+  try {
+    return await request(normalized)
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 401 && opts.cookies && normalized) {
+      const sameSession =
+        opts.cookies.espn_s2 === normalized.espn_s2 && opts.cookies.SWID === normalized.SWID
+      if (!sameSession) {
+        try {
+          return await request(opts.cookies)
+        } catch (retryError) {
+          if (retryError instanceof HttpError) {
+            throw new EspnHttpError(retryError.status, `ESPN ${opts.url} failed (${retryError.status})`)
+          }
+          throw retryError
+        }
+      }
+    }
+    if (error instanceof HttpError) {
+      throw new EspnHttpError(error.status, `ESPN ${opts.url} failed (${error.status})`)
+    }
+    throw error
   }
-  if (res.status === 429) {
-    await sleep(1500)
-    res = await fetchOnce(opts)
-  }
-  if (!res.ok) {
-    throw new EspnHttpError(res.status, `ESPN ${opts.url} failed (${res.status})`)
-  }
-  return res.json()
 }
 
+export const isEspnLeagueId = (id: string): boolean => /^\d+$/.test(id)
+
 export const leagueUrl = (season: string, leagueId: string, views: string[], scoringPeriodId?: number): string => {
-  const url = new URL(`${READ_HOST}/apis/v3/games/ffl/seasons/${season}/segments/0/leagues/${leagueId}`)
+  const url = new URL(
+    `${READ_HOST}/apis/v3/games/ffl/seasons/${encodeURIComponent(season)}/segments/0/leagues/${encodeURIComponent(leagueId)}`
+  )
   for (const view of views) {
     url.searchParams.append('view', view)
   }
@@ -74,15 +108,42 @@ export const leagueUrl = (season: string, leagueId: string, views: string[], sco
   return url.toString()
 }
 
-export const MATCHUP_VIEWS = [
-  'mTeam',
-  'mRoster',
-  'mMatchup',
-  'mMatchupScore',
-  'mLiveScoring',
-  'mSettings',
-  'mStatus'
-]
+export const DISCOVERY_VIEWS = ['mSettings', 'mStatus', 'mTeam']
+
+export const SETTINGS_VIEWS = ['mSettings', 'mStatus']
+
+export const SCORE_VIEWS = ['mMatchupScore']
+
+export const LIVE_VIEWS = ['mLiveScoring']
+
+export const weekScheduleFilter = (scoringPeriodId: number): EspnFantasyFilter => ({
+  schedule: { filterMatchupPeriodIds: { value: [scoringPeriodId] } }
+})
+
+export const weekTeamScheduleFilter = (
+  scoringPeriodId: number,
+  teamId: number
+): EspnFantasyFilter => ({
+  schedule: {
+    filterMatchupPeriodIds: { value: [scoringPeriodId] },
+    filterTeamIds: { value: [teamId] }
+  }
+})
+
+export const ACTIVITY_FILTER: EspnFantasyFilter = {
+  topics: {
+    filterType: { value: ['ACTIVITY_TRANSACTIONS'] },
+    limit: 25,
+    limitPerMessageSet: { value: 25 },
+    sortMessageDate: { sortPriority: 1, sortAsc: false }
+  }
+}
+
+export const communicationUrl = (season: string, leagueId: string): string =>
+  `${READ_HOST}/apis/v3/games/ffl/seasons/${encodeURIComponent(season)}/segments/0/leagues/${encodeURIComponent(leagueId)}/communication/?view=kona_league_communication`
+
+const rejectLeagueId = (leagueId: string): Promise<never> =>
+  Promise.reject(new EspnHttpError(400, `ESPN league ${leagueId} is not a live id`))
 
 export const fetchLeague = (args: {
   season: string
@@ -90,10 +151,19 @@ export const fetchLeague = (args: {
   cookies: EspnCookies | null
   views?: string[]
   scoringPeriodId?: number
+  filter?: EspnFantasyFilter
+  timeoutMs?: number
+  retries?: number
+  priority?: FetchPriority
 }): Promise<unknown> => {
+  if (!isEspnLeagueId(args.leagueId)) return rejectLeagueId(args.leagueId)
   return fetchEspn({
-    url: leagueUrl(args.season, args.leagueId, args.views ?? MATCHUP_VIEWS, args.scoringPeriodId),
-    cookies: args.cookies
+    url: leagueUrl(args.season, args.leagueId, args.views ?? SCORE_VIEWS, args.scoringPeriodId),
+    cookies: args.cookies,
+    filter: args.filter,
+    timeoutMs: args.timeoutMs,
+    retries: args.retries,
+    priority: args.priority
   })
 }
 
@@ -101,17 +171,50 @@ export const fetchTransactions = (args: {
   season: string
   leagueId: string
   cookies: EspnCookies | null
+  scoringPeriodId?: number
+  timeoutMs?: number
+  retries?: number
+  priority?: FetchPriority
 }): Promise<unknown> => {
+  if (!isEspnLeagueId(args.leagueId)) return rejectLeagueId(args.leagueId)
   return fetchEspn({
-    url: leagueUrl(args.season, args.leagueId, ['mTransactions2']),
-    cookies: args.cookies
+    url: leagueUrl(args.season, args.leagueId, ['mTransactions2'], args.scoringPeriodId),
+    cookies: args.cookies,
+    timeoutMs: args.timeoutMs,
+    retries: args.retries,
+    priority: args.priority
   })
 }
 
-export const probeFanLeagues = async (cookies: EspnCookies): Promise<unknown> => {
+export const fetchActivity = (args: {
+  season: string
+  leagueId: string
+  cookies: EspnCookies
+  timeoutMs?: number
+  retries?: number
+  priority?: FetchPriority
+}): Promise<unknown> => {
+  if (!isEspnLeagueId(args.leagueId)) return rejectLeagueId(args.leagueId)
+  return fetchEspn({
+    url: communicationUrl(args.season, args.leagueId),
+    cookies: args.cookies,
+    filter: ACTIVITY_FILTER,
+    timeoutMs: args.timeoutMs,
+    retries: args.retries,
+    priority: args.priority
+  })
+}
+
+export const probeFanLeagues = async (
+  cookies: EspnCookies,
+  opts?: { timeoutMs?: number; retries?: number; priority?: FetchPriority }
+): Promise<unknown> => {
   const encoded = encodeURIComponent(cookies.SWID)
   return fetchEspn({
     url: `${FAN_HOST}/apis/v2/fans/${encoded}`,
-    cookies
+    cookies,
+    timeoutMs: opts?.timeoutMs,
+    retries: opts?.retries,
+    priority: opts?.priority
   })
 }

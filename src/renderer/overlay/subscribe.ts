@@ -1,5 +1,5 @@
 import type { AppState, OverlayHudState } from '@shared/types'
-import { emptyAppState, toOverlayHud } from '@shared/types'
+import { emptyAppState, overlayHudUnchanged, toOverlayHud } from '@shared/types'
 
 export const STALE_MS = 120_000
 
@@ -30,9 +30,19 @@ export const overlayAllowsEdit = (search: string, hasPreload: boolean): boolean 
 export const canvasInsetPct = (surface: OverlaySurface): number => (surface === 'tv' ? 4 : 0)
 
 export const subscribeHud = (onState: (hud: OverlayHudState) => void): (() => void) => {
+  let prev: OverlayHudState | null = null
+  const emit = (hud: OverlayHudState): void => {
+    if (prev && overlayHudUnchanged(prev, hud)) return
+    prev = hud
+    onState(hud)
+  }
   if (window.sideline) {
-    void window.sideline.getState().then((state: AppState) => onState(toOverlayHud(state)))
-    return window.sideline.onState((state: AppState) => onState(toOverlayHud(state)))
+    const unsub = window.sideline.onHud((hud: OverlayHudState) => emit(hud))
+    void window.sideline.getState().then((state: AppState) => {
+      if (prev) return
+      emit(toOverlayHud(state))
+    })
+    return unsub
   }
 
   let lastBeat = Date.now()
@@ -43,9 +53,9 @@ export const subscribeHud = (onState: (hud: OverlayHudState) => void): (() => vo
   source.onmessage = (event) => {
     mark()
     try {
-      onState(JSON.parse(event.data) as OverlayHudState)
+      emit(JSON.parse(event.data) as OverlayHudState)
     } catch {
-      onState(toOverlayHud(emptyAppState()))
+      emit(toOverlayHud(emptyAppState()))
     }
   }
   source.addEventListener('ping', mark)

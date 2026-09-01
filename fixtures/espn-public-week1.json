@@ -1,0 +1,266 @@
+{
+  "id": 899513,
+  "scoringPeriodId": 1,
+  "status": {
+    "latestScoringPeriod": 1,
+    "currentMatchupPeriod": 1
+  },
+  "settings": {
+    "name": "Bustin\u2019 with the boys"
+  },
+  "teams": [
+    {
+      "abbrev": "\ud83c\udf5f",
+      "id": 4,
+      "owners": [
+        "{219A4C65-317E-4BD2-A5E4-D8B50AFE4FBF}"
+      ],
+      "primaryOwner": "{219A4C65-317E-4BD2-A5E4-D8B50AFE4FBF}",
+      "record": {
+        "away": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        },
+        "division": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        },
+        "home": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        },
+        "overall": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        }
+      }
+    },
+    {
+      "abbrev": "ANDY",
+      "id": 5,
+      "owners": [
+        "{DB332A0C-D5A9-4215-BE6D-3FBEBBB7855E}"
+      ],
+      "primaryOwner": "{DB332A0C-D5A9-4215-BE6D-3FBEBBB7855E}",
+      "record": {
+        "away": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        },
+        "division": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        },
+        "home": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        },
+        "overall": {
+          "gamesBack": 0.0,
+          "losses": 0,
+          "percentage": 0.0,
+          "pointsAgainst": 0.0,
+          "pointsFor": 0.0,
+          "streakLength": 0,
+          "streakType": "NONE",
+          "ties": 0,
+          "wins": 0
+        }
+      }
+    }
+  ],
+  "members": [
+    {
+      "id": "{219A4C65-317E-4BD2-A5E4-D8B50AFE4FBF}",
+      "displayName": "ESPNFAN7922373247"
+    },
+    {
+      "id": "{DB332A0C-D5A9-4215-BE6D-3FBEBBB7855E}",
+      "displayName": "longhorn0010"
+    }
+  ],
+  "schedule": [
+    {
+      "matchupPeriodId": 1,
+      "home": {
+        "rosterForCurrentScoringPeriod": {
+          "entries": [
+            {
+              "lineupSlotId": 23,
+              "playerId": 4379399,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "James Cook III",
+                  "defaultPositionId": 2,
+                  "proTeamId": 2,
+                  "injuryStatus": "ACTIVE",
+                  "stats": []
+                }
+              }
+            },
+            {
+              "lineupSlotId": 23,
+              "playerId": 3929630,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "Saquon Barkley",
+                  "defaultPositionId": 2,
+                  "proTeamId": 21,
+                  "injuryStatus": "ACTIVE",
+                  "stats": []
+                }
+              }
+            },
+            {
+              "lineupSlotId": 1,
+              "playerId": -15033,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "Ravens TQB",
+                  "defaultPositionId": 15,
+                  "proTeamId": 33,
+                  "injuryStatus": null,
+                  "stats": []
+                }
+              }
+            },
+            {
+              "lineupSlotId": 20,
+              "playerId": 3916148,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "Tony Pollard",
+                  "defaultPositionId": 2,
+                  "proTeamId": 10,
+                  "injuryStatus": "ACTIVE",
+                  "stats": []
+                }
+              }
+            }
+          ]
+        },
+        "teamId": 4,
+        "totalPoints": 0.0,
+        "totalPointsLive": 0.0
+      },
+      "away": {
+        "rosterForCurrentScoringPeriod": {
+          "entries": [
+            {
+              "lineupSlotId": 23,
+              "playerId": 3117251,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "Christian McCaffrey",
+                  "defaultPositionId": 2,
+                  "proTeamId": 25,
+                  "injuryStatus": "QUESTIONABLE",
+                  "stats": []
+                }
+              }
+            },
+            {
+              "lineupSlotId": 23,
+              "playerId": 4429160,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "De'Von Achane",
+                  "defaultPositionId": 2,
+                  "proTeamId": 15,
+                  "injuryStatus": "ACTIVE",
+                  "stats": []
+                }
+              }
+            },
+            {
+              "lineupSlotId": 23,
+              "playerId": 4361579,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "Javonte Williams",
+                  "defaultPositionId": 2,
+                  "proTeamId": 6,
+                  "injuryStatus": "ACTIVE",
+                  "stats": []
+                }
+              }
+            },
+            {
+              "lineupSlotId": 20,
+              "playerId": 4432620,
+              "playerPoolEntry": {
+                "appliedStatTotal": 0.0,
+                "player": {
+                  "fullName": "Parker Washington",
+                  "defaultPositionId": 3,
+                  "proTeamId": 30,
+                  "injuryStatus": "ACTIVE",
+                  "stats": []
+                }
+              }
+            }
+          ]
+        },
+        "teamId": 5,
+        "totalPoints": 0.0,
+        "totalPointsLive": 0.0
+      }
+    }
+  ]
+}

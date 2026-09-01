@@ -122,6 +122,7 @@ export type OverlayHudState = {
   tape: TapeEvent[]
   layout: OverlayLayout
   overlayEditMode: boolean
+  nflTicker: NflTickerGame[]
 }
 
 export type ToastPayload = {
@@ -154,9 +155,33 @@ export type AppState = {
   overlayToken: string | null
   replay: boolean
   lastUpdated: number | null
+  pollMs: number | null
+  liveCallMs: number | null
   pollingLive: boolean
   error: string | null
 }
+
+/** No-op live ticks skip the full companion AppState clone; these three fields still move the clock. */
+export type CompanionTick = Pick<AppState, 'lastUpdated' | 'pollMs' | 'liveCallMs'>
+
+/** Rest LEAGUES upserts skip cloning HUD matchup/tape/ticker/layout; companion merges this patch. */
+export type CompanionBoardsPatch = Pick<
+  AppState,
+  'boards' | 'leagues' | 'lastUpdated' | 'pollMs' | 'liveCallMs'
+>
+
+/** Live score ticks skip cloning overlay layout, LAN tokens, connection flags, and the rest LEAGUES grid. */
+export type CompanionHudPatch = Pick<
+  AppState,
+  | 'matchup'
+  | 'tape'
+  | 'nflTicker'
+  | 'pollingLive'
+  | 'overlayEditMode'
+  | 'lastUpdated'
+  | 'pollMs'
+  | 'liveCallMs'
+>
 
 export const leagueKey = (provider: Provider, id: string): string => `${provider}:${id}`
 
@@ -194,6 +219,8 @@ export const emptyAppState = (): AppState => ({
   overlayToken: null,
   replay: false,
   lastUpdated: null,
+  pollMs: null,
+  liveCallMs: null,
   pollingLive: false,
   error: null
 })
@@ -219,17 +246,122 @@ const hudShell = (state: AppState): Omit<
   toast: state.lastToast,
   tape: state.tape,
   layout: state.overlayLayout,
-  overlayEditMode: state.overlayEditMode
+  overlayEditMode: state.overlayEditMode,
+  nflTicker: state.nflTicker
 })
 
+const sameToast = (prev: ToastPayload | null, next: ToastPayload | null): boolean => {
+  if (prev === next) return true
+  if (!prev || !next) return false
+  return prev.id === next.id && prev.title === next.title && prev.body === next.body
+}
+
+const samePlayer = (prev: Player, next: Player): boolean =>
+  prev.playerId === next.playerId &&
+  prev.name === next.name &&
+  prev.position === next.position &&
+  prev.points === next.points &&
+  prev.status === next.status &&
+  prev.nflTeam === next.nflTeam &&
+  prev.lastPlay === next.lastPlay &&
+  prev.tickDelta === next.tickDelta
+
+const samePlayers = (prev: Player[], next: Player[]): boolean =>
+  prev.length === next.length && prev.every((row, index) => samePlayer(row, next[index]))
+
+const sameTape = (prev: TapeEvent[], next: TapeEvent[]): boolean =>
+  prev.length === next.length &&
+  prev.every((row, index) => {
+    const other = next[index]
+    return (
+      row.id === other.id &&
+      row.at === other.at &&
+      row.kind === other.kind &&
+      row.player === other.player &&
+      row.detail === other.detail &&
+      row.delta === other.delta &&
+      row.leagueKey === other.leagueKey &&
+      row.leagueName === other.leagueName &&
+      row.period === other.period
+    )
+  })
+
+const sameTicker = (prev: NflTickerGame[], next: NflTickerGame[]): boolean =>
+  prev.length === next.length &&
+  prev.every((row, index) => {
+    const other = next[index]
+    return (
+      row.id === other.id &&
+      row.away === other.away &&
+      row.awayScore === other.awayScore &&
+      row.home === other.home &&
+      row.homeScore === other.homeScore &&
+      row.clock === other.clock &&
+      row.final === other.final
+    )
+  })
+
+const sameLayout = (prev: OverlayLayout, next: OverlayLayout): boolean => {
+  if (prev === next) return true
+  if (
+    prev.presetId !== next.presetId ||
+    prev.showCrawler !== next.showCrawler ||
+    prev.groupedRails.mine !== next.groupedRails.mine ||
+    prev.groupedRails.opp !== next.groupedRails.opp ||
+    prev.trackLock.mine !== next.trackLock.mine ||
+    prev.trackLock.opp !== next.trackLock.opp ||
+    prev.widgets.length !== next.widgets.length
+  ) {
+    return false
+  }
+  return prev.widgets.every((row, index) => {
+    const other = next.widgets[index]
+    return (
+      row.id === other.id &&
+      row.x === other.x &&
+      row.y === other.y &&
+      row.w === other.w &&
+      row.h === other.h &&
+      row.hidden === other.hidden &&
+      row.locked === other.locked &&
+      row.opacity === other.opacity &&
+      row.density === other.density
+    )
+  })
+}
+
+export const overlayHudUnchanged = (prev: OverlayHudState, next: OverlayHudState): boolean =>
+  prev.leagueName === next.leagueName &&
+  prev.provider === next.provider &&
+  prev.week === next.week &&
+  prev.myPoints === next.myPoints &&
+  prev.oppPoints === next.oppPoints &&
+  prev.delta === next.delta &&
+  prev.myName === next.myName &&
+  prev.oppName === next.oppName &&
+  prev.replay === next.replay &&
+  prev.pollingLive === next.pollingLive &&
+  prev.overlayEditMode === next.overlayEditMode &&
+  sameToast(prev.toast, next.toast) &&
+  sameLayout(prev.layout, next.layout) &&
+  samePlayers(prev.myStarters, next.myStarters) &&
+  samePlayers(prev.oppStarters, next.oppStarters) &&
+  samePlayers(prev.myBench, next.myBench) &&
+  samePlayers(prev.oppBench, next.oppBench) &&
+  sameTape(prev.tape, next.tape) &&
+  sameTicker(prev.nflTicker, next.nflTicker)
+
 export const toOverlayHud = (state: AppState): OverlayHudState => {
-  const league = state.leagues.find((row) => leagueKey(row.provider, row.id) === state.selectedLeagueKey)
+  const selected = state.selectedLeagueKey ? parseLeagueKey(state.selectedLeagueKey) : null
+  const league = selected
+    ? state.leagues.find((row) => leagueKey(row.provider, row.id) === state.selectedLeagueKey)
+    : undefined
   const matchup = state.matchup
-  if (!league || !matchup) {
+  if (!matchup) {
     return {
       ...hudShell(state),
       leagueName: league?.name ?? 'Sideline',
-      provider: league?.provider ?? null,
+      provider: league?.provider ?? selected?.provider ?? null,
       week: league?.week ?? state.nfl?.displayWeek ?? null,
       myPoints: 0,
       oppPoints: 0,
@@ -244,9 +376,9 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
   }
   return {
     ...hudShell(state),
-    leagueName: league.name,
-    provider: league.provider,
-    week: league.week,
+    leagueName: league?.name ?? matchup.myTeam.name,
+    provider: league?.provider ?? selected?.provider ?? null,
+    week: league?.week ?? state.nfl?.displayWeek ?? null,
     myPoints: matchup.myPoints,
     oppPoints: matchup.oppPoints,
     delta: Math.round((matchup.myPoints - matchup.oppPoints) * 100) / 100,
