@@ -192,12 +192,16 @@ const peekLastHud = (): LastHudSnapshot | null => {
 
 export const currentState = (): AppState => lastState
 
-const lanFields = (): Pick<AppState, 'lanOverlayEnabled' | 'lanOverlayHost' | 'overlayToken'> => {
+const lanFields = (): Pick<
+  AppState,
+  'lanOverlayEnabled' | 'lanOverlayHost' | 'overlayToken' | 'overlayPairingCode'
+> => {
   const lan = overlayLanState()
   return {
     lanOverlayEnabled: lan.enabled,
     lanOverlayHost: lan.host,
-    overlayToken: lan.token
+    overlayToken: lan.token,
+    overlayPairingCode: lan.pairingCode
   }
 }
 

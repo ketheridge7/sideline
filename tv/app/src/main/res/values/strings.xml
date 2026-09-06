@@ -2,7 +2,15 @@
 <resources>
   <string name="app_name">Sideline</string>
   <string name="setup_title">Sideline TV</string>
-  <string name="setup_blurb">The PC runs Sideline. This app only draws the HUD over whatever is already on the TV.</string>
+  <string name="setup_blurb">The PC runs Sideline. Enter the 6-digit code from Connect on the same Wi-Fi. This app only draws the HUD over whatever is already on the TV.</string>
+  <string name="pairing_hint">6-digit code</string>
+  <string name="pair">Pair</string>
+  <string name="pairing">Looking for Sideline on this Wi-Fi…</string>
+  <string name="pair_not_found">No PC answered that code. Enable LAN overlay, stay on this Wi-Fi, then try again.</string>
+  <string name="pair_bad_code">Enter the 6-digit code from Sideline on the PC.</string>
+  <string name="pair_rate_limited">Too many guesses. Wait a minute and try the code again.</string>
+  <string name="pair_need_permission">Paired. Allow Display over other apps, then Start HUD.</string>
+  <string name="advanced">Advanced — host, port, token</string>
   <string name="host_hint">PC IPv4 (192.168.x.x)</string>
   <string name="port_hint">Port</string>
   <string name="token_hint">Token</string>
@@ -17,6 +25,7 @@
   <string name="opacity">Opacity</string>
   <string name="bad_host">Host must be a private IPv4 address on your LAN.</string>
   <string name="need_permission">Allow Display over other apps first.</string>
+  <string name="permission_manual">Open Settings → Apps → Special app access → Display over other apps → Sideline.</string>
   <string name="channel_name">Sideline overlay</string>
   <string name="hud_running">Sideline HUD is on</string>
   <string name="spike_running">Test overlay is on</string>

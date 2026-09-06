@@ -133,7 +133,8 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
         <h2 className="text-base font-semibold">TV overlay</h2>
         <p className="mt-1 text-sm text-muted">
           Share the HUD on your LAN so a phone or Google TV app can load it. Off by default — only
-          derived scores are served, never cookies. Edit chrome never mounts on TV or OBS.
+          derived scores are served, never cookies. Edit chrome never mounts on TV or OBS. Google TV
+          pairs with a 6-digit code; you do not type the IP or hex token.
         </p>
         <label className="mt-4 flex cursor-pointer items-center gap-3 text-sm">
           <input
@@ -145,11 +146,23 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
           Allow devices on this Wi-Fi to load the overlay
         </label>
         {state.lanOverlayEnabled ? (
-          <div className="mt-4 grid gap-2 text-sm">
+          <div className="mt-4 grid gap-3 text-sm">
+            {state.overlayPairingCode ? (
+              <div className="rounded-sm border border-line bg-bg px-4 py-4">
+                <p className="text-xs uppercase tracking-wide text-muted">TV pairing code</p>
+                <p className="mt-2 font-mono text-4xl tracking-[0.28em] text-you" aria-label="LAN overlay pairing code">
+                  {`${state.overlayPairingCode.slice(0, 3)} ${state.overlayPairingCode.slice(3)}`}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  On the Google TV app, enter this 6-digit code. Same Wi-Fi. The code refreshes every 10
+                  minutes; the HUD token stays valid until you toggle LAN overlay off.
+                </p>
+              </div>
+            ) : null}
             {state.lanOverlayHost && state.overlayToken ? (
               <>
                 <label className="grid gap-1">
-                  <span className="text-xs uppercase tracking-wide text-muted">TV URL</span>
+                  <span className="text-xs uppercase tracking-wide text-muted">Phone / browser URL</span>
                   <input
                     readOnly
                     value={`http://${state.lanOverlayHost}:${state.overlayPort}/overlay?k=${state.overlayToken}&tv=1`}
@@ -160,12 +173,13 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
                 </label>
                 <p className="text-xs text-muted">
                   OBS: http://127.0.0.1:{state.overlayPort}/overlay?surface=obs — Port {state.overlayPort} ·
-                  token {state.overlayToken}. Same network only.
+                  same network only.
                 </p>
               </>
             ) : (
               <p className="text-xs text-air">
-                No LAN IPv4 address found. Connect to Wi-Fi, then toggle this off and on.
+                No LAN IPv4 address found. Connect to Wi-Fi, then toggle this off and on. The pairing code
+                still works if the TV can see this PC on the subnet.
               </p>
             )}
           </div>

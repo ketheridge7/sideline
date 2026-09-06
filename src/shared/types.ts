@@ -153,6 +153,7 @@ export type AppState = {
   lanOverlayEnabled: boolean
   lanOverlayHost: string | null
   overlayToken: string | null
+  overlayPairingCode: string | null
   replay: boolean
   lastUpdated: number | null
   pollMs: number | null
@@ -217,6 +218,7 @@ export const emptyAppState = (): AppState => ({
   lanOverlayEnabled: false,
   lanOverlayHost: null,
   overlayToken: null,
+  overlayPairingCode: null,
   replay: false,
   lastUpdated: null,
   pollMs: null,

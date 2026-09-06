@@ -12,6 +12,7 @@ import {
   resolveOverlayFile,
   tokenMatches
 } from './overlayAccess'
+import { OverlayPairing, pairingHttpStatus } from './overlayPairing'
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -30,11 +31,18 @@ let server: Server | null = null
 let boundPort = 7333
 let lanEnabled = false
 let sessionToken: string | null = null
+const pairing = new OverlayPairing()
 
-export const overlayLanState = (): { enabled: boolean; token: string | null; host: string | null } => ({
+export const overlayLanState = (): {
+  enabled: boolean
+  token: string | null
+  host: string | null
+  pairingCode: string | null
+} => ({
   enabled: lanEnabled,
   token: sessionToken,
-  host: lanEnabled ? lanIPv4() : null
+  host: lanEnabled ? lanIPv4() : null,
+  pairingCode: lanEnabled ? pairing.currentCode() : null
 })
 
 export const publishOverlay = (hud: OverlayHudState): void => {
@@ -50,6 +58,35 @@ const corsHeaders = (): Record<string, string> =>
 const sendForbidden = (res: ServerResponse): void => {
   res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', ...corsHeaders() })
   res.end('forbidden')
+}
+
+const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders() })
+  res.end(JSON.stringify(body))
+}
+
+const handlePair = (url: URL, res: ServerResponse): void => {
+  // TODO(phase-0): advertise `_sideline._tcp` so the TV can skip the /24 HTTP scan.
+  if (!lanEnabled) {
+    sendJson(res, 404, { ok: false })
+    return
+  }
+  const result = pairing.resolve(url.searchParams.get('code') ?? '')
+  if (!result.ok) {
+    sendJson(res, pairingHttpStatus(result.reason), { ok: false })
+    return
+  }
+  sendJson(res, 200, { token: result.token, port: boundPort })
+}
+
+const armLanSession = (): void => {
+  sessionToken = generateOverlayToken()
+  pairing.issue(sessionToken)
+}
+
+const disarmLanSession = (): void => {
+  sessionToken = null
+  pairing.clear()
 }
 
 const sendSse = (res: ServerResponse): void => {
@@ -90,6 +127,11 @@ const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> 
   const url = new URL(req.url || '/', 'http://127.0.0.1')
   if (requiresOverlayToken(lanEnabled, url.pathname) && !tokenMatches(url.searchParams.get('k'), sessionToken)) {
     sendForbidden(res)
+    return
+  }
+
+  if (url.pathname === '/pair') {
+    handlePair(url, res)
     return
   }
 
@@ -171,7 +213,8 @@ export const startOverlayServer = async (
   host = lanBindHost(enabled)
 ): Promise<number> => {
   lanEnabled = enabled
-  sessionToken = enabled ? generateOverlayToken() : null
+  if (enabled) armLanSession()
+  else disarmLanSession()
   boundPort = await listen(startPort, host)
   return boundPort
 }
@@ -179,7 +222,8 @@ export const startOverlayServer = async (
 export const setOverlayLanEnabled = async (enabled: boolean): Promise<number> => {
   const port = boundPort
   lanEnabled = enabled
-  sessionToken = enabled ? generateOverlayToken() : null
+  if (enabled) armLanSession()
+  else disarmLanSession()
   await closeServer()
   await new Promise((resolve) => setTimeout(resolve, 100))
   boundPort = await listen(port, lanBindHost(enabled))
@@ -188,7 +232,7 @@ export const setOverlayLanEnabled = async (enabled: boolean): Promise<number> =>
 
 export const stopOverlayServer = async (): Promise<void> => {
   await closeServer()
-  sessionToken = null
+  disarmLanSession()
   lanEnabled = false
   lastHud = null
 }

@@ -875,9 +875,9 @@ describe('companionFlagsUnchanged', () => {
     )
   })
 
-  it('treats a selected-league change as a companion clone', () => {
+  it('treats a pairing-code rotation as a companion clone', () => {
     const prev = emptyAppState()
-    expect(companionFlagsUnchanged(prev, { ...prev, selectedLeagueKey: 'sleeper:1' })).toBe(false)
+    expect(companionFlagsUnchanged(prev, { ...prev, overlayPairingCode: '418302' })).toBe(false)
   })
 })
 

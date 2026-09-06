@@ -45,7 +45,7 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 
 ### TV / LAN
 
-Connect → **Allow devices on this Wi-Fi to load the overlay**. Sideline then binds the overlay server on all interfaces and requires a session token (`?k=`). Paste the TV URL into a phone browser to confirm, or into the Sideline Google TV app (`tv/`). Loopback OBS use is unchanged while this toggle is off.
+Connect → **Allow devices on this Wi-Fi to load the overlay**. Sideline then binds the overlay server on all interfaces, shows a **6-digit pairing code**, and requires a session token (`?k=`). On the Google TV app (`tv/`), type that code — you do not enter the IP or hex token. Paste the phone URL into a browser to confirm. Loopback OBS use is unchanged while this toggle is off.
 
 Windows is the first-class overlay target. macOS uses `type: 'panel'`, `setAlwaysOnTop(..., 'screen-saver')`, `setVisibleOnAllWorkspaces({ visibleOnFullScreen: true })`, and accessory activation policy so it can sit above fullscreen video. That last setting **hides the Dock icon**; use the tray icon to show the companion.
 
