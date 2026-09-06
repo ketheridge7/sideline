@@ -172,8 +172,8 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
                   />
                 </label>
                 <p className="text-xs text-muted">
-                  OBS: http://127.0.0.1:{state.overlayPort}/overlay?surface=obs — Port {state.overlayPort} ·
-                  same network only.
+                  OBS: http://127.0.0.1:{state.overlayPort}/overlay?surface=obs&k={state.overlayToken} — Port{' '}
+                  {state.overlayPort} · same network only.
                 </p>
               </>
             ) : (
