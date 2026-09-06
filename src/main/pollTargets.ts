@@ -476,6 +476,7 @@ export const companionFlagsUnchanged = (prev: AppState, next: AppState): boolean
   prev.lanOverlayEnabled === next.lanOverlayEnabled &&
   prev.lanOverlayHost === next.lanOverlayHost &&
   prev.overlayToken === next.overlayToken &&
+  prev.overlayPairingCode === next.overlayPairingCode &&
   prev.pinnedLeagueKeys === next.pinnedLeagueKeys
 
 export const companionBoardsUnchanged = (prev: AppState, next: AppState): boolean =>

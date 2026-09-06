@@ -28,46 +28,74 @@
       android:textSize="16sp" />
 
     <EditText
-      android:id="@+id/host"
+      android:id="@+id/pairing_code"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:layout_marginTop="24dp"
       android:background="@color/card"
-      android:hint="@string/host_hint"
-      android:inputType="textUri"
-      android:nextFocusDown="@id/port"
-      android:padding="16dp"
-      android:textColor="@color/text"
-      android:textColorHint="@color/muted"
-      android:textSize="18sp" />
-
-    <EditText
-      android:id="@+id/port"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:layout_marginTop="12dp"
-      android:background="@color/card"
-      android:hint="@string/port_hint"
+      android:digits="0123456789"
+      android:fontFamily="monospace"
+      android:gravity="center"
+      android:hint="@string/pairing_hint"
+      android:importantForAutofill="no"
       android:inputType="number"
-      android:nextFocusDown="@id/token"
+      android:maxLength="6"
+      android:nextFocusDown="@id/pair"
       android:padding="16dp"
-      android:text="7333"
       android:textColor="@color/text"
       android:textColorHint="@color/muted"
-      android:textSize="18sp" />
+      android:textSize="28sp" />
 
-    <EditText
-      android:id="@+id/token"
+    <Button
+      android:id="@+id/pair"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:layout_marginTop="12dp"
-      android:background="@color/card"
-      android:hint="@string/token_hint"
-      android:inputType="textVisiblePassword"
+      android:nextFocusDown="@id/permission"
+      android:padding="16dp"
+      android:text="@string/pair"
+      android:textAllCaps="false"
+      android:textSize="18sp" />
+
+    <TextView
+      android:id="@+id/status"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="16dp"
+      android:textColor="@color/gold"
+      android:textSize="16sp" />
+
+    <Button
+      android:id="@+id/permission"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="16dp"
+      android:nextFocusDown="@id/test"
+      android:padding="16dp"
+      android:text="@string/permission"
+      android:textAllCaps="false"
+      android:textSize="18sp" />
+
+    <Button
+      android:id="@+id/test"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="8dp"
+      android:nextFocusDown="@id/hud"
+      android:padding="16dp"
+      android:text="@string/test_overlay"
+      android:textAllCaps="false"
+      android:textSize="18sp" />
+
+    <Button
+      android:id="@+id/hud"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="8dp"
       android:nextFocusDown="@id/corner"
       android:padding="16dp"
-      android:textColor="@color/text"
-      android:textColorHint="@color/muted"
+      android:text="@string/start_hud"
+      android:textAllCaps="false"
       android:textSize="18sp" />
 
     <TextView
@@ -115,47 +143,57 @@
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:layout_marginTop="4dp"
-      android:nextFocusDown="@id/permission"
+      android:nextFocusDown="@id/host"
       android:padding="8dp" />
 
     <TextView
-      android:id="@+id/status"
-      android:layout_width="match_parent"
+      android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginTop="16dp"
-      android:textColor="@color/gold"
-      android:textSize="16sp" />
+      android:layout_marginTop="24dp"
+      android:text="@string/advanced"
+      android:textColor="@color/muted"
+      android:textSize="14sp" />
 
-    <Button
-      android:id="@+id/permission"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:layout_marginTop="16dp"
-      android:nextFocusDown="@id/test"
-      android:padding="16dp"
-      android:text="@string/permission"
-      android:textAllCaps="false"
-      android:textSize="18sp" />
-
-    <Button
-      android:id="@+id/test"
+    <EditText
+      android:id="@+id/host"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
       android:layout_marginTop="8dp"
-      android:nextFocusDown="@id/hud"
+      android:background="@color/card"
+      android:hint="@string/host_hint"
+      android:inputType="textUri"
+      android:nextFocusDown="@id/port"
       android:padding="16dp"
-      android:text="@string/test_overlay"
-      android:textAllCaps="false"
+      android:textColor="@color/text"
+      android:textColorHint="@color/muted"
       android:textSize="18sp" />
 
-    <Button
-      android:id="@+id/hud"
+    <EditText
+      android:id="@+id/port"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_marginTop="8dp"
+      android:layout_marginTop="12dp"
+      android:background="@color/card"
+      android:hint="@string/port_hint"
+      android:inputType="number"
+      android:nextFocusDown="@id/token"
       android:padding="16dp"
-      android:text="@string/start_hud"
-      android:textAllCaps="false"
+      android:text="7333"
+      android:textColor="@color/text"
+      android:textColorHint="@color/muted"
+      android:textSize="18sp" />
+
+    <EditText
+      android:id="@+id/token"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
+      android:background="@color/card"
+      android:hint="@string/token_hint"
+      android:inputType="textVisiblePassword"
+      android:padding="16dp"
+      android:textColor="@color/text"
+      android:textColorHint="@color/muted"
       android:textSize="18sp" />
   </LinearLayout>
 </ScrollView>

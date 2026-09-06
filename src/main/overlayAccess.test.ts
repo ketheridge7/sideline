@@ -52,7 +52,8 @@ describe('requiresOverlayToken', () => {
     expect(requiresOverlayToken(true, '/')).toBe(true)
   })
 
-  it('does not token-gate static assets', () => {
+  it('does not token-gate pairing or static assets', () => {
+    expect(requiresOverlayToken(true, '/pair')).toBe(false)
     expect(requiresOverlayToken(true, '/overlay/assets/index.js')).toBe(false)
   })
 })
