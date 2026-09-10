@@ -152,6 +152,11 @@ const str = (value: unknown): string | undefined => {
   return undefined
 }
 
+const espnGameIsFinal = (game: Record<string, unknown> | null | undefined): boolean => {
+  const winner = str(game?.winner)?.toUpperCase()
+  return winner === 'HOME' || winner === 'AWAY' || winner === 'TIE'
+}
+
 const isBenchSlot = (slotId: unknown): boolean => {
   const id = num(slotId)
   return id != null && BENCH_SLOT_IDS.has(id)
@@ -1177,7 +1182,8 @@ export const overlayEspnMatchup = (
     starters: overlayEspnPlayers(prev.starters, myById, trustMine),
     bench: overlayEspnPlayers(prev.bench, myById, trustMine),
     oppStarters: oppSide ? overlayEspnPlayers(prev.oppStarters, oppById, trustOpp) : prev.oppStarters,
-    oppBench: oppSide ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp) : prev.oppBench
+    oppBench: oppSide ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp) : prev.oppBench,
+    scoresFinal: espnGameIsFinal(game)
   }
 }
 
@@ -1260,7 +1266,8 @@ export const toEspnMatchup = (args: {
     starters,
     bench,
     oppStarters: oppLineup.starters,
-    oppBench: oppLineup.bench
+    oppBench: oppLineup.bench,
+    scoresFinal: espnGameIsFinal(game)
   }
 }
 

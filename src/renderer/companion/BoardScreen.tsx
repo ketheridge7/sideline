@@ -85,24 +85,19 @@ export const BoardScreen = ({
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
-              {state.pollingLive ? (
-                <span className="flex items-center gap-1.5 font-cond font-bold text-air">
-                  <span className="live-dot inline-block h-1.5 w-1.5 bg-air" aria-hidden="true" />
-                  On air
-                </span>
-              ) : null}
-              {state.replay ? (
-                <span className="font-cond font-bold text-lime">Replay</span>
-              ) : null}
-              {state.lastUpdated ? (
-                <span>
-                  {new Date(state.lastUpdated).toLocaleTimeString()} · {state.pollingLive ? '3s' : '30s'}
-                  {state.pollMs != null ? ` · ${state.pollMs}ms` : ''}
-                  {state.liveCallMs != null ? ` · live ${state.liveCallMs}ms` : ''}
-                </span>
-              ) : null}
-            </div>
+            {state.pollingLive || state.replay ? (
+              <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
+                {state.pollingLive ? (
+                  <span className="flex items-center gap-1.5 font-cond font-bold text-air">
+                    <span className="live-dot inline-block h-1.5 w-1.5 bg-air" aria-hidden="true" />
+                    On air
+                  </span>
+                ) : null}
+                {state.replay ? (
+                  <span className="font-cond font-bold text-lime">Replay</span>
+                ) : null}
+              </div>
+            ) : null}
             <HudScoreboard
               matchup={matchup}
               needsSignIn={state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')}

@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import { BENCH_SLOT_IDS, espnLivePayloadIsStub, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
+import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 
 const fixture = JSON.parse(
   readFileSync(join(process.cwd(), 'fixtures/espn-league.json'), 'utf8')
@@ -1863,6 +1864,49 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.points).toBe(18)
     expect(next?.oppPoints).toBe(12)
     expect(next?.oppStarters[0]?.points).toBe(12)
+  })
+
+  it('does not let a later lower compact payload overwrite a committed HUD total', () => {
+    const highPrev = {
+      ...prev,
+      myPoints: 22.4,
+      oppPoints: 15.1,
+      starters: [{ ...prev.starters[0], points: 22.4 }],
+      oppStarters: [{ ...prev.oppStarters[0], points: 15.1 }]
+    }
+    const lower = {
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 18, players: [{ playerId: 100, totalPointsLive: 18 }] },
+          { teamId: 2, totalPointsLive: 12, players: [{ playerId: 200, totalPointsLive: 12 }] }
+        ]
+      }
+    }
+    const memory = emptyScoreMemory()
+    const shown = stabilizeMatchup(null, highPrev, memory)
+    const candidate = overlayEspnMatchup(shown, lower, 1, true)
+    expect(candidate?.myPoints).toBe(18)
+    const held = stabilizeMatchup(shown, candidate!, memory)
+    expect(held.myPoints).toBe(22.4)
+    expect(held.starters[0]?.points).toBe(22.4)
+    expect(held.oppPoints).toBe(15.1)
+  })
+
+  it('marks an ESPN schedule winner as scoresFinal', () => {
+    const live = {
+      scoringPeriodId: 1,
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          winner: 'HOME',
+          home: { teamId: 1, totalPointsLive: 18, players: [{ playerId: 100, totalPointsLive: 18 }] },
+          away: { teamId: 2, totalPointsLive: 12, players: [{ playerId: 200, totalPointsLive: 12 }] }
+        }
+      ]
+    }
+    const next = overlayEspnMatchup(prev, live, 1, true)
+    expect(next?.scoresFinal).toBe(true)
+    expect(next?.myPoints).toBe(18)
   })
 
   it('keeps last HUD when preferLive compact overlay is a zeroed stub', () => {

@@ -75,6 +75,8 @@ export type Matchup = {
   bench: Player[]
   oppStarters: Player[]
   oppBench: Player[]
+  /** Commissioner override or ESPN winner — HUD may commit a decrease immediately. */
+  scoresFinal?: boolean
 }
 
 export type Transaction = {
