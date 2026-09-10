@@ -76,6 +76,42 @@ describe('toOverlayHud', () => {
     expect(hud.myStarters[0]?.name).toBe('Live QB')
   })
 
+  it('follows the selected league when two connected boards exist', () => {
+    const state = emptyAppState()
+    state.leagues = [
+      { id: '1333470459076804608', name: 'Gucci Gang Dynasty', provider: 'sleeper', season: '2026', week: 1 },
+      { id: '543268341', name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }
+    ]
+    state.selectedLeagueKey = 'espn:543268341'
+    const espnMatchup = {
+      myTeam: { id: '1', name: 'Dawg House', owner: 'Kevin', record: '1-0' },
+      oppTeam: { id: '2', name: 'Them', owner: 'You', record: '0-1' },
+      myPoints: 12.5,
+      oppPoints: 9,
+      starters: [{ playerId: '1', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 12.5 }],
+      bench: [],
+      oppStarters: [{ playerId: '3', name: 'Allen', position: 'QB', nflTeam: 'BUF', points: 9 }],
+      oppBench: []
+    }
+    state.matchup = espnMatchup
+    const hud = toOverlayHud(state)
+    expect(hud.leagueName).toBe('Dawg Pound')
+    expect(hud.provider).toBe('espn')
+    expect(hud.myStarters[0]?.playerId).toBe('1')
+    const sleeper = toOverlayHud({
+      ...state,
+      selectedLeagueKey: 'sleeper:1333470459076804608',
+      matchup: {
+        ...espnMatchup,
+        myTeam: { id: '1', name: 'Gucci Gang', owner: 'ketheridge', record: '1-0' },
+        starters: [{ playerId: '4046', name: 'Amon-Ra St. Brown', position: 'WR', nflTeam: 'DET', points: 88.2 }]
+      }
+    })
+    expect(sleeper.leagueName).toBe('Gucci Gang Dynasty')
+    expect(sleeper.provider).toBe('sleeper')
+    expect(sleeper.myStarters[0]?.playerId).toBe('4046')
+  })
+
   it('forwards the NFL ticker onto the overlay HUD', () => {
     const state = emptyAppState()
     state.nflTicker = [

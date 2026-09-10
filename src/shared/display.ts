@@ -3,6 +3,19 @@ import { leagueKey, parseLeagueKey } from './types'
 
 const HIDDEN_STATUS = new Set(['', 'ACTIVE', 'NORMAL', 'HEALTHY', 'NA', 'N/A'])
 
+export const overlayStartersBelong = (prev: Player[], liveIds: Iterable<string>): boolean => {
+  const ids = new Set<string>()
+  for (const id of liveIds) {
+    if (id) ids.add(id)
+  }
+  if (ids.size === 0 || prev.length === 0) return true
+  return prev.some((player) => {
+    if (ids.has(player.playerId)) return true
+    const coerced = Number(player.playerId)
+    return Number.isFinite(coerced) && ids.has(String(coerced))
+  })
+}
+
 export const visibleInjury = (status?: string): string | null => {
   if (!status) return null
   const key = status.trim().toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')

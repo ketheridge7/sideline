@@ -2733,6 +2733,23 @@ describe('overlayEspnMatchup', () => {
     expect(overlayEspnMatchup(prev, { schedule: [{ matchupPeriodId: 1 }] }, 1)).toBeNull()
     expect(overlayEspnMatchup(prev, { liveScoring: { teams: [] } }, 1)).toBeNull()
   })
+
+  it('does not overlay a Sleeper last HUD onto ESPN live chips', () => {
+    const sleeperHud = {
+      ...prev,
+      starters: [{ playerId: '4046', name: 'Amon-Ra St. Brown', position: 'WR', nflTeam: 'DET', points: 14.8 }],
+      oppStarters: [{ playerId: '6794', name: 'Justin Jefferson', position: 'WR', nflTeam: 'MIN', points: 11 }]
+    }
+    const live = {
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 22.4, players: [{ playerId: 100, totalPointsLive: 22.4 }] },
+          { teamId: 2, totalPointsLive: 15.1, players: [{ playerId: 200, totalPointsLive: 15.1 }] }
+        ]
+      }
+    }
+    expect(overlayEspnMatchup(sleeperHud, live, 1)).toBeNull()
+  })
 })
 
 describe('overlayLiveScoring', () => {

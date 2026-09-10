@@ -79,4 +79,23 @@ describe('replayWorld', () => {
     expect(ticker.some((game) => game.final)).toBe(true)
     expect(ticker.some((game) => !game.final)).toBe(true)
   })
+
+  it('keeps a distinct myTeam and starter ids on every mixed Sleeper/ESPN board', () => {
+    const rows = weekLeagues.map((league) => {
+      const matchup = replayMatchupFor(league, 0)
+      return {
+        key: leagueKey(league.provider, league.id),
+        teamId: matchup?.myTeam.id,
+        starterIds: (matchup?.starters ?? []).map((row) => row.playerId)
+      }
+    })
+    expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length)
+    expect(new Set(rows.map((row) => row.teamId)).size).toBe(rows.length)
+    const sleeper = rows.find((row) => row.key.startsWith('sleeper:'))
+    const espn = rows.find((row) => row.key.startsWith('espn:'))
+    expect(sleeper?.starterIds[0]).toBeTruthy()
+    expect(espn?.starterIds[0]).toBeTruthy()
+    expect(sleeper?.starterIds[0]).not.toBe(espn?.starterIds[0])
+    expect(sleeper?.starterIds.some((id) => espn?.starterIds.includes(id))).toBe(false)
+  })
 })

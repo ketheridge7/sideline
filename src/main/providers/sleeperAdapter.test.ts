@@ -417,6 +417,38 @@ describe('overlaySleeperMatchups', () => {
     expect(next?.oppPoints).toBe(27.6)
     expect(next?.starters[0]?.points).toBe(22.4)
   })
+
+  it('does not overlay an ESPN last HUD onto a Sleeper /matchups payload', () => {
+    const espnHud = {
+      myTeam: { id: '1', name: 'Dawg House', owner: 'Kevin', record: '1-0' },
+      oppTeam: { id: '2', name: 'Them', owner: 'You', record: '0-1' },
+      myPoints: 10,
+      oppPoints: 8,
+      starters: [{ playerId: '1', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 10 }],
+      bench: [] as { playerId: string; name: string; position: string; nflTeam: string }[],
+      oppStarters: [{ playerId: '3', name: 'Allen', position: 'QB', nflTeam: 'BUF', points: 8 }],
+      oppBench: [] as { playerId: string; name: string; position: string; nflTeam: string }[]
+    }
+    const live = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 88.2,
+        starters: ['4046'],
+        players: ['4046'],
+        players_points: { '4046': 88.2 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 7,
+        points: 70,
+        starters: ['6794'],
+        players: ['6794'],
+        players_points: { '6794': 70 }
+      }
+    ]
+    expect(overlaySleeperMatchups(espnHud, live)).toBeNull()
+  })
 })
 
 describe('applyPlayerNames', () => {

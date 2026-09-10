@@ -1,4 +1,4 @@
-import { visibleInjury } from '@shared/display'
+import { overlayStartersBelong, visibleInjury } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import type { EspnCookies } from './espnClient'
@@ -1130,6 +1130,7 @@ export const overlayEspnMatchup = (
   const oppSide = mergeSide(iAmHome ? away : home, liveOpp)
   const myById = livePointsByPlayerId(mySide, displayWeek)
   const oppById = oppSide ? livePointsByPlayerId(oppSide, displayWeek) : new Map<string, number>()
+  if (!overlayStartersBelong(prev.starters, myById.keys())) return null
   const trustMine = preferLive && hasEspnLivePts(mySide, myById, displayWeek)
   const trustOpp = Boolean(preferLive && oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
   const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>

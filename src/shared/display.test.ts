@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, lastName, leadShare, liveScorers, nflTeamLabel, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, lastName, leadShare, liveScorers, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -129,5 +129,46 @@ describe('applyCompanionHudPatch', () => {
     expect(next.pollingLive).toBe(true)
     expect(next.boards.map((row) => row.myPoints)).toEqual([150.4, 142.8])
     expect(next.boards[1]?.leagueName).toBe('Other')
+  })
+
+  it('does not clone the selected HUD roster onto another provider board', () => {
+    const sleeper = toMatchupBoard(league, matchup)
+    const espnLeague: League = { id: '543268341', name: 'Dawg Pound', provider: 'espn', season: '2025', week: 1 }
+    const espnMatchup: Matchup = {
+      ...matchup,
+      myTeam: { id: '7', name: 'Dawg House', owner: 'Kevin', record: '1-0' },
+      starters: [{ playerId: 'lamar', name: 'Lamar Jackson', position: 'QB', nflTeam: 'BAL', points: 26.8 }]
+    }
+    const espnBoard = toMatchupBoard(espnLeague, espnMatchup)
+    const current = {
+      ...emptyAppState(),
+      leagues: [league, espnLeague],
+      selectedLeagueKey: 'sleeper:1',
+      boards: [sleeper, espnBoard],
+      matchup: { ...matchup, myPoints: 150.4 }
+    }
+    const next = applyCompanionHudPatch(current, {
+      matchup: { ...matchup, myPoints: 150.4, oppPoints: 131.2 },
+      tape: [],
+      nflTicker: [],
+      pollingLive: true,
+      overlayEditMode: false,
+      lastUpdated: 9,
+      pollMs: 12,
+      liveCallMs: 40
+    })
+    expect(next.boards.find((row) => row.key === 'sleeper:1')?.myPoints).toBe(150.4)
+    expect(next.boards.find((row) => row.key === 'espn:543268341')?.myName).toBe('Dawg House')
+    expect(next.boards.find((row) => row.key === 'espn:543268341')?.lastScorers[0]?.playerId).toBe('lamar')
+  })
+})
+
+describe('overlayStartersBelong', () => {
+  it('keeps same-league overlays and rejects a Sleeper lineup painted with ESPN player ids', () => {
+    const prev = [{ playerId: '4046', name: 'Amon-Ra St. Brown', position: 'WR', nflTeam: 'DET' }]
+    expect(overlayStartersBelong(prev, ['4046', '6794'])).toBe(true)
+    expect(overlayStartersBelong(prev, ['4046'])).toBe(true)
+    expect(overlayStartersBelong(prev, ['1', '3'])).toBe(false)
+    expect(overlayStartersBelong(prev, [])).toBe(true)
   })
 })

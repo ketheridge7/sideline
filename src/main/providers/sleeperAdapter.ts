@@ -1,3 +1,4 @@
+import { overlayStartersBelong } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import type {
@@ -250,6 +251,8 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
   if (myId == null) return null
   const mine = matchups.find((row) => rosterIdOf(row) === myId)
   if (!mine) return null
+  const liveIds = (mine.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
+  if (!overlayStartersBelong(prev.starters, liveIds)) return null
   const oppId = prev.oppTeam ? asInt(prev.oppTeam.id) : undefined
   const opp =
     oppId != null
