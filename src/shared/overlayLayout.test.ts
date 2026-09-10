@@ -50,15 +50,15 @@ describe('layoutFromPreset', () => {
     expect(layout.widgets.find((row) => row.id === 'score.opp')?.hidden).toBe(false)
     expect(layout.widgets.find((row) => row.id === 'team.opp.name')?.hidden).toBe(false)
     expect(layout.widgets.find((row) => row.id === 'toast.slot')?.hidden).toBe(true)
-    expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.y).toBe(22)
-    expect(layout.widgets.find((row) => row.id === 'col.opp.name')?.y).toBe(56)
+    expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.y).toBe(23.2)
+    expect(layout.widgets.find((row) => row.id === 'col.opp.name')?.y).toBe(57.2)
     expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.density).toBe('compact')
   })
 
-  it('National keeps dual skinny rails with names and scores above each, both teams visible', () => {
+  it('Tape rails keep dual skinny rails with names and scores above each, both teams visible', () => {
     const layout = layoutFromPreset('national')
     const vis = visible('national')
-    expect(vis.every((row) => row.y >= 13)).toBe(true)
+    expect(vis.every((row) => row.y >= 8)).toBe(true)
     expect(vis.every((row) => row.y + row.h <= 86)).toBe(true)
     expect(layout.widgets.find((row) => row.id === 'col.opp.name')?.hidden).toBe(false)
     expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.hidden).toBe(false)
@@ -69,6 +69,12 @@ describe('layoutFromPreset', () => {
     expect(leftRail?.x).toBeLessThan(8)
     expect(rightRail?.x).toBeGreaterThanOrEqual(84)
     expect(layout.widgets.find((row) => row.id === 'toast.slot')?.hidden).toBe(true)
+    expect(layout.widgets.find((row) => row.id === 'score.mine')?.opacity).toBe(0)
+    expect(layout.widgets.find((row) => row.id === 'team.opp.name')?.opacity).toBe(0)
+    expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.opacity).toBe(0.05)
+    expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.density).toBe('regular')
+    expect(leftRail?.y).toBe(rightRail?.y)
+    expect(leftRail?.h).toBe(rightRail?.h)
   })
 
   it('Ticket stays left-only and stacks both teams inside the YouTube TV pocket', () => {
@@ -88,7 +94,7 @@ describe('layoutFromPreset', () => {
     expect(layout.widgets.find((row) => row.id === 'col.mine.pts')?.hidden).toBe(false)
     expect(layout.widgets.find((row) => row.id === 'col.opp.pts')?.hidden).toBe(false)
     const vis = visible('broadcast-l')
-    expect(vis.every((row) => row.y >= 12)).toBe(true)
+    expect(vis.every((row) => row.y >= 8)).toBe(true)
     expect(vis.every((row) => row.y + row.h <= 86)).toBe(true)
     expect(layout.widgets.filter(coversLiveVideo).map((row) => row.id)).toEqual([])
   })
@@ -111,8 +117,8 @@ describe('layoutFromPreset', () => {
 })
 
 describe('parseOverlayLayout', () => {
-  it('falls back to RedZone for garbage', () => {
-    expect(parseOverlayLayout(null).presetId).toBe('redzone')
+  it('falls back to Tape rails for garbage', () => {
+    expect(parseOverlayLayout(null).presetId).toBe('national')
     expect(parseOverlayLayout(null).showCrawler).toBe(false)
     expect(parseOverlayLayout('nope').widgets).toHaveLength(OVERLAY_WIDGET_IDS.length)
   })
@@ -130,10 +136,10 @@ describe('parseOverlayLayout', () => {
     expect(parsed.presetId).toBe('corners')
     const score = parsed.widgets.find((row) => row.id === 'score.mine')
     expect(score?.x).toBe(10)
-    expect(parsed.widgets.find((row) => row.id === 'score.opp')?.x).toBe(1.5)
+    expect(parsed.widgets.find((row) => row.id === 'score.opp')?.x).toBe(1.2)
   })
 
-  it('clamps out-of-range geometry', () => {
+  it('clamps out-of-range geometry and allows a fully transparent fill', () => {
     const parsed = parseOverlayLayout({
       widgets: [{ id: 'score.delta', x: -4, y: 200, w: 0, h: 999, opacity: 2 }]
     })
@@ -142,6 +148,10 @@ describe('parseOverlayLayout', () => {
     expect(delta?.y).toBe(100)
     expect(delta?.w).toBe(1)
     expect(delta?.opacity).toBe(0.85)
+    const clear = parseOverlayLayout({
+      widgets: [{ id: 'score.mine', opacity: -1 }]
+    })
+    expect(clear.widgets.find((row) => row.id === 'score.mine')?.opacity).toBe(0)
   })
 
   it('persists a saved showCrawler flag', () => {
@@ -162,9 +172,11 @@ describe('layout edits', () => {
     expect(ids).toContain('col.mine.pos')
     expect(ids).toContain('col.mine.pts')
     expect(ids).not.toContain('col.mine.nfl')
-    const moved = translateWidgets(layout, ids, 2, 0)
-    expect(moved.widgets.find((row) => row.id === 'col.mine.name')?.x).toBe(90)
-    expect(moved.widgets.find((row) => row.id === 'col.mine.pts')?.x).toBe(96)
+    const name = layout.widgets.find((row) => row.id === 'col.mine.name')
+    const pts = layout.widgets.find((row) => row.id === 'col.mine.pts')
+    const moved = translateWidgets(layout, ids, 1, 0)
+    expect(moved.widgets.find((row) => row.id === 'col.mine.name')?.x).toBe((name?.x ?? 0) + 1)
+    expect(moved.widgets.find((row) => row.id === 'col.mine.pts')?.x).toBe((pts?.x ?? 0) + 1)
   })
 
   it('applyPreset restores a canned map', () => {

@@ -15,14 +15,14 @@ export const HudBench = ({
 }): JSX.Element => {
   if (players.length === 0) {
     return (
-      <div className={`border-t border-line px-4 py-2 ${mirror ? 'text-right' : ''}`}>
+      <div className={`border-t border-white/5 px-4 py-2 ${mirror ? 'text-right' : ''}`}>
         <span className="font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</span>
         <span className="ml-2 text-xs text-muted">Empty</span>
       </div>
     )
   }
   return (
-    <div className={`border-t border-line px-4 py-2 ${mirror ? 'text-right' : ''}`}>
+    <div className={`border-t border-white/5 px-4 py-2 ${mirror ? 'text-right' : ''}`}>
       <div
         className={`mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted ${
           mirror ? 'text-them' : 'text-you'
@@ -36,7 +36,7 @@ export const HudBench = ({
           return (
             <div
               key={player.playerId}
-              className={`shrink-0 border border-line bg-bg px-2 py-1 text-xs ${
+              className={`shrink-0 bg-white/[0.03] px-2 py-1 text-xs ${
                 injury ? 'text-muted' : ''
               }`}
             >

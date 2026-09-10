@@ -11,21 +11,6 @@ import type { OverlaySurface } from './subscribe'
 const YOU = '#7DD3FC'
 const THEM = '#94A3B8'
 
-const scorePx = (density: Density): number => {
-  switch (density) {
-    case 'compact':
-      return 32
-    case 'regular':
-      return 36
-    case 'large':
-      return 44
-    default: {
-      const _never: never = density
-      return _never
-    }
-  }
-}
-
 const RailColumn = ({
   players,
   field,
@@ -42,8 +27,8 @@ const RailColumn = ({
   const rows = Math.max(players.length, 1)
   return (
     <div
-      className={`flex h-full min-h-0 min-w-0 flex-col py-0.5 ${
-        hash === 'you' ? 'border-l border-you/70' : ''
+      className={`hud-rail flex h-full min-h-0 min-w-0 flex-col ${
+        hash === 'you' ? 'hud-hash-you' : ''
       }`}
     >
       {Array.from({ length: rows }, (_, index) => {
@@ -51,24 +36,24 @@ const RailColumn = ({
         const textAlign = align === 'right' ? 'text-right' : 'text-left'
         const injury = field === 'name' ? visibleInjury(player?.status) : null
         let body: JSX.Element | string = '—'
-        let typeClass = 'font-cond font-semibold uppercase tracking-wide text-[13px] text-text'
+        let typeClass = 'hud-type-player text-text'
         if (field === 'pos') {
-          typeClass = 'font-cond font-medium uppercase tracking-wide text-[11px] text-muted'
+          typeClass = 'hud-type-pos'
           body = player?.position || '—'
         } else if (field === 'name') {
-          typeClass = 'font-cond font-semibold uppercase tracking-wide text-[14px] text-text'
+          typeClass = 'hud-type-player text-text'
           body = player ? overlayName(player.name) : '—'
         } else if (field === 'nfl') {
-          typeClass = 'font-cond font-medium uppercase tracking-wide text-[11px] text-muted'
+          typeClass = 'hud-type-pos'
           body = player?.nflTeam || '—'
         } else if (field === 'pts') {
-          typeClass = 'font-cond text-[14px] font-bold tabular-nums'
+          typeClass = 'hud-type-pts'
           body = player ? (
             <ScoreTick
               value={player.points}
               restColor={restColor}
               align={align}
-              className="w-full text-[14px] font-cond font-bold"
+              className="hud-type-pts"
             />
           ) : (
             '—'
@@ -80,10 +65,10 @@ const RailColumn = ({
         return (
           <div
             key={player?.playerId ?? `${field}-${index}`}
-            className={`flex min-h-0 flex-1 items-center px-0.5 ${textAlign} ${typeClass}`}
+            className={`hud-rail-row flex flex-1 items-center ${textAlign}`}
           >
             {typeof body === 'string' ? (
-              <span className="w-full truncate">
+              <span className={`w-full truncate ${typeClass}`}>
                 {body}
                 {injury ? <span className="ml-1 text-air">{injury}</span> : null}
               </span>
@@ -154,42 +139,26 @@ export const OverlayWidgetView = ({
       )
     case 'team.mine.name':
       return (
-        <div className="flex h-full items-end truncate font-cond text-[11px] font-semibold uppercase tracking-[0.16em] text-you">
-          {hud.myName}
-        </div>
+        <div className="hud-type-name flex h-full items-end truncate text-you">{hud.myName}</div>
       )
     case 'team.opp.name':
       return (
-        <div className="flex h-full items-end truncate font-cond text-[11px] font-semibold uppercase tracking-[0.16em] text-them">
-          {hud.oppName}
-        </div>
+        <div className="hud-type-name flex h-full items-end truncate text-them">{hud.oppName}</div>
       )
     case 'score.mine':
       return (
-        <ScoreTick
-          value={hud.myPoints}
-          restColor={YOU}
-          className="h-full font-cond font-extrabold"
-          style={{ fontSize: scorePx(resolved) }}
-        />
+        <ScoreTick value={hud.myPoints} restColor={YOU} className="hud-type-score" />
       )
     case 'score.opp':
       return (
-        <ScoreTick
-          value={hud.oppPoints}
-          restColor={THEM}
-          className="h-full font-cond font-extrabold"
-          style={{ fontSize: scorePx(resolved) }}
-        />
+        <ScoreTick value={hud.oppPoints} restColor={THEM} className="hud-type-score" />
       )
     case 'score.delta': {
       const leading = hud.delta > 0
       const trailing = hud.delta < 0
       const deltaClass = leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
       return (
-        <div
-          className={`flex h-full items-end font-cond text-[13px] font-bold uppercase tabular-nums ${deltaClass}`}
-        >
+        <div className={`hud-type-delta flex h-full items-end tabular-nums ${deltaClass}`}>
           {formatDelta(hud.delta)}
         </div>
       )
@@ -201,7 +170,7 @@ export const OverlayWidgetView = ({
     case 'col.mine.nfl':
       return <RailColumn players={hud.myStarters} field="nfl" align="left" restColor={YOU} />
     case 'col.mine.pts':
-      return <RailColumn players={hud.myStarters} field="pts" align="left" restColor={YOU} />
+      return <RailColumn players={hud.myStarters} field="pts" align="right" restColor={YOU} />
     case 'col.opp.pos':
       return <RailColumn players={hud.oppStarters} field="pos" align="left" restColor={THEM} />
     case 'col.opp.name':
@@ -209,7 +178,7 @@ export const OverlayWidgetView = ({
     case 'col.opp.nfl':
       return <RailColumn players={hud.oppStarters} field="nfl" align="left" restColor={THEM} />
     case 'col.opp.pts':
-      return <RailColumn players={hud.oppStarters} field="pts" align="left" restColor={THEM} />
+      return <RailColumn players={hud.oppStarters} field="pts" align="right" restColor={THEM} />
     case 'bench.mine':
       return <BenchList players={hud.myBench} density={resolved} align="left" />
     case 'bench.opp':

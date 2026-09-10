@@ -1,4 +1,4 @@
-import { layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './overlayLayout'
+import { DEFAULT_OVERLAY_PRESET, layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './overlayLayout'
 
 export type Settings = {
   sleeperUsername: string | null
@@ -19,7 +19,7 @@ export const defaultSettings = (): Settings => ({
   espnLeagueIds: [],
   pinnedLeagueKeys: [],
   selectedLeagueKey: null,
-  overlayLayout: layoutFromPreset('redzone'),
+  overlayLayout: layoutFromPreset(DEFAULT_OVERLAY_PRESET),
   overlayDisplayId: null,
   overlayHotkey: 'CommandOrControl+Shift+O',
   overlayEditHotkey: 'CommandOrControl+Shift+E',

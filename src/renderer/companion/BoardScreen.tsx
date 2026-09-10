@@ -107,9 +107,9 @@ export const BoardScreen = ({
               matchup={matchup}
               needsSignIn={state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')}
             />
-            <section className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-hidden bg-line">
-              <div className="min-h-0 overflow-auto bg-card px-4 py-2">
-                <h2 className="mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-you">You</h2>
+            <section className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
+              <div className="min-h-0 overflow-auto px-5 py-3">
+                <h2 className="mb-2 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
                 {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
                   <LineupRow
                     key={matchup.starters[index]?.playerId ?? `mine-${index}`}
@@ -118,8 +118,8 @@ export const BoardScreen = ({
                   />
                 ))}
               </div>
-              <div className="min-h-0 overflow-auto bg-card px-4 py-2">
-                <h2 className="mb-1 text-right font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-them">
+              <div className="min-h-0 overflow-auto px-5 py-3">
+                <h2 className="mb-2 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">
                   Them
                 </h2>
                 {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
