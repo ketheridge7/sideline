@@ -322,7 +322,7 @@ describe('poller live tick order', () => {
     if (scoreboardAt >= 0) expect(boxAt).toBeLessThan(scoreboardAt)
   })
 
-  it('kicks compact mLiveScoring first on a true-cold ESPN HUD and recovers mMatchupScore immediately', async () => {
+  it('kicks mMatchupScore first on a true-cold ESPN HUD so compact stubs cannot paint a bye', async () => {
     const dir = app.getPath('userData')
     const leagueId = '899516'
     const selectedKey = leagueKey('espn', leagueId)
@@ -393,9 +393,10 @@ describe('poller live tick order', () => {
 
     const liveAt = urls.findIndex((url) => url.includes('view=mLiveScoring') && !url.includes('mMatchupScore'))
     const boxAt = urls.findIndex((url) => url.includes('view=mMatchupScore'))
-    expect(liveAt).toBe(0)
-    expect(boxAt).toBeGreaterThan(liveAt)
+    expect(boxAt).toBeGreaterThanOrEqual(0)
+    expect(urls[boxAt]).toContain('view=mMatchupScore')
     expect(inits[boxAt]?.priority).toBe('high')
+    if (liveAt >= 0) expect(boxAt).toBeLessThan(liveAt)
   })
 
   it('starts a cold Sleeper /matchups GET before rosters, leagues, and the scoreboard', async () => {
@@ -1349,6 +1350,230 @@ describe('poller live tick order', () => {
     expect(currentState().matchup?.myTeam.name).not.toBe('Team Harrison')
     const hud = toOverlayHud(currentState())
     expect(hud.provider).toBe('espn')
+    expect(hud.myStarters[0]?.playerId).not.toBe('4046')
+  })
+
+  it('loads Kevin team 8 + opponent + starters from mMatchupScore when compact live is stubs', async () => {
+    const dir = app.getPath('userData')
+    const espnId = '543268341'
+    const espnKey = leagueKey('espn', espnId)
+    const kevinSwid = '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    espnAuth.cookies = { espn_s2: 'live-s2', SWID: kevinSwid }
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: espnKey,
+      espnLeagueIds: [espnId],
+      pinnedLeagueKeys: []
+    })
+    writeNfl(dir)
+    writeFileSync(join(dir, 'sideline-matchups.json'), JSON.stringify({ at: Date.now(), week: 1, byKey: {} }))
+    writeFileSync(join(dir, 'sideline-espn-scores.json'), JSON.stringify({ at: Date.now(), byId: {} }))
+    const hudPath = join(dir, 'sideline-last-hud.json')
+    if (existsSync(hudPath)) unlinkSync(hudPath)
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: espnId,
+        leagues: [{ id: espnId, name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }]
+      })
+    )
+    warmupPollerCaches()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({
+            scoringPeriodId: 1,
+            id: Number(espnId),
+            schedule: [{ matchupPeriodId: 1 }, { matchupPeriodId: 1 }]
+          })
+        }
+        if (url.includes('mMatchupScore')) {
+          return jsonOk({
+            scoringPeriodId: 1,
+            id: Number(espnId),
+            schedule: [
+              {
+                matchupPeriodId: 1,
+                home: {
+                  teamId: 8,
+                  totalPointsLive: 18.4,
+                  rosterForCurrentScoringPeriod: {
+                    entries: [
+                      {
+                        lineupSlotId: 0,
+                        playerId: 3139477,
+                        playerPoolEntry: {
+                          player: { fullName: 'Patrick Mahomes', defaultPositionId: 1, proTeamId: 12 }
+                        }
+                      }
+                    ]
+                  }
+                },
+                away: {
+                  teamId: 3,
+                  totalPointsLive: 11,
+                  rosterForCurrentScoringPeriod: {
+                    entries: [
+                      {
+                        lineupSlotId: 0,
+                        playerId: 4241479,
+                        playerPoolEntry: {
+                          player: { fullName: 'Josh Allen', defaultPositionId: 1, proTeamId: 2 }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          })
+        }
+        if (url.includes('mTeam') || url.includes('mSettings')) {
+          return jsonOk({
+            scoringPeriodId: 1,
+            settings: { name: 'Dawg Pound' },
+            members: [{ id: kevinSwid, displayName: 'Kevin Etheridge' }],
+            teams: [
+              {
+                id: 1,
+                name: 'Team Harrison',
+                abbrev: 'TH',
+                primaryOwner: '{aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}'
+              },
+              {
+                id: 8,
+                name: 'Team Etheridge',
+                abbrev: 'KE',
+                primaryOwner: kevinSwid
+              },
+              {
+                id: 3,
+                name: 'The Other Guys',
+                abbrev: 'TOG',
+                primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}'
+              }
+            ]
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.starters[0]?.playerId).toBe('3139477')
+    expect(currentState().matchup?.myTeam.id).toBe('8')
+    expect(currentState().matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(currentState().matchup?.oppTeam).not.toBeNull()
+    expect(currentState().matchup?.oppTeam?.id).toBe('3')
+    expect(currentState().matchup?.oppStarters[0]?.name).toBe('Josh Allen')
+    expect(toOverlayHud(currentState()).oppName).not.toBe('BYE')
+    const board = currentState().boards.find((row) => row.key === espnKey)
+    expect(board?.myName).toBe('Team Etheridge')
+    expect(board?.oppName).not.toBeNull()
+  })
+
+  it('does not paint a false ESPN bye or Sleeper lineup when the ESPN fetch 401s', async () => {
+    const dir = app.getPath('userData')
+    const sleeperId = '1333470459076804608'
+    const espnId = '543268341'
+    const sleeperKey = leagueKey('sleeper', sleeperId)
+    const espnKey = leagueKey('espn', espnId)
+    espnAuth.cookies = { espn_s2: 'stale-s2', SWID: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' }
+    saveSettings({
+      sleeperUsername: 'ketheridge',
+      sleeperUserId: '578604586021982208',
+      selectedLeagueKey: espnKey,
+      espnLeagueIds: [espnId],
+      pinnedLeagueKeys: []
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-sleeper-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        username: 'ketheridge',
+        season: '2026',
+        leagues: [{ id: sleeperId, name: 'Gucci Gang Dynasty', provider: 'sleeper', season: '2026', week: 1 }]
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: espnId,
+        leagues: [{ id: espnId, name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }]
+      })
+    )
+    warmupPollerCaches()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('lm-api-reads.fantasy.espn.com')) {
+          return {
+            ok: false,
+            status: 401,
+            headers: { get: () => 'application/json' },
+            json: async () => ({ messages: ['You are not authorized to view this League.'] })
+          }
+        }
+        if (url.includes(`/league/${sleeperId}/matchups/`)) {
+          return jsonOk([
+            {
+              roster_id: 11,
+              matchup_id: 7,
+              points: 88.2,
+              starters: ['4046'],
+              players: ['4046'],
+              players_points: { '4046': 88.2 }
+            }
+          ])
+        }
+        if (url.includes(`/league/${sleeperId}/rosters`)) {
+          return jsonOk([{ roster_id: 11, owner_id: '578604586021982208', settings: { wins: 1, losses: 0 } }])
+        }
+        if (url.includes(`/league/${sleeperId}/users`)) {
+          return jsonOk([
+            {
+              user_id: '578604586021982208',
+              display_name: 'ketheridge',
+              metadata: { team_name: 'Gibbs Me Head' }
+            }
+          ])
+        }
+        if (url.includes('/leagues/nfl')) {
+          return jsonOk([{ league_id: sleeperId, name: 'Gucci Gang Dynasty', season: '2026' }])
+        }
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().selectedLeagueKey).toBe(espnKey)
+    expect(currentState().espnNeedsRelogin).toBe(true)
+    expect(currentState().matchup?.myTeam.name).not.toBe('Gibbs Me Head')
+    expect(currentState().matchup?.starters[0]?.playerId).not.toBe('4046')
+    expect(currentState().matchup?.oppTeam).not.toBeNull()
+    const hud = toOverlayHud(currentState())
+    expect(hud.provider).toBe('espn')
+    expect(hud.oppName).not.toBe('BYE')
     expect(hud.myStarters[0]?.playerId).not.toBe('4046')
   })
 })

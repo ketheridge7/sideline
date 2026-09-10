@@ -82,6 +82,20 @@ describe('toMatchupBoard', () => {
     expect(liveScorers(null)).toEqual([])
   })
 
+  it('labels an ESPN board Sign in when cookies are missing instead of a false bye', () => {
+    const espnLeague: League = {
+      id: '543268341',
+      name: 'Dawg Pound',
+      provider: 'espn',
+      season: '2026',
+      week: 1
+    }
+    const board = toMatchupBoard(espnLeague, null, { espnNeedsRelogin: true })
+    expect(board.myName).toBe('Sign in')
+    expect(board.oppName).toBe('Sign in')
+    expect(toMatchupBoard(espnLeague, null).oppName).toBeNull()
+  })
+
   it('prefers players who just ticked over season-long top scorers', () => {
     const ticking: Matchup = {
       ...matchup,

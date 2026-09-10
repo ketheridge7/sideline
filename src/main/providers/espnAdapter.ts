@@ -260,6 +260,8 @@ const teamOwnsSwid = (team: Record<string, unknown>, swid: string): boolean => {
 }
 
 const teamName = (team: Record<string, unknown>): string => {
+  const named = str(team.name)
+  if (named) return named
   const location = str(team.location) ?? ''
   const nickname = str(team.nickname) ?? ''
   const combined = `${location} ${nickname}`.trim()
@@ -954,6 +956,12 @@ export const mergeEspnTeams = (
   }
 }
 
+const scheduleGameHasSides = (game: Record<string, unknown>): boolean => {
+  const home = isRecord(game.home) ? game.home : null
+  const away = isRecord(game.away) ? game.away : null
+  return scheduleSideId(home) != null || scheduleSideId(away) != null
+}
+
 const scheduleGameKey = (game: Record<string, unknown>): string | null => {
   const home = isRecord(game.home) ? game.home : null
   const away = isRecord(game.away) ? game.away : null
@@ -962,6 +970,32 @@ const scheduleGameKey = (game: Record<string, unknown>): string | null => {
   if (homeId == null || awayId == null) return null
   const period = num(game.matchupPeriodId) ?? num(game.scoringPeriodId)
   return `${period ?? ''}:${homeId}:${awayId}`
+}
+
+/** Compact `mLiveScoring` week stubs are `{ matchupPeriodId }` only — no home/away team ids. */
+export const espnLivePayloadIsStub = (payload: unknown): boolean => {
+  const row = unwrapEspnPayload(payload, hasEspnLeagueShape)
+  if (!row) return true
+  if (liveScoringFromPayload(row).some(looksLikeLiveTeamRow)) return false
+  const schedule = payloadSchedule(row)
+  if (schedule.length === 0) return false
+  return !schedule.some(scheduleGameHasSides)
+}
+
+const teamFromId = (
+  id: number | undefined,
+  teams: Record<string, unknown>[],
+  members: Record<string, unknown>[],
+  side?: Record<string, unknown> | null
+): Team | null => {
+  if (id == null) return null
+  const raw = teams.find((team) => num(team.id) === id)
+  if (raw) return toTeam(raw, members)
+  if (side) {
+    const fromSide = toTeam({ ...side, id }, members)
+    if (fromSide.name && fromSide.name !== `Team ${id}`) return fromSide
+  }
+  return { id: String(id), name: `Team ${id}`, owner: '', record: '0-0' }
 }
 
 const overlaySchedule = (
@@ -1105,6 +1139,7 @@ export const overlayEspnMatchup = (
 ): Matchup | null => {
   const payload = unwrapEspnPayload(livePayload, hasEspnLeagueShape)
   if (!payload) return null
+  if (espnLivePayloadIsStub(payload)) return null
   if (!matchupHasLineup(prev)) return null
   const myId = num(prev.myTeam.id)
   if (myId == null || myId <= 0) return null
@@ -1172,8 +1207,15 @@ export const toEspnMatchup = (args: {
   })
   const members = membersOf(payload)
   const liveTeams = liveScoringTeams(payload)
+  const periodGames = schedule.filter((row) => {
+    const matchupPeriod = num(row.matchupPeriodId) ?? num(row.scoringPeriodId)
+    return matchupPeriod == null || matchupPeriod === period
+  })
+  const scheduleHasSides = periodGames.some(scheduleGameHasSides)
   if (!game) {
+    if (!scheduleHasSides && periodGames.length > 0) return null
     const liveMine = liveTeamFor(liveTeams, myId)
+    if (!scheduleHasSides && !liveMine) return null
     if (!liveMine) {
       return {
         myTeam: toTeam(myTeamRaw, members),
@@ -1206,14 +1248,13 @@ export const toEspnMatchup = (args: {
   const oppId = scheduleSideId(iAmHome ? away : home)
   const oppSide = mergeSide(iAmHome ? away : home, liveTeamFor(liveTeams, oppId))
   if (!mySide) return null
-  const oppTeamRaw = teams.find((team) => num(team.id) === oppId)
   const entries = rosterEntries(mySide, teams)
   const { starters, bench } = lineupPlayers(entries, period)
   const oppEntries = oppSide ? rosterEntries(oppSide, teams) : []
   const oppLineup = lineupPlayers(oppEntries, period)
   return {
     myTeam: toTeam(myTeamRaw, members),
-    oppTeam: oppTeamRaw ? toTeam(oppTeamRaw, members) : null,
+    oppTeam: teamFromId(oppId, teams, members, iAmHome ? away : home),
     myPoints: sideTotal(mySide, period),
     oppPoints: oppSide ? sideTotal(oppSide, period) : 0,
     starters,

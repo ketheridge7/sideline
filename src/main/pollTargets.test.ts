@@ -278,8 +278,12 @@ describe('espnScoreOverlayPlan', () => {
 })
 
 describe('espnScoreKickOrder', () => {
-  it('kicks mLiveScoring first even when there is no boxscore cache', () => {
-    expect(espnScoreKickOrder()).toBe('live-then-full')
+  it('kicks mMatchupScore first when there is no boxscore overlay', () => {
+    expect(espnScoreKickOrder({ hasOverlay: false })).toBe('full-then-live')
+  })
+
+  it('kicks mLiveScoring first when last lineup or boxscore can overlay compact live', () => {
+    expect(espnScoreKickOrder({ hasOverlay: true })).toBe('live-then-full')
   })
 })
 
@@ -384,6 +388,16 @@ describe('espnLiveFullSwrPlan', () => {
         hasOverlay: true,
         hud: true,
         gamesIn: true
+      })
+    ).toBe('recover')
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        compactIsStub: true
       })
     ).toBe('recover')
   })

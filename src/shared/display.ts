@@ -105,25 +105,29 @@ export type MatchupBoardExtra = {
   lastScorers?: ScorerChip[]
   leadSpark?: number[]
   size?: number
+  espnNeedsRelogin?: boolean
 }
 
 export const toMatchupBoard = (
   league: League,
   matchup: Matchup | null,
   extra?: MatchupBoardExtra
-): MatchupBoard => ({
-  key: leagueKey(league.provider, league.id),
-  leagueName: league.name,
-  provider: league.provider,
-  week: league.week,
-  myName: matchup?.myTeam.name ?? '—',
-  oppName: matchup?.oppTeam?.name ?? null,
-  myPoints: matchup?.myPoints ?? 0,
-  oppPoints: matchup?.oppPoints ?? 0,
-  lastScorers: extra?.lastScorers?.length ? extra.lastScorers.slice(0, 3) : liveScorers(matchup),
-  leadSpark: extra?.leadSpark,
-  size: extra?.size
-})
+): MatchupBoard => {
+  const espnSignIn = league.provider === 'espn' && Boolean(extra?.espnNeedsRelogin)
+  return {
+    key: leagueKey(league.provider, league.id),
+    leagueName: league.name,
+    provider: league.provider,
+    week: league.week,
+    myName: matchup?.myTeam.name ?? (espnSignIn ? 'Sign in' : '—'),
+    oppName: matchup?.oppTeam?.name ?? (espnSignIn ? 'Sign in' : null),
+    myPoints: matchup?.myPoints ?? 0,
+    oppPoints: matchup?.oppPoints ?? 0,
+    lastScorers: extra?.lastScorers?.length ? extra.lastScorers.slice(0, 3) : liveScorers(matchup),
+    leadSpark: extra?.leadSpark,
+    size: extra?.size
+  }
+}
 
 export const upsertMatchupBoard = (boards: MatchupBoard[], next: MatchupBoard): MatchupBoard[] => {
   const index = boards.findIndex((row) => row.key === next.key)
