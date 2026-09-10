@@ -132,10 +132,8 @@ export const coversLiveVideo = (row: OverlayWidgetInstance): boolean =>
   row.y < 86 &&
   row.y + row.h > 22
 
-/** Names/scores float on the broadcast — text shadow, no pane. */
+/** Overlay widgets float — no pane, no wash. Studio can still raise fill. */
 const GHOST = 0
-/** Rail columns get a whisper of wash so rows stay readable without a card. */
-const SMOKE = 0.05
 const OPACITY_MIN = 0
 const OPACITY_MAX = 0.85
 
@@ -154,7 +152,7 @@ const box = (
   h,
   hidden: extra?.hidden ?? false,
   locked: false,
-  opacity: extra?.opacity ?? SMOKE,
+  opacity: extra?.opacity ?? GHOST,
   density: extra?.density ?? 'inherit'
 })
 
@@ -183,7 +181,7 @@ const railCol = (
   w: number,
   h: number,
   density: OverlayDensity = 'compact'
-): OverlayWidgetInstance => box(id, x, y, w, h, { opacity: SMOKE, density })
+): OverlayWidgetInstance => ghost(id, x, y, w, h, density)
 
 const layout = (
   presetId: OverlayPresetId,

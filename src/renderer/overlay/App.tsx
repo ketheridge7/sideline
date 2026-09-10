@@ -137,7 +137,7 @@ export const OverlayApp = (): JSX.Element => {
         return (
           <div
             key={widget.id}
-            className={`hud-widget absolute ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
+            className={`hud-widget hud-frost absolute ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
             data-density={resolveDensity(surface, widget.density)}
             style={{
               left: `${widget.x}%`,

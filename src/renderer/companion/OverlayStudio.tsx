@@ -100,7 +100,7 @@ export const OverlayStudio = ({
           </select>
         </label>
         <p className="text-xs text-muted">
-          Default is Tape rails: them left, you right, no framed card. Type fills each widget. Hide or drag after.
+          Default is Tape rails: them left, you right. Frosted type only — no wash, no card. Hide or drag after.
         </p>
 
         <div className="relative aspect-video overflow-hidden bg-[#0c2418]">
@@ -126,7 +126,7 @@ export const OverlayStudio = ({
               return (
                 <div
                   key={widget.id}
-                  className="hud-widget absolute overflow-visible"
+                  className="hud-widget hud-frost absolute overflow-visible"
                   data-density={resolveDensity('desktop', widget.density)}
                   style={{
                     left: `${widget.x}%`,

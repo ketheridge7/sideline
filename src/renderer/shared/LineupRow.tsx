@@ -18,12 +18,12 @@ export const LineupRow = ({
   you?: boolean
 }): JSX.Element => {
   if (!player) {
-    return <div className={compact ? (tv ? 'h-8' : 'h-[22px]') : 'h-8'} />
+    return <div className={compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11 flex-1'} />
   }
   const name = compact ? overlayName(player.name) : player.name
   const team = nflTeamLabel(player.nflTeam)
   const injury = visibleInjury(player.status)
-  const restColor = you ? '#7DD3FC' : '#F4F6F8'
+  const restColor = you ? '#F8FBFF' : '#E4EAF1'
   const pos = (
     <span
       className={`shrink-0 font-cond font-bold uppercase tracking-wide text-muted ${

@@ -31,7 +31,7 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 | `--air` | `#FF4D4D` | ON AIR, injury, waiver |
 | Sleeper / ESPN | cyan / crimson | **tiny stamps only** |
 
-Type: Barlow + Barlow Condensed (condensed grotesk for scores/headers, UI sans for body). Data radii 0–2px. Tabular nums. Overlay names/scores are fill `0` (text + shadow only). Rail columns use ~5% smoke with a faded wash — never a framed card. TV floor ~8% so living-room contrast stays on type, not a pane. Type scales with widget size (`cqh`). One focal matchup; rails sit at ~60% visual weight.
+Type: Barlow + Barlow Condensed (condensed grotesk for scores/headers, UI sans for body). Data radii 0–2px. Tabular nums. Overlay fill is `0` — frosted type only, no smoke wash, no pane, no drop-shadow card. A 0.4px dark glyph stroke keeps contrast on grass. Type scales with widget size (`cqh`). One focal matchup; rails sit at ~60% visual weight.
 
 Do not show betting percentages. A lead bar is share of combined fantasy points plus a delta, not a win probability.
 
@@ -85,7 +85,7 @@ Occupied broadcast chrome — Tape rails relaxes the old eyebar floor so type ca
 | `x > 78` on Ticket | Optional YouTube TV / Sunday Ticket right panel (~25%) |
 | Center `x 22–78`, `y 22–86` | Live video. Stay off it. |
 
-**Tape rails:** dual skinny rails — them left, you right — names + scores above each rail, `y >= 10`, `y+h <= 86`. Ghost fill on names/scores. Soft wash on roster columns. No crawler.
+**Tape rails:** dual skinny rails — them left, you right — names + scores above each rail, `y >= 10`, `y+h <= 86`. Fill `0` everywhere (no wash). Frosted type + 0.4px glyph stroke. No crawler.
 
 **Ticket:** stacked like RedZone (both teams), left-only, `x <= 78`, `y 14–82`.
 

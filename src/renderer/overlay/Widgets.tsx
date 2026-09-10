@@ -8,8 +8,8 @@ import { visibleInjury } from '@shared/display'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
 
-const YOU = '#7DD3FC'
-const THEM = '#94A3B8'
+const FROST = '#F8FBFF'
+const FROST_DIM = '#E4EAF1'
 
 const RailColumn = ({
   players,
@@ -36,12 +36,12 @@ const RailColumn = ({
         const textAlign = align === 'right' ? 'text-right' : 'text-left'
         const injury = field === 'name' ? visibleInjury(player?.status) : null
         let body: JSX.Element | string = '—'
-        let typeClass = 'hud-type-player text-text'
+        let typeClass = 'hud-type-player'
         if (field === 'pos') {
           typeClass = 'hud-type-pos'
           body = player?.position || '—'
         } else if (field === 'name') {
-          typeClass = 'hud-type-player text-text'
+          typeClass = 'hud-type-player'
           body = player ? overlayName(player.name) : '—'
         } else if (field === 'nfl') {
           typeClass = 'hud-type-pos'
@@ -147,11 +147,11 @@ export const OverlayWidgetView = ({
       )
     case 'score.mine':
       return (
-        <ScoreTick value={hud.myPoints} restColor={YOU} className="hud-type-score" />
+        <ScoreTick value={hud.myPoints} restColor={FROST} className="hud-type-score" />
       )
     case 'score.opp':
       return (
-        <ScoreTick value={hud.oppPoints} restColor={THEM} className="hud-type-score" />
+        <ScoreTick value={hud.oppPoints} restColor={FROST_DIM} className="hud-type-score" />
       )
     case 'score.delta': {
       const leading = hud.delta > 0
@@ -164,21 +164,21 @@ export const OverlayWidgetView = ({
       )
     }
     case 'col.mine.pos':
-      return <RailColumn players={hud.myStarters} field="pos" hash="you" align="left" restColor={YOU} />
+      return <RailColumn players={hud.myStarters} field="pos" hash="you" align="left" restColor={FROST} />
     case 'col.mine.name':
-      return <RailColumn players={hud.myStarters} field="name" align="left" restColor={YOU} />
+      return <RailColumn players={hud.myStarters} field="name" align="left" restColor={FROST} />
     case 'col.mine.nfl':
-      return <RailColumn players={hud.myStarters} field="nfl" align="left" restColor={YOU} />
+      return <RailColumn players={hud.myStarters} field="nfl" align="left" restColor={FROST} />
     case 'col.mine.pts':
-      return <RailColumn players={hud.myStarters} field="pts" align="right" restColor={YOU} />
+      return <RailColumn players={hud.myStarters} field="pts" align="right" restColor={FROST} />
     case 'col.opp.pos':
-      return <RailColumn players={hud.oppStarters} field="pos" align="left" restColor={THEM} />
+      return <RailColumn players={hud.oppStarters} field="pos" align="left" restColor={FROST_DIM} />
     case 'col.opp.name':
-      return <RailColumn players={hud.oppStarters} field="name" align="left" restColor={THEM} />
+      return <RailColumn players={hud.oppStarters} field="name" align="left" restColor={FROST_DIM} />
     case 'col.opp.nfl':
-      return <RailColumn players={hud.oppStarters} field="nfl" align="left" restColor={THEM} />
+      return <RailColumn players={hud.oppStarters} field="nfl" align="left" restColor={FROST_DIM} />
     case 'col.opp.pts':
-      return <RailColumn players={hud.oppStarters} field="pts" align="right" restColor={THEM} />
+      return <RailColumn players={hud.oppStarters} field="pts" align="right" restColor={FROST_DIM} />
     case 'bench.mine':
       return <BenchList players={hud.myBench} density={resolved} align="left" />
     case 'bench.opp':

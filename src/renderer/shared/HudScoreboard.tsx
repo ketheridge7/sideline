@@ -25,7 +25,7 @@ export const HudScoreboard = ({
           <div className="text-xs text-muted">{matchup.myTeam.record}</div>
           <ScoreTick
             value={matchup.myPoints}
-            restColor="#F4F6F8"
+            restColor="#F8FBFF"
             className="mt-1 font-cond text-7xl font-extrabold leading-none"
           />
         </div>
@@ -44,7 +44,7 @@ export const HudScoreboard = ({
           <div className="text-xs text-muted">{matchup.oppTeam?.record ?? ''}</div>
           <ScoreTick
             value={matchup.oppPoints}
-            restColor="#94A3B8"
+            restColor="#E4EAF1"
             align="right"
             className="mt-1 font-cond text-7xl font-extrabold leading-none"
           />

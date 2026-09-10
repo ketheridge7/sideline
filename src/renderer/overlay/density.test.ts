@@ -9,16 +9,16 @@ describe('overlay density', () => {
     expect(resolveDensity('desktop', 'compact')).toBe('compact')
   })
 
-  it('raises TV smoke only enough for a whisper, not a framed card', () => {
-    expect(smokeFill('tv', 0)).toBe(0.08)
+  it('never invents a smoke pane — fill is exactly the saved opacity', () => {
+    expect(smokeFill('tv', 0)).toBe(0)
     expect(smokeFill('tv', 0.7)).toBe(0.7)
-    expect(smokeFill('obs', 0.28)).toBe(0.28)
+    expect(smokeFill('obs', 0)).toBe(0)
     expect(smokeFill('desktop', 0.28)).toBe(0.28)
   })
 
-  it('paints transparent panes and fades a soft wash instead of a hard card', () => {
+  it('stays fully transparent at the Tape rails default fill', () => {
     expect(hudWidgetFill(0)).toBe('transparent')
     expect(hudWidgetFill(0.02)).toBe('transparent')
-    expect(hudWidgetFill(0.05).startsWith('linear-gradient')).toBe(true)
+    expect(hudWidgetFill(0.2).startsWith('linear-gradient')).toBe(true)
   })
 })
