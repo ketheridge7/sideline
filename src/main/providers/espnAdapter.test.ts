@@ -1528,6 +1528,107 @@ describe('toEspnMatchup', () => {
     })
     expect(matchup).toBeNull()
   })
+
+  it('does not bind HUD to teams[0] when cookies are missing', () => {
+    const teams = [
+      {
+        id: 1,
+        location: 'Team',
+        nickname: 'Harrison',
+        abbrev: 'TH',
+        primaryOwner: '{aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}'
+      },
+      {
+        id: 8,
+        location: 'Team',
+        nickname: 'Etheridge',
+        abbrev: 'KE',
+        primaryOwner: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+      }
+    ]
+    expect(findMyTeam(teams, null)).toBeUndefined()
+    const matchup = toEspnMatchup({
+      payload: {
+        scoringPeriodId: 1,
+        teams,
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: { teamId: 1, totalPointsLive: 10 },
+            away: { teamId: 2, totalPointsLive: 8 }
+          }
+        ]
+      },
+      cookies: null,
+      displayWeek: 1
+    })
+    expect(matchup).toBeNull()
+  })
+
+  it('selects the SWID owner team, not a colliding numeric last-HUD id', () => {
+    const kevinSwid = '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    const payload = {
+      scoringPeriodId: 1,
+      teams: [
+        {
+          id: 1,
+          location: 'Team',
+          nickname: 'Harrison',
+          abbrev: 'TH',
+          primaryOwner: '{aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}'
+        },
+        {
+          id: 8,
+          location: 'Team',
+          nickname: 'Etheridge',
+          abbrev: 'KE',
+          primaryOwner: kevinSwid
+        }
+      ],
+      members: [{ id: kevinSwid, displayName: 'Kevin Etheridge' }],
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 8,
+            totalPointsLive: 22.4,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 3139477,
+                  playerPoolEntry: {
+                    player: {
+                      fullName: 'Patrick Mahomes',
+                      defaultPositionId: 1,
+                      proTeamId: 12
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          away: { teamId: 3, totalPointsLive: 18.1 }
+        },
+        {
+          matchupPeriodId: 1,
+          home: { teamId: 1, totalPointsLive: 1 },
+          away: { teamId: 2, totalPointsLive: 2 }
+        }
+      ]
+    }
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: { espn_s2: 's2', SWID: kevinSwid },
+      displayWeek: 1,
+      myTeamId: 1
+    })
+    expect(matchup?.myTeam.id).toBe('8')
+    expect(matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(matchup?.myTeam.owner).toBe('Kevin Etheridge')
+    expect(matchup?.starters[0]?.name).toBe('Patrick Mahomes')
+    expect(matchup?.starters[0]?.playerId).toBe('3139477')
+  })
 })
 
 describe('toEspnActivity', () => {
@@ -1588,6 +1689,22 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.name).toBe('Hurts')
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppStarters[0]?.points).toBe(15.1)
+  })
+
+  it('does not overlay compact live onto an empty ESPN lineup', () => {
+    const emptyPrev = {
+      ...prev,
+      myTeam: { id: '1', name: 'Team Harrison', owner: 'TH', record: '0-0' },
+      starters: [] as typeof prev.starters
+    }
+    const live = {
+      liveScoring: {
+        teams: [
+          { teamId: 8, totalPointsLive: 22.4, players: [{ playerId: 3139477, totalPointsLive: 22.4 }] }
+        ]
+      }
+    }
+    expect(overlayEspnMatchup(emptyPrev, live, 1)).toBeNull()
   })
 
   it('lets compact mLiveScoring move HUD totals down when preferLive is set', () => {

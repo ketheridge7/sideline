@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, lastName, leadShare, liveScorers, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, lastName, leadShare, liveScorers, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -170,5 +170,42 @@ describe('overlayStartersBelong', () => {
     expect(overlayStartersBelong(prev, ['4046'])).toBe(true)
     expect(overlayStartersBelong(prev, ['1', '3'])).toBe(false)
     expect(overlayStartersBelong(prev, [])).toBe(true)
+    expect(overlayStartersBelong([], ['4046'])).toBe(false)
+    expect(
+      overlayStartersBelong(
+        [{ playerId: '', name: '', position: '', nflTeam: '' }],
+        ['3139477']
+      )
+    ).toBe(false)
+  })
+
+  it('treats blank ESPN starter slots as no lineup', () => {
+    expect(
+      matchupHasLineup({
+        myTeam: { id: '1', name: 'Team Harrison', owner: 'TH', record: '0-0' },
+        oppTeam: { id: '2', name: 'KDT', owner: 'KDT', record: '0-0' },
+        myPoints: 0,
+        oppPoints: 0,
+        starters: [
+          { playerId: '', name: '', position: '', nflTeam: '' },
+          { playerId: '', name: '', position: '', nflTeam: '' }
+        ],
+        bench: [],
+        oppStarters: [],
+        oppBench: []
+      })
+    ).toBe(false)
+    expect(
+      matchupHasLineup({
+        myTeam: { id: '8', name: 'Team Etheridge', owner: 'KE', record: '0-0' },
+        oppTeam: { id: '2', name: 'KDT', owner: 'KDT', record: '0-0' },
+        myPoints: 12,
+        oppPoints: 9,
+        starters: [{ playerId: '3139477', name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 12 }],
+        bench: [],
+        oppStarters: [],
+        oppBench: []
+      })
+    ).toBe(true)
   })
 })

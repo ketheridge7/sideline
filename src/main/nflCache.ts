@@ -78,6 +78,10 @@ export const writeLastHud = (snap: LastHudSnapshot): void => {
   })
 }
 
+export const clearLastHud = (): void => {
+  writeJson(lastHudPath(), { at: 0 })
+}
+
 export const readEspnScoresDisk = (): Record<string, EspnScoreDiskRow> | null => {
   try {
     return espnScoresFromDiskPayload(JSON.parse(readFileSync(espnScoresPath(), 'utf8')), Date.now())

@@ -1,5 +1,6 @@
 import { leagueKey, parseLeagueKey, type AppState, type League, type Matchup, type NflState, type NflTickerGame, type Player, type Team } from '@shared/types'
 import type { Settings } from '@shared/settings'
+import { matchupHasLineup } from '@shared/display'
 import { parseSleeperLeagueUser, parseSleeperRoster } from './providers/sleeperClient'
 
 export const isLiveLeagueId = (id: string): boolean => /^\d+$/.test(id)
@@ -246,22 +247,27 @@ export const espnBoxscoreRecoverStale = (opts: {
 /** Deferred boxscore must not win Chromium's pipe over the next 3s `mLiveScoring` / `/matchups`. Recover stays high via `liveScorePriority`. */
 export const espnDeferredBoxscorePriority = (): 'low' => 'low'
 
-/** A deferred full boxscore must not replace compact live scores. Overlay onto last HUD; if overlay has no live rows, keep the screen. */
+/** A deferred full boxscore must not replace compact live scores. Overlay onto last HUD; if overlay has no live rows, keep the screen. Prefer a parsed lineup when overlay has empty starters. */
 export const espnFullSwrPaintPlan = (opts: {
   prev: Matchup | null
   overlaid: Matchup | null
   parsed: Matchup | null
 }): Matchup | null => {
+  if (opts.overlaid && matchupHasLineup(opts.overlaid)) return opts.overlaid
+  if (opts.parsed && matchupHasLineup(opts.parsed)) return opts.parsed
   if (opts.overlaid) return opts.overlaid
   if (opts.prev) return null
   return opts.parsed
 }
 
 export const espnTeamIdLookupPlan = (opts: {
+  swidTeamId?: number
   fromMatchup: number | undefined
+  matchupHasLineup?: boolean
   memoryHasTeams: boolean
-}): 'matchup' | 'memory' | 'week-filter' => {
-  if (opts.fromMatchup != null) return 'matchup'
+}): 'swid' | 'matchup' | 'memory' | 'week-filter' => {
+  if (opts.swidTeamId != null) return 'swid'
+  if (opts.fromMatchup != null && opts.matchupHasLineup) return 'matchup'
   if (opts.memoryHasTeams) return 'memory'
   return 'week-filter'
 }
@@ -293,8 +299,9 @@ export const espnTeamsHydrateAfterScorePlan = (opts: {
 export const espnHudFromScorePlan = (opts: {
   hasPrevMatchup: boolean
   overlayFromMatchup: boolean
+  prevHasLineup?: boolean
 }): 'overlay-matchup' | 'parse-payload' => {
-  if (opts.hasPrevMatchup && opts.overlayFromMatchup) return 'overlay-matchup'
+  if (opts.hasPrevMatchup && opts.overlayFromMatchup && opts.prevHasLineup !== false) return 'overlay-matchup'
   return 'parse-payload'
 }
 
@@ -680,7 +687,12 @@ export const espnUncachedDiscoveryPlan = (firstCount: number): 'use-first' | 'aw
 
 export const espnCookieRetryAfterScorePlan = (opts: {
   compactHit: boolean
-}): 'skip' | 'retry-auth' => (opts.compactHit ? 'skip' : 'retry-auth')
+  parsedHasLineup?: boolean
+}): 'skip' | 'retry-auth' => {
+  if (opts.parsedHasLineup) return 'skip'
+  if (opts.compactHit && opts.parsedHasLineup !== false) return 'skip'
+  return 'retry-auth'
+}
 
 export const sleeperLeaguesLoadPlan = (opts: {
   hasFreshCache: boolean
@@ -1343,14 +1355,13 @@ export const espnTeamIdFromMatchup = (
   return espnTeamIdOf(row.myTeam.id)
 }
 
-/** Live ticks skip mTeam when filterTeamIds already has myTeam.id. Idle still hydrates owners after scoring. */
+/** Live ticks skip mTeam only when owners are already cached. A leftover numeric myTeam.id is not identity. */
 export const espnTeamsKickPlan = (opts: {
   haveOwners: boolean
   liveTick?: boolean
   hasTeamId?: boolean
 }): 'skip' | 'after-score' => {
   if (opts.haveOwners) return 'skip'
-  if (opts.liveTick && opts.hasTeamId) return 'skip'
   return 'after-score'
 }
 

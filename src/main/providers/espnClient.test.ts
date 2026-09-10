@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bindEspnFetch, resetAppFetch } from '../http'
-import { communicationUrl, fetchLeague, fetchTransactions, leagueUrl, LIVE_VIEWS, SCORE_VIEWS, SETTINGS_VIEWS, normalizeEspnCookies, weekScheduleFilter, weekTeamScheduleFilter } from './espnClient'
+import { communicationUrl, fetchLeague, fetchTransactions, leagueUrl, LIVE_VIEWS, SCORE_VIEWS, SETTINGS_VIEWS, normalizeEspnCookies, pickEspnCookies, weekScheduleFilter, weekTeamScheduleFilter } from './espnClient'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -192,6 +192,20 @@ describe('espnClient', () => {
     expect(init.headers.Cookie).toBe(
       'espn_s2=s2-token; SWID={11111111-1111-1111-1111-111111111111}'
     )
+  })
+
+  it('picks fantasy.espn.com espn_s2 over a leftover www.espn.com name', () => {
+    expect(
+      pickEspnCookies([
+        { name: 'espn_s2', value: 'short', domain: '.espn.com' },
+        { name: 'espn_s2', value: 'fantasy-s2-token-value', domain: 'fantasy.espn.com' },
+        { name: 'SWID', value: '%7BF203DEEE-D22E-4EC9-A095-40196C2FC577%7D', domain: '.espn.com' }
+      ])
+    ).toEqual({
+      espn_s2: 'fantasy-s2-token-value',
+      SWID: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    })
+    expect(pickEspnCookies([{ name: 'SWID', value: '{1}', domain: '.espn.com' }])).toBeNull()
   })
 
   it('keeps the Cookie header on persist:espn session.fetch so lm-api-reads is not cookie-domain gated', async () => {

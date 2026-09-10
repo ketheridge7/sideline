@@ -35,6 +35,37 @@ export const normalizeEspnCookies = (cookies: EspnCookies): EspnCookies => ({
   SWID: safeDecode(cookies.SWID)
 })
 
+export type EspnCookieRow = {
+  name: string
+  value: string
+  domain?: string
+}
+
+const cookieDomainScore = (domain: string | undefined): number => {
+  const host = (domain ?? '').replace(/^\./, '').toLowerCase()
+  if (host.includes('fantasy.espn.com') || host.includes('lm-api-reads')) return 3
+  if (host === 'espn.com' || host.endsWith('.espn.com')) return 2
+  if (host.includes('espn')) return 1
+  return 0
+}
+
+const bestCookie = (rows: EspnCookieRow[]): EspnCookieRow | undefined => {
+  if (rows.length === 0) return undefined
+  return [...rows].sort((left, right) => {
+    const byDomain = cookieDomainScore(right.domain) - cookieDomainScore(left.domain)
+    if (byDomain !== 0) return byDomain
+    return right.value.length - left.value.length
+  })[0]
+}
+
+/** Prefer fantasy.espn.com / longer espn_s2 so a leftover www.espn.com name cannot win the session. */
+export const pickEspnCookies = (cookies: EspnCookieRow[]): EspnCookies | null => {
+  const espnS2 = bestCookie(cookies.filter((row) => row.name === 'espn_s2' && row.value.trim() !== ''))
+  const swid = bestCookie(cookies.filter((row) => row.name === 'SWID' && row.value.trim() !== ''))
+  if (!espnS2 || !swid) return null
+  return normalizeEspnCookies({ espn_s2: espnS2.value, SWID: swid.value })
+}
+
 const cookieHeader = (cookies: EspnCookies): string =>
   `espn_s2=${cookies.espn_s2}; SWID=${cookies.SWID}`
 
