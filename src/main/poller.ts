@@ -4,6 +4,7 @@ import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
 import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
 import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from '@shared/tape'
+import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 import { recentFetchTimings } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
@@ -92,6 +93,7 @@ let lastToast: ToastPayload | null = null
 const seenTx = new Map<string, Set<string>>()
 const seededTx = new Set<string>()
 const prevPlayerPts = new Map<string, number>()
+const scoreDisplayByKey = new Map<string, MatchupScoreMemory>()
 const prevInjury = new Map<string, string>()
 let liveTape: TapeEvent[] = []
 let lastState: AppState = emptyAppState()
@@ -835,6 +837,10 @@ const dropCachedMatchups = (provider: 'sleeper' | 'espn'): void => {
   for (const key of [...matchupCache.keys()]) {
     const parsed = parseLeagueKey(key)
     if (parsed?.provider === provider) matchupCache.delete(key)
+  }
+  for (const key of [...scoreDisplayByKey.keys()]) {
+    const parsed = parseLeagueKey(key)
+    if (parsed?.provider === provider) scoreDisplayByKey.delete(key)
   }
   const week = nflStateCache?.nfl.displayWeek ?? lastState.nfl?.displayWeek
   if (week != null) {
@@ -2109,7 +2115,20 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         const already = tickedThisPoll.get(key)
         if (already) return already
       }
-      const stamped = withTickDeltas(league, loaded, prevPlayerPts)
+      const prevDisplayed =
+        tickedThisPoll.get(key) ??
+        matchupCache.get(key)?.matchup ??
+        (lastState.selectedLeagueKey === key ? lastState.matchup : null)
+      let memory = scoreDisplayByKey.get(key)
+      if (!memory) {
+        memory = emptyScoreMemory()
+        scoreDisplayByKey.set(key, memory)
+      }
+      const stable = stabilizeMatchup(prevDisplayed, loaded, memory, {
+        week: liveNfl.displayWeek,
+        official: Boolean(loaded.scoresFinal)
+      })
+      const stamped = withTickDeltas(league, stable, prevPlayerPts)
       tickedThisPoll.set(key, stamped)
       return stamped
     }
@@ -2439,6 +2458,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       nfl = fresh
       liveNfl = fresh
       matchupCache.clear()
+      scoreDisplayByKey.clear()
       const nextHintKey = hudHintKey(hintArgs)
       const nextHint =
         !replay && nextHintKey
@@ -3488,6 +3508,7 @@ export const resetPollerForTests = (): void => {
   lastHudSig = ''
   lastMatchupsSig = ''
   matchupCache.clear()
+  scoreDisplayByKey.clear()
   txCache.clear()
   sleeperLeaguesCache = null
   sleeperRosterCache.clear()

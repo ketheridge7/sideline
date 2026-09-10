@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyPlayerNames, overlaySleeperMatchups, toMatchup, toTransactions } from './sleeperAdapter'
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
+import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 
 const players = {
   '1': { name: 'Hurts', position: 'QB', nflTeam: 'PHI' },
@@ -217,6 +218,23 @@ describe('overlaySleeperMatchups', () => {
     expect(next?.oppStarters[0]?.points).toBe(15)
   })
 
+  it('does not let a later lower /matchups payload overwrite a committed HUD total', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(prev).not.toBeNull()
+    if (!prev) return
+    const memory = emptyScoreMemory()
+    const shown = stabilizeMatchup(null, prev, memory)
+    const live = [
+      { ...matchups[0], points: 18, players_points: { '1': 10.4, '2': 7.6, '9': 1 } },
+      { ...matchups[1], points: 15, players_points: { '3': 15 } }
+    ]
+    const candidate = overlaySleeperMatchups(shown, live)
+    expect(candidate?.myPoints).toBe(18)
+    const held = stabilizeMatchup(shown, candidate!, memory)
+    expect(held.myPoints).toBe(prev.myPoints)
+    expect(held.starters[0]?.points).toBe(prev.starters[0]?.points)
+  })
+
   it('lets a lower team total correct leftover starter chips', () => {
     const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
     expect(prev).not.toBeNull()
@@ -311,6 +329,10 @@ describe('overlaySleeperMatchups', () => {
     ]
     const next = overlaySleeperMatchups(prev, live)
     expect(next?.myPoints).toBe(0)
+    expect(next?.scoresFinal).toBe(true)
+    const memory = emptyScoreMemory()
+    const shown = stabilizeMatchup(null, prev, memory)
+    expect(stabilizeMatchup(shown, next, memory).myPoints).toBe(0)
   })
 
   it('overlays when players_points keys are JSON numbers', () => {

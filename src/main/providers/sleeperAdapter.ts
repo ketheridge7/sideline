@@ -267,7 +267,8 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
     starters: overlayPlayers(prev.starters, mine),
     bench: overlayPlayers(prev.bench, mine),
     oppStarters: opp ? overlayPlayers(prev.oppStarters, opp) : prev.oppStarters,
-    oppBench: opp ? overlayPlayers(prev.oppBench, opp) : prev.oppBench
+    oppBench: opp ? overlayPlayers(prev.oppBench, opp) : prev.oppBench,
+    scoresFinal: mine.custom_points != null || opp?.custom_points != null
   }
 }
 
@@ -319,7 +320,8 @@ export const toMatchup = (args: {
     starters,
     bench,
     oppStarters: oppMatchup ? oppStarters : [],
-    oppBench: oppMatchup ? oppBench : []
+    oppBench: oppMatchup ? oppBench : [],
+    scoresFinal: myMatchup.custom_points != null || oppMatchup?.custom_points != null
   }
 }
 
