@@ -12,8 +12,8 @@ export const formatDelta = (value: number): string => {
 }
 
 export const overlayName = (name: string): string => {
-  if (/D\/ST|DST|\bDEF\b/i.test(name)) return name
   const parts = name.trim().split(/\s+/)
+  if (/D\/ST|DST|\bDEF\b/i.test(name)) return parts[0] || name
   if (parts.length <= 1) return name
   return parts[parts.length - 1]
 }

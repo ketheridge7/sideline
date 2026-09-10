@@ -92,30 +92,30 @@ select {
 }
 
 .hud-widget[data-density='compact'] {
-  --hud-name: clamp(13px, 68cqh, 20px);
-  --hud-score: clamp(26px, 78cqh, 48px);
+  --hud-name: clamp(13px, 68cqh, 22px);
+  --hud-score: clamp(26px, 78cqh, 52px);
   --hud-delta: clamp(11px, 48cqh, 18px);
-  --hud-pos: clamp(11px, 38cqh, 16px);
-  --hud-player: clamp(13px, 48cqh, 20px);
-  --hud-pts: clamp(13px, 48cqh, 20px);
+  --hud-pos: clamp(11px, 40cqh, 18px);
+  --hud-player: clamp(13px, 50cqh, 28px);
+  --hud-pts: clamp(13px, 50cqh, 28px);
 }
 
 .hud-widget[data-density='regular'] {
-  --hud-name: clamp(15px, 72cqh, 26px);
-  --hud-score: clamp(32px, 84cqh, 68px);
-  --hud-delta: clamp(13px, 52cqh, 22px);
-  --hud-pos: clamp(12px, 42cqh, 18px);
-  --hud-player: clamp(15px, 52cqh, 26px);
-  --hud-pts: clamp(15px, 52cqh, 26px);
+  --hud-name: clamp(16px, 74cqh, 28px);
+  --hud-score: clamp(34px, 86cqh, 72px);
+  --hud-delta: clamp(13px, 52cqh, 24px);
+  --hud-pos: clamp(12px, 42cqh, 22px);
+  --hud-player: clamp(16px, 50cqh, 34px);
+  --hud-pts: clamp(16px, 50cqh, 34px);
 }
 
 .hud-widget[data-density='large'] {
-  --hud-name: clamp(18px, 76cqh, 30px);
-  --hud-score: clamp(40px, 88cqh, 80px);
+  --hud-name: clamp(18px, 76cqh, 32px);
+  --hud-score: clamp(42px, 88cqh, 84px);
   --hud-delta: clamp(15px, 56cqh, 26px);
-  --hud-pos: clamp(14px, 46cqh, 22px);
-  --hud-player: clamp(17px, 56cqh, 30px);
-  --hud-pts: clamp(17px, 56cqh, 30px);
+  --hud-pos: clamp(14px, 46cqh, 24px);
+  --hud-player: clamp(18px, 54cqh, 38px);
+  --hud-pts: clamp(18px, 54cqh, 38px);
 }
 
 .hud-type-name {

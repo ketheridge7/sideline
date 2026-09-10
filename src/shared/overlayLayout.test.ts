@@ -67,7 +67,7 @@ describe('layoutFromPreset', () => {
     const leftRail = layout.widgets.find((row) => row.id === 'col.opp.name')
     const rightRail = layout.widgets.find((row) => row.id === 'col.mine.name')
     expect(leftRail?.x).toBeLessThan(8)
-    expect(rightRail?.x).toBeGreaterThanOrEqual(84)
+    expect(rightRail?.x).toBeGreaterThanOrEqual(82)
     expect(layout.widgets.find((row) => row.id === 'toast.slot')?.hidden).toBe(true)
     expect(layout.widgets.find((row) => row.id === 'score.mine')?.opacity).toBe(0)
     expect(layout.widgets.find((row) => row.id === 'team.opp.name')?.opacity).toBe(0)

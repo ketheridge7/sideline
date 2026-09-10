@@ -67,7 +67,7 @@ export const LineupRow = ({
   return (
     <div
       className={`flex items-center gap-2 ${
-        compact ? (tv ? 'h-8' : 'h-[22px]') : 'h-11'
+        compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11 flex-1'
       }`}
     >
       {mirror ? (

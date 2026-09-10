@@ -229,9 +229,9 @@ const stackedLeft = (): OverlayWidgetInstance[] => [
 
 const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetInstance[] => {
   const density: OverlayDensity = 'regular'
-  const posW = 3.2
-  const nameW = 9.2
-  const ptsW = 4.4
+  const posW = 2.8
+  const nameW = 11
+  const ptsW = 4.2
   const railW = posW + nameW + ptsW
   const railH = 58
   const railY = 23.2
@@ -246,8 +246,8 @@ const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetIn
     railCol('col.opp.name', oppX + posW, railY, nameW, railH, density),
     railCol('col.opp.pts', oppX + posW + nameW, railY, ptsW, railH, density),
     ghost('team.mine.name', mineX, nameY, railW - 1.4, nameH, density),
-    ghost('score.mine', mineX, scoreY, 11.2, scoreH, density),
-    ghost('score.delta', mineX + 11.4, scoreY + 2, 5.2, 5.4, density),
+    ghost('score.mine', mineX, scoreY, 12.4, scoreH, density),
+    ghost('score.delta', mineX + 12.6, scoreY + 2, 5.2, 5.4, density),
     railCol('col.mine.pos', mineX, railY, posW, railH, density),
     railCol('col.mine.name', mineX + posW, railY, nameW, railH, density),
     railCol('col.mine.pts', mineX + posW + nameW, railY, ptsW, railH, density),
@@ -261,7 +261,7 @@ const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetIn
   ]
 }
 
-const tapeRails = (): OverlayWidgetInstance[] => dualRails(82, 1.2, 9)
+const tapeRails = (): OverlayWidgetInstance[] => dualRails(80.8, 1.2, 9)
 
 const redzoneWidgets = (): OverlayWidgetInstance[] => stackedLeft()
 
