@@ -14,8 +14,10 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:disconnectSleeper', () => disconnectSleeper())
   ipcMain.handle('sideline:signInEspn', async () => {
     const result = await openEspnLogin()
+    // Login always clears persist:espn first, so drop the in-memory session
+    // whether the window finished or the user closed it.
+    invalidateEspnSession()
     if (result.ok) {
-      invalidateEspnSession()
       markEspnRelogin(false)
     }
     await refresh({ waitForBoards: true })

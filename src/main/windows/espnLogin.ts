@@ -1,7 +1,10 @@
 import { BrowserWindow, session } from 'electron'
 import { normalizeEspnCookies, type EspnCookies } from '../providers/espnClient'
+import { shouldCloseOnCookies } from './espnLoginPolicy'
 
 const PARTITION = 'persist:espn'
+
+export const ESPN_LOGIN_URL = 'https://www.espn.com/login?redirectUri=https://fantasy.espn.com/'
 
 export const espnSession = (): Electron.Session => session.fromPartition(PARTITION)
 
@@ -23,7 +26,12 @@ export const clearEspnCookies = async (): Promise<void> => {
   await espnSession().clearStorageData()
 }
 
-export const openEspnLogin = (): Promise<{ ok: boolean }> => {
+export const openEspnLogin = async (): Promise<{ ok: boolean }> => {
+  // Re-login is intentional: drop leftover persist:espn cookies so a stale
+  // espn_s2 + SWID pair cannot instantly dismiss the window.
+  await clearEspnCookies()
+  const preexisting = await readEspnCookies()
+
   return new Promise((resolve) => {
     const win = new BrowserWindow({
       width: 980,
@@ -46,7 +54,7 @@ export const openEspnLogin = (): Promise<{ ok: boolean }> => {
 
     const poll = setInterval(() => {
       void readEspnCookies().then((cookies) => {
-        if (cookies) finishOk()
+        if (shouldCloseOnCookies(cookies, preexisting)) finishOk()
       })
     }, 1000)
 
@@ -55,6 +63,6 @@ export const openEspnLogin = (): Promise<{ ok: boolean }> => {
       if (!settled) resolve({ ok: false })
     })
 
-    win.loadURL('https://www.espn.com/login?redirectUri=https://fantasy.espn.com/')
+    void win.loadURL(ESPN_LOGIN_URL)
   })
 }
