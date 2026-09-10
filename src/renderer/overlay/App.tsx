@@ -10,7 +10,7 @@ import {
 import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, toOverlayHud } from '@shared/types'
 import { OverlayWidgetView } from './Widgets'
-import { smokeFill } from './density'
+import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from './density'
 import { NflTicker } from '../companion/NflTicker'
 import { canvasInsetPct, overlayAllowsEdit, overlaySurface, subscribeHud } from './subscribe'
 
@@ -137,16 +137,17 @@ export const OverlayApp = (): JSX.Element => {
         return (
           <div
             key={widget.id}
-            className={`absolute overflow-hidden ${canEdit ? 'cursor-pointer' : ''}`}
+            className={`hud-widget hud-frost absolute ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
+            data-density={resolveDensity(surface, widget.density)}
             style={{
               left: `${widget.x}%`,
               top: `${widget.y}%`,
               width: `${widget.w}%`,
               height: `${widget.h}%`,
-              background: `rgba(7, 8, 10, ${fill})`,
+              background: hudWidgetFill(fill),
               outline: active ? '1px dashed #7DD3FC' : 'none',
               color: '#F4F6F8',
-              textShadow: fill < 0.2 ? '0 0 2px #07080A' : undefined
+              textShadow: HUD_TEXT_SHADOW
             }}
             onPointerDown={(event) => startDrag(event, widget.id, false)}
           >

@@ -23,8 +23,8 @@ export const OVERLAY_WIDGET_IDS = [
 export type OverlayWidgetId = (typeof OVERLAY_WIDGET_IDS)[number]
 
 export const OVERLAY_PRESET_IDS = [
-  'redzone',
   'national',
+  'redzone',
   'ticket',
   'minimal',
   'broadcast-l',
@@ -34,6 +34,8 @@ export const OVERLAY_PRESET_IDS = [
 ] as const
 
 export type OverlayPresetId = (typeof OVERLAY_PRESET_IDS)[number]
+
+export const DEFAULT_OVERLAY_PRESET: OverlayPresetId = 'national'
 
 export type OverlayDensity = 'inherit' | 'compact' | 'regular' | 'large'
 
@@ -94,8 +96,8 @@ export const WIDGET_LABELS: Record<OverlayWidgetId, string> = {
 }
 
 export const PRESET_LABELS: Record<OverlayPresetId, string> = {
+  national: 'Tape rails',
   redzone: 'RedZone',
-  national: 'National',
   ticket: 'Ticket',
   minimal: 'Minimal',
   'broadcast-l': 'Broadcast L',
@@ -130,7 +132,10 @@ export const coversLiveVideo = (row: OverlayWidgetInstance): boolean =>
   row.y < 86 &&
   row.y + row.h > 22
 
-const SMOKE = 0.16
+/** Overlay widgets float — no pane, no wash. Studio can still raise fill. */
+const GHOST = 0
+const OPACITY_MIN = 0
+const OPACITY_MAX = 0.85
 
 const box = (
   id: OverlayWidgetId,
@@ -147,7 +152,7 @@ const box = (
   h,
   hidden: extra?.hidden ?? false,
   locked: false,
-  opacity: extra?.opacity ?? SMOKE,
+  opacity: extra?.opacity ?? GHOST,
   density: extra?.density ?? 'inherit'
 })
 
@@ -159,6 +164,24 @@ const compact = (
   h: number,
   extra?: Partial<Pick<OverlayWidgetInstance, 'hidden' | 'opacity'>>
 ): OverlayWidgetInstance => box(id, x, y, w, h, { ...extra, density: extra?.hidden ? 'inherit' : 'compact' })
+
+const ghost = (
+  id: OverlayWidgetId,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  density: OverlayDensity = 'compact'
+): OverlayWidgetInstance => box(id, x, y, w, h, { opacity: GHOST, density })
+
+const railCol = (
+  id: OverlayWidgetId,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  density: OverlayDensity = 'compact'
+): OverlayWidgetInstance => ghost(id, x, y, w, h, density)
 
 const layout = (
   presetId: OverlayPresetId,
@@ -181,18 +204,18 @@ const hide = (
 ): OverlayWidgetInstance => compact(id, x, y, w, h, { hidden: true })
 
 const stackedLeft = (): OverlayWidgetInstance[] => [
-  compact('meta.live', 14.8, 14.2, 1.2, 1.2),
-  compact('team.mine.name', 1.5, 14, 13, 2.2),
-  compact('score.mine', 1.5, 16.4, 8.4, 5.4),
-  compact('score.delta', 10.2, 17.4, 4.2, 3.6),
-  compact('col.mine.pos', 1.5, 22, 3.5, 26),
-  compact('col.mine.name', 5, 22, 7, 26),
-  compact('col.mine.pts', 12, 22, 4.2, 26),
-  compact('team.opp.name', 1.5, 50, 14.7, 2.2),
-  compact('score.opp', 1.5, 52.4, 14.7, 3.4),
-  compact('col.opp.pos', 1.5, 56, 3.5, 24),
-  compact('col.opp.name', 5, 56, 7, 24),
-  compact('col.opp.pts', 12, 56, 4.2, 24),
+  ghost('meta.live', 14.8, 14.2, 1.2, 1.2),
+  ghost('team.mine.name', 1.5, 14, 13, 2.6),
+  ghost('score.mine', 1.5, 16.8, 8.4, 6.2),
+  ghost('score.delta', 10.2, 18, 4.2, 4),
+  railCol('col.mine.pos', 1.5, 23.2, 3.5, 25),
+  railCol('col.mine.name', 5, 23.2, 7.2, 25),
+  railCol('col.mine.pts', 12.2, 23.2, 4, 25),
+  ghost('team.opp.name', 1.5, 50, 14.7, 2.6),
+  ghost('score.opp', 1.5, 52.8, 14.7, 4.2),
+  railCol('col.opp.pos', 1.5, 57.2, 3.5, 22.8),
+  railCol('col.opp.name', 5, 57.2, 7.2, 22.8),
+  railCol('col.opp.pts', 12.2, 57.2, 4, 22.8),
   hide('meta.league', 1.5, 22),
   hide('meta.week', 1.5, 22, 5, 2),
   hide('col.mine.nfl', 12, 22, 4.2, 26),
@@ -203,32 +226,40 @@ const stackedLeft = (): OverlayWidgetInstance[] => [
 ]
 
 const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetInstance[] => {
-  const railH = 52
-  const railY = 22
-  const nameY = 13
-  const scoreY = 15.4
+  const density: OverlayDensity = 'regular'
+  const posW = 2.8
+  const nameW = 11
+  const ptsW = 4.2
+  const railW = posW + nameW + ptsW
+  const railH = 58
+  const railY = 23.2
+  const nameY = 10
+  const nameH = 3.4
+  const scoreY = 13.6
   return [
-    compact('meta.live', mineX + 12.2, nameY + 0.2, 1.2, 1.2),
-    compact('team.opp.name', oppX, nameY, 14.5, 2.2),
-    compact('score.opp', oppX, scoreY, 14.5, scoreH),
-    compact('col.opp.pos', oppX, railY, 3.5, railH),
-    compact('col.opp.name', oppX + 3.5, railY, 7, railH),
-    compact('col.opp.pts', oppX + 10.5, railY, 4, railH),
-    compact('team.mine.name', mineX, nameY, 13.5, 2.2),
-    compact('score.mine', mineX, scoreY, 9, scoreH),
-    compact('score.delta', mineX + 9.2, scoreY + 1, 4.2, 3.6),
-    compact('col.mine.pos', mineX, railY, 3.5, railH),
-    compact('col.mine.name', mineX + 3.5, railY, 7, railH),
-    compact('col.mine.pts', mineX + 10.5, railY, 4, railH),
+    ghost('meta.live', mineX + railW - 1.2, nameY + 0.2, 1.2, 1.2, density),
+    ghost('team.opp.name', oppX, nameY, railW, nameH, density),
+    ghost('score.opp', oppX, scoreY, railW, scoreH, density),
+    railCol('col.opp.pos', oppX, railY, posW, railH, density),
+    railCol('col.opp.name', oppX + posW, railY, nameW, railH, density),
+    railCol('col.opp.pts', oppX + posW + nameW, railY, ptsW, railH, density),
+    ghost('team.mine.name', mineX, nameY, railW - 1.4, nameH, density),
+    ghost('score.mine', mineX, scoreY, 12.4, scoreH, density),
+    ghost('score.delta', mineX + 12.6, scoreY + 2, 5.2, 5.4, density),
+    railCol('col.mine.pos', mineX, railY, posW, railH, density),
+    railCol('col.mine.name', mineX + posW, railY, nameW, railH, density),
+    railCol('col.mine.pts', mineX + posW + nameW, railY, ptsW, railH, density),
     hide('meta.league', mineX, railY),
     hide('meta.week', mineX, railY, 5, 2),
-    hide('col.mine.nfl', mineX + 10.5, railY, 4, railH),
-    hide('col.opp.nfl', oppX + 10.5, railY, 4, railH),
+    hide('col.mine.nfl', mineX + posW + nameW, railY, ptsW, railH),
+    hide('col.opp.nfl', oppX + posW + nameW, railY, ptsW, railH),
     hide('bench.mine', mineX, railY),
     hide('bench.opp', oppX, railY),
     hide('toast.slot', mineX, railY)
   ]
 }
+
+const tapeRails = (): OverlayWidgetInstance[] => dualRails(80.8, 1.2, 9)
 
 const redzoneWidgets = (): OverlayWidgetInstance[] => stackedLeft()
 
@@ -237,29 +268,29 @@ export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
     case 'redzone':
       return layout('redzone', redzoneWidgets())
     case 'user.1':
-      return layout('user.1', redzoneWidgets())
+      return layout('user.1', tapeRails())
     case 'ticket':
       return layout('ticket', stackedLeft())
     case 'national':
-      return layout('national', dualRails(84.5, 1.5, 5.6))
+      return layout('national', tapeRails())
     case 'broadcast-l':
-      return layout('broadcast-l', dualRails(84.5, 1.5, 5.6))
+      return layout('broadcast-l', tapeRails())
     case 'corners':
-      return layout('corners', dualRails(84.5, 1.5, 5.6))
+      return layout('corners', tapeRails())
     case 'pip':
       return layout('pip', [
-        compact('meta.live', 96.8, 14.2, 1.2, 1.2),
-        compact('team.mine.name', 78, 14, 18, 2),
-        compact('score.mine', 78, 16.2, 12, 4),
-        compact('score.delta', 90.5, 16.6, 6.5, 3.2),
-        compact('col.mine.pos', 78, 21, 3.5, 26),
-        compact('col.mine.name', 81.5, 21, 7, 26),
-        compact('col.mine.pts', 88.5, 21, 9.5, 26),
-        compact('team.opp.name', 78, 50, 20, 2),
-        compact('score.opp', 78, 52.2, 20, 3.6),
-        compact('col.opp.pos', 78, 56.2, 3.5, 24),
-        compact('col.opp.name', 81.5, 56.2, 7, 24),
-        compact('col.opp.pts', 88.5, 56.2, 9.5, 24),
+        ghost('meta.live', 96.8, 14.2, 1.2, 1.2),
+        ghost('team.mine.name', 78, 14, 18, 2.4),
+        ghost('score.mine', 78, 16.6, 12, 5),
+        ghost('score.delta', 90.5, 17.2, 6.5, 3.6),
+        railCol('col.mine.pos', 78, 22.2, 3.5, 26),
+        railCol('col.mine.name', 81.5, 22.2, 7.4, 26),
+        railCol('col.mine.pts', 88.9, 22.2, 9.1, 26),
+        ghost('team.opp.name', 78, 50, 20, 2.4),
+        ghost('score.opp', 78, 52.6, 20, 4.4),
+        railCol('col.opp.pos', 78, 57.2, 3.5, 22.8),
+        railCol('col.opp.name', 81.5, 57.2, 7.4, 22.8),
+        railCol('col.opp.pts', 88.9, 57.2, 9.1, 22.8),
         hide('meta.league', 78, 21),
         hide('meta.week', 78, 21, 5, 2),
         hide('col.mine.nfl', 88.5, 21, 9.5, 26),
@@ -270,12 +301,12 @@ export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
       ])
     case 'minimal':
       return layout('minimal', [
-        compact('meta.live', 86.5, 13.2, 1.2, 1.2),
-        compact('team.mine.name', 78, 13, 10, 2.2),
-        compact('score.mine', 78, 15.4, 8, 5.6),
-        compact('score.delta', 86.4, 16.4, 4.4, 3.6),
-        compact('team.opp.name', 91.2, 13, 6.8, 2.2),
-        compact('score.opp', 91.2, 15.4, 6.8, 5.6),
+        ghost('meta.live', 86.5, 13.2, 1.2, 1.2),
+        ghost('team.mine.name', 78, 13, 10, 2.6),
+        ghost('score.mine', 78, 15.8, 8, 6.4),
+        ghost('score.delta', 86.4, 16.8, 4.4, 4.2),
+        ghost('team.opp.name', 91.2, 13, 6.8, 2.6),
+        ghost('score.opp', 91.2, 15.8, 6.8, 6.4),
         hide('meta.week', 78, 13, 8, 3),
         hide('meta.league', 78, 13, 18, 3),
         hide('toast.slot', 78, 13, 20, 8),
@@ -308,7 +339,7 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
 const parsePresetId = (value: unknown): OverlayPresetId =>
   typeof value === 'string' && (OVERLAY_PRESET_IDS as readonly string[]).includes(value)
     ? (value as OverlayPresetId)
-    : 'redzone'
+    : DEFAULT_OVERLAY_PRESET
 
 const parseDensity = (value: unknown): OverlayDensity => {
   if (value === 'compact' || value === 'regular' || value === 'large' || value === 'inherit') return value
@@ -326,7 +357,11 @@ const parseWidget = (raw: unknown, fallback: OverlayWidgetInstance): OverlayWidg
     h: clamp(typeof rec.h === 'number' ? rec.h : fallback.h, 1, 100),
     hidden: typeof rec.hidden === 'boolean' ? rec.hidden : fallback.hidden,
     locked: typeof rec.locked === 'boolean' ? rec.locked : fallback.locked,
-    opacity: clamp(typeof rec.opacity === 'number' ? rec.opacity : fallback.opacity, 0.15, 0.85),
+    opacity: clamp(
+      typeof rec.opacity === 'number' ? rec.opacity : fallback.opacity,
+      OPACITY_MIN,
+      OPACITY_MAX
+    ),
     density: parseDensity(rec.density)
   }
 }

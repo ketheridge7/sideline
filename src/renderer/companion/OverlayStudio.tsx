@@ -2,6 +2,7 @@ import { useState, type JSX } from 'react'
 import { Eye, EyeOff, Lock, Unlock } from 'lucide-react'
 import {
   applyPreset,
+  DEFAULT_OVERLAY_PRESET,
   OVERLAY_PRESET_IDS,
   OVERLAY_WIDGET_IDS,
   patchWidget,
@@ -13,7 +14,7 @@ import {
 } from '@shared/overlayLayout'
 import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
-import { smokeFill } from '../overlay/density'
+import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
 import { OverlayWidgetView } from '../overlay/Widgets'
 import { NflTicker } from './NflTicker'
 
@@ -99,10 +100,18 @@ export const OverlayStudio = ({
           </select>
         </label>
         <p className="text-xs text-muted">
-          RedZone, National, and Ticket show names, scores, and both starter rails. Hide or drag any widget after.
+          Default is Tape rails: them left, you right. Frosted type only — no wash, no card. Hide or drag after.
         </p>
 
-        <div className="relative aspect-video overflow-hidden border border-line bg-bg">
+        <div className="relative aspect-video overflow-hidden bg-[#0c2418]">
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, rgba(34,90,52,0.9) 0%, rgba(12,36,24,0.95) 52%, #07080a 100%)'
+            }}
+            aria-hidden="true"
+          />
           <div
             className="pointer-events-none absolute left-0 top-0 origin-top-left"
             style={{
@@ -117,14 +126,16 @@ export const OverlayStudio = ({
               return (
                 <div
                   key={widget.id}
-                  className="absolute overflow-hidden"
+                  className="hud-widget hud-frost absolute overflow-visible"
+                  data-density={resolveDensity('desktop', widget.density)}
                   style={{
                     left: `${widget.x}%`,
                     top: `${widget.y}%`,
                     width: `${widget.w}%`,
                     height: `${widget.h}%`,
-                    background: `rgba(7, 8, 10, ${fill})`,
-                    color: '#F4F6F8'
+                    background: hudWidgetFill(fill),
+                    color: '#F4F6F8',
+                    textShadow: HUD_TEXT_SHADOW
                   }}
                 >
                   <OverlayWidgetView
@@ -214,7 +225,7 @@ export const OverlayStudio = ({
             Fill opacity
             <input
               type="range"
-              min={15}
+              min={0}
               max={85}
               value={Math.round(current.opacity * 100)}
               onChange={(event) =>
@@ -259,7 +270,7 @@ export const OverlayStudio = ({
 
         <button
           type="button"
-          onClick={() => handlePreset(layout.presetId === 'user.1' ? 'redzone' : layout.presetId)}
+          onClick={() => handlePreset(layout.presetId === 'user.1' ? DEFAULT_OVERLAY_PRESET : layout.presetId)}
           className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text"
         >
           Revert preset

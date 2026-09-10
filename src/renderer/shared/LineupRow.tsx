@@ -18,23 +18,27 @@ export const LineupRow = ({
   you?: boolean
 }): JSX.Element => {
   if (!player) {
-    return <div className={compact ? (tv ? 'h-8' : 'h-[22px]') : 'h-8'} />
+    return <div className={compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11 flex-1'} />
   }
   const name = compact ? overlayName(player.name) : player.name
   const team = nflTeamLabel(player.nflTeam)
   const injury = visibleInjury(player.status)
-  const restColor = you ? '#7DD3FC' : '#F4F6F8'
+  const restColor = you ? '#F8FBFF' : '#E4EAF1'
   const pos = (
     <span
       className={`shrink-0 font-cond font-bold uppercase tracking-wide text-muted ${
-        compact ? (tv ? 'w-9 text-xs' : 'w-7 text-[10px]') : 'w-8 text-[11px]'
+        compact ? (tv ? 'w-9 text-xs' : 'w-7 text-[10px]') : 'w-10 text-sm'
       }`}
     >
       {player.position || '—'}
     </span>
   )
   const label = (
-    <span className={`min-w-0 flex-1 truncate ${compact ? (tv ? 'text-base' : 'text-[11px]') : 'text-[13px]'}`}>
+    <span
+      className={`min-w-0 flex-1 truncate ${
+        compact ? (tv ? 'text-base' : 'text-[11px]') : 'font-cond text-base font-semibold uppercase tracking-wide'
+      }`}
+    >
       {name}
       {!compact && player.lastPlay ? (
         <span className="ml-1.5 text-[10px] font-normal uppercase tracking-wide text-muted">{player.lastPlay}</span>
@@ -52,7 +56,7 @@ export const LineupRow = ({
         restColor={restColor}
         align="right"
         className={`shrink-0 font-cond font-bold ${
-          compact ? (tv ? 'w-12 text-lg' : 'w-9 text-[13px]') : 'w-12 text-base'
+          compact ? (tv ? 'w-12 text-lg' : 'w-9 text-[13px]') : 'w-16 text-xl'
         }`}
       />
     </span>
@@ -62,8 +66,8 @@ export const LineupRow = ({
   ) : null
   return (
     <div
-      className={`flex items-center gap-1.5 ${
-        compact ? (tv ? 'h-8' : 'h-[22px]') : 'h-8 border-b border-line/80 last:border-0'
+      className={`flex items-center gap-2 ${
+        compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11 flex-1'
       }`}
     >
       {mirror ? (

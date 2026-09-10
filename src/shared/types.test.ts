@@ -45,7 +45,7 @@ describe('toOverlayHud', () => {
     expect(hud.oppName).toBe('—')
     expect(hud.myBench).toEqual([])
     expect(hud.tape).toEqual([])
-    expect(hud.layout.presetId).toBe('redzone')
+    expect(hud.layout.presetId).toBe('national')
   })
 
   it('asks ESPN to sign in instead of painting a false bye when cookies are invalid', () => {

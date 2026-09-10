@@ -1,5 +1,5 @@
 import type { OverlayLayout } from './overlayLayout'
-import { layoutFromPreset } from './overlayLayout'
+import { DEFAULT_OVERLAY_PRESET, layoutFromPreset } from './overlayLayout'
 import type { TransactionKind } from './transactionKind'
 
 export type TapeKind = TransactionKind | 'score' | 'injury'
@@ -215,7 +215,7 @@ export const emptyAppState = (): AppState => ({
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',
   overlayEditMode: false,
-  overlayLayout: layoutFromPreset('redzone'),
+  overlayLayout: layoutFromPreset(DEFAULT_OVERLAY_PRESET),
   lastToast: null,
   lanOverlayEnabled: false,
   lanOverlayHost: null,

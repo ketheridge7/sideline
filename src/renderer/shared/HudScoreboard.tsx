@@ -13,36 +13,40 @@ export const HudScoreboard = ({
   const bye = !matchup.oppTeam
   const opponentName = matchup.oppTeam?.name ?? (needsSignIn ? 'Sign in' : 'BYE')
   return (
-    <div className="border-b border-line bg-card px-5 py-3" aria-live="polite">
-      <div className="grid grid-cols-[1fr_minmax(8rem,12rem)_1fr] items-end gap-4">
-        <div>
+    <div className="px-6 py-5" aria-live="polite">
+      <div className="grid grid-cols-[1fr_minmax(7rem,11rem)_1fr] items-end gap-6">
+        <div className="min-w-0">
           {matchup.myTeam.owner ? (
-            <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{matchup.myTeam.owner}</div>
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.myTeam.owner}</div>
           ) : null}
-          <div className="truncate font-cond text-xl font-bold uppercase tracking-wide text-you">
+          <div className="truncate font-cond text-3xl font-bold uppercase tracking-[0.08em] text-you">
             {matchup.myTeam.name}
           </div>
-          <div className="text-[11px] text-muted">{matchup.myTeam.record}</div>
+          <div className="text-xs text-muted">{matchup.myTeam.record}</div>
           <ScoreTick
             value={matchup.myPoints}
-            restColor="#F4F6F8"
-            className="mt-1 font-cond text-6xl font-extrabold leading-none"
+            restColor="#F8FBFF"
+            className="mt-1 font-cond text-7xl font-extrabold leading-none"
           />
         </div>
         <LeadBar mine={matchup.myPoints} opp={matchup.oppPoints} />
-        <div className="text-right">
+        <div className="min-w-0 text-right">
           {matchup.oppTeam?.owner ? (
-            <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{matchup.oppTeam.owner}</div>
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.oppTeam.owner}</div>
           ) : null}
-          <div className={`truncate font-cond text-xl font-bold uppercase tracking-wide ${bye ? 'text-muted' : 'text-them'}`}>
+          <div
+            className={`truncate font-cond text-3xl font-bold uppercase tracking-[0.08em] ${
+              bye ? 'text-muted' : 'text-them'
+            }`}
+          >
             {opponentName}
           </div>
-          <div className="text-[11px] text-muted">{matchup.oppTeam?.record ?? ''}</div>
+          <div className="text-xs text-muted">{matchup.oppTeam?.record ?? ''}</div>
           <ScoreTick
             value={matchup.oppPoints}
-            restColor="#94A3B8"
+            restColor="#E4EAF1"
             align="right"
-            className="mt-1 font-cond text-6xl font-extrabold leading-none"
+            className="mt-1 font-cond text-7xl font-extrabold leading-none"
           />
         </div>
       </div>
