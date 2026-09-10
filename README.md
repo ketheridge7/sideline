@@ -27,9 +27,9 @@ Type your Sleeper **username** (not email, not password). Sideline calls `GET /v
 
 ### ESPN
 
-Click **Sign in with ESPN**. An in-app window opens ESPN's own login (2FA/OTP included). Sideline never sees or stores your password. After you sign in, it reads `espn_s2` and `SWID` from the `persist:espn` session partition on this machine and attaches them to later GETs.
+Click **Sign in with ESPN**. Sideline clears the previous in-app ESPN session, then an in-app window opens ESPN's own login (2FA/OTP included). Sideline never sees or stores your password. After you sign in, it reads `espn_s2` and `SWID` from the `persist:espn` session partition on this machine and attaches them to later GETs.
 
-Those cookies expire (often after a few weeks). When they do, sign in again the same way.
+Those cookies expire (often after a few weeks). When they do, sign in again the same way — leftover cookie names from a dead session cannot skip the login window.
 
 League discovery is best-effort and unofficial. If your leagues don't appear, **paste the numeric league ID** from the ESPN fantasy URL (`.../football/league?leagueId=XXXX`).
 
