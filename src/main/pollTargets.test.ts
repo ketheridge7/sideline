@@ -141,6 +141,8 @@ import {
   hudHintKey,
   pickSelectedLeagueKey,
   settleMatchupPlan,
+  seedHudMatchupPlan,
+  refreshJoinPlan,
   espnConnectedPlan,
   settleSelectedKeyPlan
 } from './pollTargets'
@@ -2156,6 +2158,81 @@ describe('settleMatchupPlan', () => {
         lastKey: 'espn:899513'
       })
     ).toBeNull()
+  })
+
+  it('does not paint last ESPN HUD onto a Sleeper selection with the same lastKey', () => {
+    expect(
+      settleMatchupPlan({
+        selectedMatchup: null,
+        liveMatchup: hud,
+        lastMatchup: hud,
+        selectedKey: 'sleeper:1333470459076804608',
+        lastKey: 'sleeper:1333470459076804608',
+        liveKey: 'espn:543268341'
+      })
+    ).toBeNull()
+  })
+
+  it('keeps this tick’s HUD when it already belongs to the newly selected league', () => {
+    expect(
+      settleMatchupPlan({
+        selectedMatchup: null,
+        liveMatchup: { ...hud, myPoints: 88.2 },
+        lastMatchup: hud,
+        selectedKey: 'sleeper:1333470459076804608',
+        lastKey: 'espn:543268341',
+        liveKey: 'sleeper:1333470459076804608'
+      })?.myPoints
+    ).toBe(88.2)
+  })
+})
+
+describe('seedHudMatchupPlan', () => {
+  it('skips last HUD when the hinted league is a different provider', () => {
+    expect(
+      seedHudMatchupPlan({
+        hintKey: 'sleeper:1333470459076804608',
+        lastSelectedKey: 'espn:543268341',
+        lastHudKey: 'espn:543268341'
+      })
+    ).toBe('skip')
+    expect(
+      seedHudMatchupPlan({
+        hintKey: 'espn:543268341',
+        lastSelectedKey: 'espn:543268341',
+        lastHudKey: 'espn:543268341'
+      })
+    ).toBe('last-state')
+    expect(
+      seedHudMatchupPlan({
+        hintKey: 'espn:543268341',
+        lastSelectedKey: null,
+        lastHudKey: 'espn:543268341'
+      })
+    ).toBe('last-hud')
+  })
+})
+
+describe('refreshJoinPlan', () => {
+  it('kicks a new poll when selectedLeagueKey changed under an in-flight tick', () => {
+    expect(
+      refreshJoinPlan({
+        hasInFlight: true,
+        hasBoardsTail: true,
+        waitForBoards: true,
+        settingsKey: 'sleeper:1333470459076804608',
+        inFlightKey: 'espn:543268341'
+      })
+    ).toBe('kick')
+    expect(
+      refreshJoinPlan({
+        hasInFlight: true,
+        hasBoardsTail: false,
+        waitForBoards: false,
+        settingsKey: 'espn:543268341',
+        inFlightKey: 'espn:543268341'
+      })
+    ).toBe('join')
   })
 })
 

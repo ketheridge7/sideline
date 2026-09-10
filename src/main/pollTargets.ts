@@ -102,17 +102,48 @@ export const pickSelectedLeagueKey = (opts: {
   return opts.leagueKeys[0] ?? null
 }
 
-/** Discovery with an empty league list must not wipe a HUD that last scores or this tick already painted. A new selected league must not keep the previous board’s scores. */
+/** Discovery with an empty league list must not wipe a HUD that last scores or this tick already painted. A new selected league must not keep the previous board’s scores. A HUD painted for another league key must not fill the selected board. */
 export const settleMatchupPlan = (opts: {
   selectedMatchup: Matchup | null
   liveMatchup: Matchup | null
   lastMatchup: Matchup | null
   selectedKey: string | null
   lastKey: string | null
+  liveKey?: string | null
 }): Matchup | null => {
   if (opts.selectedMatchup) return opts.selectedMatchup
-  if (opts.selectedKey && opts.lastKey && opts.selectedKey !== opts.lastKey) return null
-  return opts.liveMatchup ?? opts.lastMatchup
+  const liveIsSelected = !opts.liveKey || !opts.selectedKey || opts.liveKey === opts.selectedKey
+  const live = liveIsSelected ? opts.liveMatchup : null
+  if (opts.selectedKey && opts.lastKey && opts.selectedKey !== opts.lastKey) {
+    return opts.liveKey === opts.selectedKey ? live : null
+  }
+  return live ?? (liveIsSelected ? opts.lastMatchup : null)
+}
+
+/** Last HUD / lastState scores may seed this tick only when they already belong to the hinted league. */
+export const seedHudMatchupPlan = (opts: {
+  hintKey: string | null
+  lastSelectedKey: string | null
+  lastHudKey: string | null
+}): 'last-state' | 'last-hud' | 'skip' => {
+  if (!opts.hintKey) return 'last-state'
+  if (opts.lastSelectedKey === opts.hintKey) return 'last-state'
+  if (opts.lastHudKey === opts.hintKey) return 'last-hud'
+  return 'skip'
+}
+
+/** A selectLeague that changed settings must not join the in-flight poll that still scores the previous key. */
+export const refreshJoinPlan = (opts: {
+  hasInFlight: boolean
+  hasBoardsTail: boolean
+  waitForBoards: boolean
+  settingsKey: string | null
+  inFlightKey: string | null
+}): 'join' | 'kick' => {
+  if (opts.settingsKey && opts.inFlightKey && opts.settingsKey !== opts.inFlightKey) return 'kick'
+  if (opts.waitForBoards && opts.hasBoardsTail) return 'join'
+  if (opts.hasInFlight) return 'join'
+  return 'kick'
 }
 
 export const espnConnectedPlan = (opts: {
