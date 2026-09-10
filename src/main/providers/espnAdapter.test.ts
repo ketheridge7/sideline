@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
-import { BENCH_SLOT_IDS, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
+import { BENCH_SLOT_IDS, findMyTeam, getAppliedTotal, leaguesFromFanPayload, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
 
 const fixture = JSON.parse(
   readFileSync(join(process.cwd(), 'fixtures/espn-league.json'), 'utf8')
@@ -1588,6 +1588,18 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.name).toBe('Hurts')
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppStarters[0]?.points).toBe(15.1)
+  })
+
+  it('does not overlay another league’s starters when teamId collides', () => {
+    const live = {
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 30, players: [{ playerId: 401, totalPointsLive: 18 }] },
+          { teamId: 2, totalPointsLive: 22, players: [{ playerId: 501, totalPointsLive: 22 }] }
+        ]
+      }
+    }
+    expect(overlayEspnMatchup(prev, live, 1)).toBeNull()
   })
 
   it('lets compact mLiveScoring move HUD totals down when preferLive is set', () => {
@@ -3322,5 +3334,24 @@ describe('overlayLiveScoring', () => {
     })
     expect(matchup?.starters[0]?.points).toBe(12.4)
     expect(matchup?.myPoints).toBe(12.4)
+  })
+})
+
+describe('leaguesFromFanPayload', () => {
+  it('keeps two football leagues as distinct numeric ids', () => {
+    const leagues = leaguesFromFanPayload(
+      {
+        favoriteLeagues: [
+          { leagueId: 55112233, leagueName: 'The Homies', sport: 'ffl', seasonId: 2026 },
+          { leagueId: 90664721, leagueName: 'Gridiron Gurus', sport: 'ffl', seasonId: 2026 },
+          { leagueId: 55112233, leagueName: 'The Homies', sport: 'ffl', seasonId: 2026 },
+          { id: 1, name: 'Team slot', sport: 'ffl' }
+        ]
+      },
+      '2026',
+      1
+    )
+    expect(leagues.map((row) => row.id)).toEqual(['55112233', '90664721'])
+    expect(leagues.map((row) => row.name)).toEqual(['The Homies', 'Gridiron Gurus'])
   })
 })

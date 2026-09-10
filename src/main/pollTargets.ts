@@ -1015,6 +1015,19 @@ export const espnDiscoverySwrPlan = (
   return waitForBoards ? 'await-fetch' : 'defer-swr'
 }
 
+export const uniqueLeagues = (leagues: League[]): League[] => {
+  const seen = new Set<string>()
+  const out: League[] = []
+  for (const league of leagues) {
+    if (!league.id) continue
+    const key = leagueKey(league.provider, league.id)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(league)
+  }
+  return out
+}
+
 export const mergeProviderLeagues = (
   leagues: League[],
   provider: League['provider'],
@@ -1022,14 +1035,35 @@ export const mergeProviderLeagues = (
 ): League[] => {
   switch (provider) {
     case 'sleeper':
-      return [...next, ...leagues.filter((row) => row.provider !== 'sleeper')]
+      return uniqueLeagues([...next, ...leagues.filter((row) => row.provider !== 'sleeper')])
     case 'espn':
-      return [...leagues.filter((row) => row.provider !== 'espn'), ...next]
+      return uniqueLeagues([...leagues.filter((row) => row.provider !== 'espn'), ...next])
     default: {
       const _never: never = provider
       return _never
     }
   }
+}
+
+/** Last HUD / lastState matchup may only seed the selected league. After a switch, lastKey can already match selectedKey while lastHud still belongs to the previous board. */
+export const seedHudMatchupPlan = (opts: {
+  selectedKey: string | null
+  lastKey: string | null
+  lastHudKey: string | null
+  lastWeek: number | undefined
+  hudWeek: number | undefined
+  week: number
+  hasLastMatchup: boolean
+  hasHudMatchup: boolean
+}): 'last-state' | 'last-hud' | 'skip' => {
+  const weekOk = (snapshotWeek: number | undefined): boolean => snapshotWeek === opts.week
+  const keyOk = (snapshotKey: string | null): boolean => {
+    if (!opts.selectedKey) return snapshotKey != null
+    return snapshotKey === opts.selectedKey
+  }
+  if (opts.hasLastMatchup && keyOk(opts.lastKey) && weekOk(opts.lastWeek)) return 'last-state'
+  if (opts.hasHudMatchup && keyOk(opts.lastHudKey) && weekOk(opts.hudWeek)) return 'last-hud'
+  return 'skip'
 }
 
 export type LastHudSnapshot = {

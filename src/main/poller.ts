@@ -67,7 +67,7 @@ import { runtime } from './runtime'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
-import { cacheFresh, espnDiscoverySwrPlan, espnFanExtraIds, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, espnConnectedPlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
+import { cacheFresh, espnDiscoverySwrPlan, espnFanExtraIds, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, uniqueLeagues, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, espnConnectedPlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk } from './nflCache'
 
 let timer: NodeJS.Timeout | null = null
@@ -1831,7 +1831,20 @@ let boardsTail: Promise<AppState> | null = null
 
 export const refresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState> => {
   if (opts?.waitForBoards && boardsTail) return boardsTail
-  if (inFlight) return opts?.waitForBoards ? (boardsTail ?? inFlight) : inFlight
+  if (inFlight) {
+    const pending = opts?.waitForBoards ? (boardsTail ?? inFlight) : inFlight
+    return pending.then((state) => {
+      const selected = loadSettings().selectedLeagueKey
+      if (
+        selected &&
+        selected !== state.selectedLeagueKey &&
+        state.leagues.some((row) => leagueKey(row.provider, row.id) === selected)
+      ) {
+        return refresh(opts)
+      }
+      return state
+    })
+  }
   inFlight = runRefresh(opts).finally(() => {
     inFlight = null
   })
@@ -1892,11 +1905,29 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       })
       if (peeked) sleeperUser = peeked
     }
-    if (!matchup && lastState.matchup && lastState.nfl?.displayWeek === nflState.displayWeek) {
-      matchup = lastState.matchup
-    }
-    if (!matchup && lastHudSnap?.matchup && lastHudSnap.displayWeek === nflState.displayWeek) {
-      matchup = lastHudSnap.matchup
+    const hudSeed = seedHudMatchupPlan({
+      selectedKey: settings.selectedLeagueKey ?? hintKey,
+      lastKey: lastState.selectedLeagueKey,
+      lastHudKey: lastHudSnap?.selectedKey ?? null,
+      lastWeek: lastState.nfl?.displayWeek,
+      hudWeek: lastHudSnap?.displayWeek,
+      week: nflState.displayWeek,
+      hasLastMatchup: Boolean(lastState.matchup),
+      hasHudMatchup: Boolean(lastHudSnap?.matchup)
+    })
+    switch (hudSeed) {
+      case 'last-state':
+        matchup = lastState.matchup
+        break
+      case 'last-hud':
+        matchup = lastHudSnap?.matchup ?? null
+        break
+      case 'skip':
+        break
+      default: {
+        const _never: never = hudSeed
+        void _never
+      }
     }
 
     const persistSelectedHud = (key: string | null, loaded: Matchup | null): void => {
@@ -2745,7 +2776,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       })
     })
     if (gen !== pollGen) return lastState
-    leagues = [...sleeperLeagues, ...espnLeagues]
+    leagues = uniqueLeagues([...sleeperLeagues, ...espnLeagues])
 
     const pinnedKeys = replay
       ? leagues.map((league) => leagueKey(league.provider, league.id))

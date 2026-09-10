@@ -159,6 +159,31 @@ describe('toMatchup', () => {
 })
 
 describe('overlaySleeperMatchups', () => {
+  it('does not overlay another league’s starters when roster_id collides', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(prev).not.toBeNull()
+    if (!prev) return
+    const otherLeague = [
+      {
+        roster_id: 1,
+        matchup_id: 3,
+        points: 30,
+        starters: ['401', '402'],
+        players: ['401', '402'],
+        players_points: { '401': 18, '402': 12 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 3,
+        points: 22,
+        starters: ['501'],
+        players: ['501'],
+        players_points: { '501': 22 }
+      }
+    ]
+    expect(overlaySleeperMatchups(prev, otherLeague)).toBeNull()
+  })
+
   it('paints live points onto last HUD without waiting on rosters', () => {
     const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
     expect(prev).not.toBeNull()

@@ -245,11 +245,19 @@ const overlayPlayers = (players: Player[], row: SleeperMatchup): Player[] =>
     return { ...player, points: Math.max(pts, player.points ?? 0) }
   })
 
+const starterIdsOverlap = (prev: Player[], liveIds: string[]): boolean => {
+  if (liveIds.length === 0 || prev.length === 0) return true
+  const live = new Set(liveIds)
+  return prev.some((player) => live.has(playerIdOf(player.playerId) ?? player.playerId))
+}
+
 export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]): Matchup | null => {
   const myId = asInt(prev.myTeam.id)
   if (myId == null) return null
   const mine = matchups.find((row) => rosterIdOf(row) === myId)
   if (!mine) return null
+  const liveStarterIds = (mine.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
+  if (!starterIdsOverlap(prev.starters, liveStarterIds)) return null
   const oppId = prev.oppTeam ? asInt(prev.oppTeam.id) : undefined
   const opp =
     oppId != null

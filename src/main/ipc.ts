@@ -36,7 +36,7 @@ export const registerIpc = (): void => {
   })
   ipcMain.handle('sideline:selectLeague', async (_event, key: string | null) => {
     saveSettings({ selectedLeagueKey: key })
-    await refresh()
+    await refresh({ waitForBoards: true })
   })
   ipcMain.handle('sideline:toggleOverlay', () => {
     const visible = toggleOverlay()

@@ -82,6 +82,23 @@ describe('toMatchupBoard', () => {
     expect(liveScorers(null)).toEqual([])
   })
 
+  it('keeps distinct starter ids when two leagues have different matchups', () => {
+    const otherLeague: League = { ...league, id: '2', name: 'Fourth & Drunken' }
+    const otherMatchup: Matchup = {
+      ...matchup,
+      myTeam: { id: 'c', name: 'Drunk Tank', owner: 'Riley', record: '0-1' },
+      oppTeam: { id: 'd', name: 'Sober Sundays', owner: 'Pat', record: '1-0' },
+      starters: [{ playerId: '9', name: 'C.J. Stroud', position: 'QB', nflTeam: 'HOU', points: 14.2 }],
+      oppStarters: [{ playerId: '8', name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 24.8 }]
+    }
+    const first = toMatchupBoard(league, matchup)
+    const other = toMatchupBoard(otherLeague, otherMatchup)
+    expect(first.key).not.toBe(other.key)
+    expect(first.myName).toBe('Gibbs Me Head')
+    expect(other.myName).toBe('Drunk Tank')
+    expect(first.lastScorers.map((row) => row.playerId)).not.toEqual(other.lastScorers.map((row) => row.playerId))
+  })
+
   it('prefers players who just ticked over season-long top scorers', () => {
     const ticking: Matchup = {
       ...matchup,
@@ -107,7 +124,16 @@ describe('upsertMatchupBoard', () => {
 describe('applyCompanionHudPatch', () => {
   it('upserts the selected LEAGUES card from the live matchup without a boards payload', () => {
     const first = toMatchupBoard(league, matchup)
-    const other = toMatchupBoard({ ...league, id: '2', name: 'Other' }, matchup)
+    const otherMatchup: Matchup = {
+      ...matchup,
+      myTeam: { id: 'c', name: 'Drunk Tank', owner: 'Riley', record: '0-1' },
+      oppTeam: { id: 'd', name: 'Sober Sundays', owner: 'Pat', record: '1-0' },
+      myPoints: 98.4,
+      oppPoints: 114.9,
+      starters: [{ playerId: '9', name: 'C.J. Stroud', position: 'QB', nflTeam: 'HOU', points: 14.2 }],
+      oppStarters: [{ playerId: '8', name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 24.8 }]
+    }
+    const other = toMatchupBoard({ ...league, id: '2', name: 'Other' }, otherMatchup)
     const current = {
       ...emptyAppState(),
       leagues: [league, { ...league, id: '2', name: 'Other' }],
@@ -127,7 +153,9 @@ describe('applyCompanionHudPatch', () => {
     })
     expect(next.matchup?.myPoints).toBe(150.4)
     expect(next.pollingLive).toBe(true)
-    expect(next.boards.map((row) => row.myPoints)).toEqual([150.4, 142.8])
+    expect(next.boards.map((row) => row.myPoints)).toEqual([150.4, 98.4])
     expect(next.boards[1]?.leagueName).toBe('Other')
+    expect(next.boards[1]?.myName).toBe('Drunk Tank')
+    expect(next.boards[1]?.lastScorers.map((row) => row.playerId)).toEqual(['8', '9'])
   })
 })

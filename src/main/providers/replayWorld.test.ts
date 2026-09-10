@@ -44,6 +44,23 @@ describe('replayWorld', () => {
     expect(leads.some((lead) => lead < 0)).toBe(true)
   })
 
+  it('keeps distinct team ids and starter ids on every board', () => {
+    const keys = weekLeagues.map((row) => leagueKey(row.provider, row.id))
+    expect(new Set(keys).size).toBe(keys.length)
+    const teamIds: string[] = []
+    const starterIds: string[] = []
+    for (const row of weekLeagues) {
+      const matchup = replayMatchupFor(row, 0)
+      expect(matchup).not.toBeNull()
+      if (!matchup) continue
+      teamIds.push(matchup.myTeam.id)
+      if (matchup.oppTeam) teamIds.push(matchup.oppTeam.id)
+      starterIds.push(...matchup.starters.map((player) => player.playerId))
+    }
+    expect(new Set(teamIds).size).toBe(teamIds.length)
+    expect(new Set(starterIds).size).toBe(starterIds.length)
+  })
+
   it('ticks a featured starter up then down so overlay can flash both tags', () => {
     const beats = replayScoreBeats()
     expect(beats.some((beat) => beat.delta > 0)).toBe(true)

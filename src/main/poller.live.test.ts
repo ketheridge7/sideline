@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writeFileSync, existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { leagueKey } from '@shared/types'
+import { leagueKey, toOverlayHud } from '@shared/types'
 
 vi.mock('electron', () => {
   const fs = require('fs') as typeof import('fs')
@@ -792,5 +792,156 @@ describe('poller live tick order', () => {
     releaseUser()
     await pending
     await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
+  })
+
+  it('keeps distinct starters and team ids for two Sleeper leagues', async () => {
+    const dir = app.getPath('userData')
+    const leagueA = '111000001'
+    const leagueB = '111000002'
+    const keyA = leagueKey('sleeper', leagueA)
+    const keyB = leagueKey('sleeper', leagueB)
+    saveSettings({
+      sleeperUsername: 'tester',
+      sleeperUserId: 'me',
+      selectedLeagueKey: keyA,
+      espnLeagueIds: [],
+      pinnedLeagueKeys: [keyA, keyB]
+    })
+    writeNfl(dir)
+    for (const name of [
+      'sideline-last-hud.json',
+      'sideline-matchups.json',
+      'sideline-sleeper-rosters.json'
+    ]) {
+      const path = join(dir, name)
+      if (existsSync(path)) unlinkSync(path)
+    }
+    writeFileSync(
+      join(dir, 'sideline-sleeper-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        username: 'tester',
+        season: '2026',
+        leagues: [
+          { id: leagueA, name: 'Friday Night', provider: 'sleeper', season: '2026', week: 1 },
+          { id: leagueB, name: 'Fourth & Drunken', provider: 'sleeper', season: '2026', week: 1 }
+        ]
+      })
+    )
+    warmupPollerCaches()
+
+    const matchupsA = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 24.6,
+        starters: ['401', '402'],
+        players: ['401', '402'],
+        players_points: { '401': 12.4, '402': 12.2 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 7,
+        points: 18,
+        starters: ['403'],
+        players: ['403'],
+        players_points: { '403': 18 }
+      }
+    ]
+    const matchupsB = [
+      {
+        roster_id: 1,
+        matchup_id: 3,
+        points: 31.2,
+        starters: ['501', '502'],
+        players: ['501', '502'],
+        players_points: { '501': 18.6, '502': 12.6 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 3,
+        points: 22,
+        starters: ['503'],
+        players: ['503'],
+        players_points: { '503': 22 }
+      }
+    ]
+
+    const urls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        urls.push(url)
+        const leagueId = url.match(/\/league\/(\d+)\//)?.[1]
+        if (leagueId && url.includes('/matchups/')) {
+          if (leagueId === leagueA) return jsonOk(matchupsA)
+          if (leagueId === leagueB) return jsonOk(matchupsB)
+        }
+        if (leagueId && url.includes('/rosters')) {
+          return jsonOk([
+            { roster_id: 1, owner_id: 'me', settings: { wins: leagueId === leagueB ? 0 : 1, losses: leagueId === leagueB ? 1 : 0 } },
+            { roster_id: 2, owner_id: 'them', settings: { wins: leagueId === leagueB ? 1 : 0, losses: leagueId === leagueB ? 0 : 1 } }
+          ])
+        }
+        if (leagueId && url.includes('/users')) {
+          if (leagueId === leagueB) {
+            return jsonOk([
+              { user_id: 'me', display_name: 'Riley', metadata: { team_name: 'Drunk Tank' } },
+              { user_id: 'them', display_name: 'Pat', metadata: { team_name: 'Sober Sundays' } }
+            ])
+          }
+          return jsonOk([
+            { user_id: 'me', display_name: 'Kevin', metadata: { team_name: 'Gibbs Me Head' } },
+            { user_id: 'them', display_name: 'Marcus', metadata: { team_name: 'The Other Guys' } }
+          ])
+        }
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('/leagues/')) {
+          return jsonOk([
+            { league_id: leagueA, name: 'Friday Night', season: '2026' },
+            { league_id: leagueB, name: 'Fourth & Drunken', season: '2026' }
+          ])
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().boards.find((row) => row.key === keyB)?.myName).toBe('Drunk Tank')
+
+    const first = currentState()
+    expect(first.leagues.map((row) => `${row.provider}:${row.id}`)).toEqual([keyA, keyB])
+    const boardA = first.boards.find((row) => row.key === keyA)
+    const boardB = first.boards.find((row) => row.key === keyB)
+    expect(boardA?.myName).toBe('Gibbs Me Head')
+    expect(boardB?.myName).toBe('Drunk Tank')
+    expect(boardA?.oppName).toBe('The Other Guys')
+    expect(boardB?.oppName).toBe('Sober Sundays')
+    expect(first.matchup?.myTeam.id).toBe('1')
+    expect(first.matchup?.starters.map((row) => row.playerId)).toEqual(['401', '402'])
+    expect(boardA?.lastScorers.map((row) => row.playerId).sort()).not.toEqual(
+      boardB?.lastScorers.map((row) => row.playerId).sort()
+    )
+
+    saveSettings({ selectedLeagueKey: keyB })
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().selectedLeagueKey).toBe(keyB)
+    await expect.poll(() => currentState().matchup?.starters[0]?.playerId).toBe('501')
+
+    const switched = currentState()
+    expect(switched.matchup?.myTeam.name).toBe('Drunk Tank')
+    expect(switched.matchup?.starters.map((row) => row.playerId)).toEqual(['501', '502'])
+    expect(switched.boards.find((row) => row.key === keyA)?.myName).toBe('Gibbs Me Head')
+    expect(switched.boards.find((row) => row.key === keyB)?.myName).toBe('Drunk Tank')
+    expect(toOverlayHud(switched).myStarters.map((row) => row.playerId)).toEqual(['501', '502'])
   })
 })

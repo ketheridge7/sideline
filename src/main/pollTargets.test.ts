@@ -25,6 +25,8 @@ import {
   espnLeaguesCachePlan,
   espnDiscoverySwrPlan,
   mergeProviderLeagues,
+  uniqueLeagues,
+  seedHudMatchupPlan,
   holdForSelectedLive,
   matchupsFromDiskPayload,
   isLiveLeagueId,
@@ -1644,6 +1646,71 @@ describe('mergeProviderLeagues', () => {
       sleeper,
       { ...espn, name: 'Gridiron' }
     ])
+  })
+})
+
+describe('uniqueLeagues', () => {
+  it('keeps the first board for a provider:id key', () => {
+    const first = { ...league('sleeper', '11'), name: 'Home' }
+    const dup = { ...league('sleeper', '11'), name: 'Clone' }
+    const espn = league('espn', '22')
+    expect(uniqueLeagues([first, dup, espn])).toEqual([first, espn])
+  })
+})
+
+describe('seedHudMatchupPlan', () => {
+  it('does not paint last HUD onto a newly selected league after lastKey already moved', () => {
+    expect(
+      seedHudMatchupPlan({
+        selectedKey: 'sleeper:2',
+        lastKey: 'sleeper:2',
+        lastHudKey: 'sleeper:1',
+        lastWeek: 1,
+        hudWeek: 1,
+        week: 1,
+        hasLastMatchup: false,
+        hasHudMatchup: true
+      })
+    ).toBe('skip')
+  })
+
+  it('reuses last state or last HUD only when the selected key matches', () => {
+    expect(
+      seedHudMatchupPlan({
+        selectedKey: 'sleeper:1',
+        lastKey: 'sleeper:1',
+        lastHudKey: 'sleeper:1',
+        lastWeek: 1,
+        hudWeek: 1,
+        week: 1,
+        hasLastMatchup: true,
+        hasHudMatchup: true
+      })
+    ).toBe('last-state')
+    expect(
+      seedHudMatchupPlan({
+        selectedKey: 'sleeper:1',
+        lastKey: null,
+        lastHudKey: 'sleeper:1',
+        lastWeek: undefined,
+        hudWeek: 1,
+        week: 1,
+        hasLastMatchup: false,
+        hasHudMatchup: true
+      })
+    ).toBe('last-hud')
+    expect(
+      seedHudMatchupPlan({
+        selectedKey: 'sleeper:2',
+        lastKey: 'sleeper:1',
+        lastHudKey: 'sleeper:1',
+        lastWeek: 1,
+        hudWeek: 1,
+        week: 1,
+        hasLastMatchup: true,
+        hasHudMatchup: true
+      })
+    ).toBe('skip')
   })
 })
 

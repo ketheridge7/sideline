@@ -1130,6 +1130,13 @@ export const overlayEspnMatchup = (
   const oppSide = mergeSide(iAmHome ? away : home, liveOpp)
   const myById = livePointsByPlayerId(mySide, displayWeek)
   const oppById = oppSide ? livePointsByPlayerId(oppSide, displayWeek) : new Map<string, number>()
+  if (myById.size > 0 && prev.starters.length > 0) {
+    const overlap = prev.starters.some((player) => {
+      const coerced = num(player.playerId)
+      return myById.has(player.playerId) || (coerced != null && myById.has(String(coerced)))
+    })
+    if (!overlap) return null
+  }
   const trustMine = preferLive && hasEspnLivePts(mySide, myById, displayWeek)
   const trustOpp = Boolean(preferLive && oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
   const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>
@@ -1292,6 +1299,15 @@ export const toEspnActivity = (payload: unknown): Transaction[] => {
   })
 }
 
+const espnFanLeagueId = (row: Record<string, unknown>): string | null => {
+  const fromLeagueId = str(row.leagueId) || (num(row.leagueId) != null ? String(row.leagueId) : null)
+  if (fromLeagueId && /^\d+$/.test(fromLeagueId)) return fromLeagueId
+  if (row.leagueId != null) return null
+  const fromId = str(row.id) || (num(row.id) != null ? String(row.id) : null)
+  if (fromId && /^\d{5,}$/.test(fromId)) return fromId
+  return null
+}
+
 export const leaguesFromFanPayload = (
   payload: unknown,
   leagueSeason: string,
@@ -1309,18 +1325,20 @@ export const leaguesFromFanPayload = (
     ...asArray(row.leagues),
     ...asArray(isRecord(preferences) ? preferences.favoriteLeagues : undefined)
   ]
+  const seen = new Set<string>()
   const out: League[] = []
-  for (const row of bags) {
-    if (!isRecord(row)) continue
-    const id = str(row.leagueId) || str(row.id) || (num(row.leagueId) != null ? String(row.leagueId) : null)
-    if (!id) continue
-    const sport = str(row.sport) || str(row.gameId) || ''
+  for (const item of bags) {
+    if (!isRecord(item)) continue
+    const id = espnFanLeagueId(item)
+    if (!id || seen.has(id)) continue
+    const sport = str(item.sport) || str(item.gameId) || ''
     if (sport && !/ffl|football/i.test(sport)) continue
+    seen.add(id)
     out.push({
       id,
-      name: str(row.leagueName) || str(row.name) || `ESPN ${id}`,
+      name: str(item.leagueName) || str(item.name) || `ESPN ${id}`,
       provider: 'espn',
-      season: str(row.seasonId) || leagueSeason,
+      season: str(item.seasonId) || leagueSeason,
       week: displayWeek
     })
   }
