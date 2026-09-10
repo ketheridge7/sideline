@@ -360,6 +360,7 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
     : undefined
   const matchup = state.matchup
   if (!matchup) {
+    const espnSignIn = state.espnNeedsRelogin && (league?.provider ?? selected?.provider) === 'espn'
     return {
       ...hudShell(state),
       leagueName: league?.name ?? 'Sideline',
@@ -368,14 +369,15 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
       myPoints: 0,
       oppPoints: 0,
       delta: 0,
-      myName: '—',
-      oppName: '—',
+      myName: espnSignIn ? 'Sign in' : '—',
+      oppName: espnSignIn ? 'Sign in' : '—',
       myStarters: [],
       oppStarters: [],
       myBench: [],
       oppBench: []
     }
   }
+  const espnSignIn = state.espnNeedsRelogin && (league?.provider ?? selected?.provider) === 'espn'
   return {
     ...hudShell(state),
     leagueName: league?.name ?? matchup.myTeam.name,
@@ -385,7 +387,7 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
     oppPoints: matchup.oppPoints,
     delta: Math.round((matchup.myPoints - matchup.oppPoints) * 100) / 100,
     myName: matchup.myTeam.name,
-    oppName: matchup.oppTeam?.name ?? 'BYE',
+    oppName: matchup.oppTeam?.name ?? (espnSignIn ? 'Sign in' : 'BYE'),
     myStarters: matchup.starters ?? [],
     oppStarters: matchup.oppStarters ?? [],
     myBench: matchup.bench ?? [],

@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
-import { BENCH_SLOT_IDS, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
+import { BENCH_SLOT_IDS, espnLivePayloadIsStub, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
 
 const fixture = JSON.parse(
   readFileSync(join(process.cwd(), 'fixtures/espn-league.json'), 'utf8')
@@ -1342,6 +1342,140 @@ describe('toEspnMatchup', () => {
     expect(matchup?.starters[0]?.name).toBe('James Cook III')
     expect(typeof matchup?.myPoints).toBe('number')
     expect(matchup?.oppTeam).not.toBeNull()
+  })
+
+  it('does not treat compact mLiveScoring period stubs as a bye week', () => {
+    const stub = {
+      scoringPeriodId: 1,
+      schedule: [{ matchupPeriodId: 1 }, { matchupPeriodId: 1 }]
+    }
+    expect(espnLivePayloadIsStub(stub)).toBe(true)
+    const matchup = toEspnMatchup({
+      payload: {
+        ...stub,
+        teams: [
+          {
+            id: 8,
+            name: 'Team Etheridge',
+            abbrev: 'KE',
+            primaryOwner: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' },
+      displayWeek: 1
+    })
+    expect(matchup).toBeNull()
+  })
+
+  it('keeps the opponent from a schedule game even when mMatchupScore omits teams[]', () => {
+    expect(
+      espnLivePayloadIsStub({
+        scoringPeriodId: 1,
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: {
+              teamId: 8,
+              totalPointsLive: 18.4,
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  {
+                    lineupSlotId: 0,
+                    playerId: 3139477,
+                    playerPoolEntry: {
+                      player: { fullName: 'Patrick Mahomes', defaultPositionId: 1, proTeamId: 12 }
+                    }
+                  }
+                ]
+              }
+            },
+            away: { teamId: 3, totalPointsLive: 11 }
+          }
+        ]
+      })
+    ).toBe(false)
+    const matchup = toEspnMatchup({
+      payload: {
+        scoringPeriodId: 1,
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: {
+              teamId: 8,
+              totalPointsLive: 18.4,
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  {
+                    lineupSlotId: 0,
+                    playerId: 3139477,
+                    playerPoolEntry: {
+                      player: { fullName: 'Patrick Mahomes', defaultPositionId: 1, proTeamId: 12 }
+                    }
+                  }
+                ]
+              }
+            },
+            away: { teamId: 3, totalPointsLive: 11 }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' },
+      displayWeek: 1,
+      myTeamId: 8
+    })
+    expect(matchup?.myTeam.id).toBe('8')
+    expect(matchup?.oppTeam).not.toBeNull()
+    expect(matchup?.oppTeam?.id).toBe('3')
+    expect(matchup?.oppTeam?.name).toBe('Team 3')
+    expect(matchup?.starters[0]?.name).toBe('Patrick Mahomes')
+  })
+
+  it('uses the ESPN team name field when location and nickname are omitted', () => {
+    const matchup = toEspnMatchup({
+      payload: {
+        scoringPeriodId: 1,
+        teams: [
+          { id: 8, name: 'Team Etheridge', abbrev: 'KE', primaryOwner: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' },
+          { id: 3, name: 'The Other Guys', abbrev: 'TOG', primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: { teamId: 8, totalPointsLive: 12 },
+            away: { teamId: 3, totalPointsLive: 9 }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' },
+      displayWeek: 1
+    })
+    expect(matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(matchup?.oppTeam?.name).toBe('The Other Guys')
+  })
+
+  it('returns a real bye only when the week schedule has sides and no opponent for my team', () => {
+    const matchup = toEspnMatchup({
+      payload: {
+        scoringPeriodId: 1,
+        teams: [
+          { id: 8, name: 'Team Etheridge', primaryOwner: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' },
+          { id: 1, name: 'Team Harrison', primaryOwner: '{aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: { teamId: 1, totalPointsLive: 10 },
+            away: { teamId: 2, totalPointsLive: 8 }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{F203DEEE-D22E-4EC9-A095-40196C2FC577}' },
+      displayWeek: 1
+    })
+    expect(matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(matchup?.oppTeam).toBeNull()
+    expect(matchup?.starters).toEqual([])
   })
 
   it('reads completed-week totals and player actuals from public ESPN league 899513 (2025 week 1)', () => {

@@ -171,8 +171,10 @@ export const espnScoreOverlayPlan = (
   return { overlay: true, refreshFull: !cacheFresh(cached.at, now, ttlMs) }
 }
 
-/** Compact `mLiveScoring` always leads. A missing boxscore recovers `mMatchupScore` immediately after that GET. */
-export const espnScoreKickOrder = (): 'live-then-full' => 'live-then-full'
+/** Cached boxscore / last lineup can overlay compact live. True-cold HUD must fetch `mMatchupScore` first — compact week stubs have no home/away team ids. */
+export const espnScoreKickOrder = (opts: {
+  hasOverlay: boolean
+}): 'live-then-full' | 'full-then-live' => (opts.hasOverlay ? 'live-then-full' : 'full-then-live')
 
 /** Selected HUD scoring wins Chromium's pipe; rest/pinned compact lives stay default while idle. */
 export const liveScorePriority = (hud: boolean): 'high' | undefined => (hud ? 'high' : undefined)
@@ -204,7 +206,9 @@ export const espnLiveFullSwrPlan = (opts: {
   hasOverlay: boolean
   hud: boolean
   gamesIn?: boolean
+  compactIsStub?: boolean
 }): 'recover' | 'defer' | 'skip' => {
+  if (opts.hud && opts.compactIsStub) return 'recover'
   if (!opts.needsFull) return 'skip'
   if (opts.hud && (opts.liveFailed || !opts.hasOverlay)) return 'recover'
   if (opts.gamesIn) return 'skip'

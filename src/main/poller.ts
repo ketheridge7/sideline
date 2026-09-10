@@ -2,7 +2,7 @@ import type { AppState, League, Matchup, NflState, OverlayHudState, TapeEvent, T
 import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, toOverlayHud } from '@shared/types'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
-import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard } from '@shared/display'
+import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
 import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from '@shared/tape'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 import { recentFetchTimings } from './http'
@@ -43,6 +43,7 @@ import {
   espnTeamsHaveOwners,
   findMyTeam,
   mergeEspnTeams,
+  espnLivePayloadIsStub,
   overlayEspnMatchup,
   overlayLiveScoring,
     toEspnActivity,
@@ -76,6 +77,15 @@ let sleeperUserVerified = false
 const pendingRosterSwr = new Set<string>()
 const pendingEspnFullSwr = new Set<string>()
 let espnNeedsRelogin = false
+const markEspnHttpAuth = (error: unknown): void => {
+  if (error instanceof EspnHttpError && (error.status === 401 || error.status === 403)) {
+    espnNeedsRelogin = true
+  }
+}
+const espnBoardExtra = (league: League, extra?: MatchupBoardExtra): MatchupBoardExtra => ({
+  ...extra,
+  ...(league.provider === 'espn' && espnNeedsRelogin ? { espnNeedsRelogin: true } : {})
+})
 let overlayVisible = false
 let overlayEditMode = false
 let lastToast: ToastPayload | null = null
@@ -1515,7 +1525,8 @@ const fetchEspnScorePayload = async (
     )
   }
   const overlayCache = plan.overlay ? cached : undefined
-  const kick = espnScoreKickOrder()
+  const hasOverlay = overlayCache != null || (hasPrevMatchup && hasPrevLineup)
+  const kick = espnScoreKickOrder({ hasOverlay })
   const overlayAfterLive = (
     liveOnly: unknown,
     failed: boolean
@@ -1525,7 +1536,9 @@ const fetchEspnScorePayload = async (
     overlayFromMatchup: boolean
     compactHit: boolean
   } => {
-    const compactHit = !failed
+    const stub = !failed && espnLivePayloadIsStub(liveOnly)
+    const compactHit = !failed && !stub
+    const liveFailed = failed || stub
     const diskPlan = espnLiveDiskHydratePlan({
       cachedAtKick: overlayCache != null,
       hasPrevMatchup
@@ -1541,7 +1554,7 @@ const fetchEspnScorePayload = async (
         void _never
       }
     }
-    if (!failed) rememberEspnLivePayload(league.id, liveOnly)
+    if (!liveFailed) rememberEspnLivePayload(league.id, liveOnly)
     const afterLiveRow = espnScoreCache.get(league.id)
     const afterLive =
       afterLiveRow != null && afterLiveRow.week === nfl.displayWeek ? afterLiveRow : undefined
@@ -1558,10 +1571,11 @@ const fetchEspnScorePayload = async (
     )
     const fullPlan = espnLiveFullSwrPlan({
       needsFull: planNow.refreshFull,
-      liveFailed: failed,
-      hasOverlay: overlayCache != null || (hasPrevMatchup && hasPrevLineup),
+      liveFailed,
+      hasOverlay,
       hud,
-      gamesIn: liveTick
+      gamesIn: liveTick,
+      compactIsStub: stub
     })
     let pendingFull: Promise<unknown> | null = null
     switch (fullPlan) {
@@ -1619,6 +1633,20 @@ const fetchEspnScorePayload = async (
     }
   }
   switch (kick) {
+    case 'full-then-live': {
+      try {
+        const full = await refreshFull(hudPriority)
+        return {
+          payload: full,
+          pendingFull: null,
+          overlayFromMatchup: false,
+          compactHit: full != null
+        }
+      } catch (error) {
+        markEspnHttpAuth(error)
+        return { payload: {}, pendingFull: null, overlayFromMatchup: true, compactHit: false }
+      }
+    }
     case 'live-then-full': {
       try {
         const liveOnly = await heldEspnCompactLive(
@@ -1633,7 +1661,8 @@ const fetchEspnScorePayload = async (
           () => fetchLeague({ ...liveScoreArgs, views: LIVE_VIEWS })
         )
         return overlayAfterLive(liveOnly, liveOnly == null)
-      } catch {
+      } catch (error) {
+        markEspnHttpAuth(error)
         return overlayAfterLive({}, true)
       }
     }
@@ -1704,7 +1733,9 @@ const espnMatchup = async (
           })
           if (next) onBoxscore?.(next)
         })
-        .catch(() => undefined)
+        .catch((error: unknown) => {
+          markEspnHttpAuth(error)
+        })
     }
     const hudPlan = espnHudFromScorePlan({
       hasPrevMatchup: prev != null,
@@ -1759,6 +1790,15 @@ const espnMatchup = async (
       return finish(score, cached)
     case 'after-score': {
       const loaded = finish(score, cached)
+      if (hud && !loaded) {
+        try {
+          const teams = await ensureEspnTeams(league.id, nfl, cookies, liveTick)
+          return toLoaded(score.payload, teams) ?? loaded
+        } catch (error) {
+          markEspnHttpAuth(error)
+          return loaded
+        }
+      }
       void ensureEspnTeams(league.id, nfl, cookies, liveTick)
         .then((teams) => {
           const next = toLoaded(score.payload, teams)
@@ -1773,7 +1813,9 @@ const espnMatchup = async (
           }
           onBoxscore?.(next)
         })
-        .catch(() => undefined)
+        .catch((error: unknown) => {
+          markEspnHttpAuth(error)
+        })
       return loaded
     }
     default: {
@@ -1994,7 +2036,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const persistSelectedHud = (key: string | null, loaded: Matchup | null): void => {
       if (replay || !key || !loaded || !nfl) return
       const parsed = parseLeagueKey(key)
-      if (parsed?.provider === 'espn' && !matchupHasLineup(loaded)) return
+      if (parsed?.provider === 'espn' && !matchupHasLineup(loaded) && loaded.oppTeam != null) return
       if (isLiveLeagueKey(key)) matchupCache.set(key, { at: Date.now(), matchup: loaded })
       const sig = [
         key,
@@ -2042,7 +2084,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           hasCookies: Boolean(cookies),
           lastConnected: lastState.espnConnected
         }),
-        espnNeedsRelogin: replay ? false : espnNeedsRelogin && !cookies,
+        espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         overlayPort: runtime.overlayPort(),
         overlayVisible,
         overlayHotkey: settings.overlayHotkey,
@@ -2303,7 +2345,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       const stamped = stampLive(league, loaded)
       const key = leagueKey(league.provider, league.id)
       matchupCache.set(key, { at: Date.now(), matchup: stamped })
-      const board = toMatchupBoard(league, stamped)
+      const board = toMatchupBoard(league, stamped, espnBoardExtra(league))
       const boards = upsertMatchupBoard(lastState.boards, board)
       const leagues = lastState.leagues.some((row) => leagueKey(row.provider, row.id) === key)
         ? lastState.leagues
@@ -3005,7 +3047,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         toMatchupBoard(
           league,
           matchupByKey.get(leagueKey(league.provider, league.id)) ?? null,
-          replay ? replayBoardMeta(league) : undefined
+          espnBoardExtra(league, replay ? replayBoardMeta(league) : undefined)
         )
       )
       const publishKey = settleSelectedKeyPlan({
@@ -3020,7 +3062,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           hasCookies: Boolean(cookies),
           lastConnected: lastState.espnConnected
         }),
-        espnNeedsRelogin: replay ? false : espnNeedsRelogin && !cookies,
+        espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         nfl,
         leagues,
         pinnedLeagueKeys: pinnedKeys,
@@ -3400,7 +3442,11 @@ export const warmupPollerCaches = (): void => {
       boards: leagues.map((league) => {
         const key = leagueKey(league.provider, league.id)
         const cached = matchupCache.get(key)?.matchup ?? null
-        return toMatchupBoard(league, key === selectedKey ? matchup ?? cached : cached)
+        return toMatchupBoard(
+          league,
+          key === selectedKey ? matchup ?? cached : cached,
+          espnBoardExtra(league)
+        )
       }),
       overlayHotkey: settings.overlayHotkey,
       overlayLayout: settings.overlayLayout,

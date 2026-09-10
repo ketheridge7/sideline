@@ -3,8 +3,15 @@ import type { Matchup } from '@shared/types'
 import { LeadBar } from './LeadBar'
 import { ScoreTick } from './ScoreTick'
 
-export const HudScoreboard = ({ matchup }: { matchup: Matchup }): JSX.Element => {
+export const HudScoreboard = ({
+  matchup,
+  needsSignIn = false
+}: {
+  matchup: Matchup
+  needsSignIn?: boolean
+}): JSX.Element => {
   const bye = !matchup.oppTeam
+  const opponentName = matchup.oppTeam?.name ?? (needsSignIn ? 'Sign in' : 'BYE')
   return (
     <div className="border-b border-line bg-card px-5 py-3" aria-live="polite">
       <div className="grid grid-cols-[1fr_minmax(8rem,12rem)_1fr] items-end gap-4">
@@ -28,7 +35,7 @@ export const HudScoreboard = ({ matchup }: { matchup: Matchup }): JSX.Element =>
             <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{matchup.oppTeam.owner}</div>
           ) : null}
           <div className={`truncate font-cond text-xl font-bold uppercase tracking-wide ${bye ? 'text-muted' : 'text-them'}`}>
-            {matchup.oppTeam?.name ?? 'BYE'}
+            {opponentName}
           </div>
           <div className="text-[11px] text-muted">{matchup.oppTeam?.record ?? ''}</div>
           <ScoreTick

@@ -79,7 +79,9 @@ export const BoardScreen = ({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {!matchup ? (
           <div className="p-8 text-sm text-muted">
-            Pin a Sunday board, then open it. Sideline shows one matchup at a time.
+            {state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')
+              ? 'Sign in with ESPN to load this league. Sideline cannot see a private ESPN matchup without cookies.'
+              : 'Pin a Sunday board, then open it. Sideline shows one matchup at a time.'}
           </div>
         ) : (
           <>
@@ -101,7 +103,10 @@ export const BoardScreen = ({
                 </span>
               ) : null}
             </div>
-            <HudScoreboard matchup={matchup} />
+            <HudScoreboard
+              matchup={matchup}
+              needsSignIn={state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')}
+            />
             <section className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-hidden bg-line">
               <div className="min-h-0 overflow-auto bg-card px-4 py-2">
                 <h2 className="mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-you">You</h2>

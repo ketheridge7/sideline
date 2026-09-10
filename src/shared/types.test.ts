@@ -48,6 +48,17 @@ describe('toOverlayHud', () => {
     expect(hud.layout.presetId).toBe('redzone')
   })
 
+  it('asks ESPN to sign in instead of painting a false bye when cookies are invalid', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnNeedsRelogin = true
+    const hud = toOverlayHud(state)
+    expect(hud.provider).toBe('espn')
+    expect(hud.myName).toBe('Sign in')
+    expect(hud.oppName).toBe('Sign in')
+    expect(hud.myStarters).toEqual([])
+  })
+
   it('paints overlay scores from a matchup before league discovery returns', () => {
     const state = emptyAppState()
     state.selectedLeagueKey = 'espn:899513'
