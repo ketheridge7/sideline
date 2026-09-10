@@ -1,6 +1,6 @@
 import { BrowserWindow, session } from 'electron'
-import { normalizeEspnCookies, type EspnCookies } from '../providers/espnClient'
-import { shouldCloseOnCookies } from './espnLoginPolicy'
+import { pickEspnCookies, type EspnCookies } from '../providers/espnClient'
+import { shouldCloseOnEspnLogin } from './espnLoginPolicy'
 
 const PARTITION = 'persist:espn'
 
@@ -8,18 +8,19 @@ export const ESPN_LOGIN_URL = 'https://www.espn.com/login?redirectUri=https://fa
 
 export const espnSession = (): Electron.Session => session.fromPartition(PARTITION)
 
+const COOKIE_URLS = [
+  'https://fantasy.espn.com/',
+  'https://www.espn.com/',
+  'https://lm-api-reads.fantasy.espn.com/'
+] as const
+
 export const readEspnCookies = async (): Promise<EspnCookies | null> => {
   const sess = espnSession()
   const groups = await Promise.all([
-    sess.cookies.get({ domain: '.espn.com' }),
-    sess.cookies.get({ domain: 'espn.com' }),
-    sess.cookies.get({ domain: 'fantasy.espn.com' })
+    sess.cookies.get({}),
+    ...COOKIE_URLS.map((url) => sess.cookies.get({ url }))
   ])
-  const all = groups.flat()
-  const espn_s2 = all.find((cookie) => cookie.name === 'espn_s2')?.value
-  const SWID = all.find((cookie) => cookie.name === 'SWID')?.value
-  if (!espn_s2 || !SWID) return null
-  return normalizeEspnCookies({ espn_s2, SWID })
+  return pickEspnCookies(groups.flat())
 }
 
 export const clearEspnCookies = async (): Promise<void> => {
@@ -54,7 +55,8 @@ export const openEspnLogin = async (): Promise<{ ok: boolean }> => {
 
     const poll = setInterval(() => {
       void readEspnCookies().then((cookies) => {
-        if (shouldCloseOnCookies(cookies, preexisting)) finishOk()
+        const pageUrl = win.isDestroyed() ? null : win.webContents.getURL()
+        if (shouldCloseOnEspnLogin(cookies, preexisting, pageUrl)) finishOk()
       })
     }, 1000)
 

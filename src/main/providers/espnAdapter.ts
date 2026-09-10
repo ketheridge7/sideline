@@ -1,4 +1,4 @@
-import { overlayStartersBelong, visibleInjury } from '@shared/display'
+import { matchupHasLineup, overlayStartersBelong, visibleInjury } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import type { EspnCookies } from './espnClient'
@@ -831,6 +831,7 @@ const lineupPlayers = (
   const bench: Player[] = []
   for (const entry of entries) {
     const player = entryToPlayer(entry, scoringPeriodId)
+    if (!player.playerId) continue
     if (isBenchSlot(entry.lineupSlotId)) bench.push(player)
     else starters.push(player)
   }
@@ -911,10 +912,8 @@ export const findMyTeam = (
   teams: Record<string, unknown>[],
   cookies: EspnCookies | null
 ): Record<string, unknown> | undefined => {
-  if (!cookies) return teams[0]
-  const matched = teams.find((team) => teamOwnsSwid(team, cookies.SWID))
-  if (matched) return matched
-  return espnTeamsHaveOwners(teams) ? undefined : teams[0]
+  if (!cookies) return espnTeamsHaveOwners(teams) ? undefined : teams[0]
+  return teams.find((team) => teamOwnsSwid(team, cookies.SWID))
 }
 
 export const espnTeamsFromPayload = (payload: unknown): Record<string, unknown>[] => {
@@ -1106,6 +1105,7 @@ export const overlayEspnMatchup = (
 ): Matchup | null => {
   const payload = unwrapEspnPayload(livePayload, hasEspnLeagueShape)
   if (!payload) return null
+  if (!matchupHasLineup(prev)) return null
   const myId = num(prev.myTeam.id)
   if (myId == null || myId <= 0) return null
   const liveTeams = liveScoringTeams(payload)
@@ -1155,9 +1155,10 @@ export const toEspnMatchup = (args: {
   const payload = unwrapEspnPayload(args.payload, hasEspnLeagueShape)
   if (!payload) return null
   const teams = espnTeamsFromPayload(payload)
+  const swidTeam = findMyTeam(teams, args.cookies)
   const hinted =
     args.myTeamId != null ? teams.find((team) => num(team.id) === args.myTeamId) ?? { id: args.myTeamId } : undefined
-  const myTeamRaw = hinted ?? findMyTeam(teams, args.cookies)
+  const myTeamRaw = swidTeam ?? hinted
   if (!myTeamRaw) return null
   const myId = num(myTeamRaw.id)
   const period = args.displayWeek > 0 ? args.displayWeek : scoringPeriodFromStatus(payload, args.displayWeek)

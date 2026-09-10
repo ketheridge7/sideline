@@ -496,14 +496,42 @@ describe('espnFullSwrPaintPlan', () => {
     ).toBe(14)
     expect(espnFullSwrPaintPlan({ prev: hud, overlaid: null, parsed: { ...hud, myPoints: 0 } })).toBeNull()
     expect(espnFullSwrPaintPlan({ prev: null, overlaid: null, parsed: hud })).toBe(hud)
+    const etheridge = {
+      ...hud,
+      myTeam: { id: '8', name: 'Team Etheridge', owner: 'Kevin', record: '1-0' },
+      starters: [{ playerId: '3139477', name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 12 }]
+    }
+    expect(
+      espnFullSwrPaintPlan({
+        prev: hud,
+        overlaid: hud,
+        parsed: etheridge
+      })
+    ).toBe(etheridge)
   })
 })
 
 describe('espnTeamIdLookupPlan', () => {
-  it('uses last HUD team id before memory; a cold identity cache keeps the week filter', () => {
-    expect(espnTeamIdLookupPlan({ fromMatchup: 7, memoryHasTeams: true })).toBe('matchup')
+  it('prefers a SWID-matched team over last HUD numeric id; empty lineups stay on the week filter', () => {
+    expect(
+      espnTeamIdLookupPlan({
+        swidTeamId: 8,
+        fromMatchup: 1,
+        matchupHasLineup: true,
+        memoryHasTeams: true
+      })
+    ).toBe('swid')
+    expect(
+      espnTeamIdLookupPlan({ fromMatchup: 7, matchupHasLineup: true, memoryHasTeams: true })
+    ).toBe('matchup')
+    expect(
+      espnTeamIdLookupPlan({ fromMatchup: 1, matchupHasLineup: false, memoryHasTeams: true })
+    ).toBe('memory')
     expect(espnTeamIdLookupPlan({ fromMatchup: undefined, memoryHasTeams: true })).toBe('memory')
     expect(espnTeamIdLookupPlan({ fromMatchup: undefined, memoryHasTeams: false })).toBe('week-filter')
+    expect(
+      espnTeamIdLookupPlan({ fromMatchup: 1, matchupHasLineup: false, memoryHasTeams: false })
+    ).toBe('week-filter')
   })
 })
 
@@ -549,6 +577,9 @@ describe('espnHudFromScorePlan', () => {
     expect(espnHudFromScorePlan({ hasPrevMatchup: true, overlayFromMatchup: false })).toBe('parse-payload')
     expect(espnHudFromScorePlan({ hasPrevMatchup: false, overlayFromMatchup: true })).toBe('parse-payload')
     expect(espnHudFromScorePlan({ hasPrevMatchup: false, overlayFromMatchup: false })).toBe('parse-payload')
+    expect(
+      espnHudFromScorePlan({ hasPrevMatchup: true, overlayFromMatchup: true, prevHasLineup: false })
+    ).toBe('parse-payload')
   })
 })
 
@@ -1263,6 +1294,8 @@ describe('espnCookieRetryAfterScorePlan', () => {
   it('does not re-GET compact live after a public scoring HTTP hit', () => {
     expect(espnCookieRetryAfterScorePlan({ compactHit: true })).toBe('skip')
     expect(espnCookieRetryAfterScorePlan({ compactHit: false })).toBe('retry-auth')
+    expect(espnCookieRetryAfterScorePlan({ compactHit: true, parsedHasLineup: true })).toBe('skip')
+    expect(espnCookieRetryAfterScorePlan({ compactHit: true, parsedHasLineup: false })).toBe('retry-auth')
   })
 })
 
@@ -2379,8 +2412,10 @@ describe('espnTeamsKickPlan', () => {
     expect(espnTeamsKickPlan({ haveOwners: false })).toBe('after-score')
   })
 
-  it('skips mTeam on live ticks when filterTeamIds already has myTeam.id', () => {
-    expect(espnTeamsKickPlan({ haveOwners: false, liveTick: true, hasTeamId: true })).toBe('skip')
+  it('skips mTeam only when owners are already cached, not because last HUD has a numeric id', () => {
+    expect(espnTeamsKickPlan({ haveOwners: false, liveTick: true, hasTeamId: true })).toBe(
+      'after-score'
+    )
     expect(espnTeamsKickPlan({ haveOwners: false, liveTick: true, hasTeamId: false })).toBe(
       'after-score'
     )
@@ -2401,7 +2436,9 @@ describe('live tick DAG', () => {
     })
     expect(hint).toBe('espn:22')
     expect(restPrefetchGate(hint)).toBe('now')
-    expect(espnTeamsKickPlan({ haveOwners: false, liveTick: true, hasTeamId: true })).toBe('skip')
+    expect(espnTeamsKickPlan({ haveOwners: false, liveTick: true, hasTeamId: true })).toBe(
+      'after-score'
+    )
     expect(nflScoreboardKickPlan(true)).toBe('after-hud')
     expect(restTxKickPlan(true)).toBe('skip')
     expect(

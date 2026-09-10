@@ -4,10 +4,12 @@ type TestCookie = { name: string; value: string }
 
 type FakeWindow = {
   destroyed: boolean
+  currentUrl: string
   loadURL: ReturnType<typeof vi.fn>
   close: () => void
   isDestroyed: () => boolean
   on: (event: string, handler: () => void) => void
+  webContents: { getURL: () => string }
 }
 
 const harness = vi.hoisted(() => {
@@ -22,8 +24,14 @@ const harness = vi.hoisted(() => {
 vi.mock('electron', () => {
   class BrowserWindow {
     destroyed = false
+    currentUrl = ''
     closedHandler: (() => void) | null = null
-    loadURL = vi.fn(async () => undefined)
+    loadURL = vi.fn(async (url: string) => {
+      this.currentUrl = url
+    })
+    webContents = {
+      getURL: (): string => this.currentUrl
+    }
 
     constructor() {
       harness.window = this as unknown as FakeWindow
@@ -94,6 +102,10 @@ describe('openEspnLogin', () => {
     expect(harness.window?.destroyed).toBe(false)
 
     harness.cookies = [...freshCookies]
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(harness.window?.destroyed).toBe(false)
+
+    if (harness.window) harness.window.currentUrl = 'https://fantasy.espn.com/'
     await vi.advanceTimersByTimeAsync(1000)
     await expect(pending).resolves.toEqual({ ok: true })
     expect(harness.window?.destroyed).toBe(true)
