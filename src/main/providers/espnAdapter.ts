@@ -171,6 +171,79 @@ const POSITION_BY_ID: Record<number, string> = {
   16: 'D/ST'
 }
 
+/**
+ * ESPN website starter column order. Numeric `lineupSlotId` is not display order —
+ * FLEX is 23, which would otherwise sort after D/ST (16) and K (17).
+ * Slot ids match espn-api POSITION_MAP / ESPN fantasy roster entries.
+ */
+const ESPN_STARTER_SLOTS: ReadonlyArray<{ id: number; position: string }> = [
+  { id: 0, position: 'QB' },
+  { id: 1, position: 'TQB' },
+  { id: 2, position: 'RB' },
+  { id: 3, position: 'RB/WR' },
+  { id: 4, position: 'WR' },
+  { id: 5, position: 'WR/TE' },
+  { id: 6, position: 'TE' },
+  { id: 23, position: 'FLEX' },
+  { id: 7, position: 'OP' },
+  { id: 8, position: 'DT' },
+  { id: 9, position: 'DE' },
+  { id: 10, position: 'LB' },
+  { id: 11, position: 'DL' },
+  { id: 12, position: 'CB' },
+  { id: 13, position: 'S' },
+  { id: 14, position: 'DB' },
+  { id: 15, position: 'DP' },
+  { id: 16, position: 'D/ST' },
+  { id: 17, position: 'K' },
+  { id: 18, position: 'P' },
+  { id: 19, position: 'HC' },
+  { id: 24, position: 'ER' },
+  { id: 25, position: 'Rookie' }
+]
+
+const ESPN_STARTER_SLOT_RANK = new Map<number, number>(
+  ESPN_STARTER_SLOTS.map((slot, index) => [slot.id, index])
+)
+
+const ESPN_SLOT_POSITION: Record<number, string> = Object.fromEntries(
+  ESPN_STARTER_SLOTS.map((slot) => [slot.id, slot.position])
+)
+
+const ESPN_POSITION_RANK = new Map<string, number>([
+  ...ESPN_STARTER_SLOTS.map((slot, index): [string, number] => [slot.position, index]),
+  ['DEF', ESPN_STARTER_SLOT_RANK.get(16) ?? 17],
+  ['DST', ESPN_STARTER_SLOT_RANK.get(16) ?? 17]
+])
+
+const espnStarterRank = (
+  slotId: number | undefined,
+  position: string,
+  index: number
+): [number, number, number] => {
+  if (slotId != null) {
+    const rank = ESPN_STARTER_SLOT_RANK.get(slotId)
+    if (rank != null) return [0, rank, index]
+    return [1, slotId, index]
+  }
+  return [2, ESPN_POSITION_RANK.get(position) ?? Number.MAX_SAFE_INTEGER, index]
+}
+
+const compareEspnStarterRank = (left: [number, number, number], right: [number, number, number]): number => {
+  if (left[0] !== right[0]) return left[0] - right[0]
+  if (left[1] !== right[1]) return left[1] - right[1]
+  return left[2] - right[2]
+}
+
+const espnDisplayPosition = (entry: EspnRosterEntry, defaultPositionId?: number): string => {
+  const slotId = num(entry.lineupSlotId)
+  if (slotId != null && !isBenchSlot(slotId)) {
+    const fromSlot = ESPN_SLOT_POSITION[slotId]
+    if (fromSlot) return fromSlot
+  }
+  return POSITION_BY_ID[num(defaultPositionId) ?? -1] ?? ''
+}
+
 export type EspnRosterEntry = {
   lineupSlotId?: number
   playerId?: number
@@ -820,13 +893,15 @@ const mergeSide = (
 const entryToPlayer = (entry: EspnRosterEntry, scoringPeriodId?: number): Player => {
   const player = entry.playerPoolEntry?.player
   const playerId = String(entry.playerId ?? entry.playerPoolEntry?.id ?? '')
+  const lineupSlotId = num(entry.lineupSlotId)
   return {
     playerId,
     name: player?.fullName || playerId,
-    position: POSITION_BY_ID[num(player?.defaultPositionId) ?? -1] ?? '',
+    position: espnDisplayPosition(entry, player?.defaultPositionId),
     nflTeam: espnTeamAbbr(num(player?.proTeamId)),
     status: espnInjuryLabel(player?.injuryStatus),
-    points: getAppliedTotal(entry, scoringPeriodId)
+    points: getAppliedTotal(entry, scoringPeriodId),
+    ...(lineupSlotId != null ? { lineupSlotId } : {})
   }
 }
 
@@ -834,15 +909,63 @@ const lineupPlayers = (
   entries: EspnRosterEntry[],
   scoringPeriodId?: number
 ): { starters: Player[]; bench: Player[] } => {
-  const starters: Player[] = []
+  const starters: Array<{ player: Player; rank: [number, number, number] }> = []
   const bench: Player[] = []
-  for (const entry of entries) {
+  entries.forEach((entry, index) => {
     const player = entryToPlayer(entry, scoringPeriodId)
-    if (!player.playerId) continue
-    if (isBenchSlot(entry.lineupSlotId)) bench.push(player)
-    else starters.push(player)
+    if (!player.playerId) return
+    if (isBenchSlot(entry.lineupSlotId)) {
+      bench.push(player)
+      return
+    }
+    starters.push({
+      player,
+      rank: espnStarterRank(num(entry.lineupSlotId), player.position, index)
+    })
+  })
+  starters.sort((left, right) => compareEspnStarterRank(left.rank, right.rank))
+  return { starters: starters.map((row) => row.player), bench }
+}
+
+const lineupSlotByPlayerId = (side: Record<string, unknown> | null): Map<string, number> => {
+  const byId = new Map<string, number>()
+  if (!side) return byId
+  const put = (entry: Record<string, unknown>): void => {
+    const id = num(entry.playerId) ?? num(entry.id)
+    const slot = num(entry.lineupSlotId)
+    if (id == null || slot == null) return
+    byId.set(String(id), slot)
   }
-  return { starters, bench }
+  const period = rosterPeriod(side)
+  if (period) {
+    for (const entry of asEntryRows(period.entries)) put(entry)
+  }
+  for (const row of asPlayerRows(side.players)) put(row)
+  return byId
+}
+
+const stampEspnSlots = (players: Player[], slots: Map<string, number>): Player[] =>
+  players.map((player) => {
+    const coerced = num(player.playerId)
+    const slot =
+      slots.get(player.playerId) ?? (coerced != null ? slots.get(String(coerced)) : undefined) ?? player.lineupSlotId
+    if (slot == null) return player
+    const fromSlot = isBenchSlot(slot) ? undefined : ESPN_SLOT_POSITION[slot]
+    return {
+      ...player,
+      lineupSlotId: slot,
+      ...(fromSlot ? { position: fromSlot } : {})
+    }
+  })
+
+const orderEspnStarters = (players: Player[], slots: Map<string, number>): Player[] => {
+  const stamped = stampEspnSlots(players, slots)
+  const ranked = stamped.map((player, index) => ({
+    player,
+    rank: espnStarterRank(player.lineupSlotId, player.position, index)
+  }))
+  ranked.sort((left, right) => compareEspnStarterRank(left.rank, right.rank))
+  return ranked.map((row) => row.player)
 }
 
 const periodActual = (side: Record<string, unknown>, scoringPeriodId?: number): number | undefined => {
@@ -1175,13 +1298,17 @@ export const overlayEspnMatchup = (
   const trustOpp = Boolean(preferLive && oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
   const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>
     trust ? livePts : Math.max(prevPts, livePts)
+  const mySlots = lineupSlotByPlayerId(mySide)
+  const oppSlots = oppSide ? lineupSlotByPlayerId(oppSide) : new Map<string, number>()
   return {
     ...prev,
     myPoints: overlayTotal(prev.myPoints, sideTotal(mySide, displayWeek), trustMine),
     oppPoints: oppSide ? overlayTotal(prev.oppPoints, sideTotal(oppSide, displayWeek), trustOpp) : prev.oppPoints,
-    starters: overlayEspnPlayers(prev.starters, myById, trustMine),
+    starters: orderEspnStarters(overlayEspnPlayers(prev.starters, myById, trustMine), mySlots),
     bench: overlayEspnPlayers(prev.bench, myById, trustMine),
-    oppStarters: oppSide ? overlayEspnPlayers(prev.oppStarters, oppById, trustOpp) : prev.oppStarters,
+    oppStarters: oppSide
+      ? orderEspnStarters(overlayEspnPlayers(prev.oppStarters, oppById, trustOpp), oppSlots)
+      : prev.oppStarters,
     oppBench: oppSide ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp) : prev.oppBench,
     scoresFinal: espnGameIsFinal(game)
   }

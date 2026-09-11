@@ -1110,6 +1110,8 @@ const asPlayer = (value: unknown): Player | null => {
   const points = diskPts(row.points)
   if (points != null) player.points = points
   if (typeof row.status === 'string') player.status = row.status
+  const lineupSlotId = diskInt(row.lineupSlotId)
+  if (lineupSlotId != null) player.lineupSlotId = lineupSlotId
   return player
 }
 

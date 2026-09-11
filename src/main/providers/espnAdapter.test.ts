@@ -343,6 +343,220 @@ describe('toEspnMatchup', () => {
     expect(BENCH_SLOT_IDS.has(20)).toBe(true)
   })
 
+  const cookie = { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' }
+
+  const starterEntry = (args: {
+    slot?: number | string
+    id: number
+    name: string
+    pos: number
+  }): Record<string, unknown> => ({
+    ...(args.slot != null ? { lineupSlotId: args.slot } : {}),
+    playerId: args.id,
+    playerPoolEntry: {
+      player: { fullName: args.name, defaultPositionId: args.pos, proTeamId: 12 }
+    }
+  })
+
+  const matchupFromEntries = (
+    mine: Record<string, unknown>[],
+    opp: Record<string, unknown>[] = []
+  ) =>
+    toEspnMatchup({
+      payload: {
+        teams: [
+          { id: 1, primaryOwner: cookie.SWID, location: 'Mine', nickname: 'Squad' },
+          { id: 2, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: { teamId: 1, rosterForCurrentScoringPeriod: { entries: mine } },
+            away: { teamId: 2, rosterForCurrentScoringPeriod: { entries: opp } }
+          }
+        ]
+      },
+      cookies: cookie,
+      displayWeek: 1
+    })
+
+  it('orders ESPN starters like the website: QB, RB, RB, WR, WR, FLEX, D/ST, K', () => {
+    const matchup = matchupFromEntries(
+      [
+        starterEntry({ slot: 17, id: 8, name: 'Kicker', pos: 5 }),
+        starterEntry({ slot: 16, id: 7, name: 'Chiefs D/ST', pos: 16 }),
+        starterEntry({ slot: 23, id: 6, name: 'Flex WR', pos: 3 }),
+        starterEntry({ slot: 4, id: 4, name: 'WR 1', pos: 3 }),
+        starterEntry({ slot: 4, id: 5, name: 'WR 2', pos: 3 }),
+        starterEntry({ slot: 2, id: 2, name: 'RB 1', pos: 2 }),
+        starterEntry({ slot: 2, id: 3, name: 'RB 2', pos: 2 }),
+        starterEntry({ slot: 0, id: 1, name: 'QB', pos: 1 })
+      ],
+      [
+        starterEntry({ slot: 23, id: 16, name: 'Opp Flex', pos: 2 }),
+        starterEntry({ slot: 0, id: 11, name: 'Opp QB', pos: 1 }),
+        starterEntry({ slot: 17, id: 18, name: 'Opp K', pos: 5 })
+      ]
+    )
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'QB',
+      'RB 1',
+      'RB 2',
+      'WR 1',
+      'WR 2',
+      'Flex WR',
+      'Chiefs D/ST',
+      'Kicker'
+    ])
+    expect(matchup?.oppStarters.map((player) => player.name)).toEqual(['Opp QB', 'Opp Flex', 'Opp K'])
+    expect(matchup?.oppStarters.map((player) => player.position)).toEqual(['QB', 'FLEX', 'K'])
+  })
+
+  it('places TE and extra ESPN slots in website order (TE, FLEX, OP, then D/ST, K)', () => {
+    const matchup = matchupFromEntries([
+      starterEntry({ slot: 17, id: 9, name: 'Kicker', pos: 5 }),
+      starterEntry({ slot: 7, id: 8, name: 'Superflex QB', pos: 1 }),
+      starterEntry({ slot: 16, id: 7, name: 'D/ST', pos: 16 }),
+      starterEntry({ slot: 23, id: 6, name: 'Flex RB', pos: 2 }),
+      starterEntry({ slot: 6, id: 5, name: 'TE', pos: 4 }),
+      starterEntry({ slot: 4, id: 4, name: 'WR', pos: 3 }),
+      starterEntry({ slot: 2, id: 3, name: 'RB', pos: 2 }),
+      starterEntry({ slot: 0, id: 1, name: 'QB', pos: 1 })
+    ])
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'WR',
+      'TE',
+      'FLEX',
+      'OP',
+      'D/ST',
+      'K'
+    ])
+  })
+
+  it('falls back to website position order when lineupSlotId is missing', () => {
+    const matchup = matchupFromEntries([
+      starterEntry({ id: 8, name: 'Kicker', pos: 5 }),
+      starterEntry({ id: 7, name: 'Chiefs D/ST', pos: 16 }),
+      starterEntry({ id: 6, name: 'Flex-looking WR', pos: 3 }),
+      starterEntry({ id: 5, name: 'WR 2', pos: 3 }),
+      starterEntry({ id: 2, name: 'RB 1', pos: 2 }),
+      starterEntry({ id: 3, name: 'RB 2', pos: 2 }),
+      starterEntry({ id: 1, name: 'QB', pos: 1 })
+    ])
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'D/ST',
+      'K'
+    ])
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'QB',
+      'RB 1',
+      'RB 2',
+      'Flex-looking WR',
+      'WR 2',
+      'Chiefs D/ST',
+      'Kicker'
+    ])
+  })
+
+  it('reads quoted lineupSlotId strings in website order', () => {
+    const matchup = matchupFromEntries([
+      starterEntry({ slot: '17', id: 3, name: 'Kicker', pos: 5 }),
+      starterEntry({ slot: '23', id: 2, name: 'Flex', pos: 3 }),
+      starterEntry({ slot: '0', id: 1, name: 'QB', pos: 1 })
+    ])
+    expect(matchup?.starters.map((player) => player.name)).toEqual(['QB', 'Flex', 'Kicker'])
+    expect(matchup?.starters.map((player) => player.position)).toEqual(['QB', 'FLEX', 'K'])
+  })
+
+  it('orders Dawg Pound HUD screenshot lineups by website slots (QB, RB, RB, WR, WR, TE, FLEX, D/ST, K)', () => {
+    // Live overlay screenshot: opp RB/WR/TE/QB/K/D/ST and you RB/WR/WR/WR/RB/TE/QB/D/ST/K.
+    const matchup = matchupFromEntries(
+      [
+        starterEntry({ slot: 2, id: 101, name: 'McCaffrey', pos: 2 }),
+        starterEntry({ slot: 4, id: 102, name: 'Rice', pos: 3 }),
+        starterEntry({ slot: 4, id: 103, name: 'Olave', pos: 3 }),
+        starterEntry({ slot: 23, id: 104, name: 'McMillan', pos: 3 }),
+        starterEntry({ slot: 2, id: 105, name: 'Tuten', pos: 2 }),
+        starterEntry({ slot: 6, id: 106, name: 'LaPorta', pos: 4 }),
+        starterEntry({ slot: 0, id: 107, name: 'Herbert', pos: 1 }),
+        starterEntry({ slot: 16, id: 108, name: 'Steelers', pos: 16 }),
+        starterEntry({ slot: 17, id: 109, name: 'Mevis', pos: 5 })
+      ],
+      [
+        starterEntry({ slot: 2, id: 201, name: 'Achane', pos: 2 }),
+        starterEntry({ slot: 2, id: 202, name: 'Henry', pos: 2 }),
+        starterEntry({ slot: 4, id: 203, name: 'Higgins', pos: 3 }),
+        starterEntry({ slot: 4, id: 204, name: 'Metcalf', pos: 3 }),
+        starterEntry({ slot: 6, id: 205, name: 'Ferguson', pos: 4 }),
+        starterEntry({ slot: 23, id: 206, name: 'Likely', pos: 4 }),
+        starterEntry({ slot: 0, id: 207, name: 'Dart', pos: 1 }),
+        starterEntry({ slot: 17, id: 208, name: 'Little', pos: 5 }),
+        starterEntry({ slot: 16, id: 209, name: 'Jaguars', pos: 16 })
+      ]
+    )
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'Herbert',
+      'McCaffrey',
+      'Tuten',
+      'Rice',
+      'Olave',
+      'LaPorta',
+      'McMillan',
+      'Steelers',
+      'Mevis'
+    ])
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'TE',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+    expect(matchup?.oppStarters.map((player) => player.name)).toEqual([
+      'Dart',
+      'Achane',
+      'Henry',
+      'Higgins',
+      'Metcalf',
+      'Ferguson',
+      'Likely',
+      'Jaguars',
+      'Little'
+    ])
+    expect(matchup?.oppStarters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'TE',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+  })
+
   it('maps proTeamId to NFL abbr, hides ACTIVE, and shows IR', () => {
     const payload = {
       ...(fixture as Record<string, unknown>),
@@ -1340,7 +1554,11 @@ describe('toEspnMatchup', () => {
       displayWeek: 1
     })
     expect(matchup).not.toBeNull()
-    expect(matchup?.starters[0]?.name).toBe('James Cook III')
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'Ravens TQB',
+      'James Cook III',
+      'Saquon Barkley'
+    ])
     expect(typeof matchup?.myPoints).toBe('number')
     expect(matchup?.oppTeam).not.toBeNull()
   })
@@ -1486,9 +1704,17 @@ describe('toEspnMatchup', () => {
       displayWeek: 1
     })
     expect(matchup?.myPoints).toBe(112.24)
-    expect(matchup?.starters[0]?.name).toBe('Nico Collins')
-    expect(matchup?.starters[0]?.points).toBe(2.5)
-    expect(matchup?.starters[0]?.nflTeam).toBe('HOU')
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'Bills TQB',
+      'Nico Collins',
+      'David Montgomery',
+      'Aaron Jones Sr.',
+      'Broncos D/ST'
+    ])
+    const nico = matchup?.starters.find((player) => player.name === 'Nico Collins')
+    expect(nico?.points).toBe(2.5)
+    expect(nico?.nflTeam).toBe('HOU')
+    expect(nico?.position).toBe('FLEX')
     expect(matchup?.oppTeam?.name).toBe('SLB')
   })
 
@@ -1510,7 +1736,8 @@ describe('toEspnMatchup', () => {
       displayWeek: 1
     })
     expect(matchup?.myPoints).toBe(112.24)
-    expect(matchup?.starters[0]?.name).toBe('Nico Collins')
+    expect(matchup?.starters.find((player) => player.name === 'Nico Collins')?.points).toBe(2.5)
+    expect(matchup?.starters[0]?.name).toBe('Bills TQB')
     expect(matchup?.oppTeam?.name).toBe('SLB')
   })
 
@@ -1956,6 +2183,113 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.name).toBe('Hurts')
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppStarters[0]?.points).toBe(15.1)
+  })
+
+  it('reorders overlay HUD starters from Dawg Pound screenshot order using live lineupSlotId', () => {
+    const scrambledMine = [
+      { playerId: '101', name: 'McCaffrey', position: 'RB', nflTeam: 'SF', points: 4.3 },
+      { playerId: '102', name: 'Rice', position: 'WR', nflTeam: 'KC', points: 0 },
+      { playerId: '103', name: 'Olave', position: 'WR', nflTeam: 'NO', points: 0 },
+      { playerId: '104', name: 'McMillan', position: 'WR', nflTeam: 'TB', points: 0 },
+      { playerId: '105', name: 'Tuten', position: 'RB', nflTeam: 'JAX', points: 0 },
+      { playerId: '106', name: 'LaPorta', position: 'TE', nflTeam: 'DET', points: 0 },
+      { playerId: '107', name: 'Herbert', position: 'QB', nflTeam: 'LAC', points: 0 },
+      { playerId: '108', name: 'Steelers', position: 'D/ST', nflTeam: 'PIT', points: 0 },
+      { playerId: '109', name: 'Mevis', position: 'K', nflTeam: 'LAR', points: 1 }
+    ]
+    const scrambledOpp = [
+      { playerId: '201', name: 'Achane', position: 'RB', nflTeam: 'MIA', points: 0 },
+      { playerId: '202', name: 'Henry', position: 'RB', nflTeam: 'BAL', points: 0 },
+      { playerId: '203', name: 'Higgins', position: 'WR', nflTeam: 'CIN', points: 0 },
+      { playerId: '204', name: 'Metcalf', position: 'WR', nflTeam: 'PIT', points: 0 },
+      { playerId: '205', name: 'Ferguson', position: 'TE', nflTeam: 'DAL', points: 0 },
+      { playerId: '206', name: 'Likely', position: 'TE', nflTeam: 'BAL', points: 0 },
+      { playerId: '207', name: 'Dart', position: 'QB', nflTeam: 'NYG', points: 0 },
+      { playerId: '208', name: 'Little', position: 'K', nflTeam: 'JAX', points: 0 },
+      { playerId: '209', name: 'Jaguars', position: 'D/ST', nflTeam: 'JAX', points: 0 }
+    ]
+    const hud = {
+      ...prev,
+      myTeam: { id: '8', name: 'Team Etheridge', owner: 'Kevin', record: '0-0' },
+      oppTeam: { id: '3', name: "Django Achane'd", owner: 'Opp', record: '0-0' },
+      myPoints: 5.3,
+      oppPoints: 0,
+      starters: scrambledMine,
+      oppStarters: scrambledOpp
+    }
+    const live = {
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 8,
+            totalPointsLive: 5.3,
+            players: [
+              { playerId: 101, liveScore: 4.3, lineupSlotId: 2 },
+              { playerId: 102, liveScore: 0, lineupSlotId: 4 },
+              { playerId: 103, liveScore: 0, lineupSlotId: 4 },
+              { playerId: 104, liveScore: 0, lineupSlotId: 23 },
+              { playerId: 105, liveScore: 0, lineupSlotId: 2 },
+              { playerId: 106, liveScore: 0, lineupSlotId: 6 },
+              { playerId: 107, liveScore: 0, lineupSlotId: 0 },
+              { playerId: 108, liveScore: 0, lineupSlotId: 16 },
+              { playerId: 109, liveScore: 1, lineupSlotId: 17 }
+            ]
+          },
+          away: {
+            teamId: 3,
+            totalPointsLive: 0,
+            players: [
+              { playerId: 201, liveScore: 0, lineupSlotId: 2 },
+              { playerId: 202, liveScore: 0, lineupSlotId: 2 },
+              { playerId: 203, liveScore: 0, lineupSlotId: 4 },
+              { playerId: 204, liveScore: 0, lineupSlotId: 4 },
+              { playerId: 205, liveScore: 0, lineupSlotId: 6 },
+              { playerId: 206, liveScore: 0, lineupSlotId: 23 },
+              { playerId: 207, liveScore: 0, lineupSlotId: 0 },
+              { playerId: 208, liveScore: 0, lineupSlotId: 17 },
+              { playerId: 209, liveScore: 0, lineupSlotId: 16 }
+            ]
+          }
+        }
+      ]
+    }
+    const next = overlayEspnMatchup(hud, live, 1, true)
+    expect(next?.starters.map((player) => player.name)).toEqual([
+      'Herbert',
+      'McCaffrey',
+      'Tuten',
+      'Rice',
+      'Olave',
+      'LaPorta',
+      'McMillan',
+      'Steelers',
+      'Mevis'
+    ])
+    expect(next?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'TE',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+    expect(next?.oppStarters.map((player) => player.name)).toEqual([
+      'Dart',
+      'Achane',
+      'Henry',
+      'Higgins',
+      'Metcalf',
+      'Ferguson',
+      'Likely',
+      'Jaguars',
+      'Little'
+    ])
+    expect(next?.starters[1]?.points).toBe(4.3)
+    expect(next?.starters[8]?.points).toBe(1)
   })
 
   it('does not overlay compact live onto an empty ESPN lineup', () => {
