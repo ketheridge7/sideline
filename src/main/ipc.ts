@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, markEspnRelogin, refresh, removeEspnLeagueId, setOverlayVisible } from './poller'
+import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, markEspnRelogin, primeEspnCookies, refresh, removeEspnLeagueId, setOverlayVisible } from './poller'
 import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
@@ -19,6 +19,7 @@ export const registerIpc = (): void => {
     invalidateEspnSession()
     if (result.ok) {
       markEspnRelogin(false)
+      await primeEspnCookies()
     }
     await refresh({ waitForBoards: true })
     return result

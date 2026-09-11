@@ -207,8 +207,10 @@ export const espnLiveFullSwrPlan = (opts: {
   hud: boolean
   gamesIn?: boolean
   compactIsStub?: boolean
+  hasNamedLineup?: boolean
 }): 'recover' | 'defer' | 'skip' => {
   if (opts.hud && opts.compactIsStub) return 'recover'
+  if (opts.hud && opts.hasNamedLineup === false) return 'recover'
   if (!opts.needsFull) return 'skip'
   if (opts.hud && (opts.liveFailed || !opts.hasOverlay)) return 'recover'
   if (opts.gamesIn) return 'skip'

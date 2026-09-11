@@ -1271,6 +1271,25 @@ export const toEspnMatchup = (args: {
   }
 }
 
+/** True when a boxscore payload has starter identity (playerId + name + position), not stats-only mMatchupScore rows. */
+export const espnPayloadHasNamedLineup = (payload: unknown): boolean => {
+  const row = unwrapEspnPayload(payload, hasEspnLeagueShape)
+  if (!row) return false
+  const teams = espnTeamsFromPayload(row)
+  const period = scoringPeriodFromStatus(row, 0)
+  const namedStarters = (side: Record<string, unknown>): boolean => {
+    const { starters } = lineupPlayers(rosterEntries(side, teams), period)
+    return starters.some((player) => Boolean(player.playerId && player.name && player.position))
+  }
+  for (const game of payloadSchedule(row)) {
+    const home = isRecord(game.home) ? game.home : null
+    const away = isRecord(game.away) ? game.away : null
+    if (home && namedStarters(home)) return true
+    if (away && namedStarters(away)) return true
+  }
+  return liveScoringTeams(row).some(namedStarters)
+}
+
 export const toEspnTransactions = (payload: unknown): Transaction[] => {
   const row = unwrapEspnPayload(payload, (next) => next.transactions != null)
   if (!row) return []

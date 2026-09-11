@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { writeFileSync, existsSync, unlinkSync } from 'fs'
+import { writeFileSync, existsSync, unlinkSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { leagueKey, toOverlayHud } from '@shared/types'
 
@@ -32,7 +32,7 @@ vi.mock('./windows/espnLogin', () => ({
 
 import { app } from 'electron'
 import { saveSettings } from './store'
-import { warmupPollerCaches, refresh, resetPollerForTests, currentState } from './poller'
+import { warmupPollerCaches, refresh, resetPollerForTests, currentState, invalidateEspnSession, primeEspnCookies } from './poller'
 
 afterEach(() => {
   resetPollerForTests()
@@ -1476,6 +1476,228 @@ describe('poller live tick order', () => {
     const board = currentState().boards.find((row) => row.key === espnKey)
     expect(board?.myName).toBe('Team Etheridge')
     expect(board?.oppName).not.toBeNull()
+  })
+
+  it('after Sign in, Dawg Pound writes named starters from mScoreboard instead of blank mMatchupScore rows', async () => {
+    const dir = app.getPath('userData')
+    const espnId = '543268341'
+    const espnKey = leagueKey('espn', espnId)
+    const sleeperId = '1333470459076804608'
+    const sleeperKey = leagueKey('sleeper', sleeperId)
+    const kevinSwid = '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    saveSettings({
+      sleeperUsername: 'ketheridge',
+      sleeperUserId: '578604586021982208',
+      selectedLeagueKey: espnKey,
+      espnLeagueIds: [espnId],
+      pinnedLeagueKeys: []
+    })
+    writeNfl(dir)
+    writeFileSync(join(dir, 'sideline-matchups.json'), JSON.stringify({ at: Date.now(), week: 1, byKey: {} }))
+    writeFileSync(join(dir, 'sideline-espn-scores.json'), JSON.stringify({ at: Date.now(), byId: {} }))
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({
+        at: Date.now(),
+        displayWeek: 1,
+        selectedKey: sleeperKey,
+        matchup: {
+          ...hudMatchup,
+          myTeam: { id: '11', name: 'Gibbs Me Head', owner: 'ketheridge', record: '1-0' },
+          starters: [{ playerId: '4046', name: 'Amon-Ra St. Brown', position: 'WR', nflTeam: 'DET', points: 10 }]
+        }
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: espnId,
+        leagues: [{ id: espnId, name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }]
+      })
+    )
+    warmupPollerCaches()
+    espnAuth.cookies = { espn_s2: 'live-s2', SWID: kevinSwid }
+    invalidateEspnSession()
+    await primeEspnCookies()
+
+    const urls: string[] = []
+    const cookies: Array<string | undefined> = []
+    const statsOnlyBox = {
+      scoringPeriodId: 1,
+      id: Number(espnId),
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 8,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerPoolEntry: {
+                    player: { stats: [{ statSourceId: 1, statSplitTypeId: 1, appliedTotal: 18.4 }] }
+                  }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 3,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 2,
+                  playerPoolEntry: {
+                    player: { stats: [{ statSourceId: 1, statSplitTypeId: 1, appliedTotal: 11 }] }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    const namedBox = {
+      scoringPeriodId: 1,
+      id: Number(espnId),
+      teams: [
+        { id: 8, name: 'Team Etheridge', primaryOwner: kevinSwid },
+        { id: 3, name: "Django Achane'd", primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 8,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  injuryStatus: 'NORMAL',
+                  lineupSlotId: 0,
+                  playerId: 3139477,
+                  playerPoolEntry: {
+                    id: 3139477,
+                    player: {
+                      id: 3139477,
+                      fullName: 'Patrick Mahomes',
+                      defaultPositionId: 1,
+                      proTeamId: 12
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 3,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  injuryStatus: 'NORMAL',
+                  lineupSlotId: 2,
+                  playerId: 4427366,
+                  playerPoolEntry: {
+                    id: 4427366,
+                    player: {
+                      id: 4427366,
+                      fullName: "De'Von Achane",
+                      defaultPositionId: 2,
+                      proTeamId: 15
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: { headers?: Record<string, string> }) => {
+        urls.push(url)
+        cookies.push(init?.headers?.Cookie)
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({
+            scoringPeriodId: 1,
+            id: Number(espnId),
+            schedule: [{ matchupPeriodId: 1 }]
+          })
+        }
+        if (url.includes('mMatchupScore') || url.includes('mScoreboard')) {
+          return jsonOk(url.includes('view=mScoreboard') ? namedBox : statsOnlyBox)
+        }
+        if (url.includes('mTeam') || url.includes('mSettings')) {
+          return jsonOk({
+            scoringPeriodId: 1,
+            settings: { name: 'Dawg Pound' },
+            members: [{ id: kevinSwid, displayName: 'Kevin Etheridge' }],
+            teams: [
+              {
+                id: 8,
+                name: 'Team Etheridge',
+                abbrev: 'KE',
+                primaryOwner: kevinSwid
+              },
+              {
+                id: 3,
+                name: "Django Achane'd",
+                abbrev: 'DA',
+                primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}'
+              }
+            ]
+          })
+        }
+        if (url.includes(`/league/${sleeperId}/matchups/`)) return jsonOk([])
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.starters[0]?.name).toBe('Patrick Mahomes')
+    expect(currentState().espnConnected).toBe(true)
+    expect(currentState().matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(currentState().matchup?.oppTeam?.name).toBe("Django Achane'd")
+    expect(currentState().matchup?.oppStarters[0]?.name).toBe("De'Von Achane")
+    const boxUrl = urls.find((url) => url.includes('view=mMatchupScore'))
+    expect(boxUrl).toContain('view=mScoreboard')
+    expect(boxUrl).toContain('lm-api-reads.fantasy.espn.com')
+    const boxAt = urls.findIndex((url) => url.includes('view=mMatchupScore'))
+    expect(cookies[boxAt]).toContain('espn_s2=live-s2')
+    expect(urls.some((url) => url.includes('view=mLiveScoring') && url.includes('view=mScoreboard'))).toBe(
+      false
+    )
+    await expect
+      .poll(() => {
+        try {
+          const disk = JSON.parse(readFileSync(join(dir, 'sideline-matchups.json'), 'utf8')) as {
+            byKey?: Record<string, { starters?: Array<{ name?: string }> }>
+          }
+          return disk.byKey?.[espnKey]?.starters?.[0]?.name
+        } catch {
+          return undefined
+        }
+      })
+      .toBe('Patrick Mahomes')
+    await expect
+      .poll(() => {
+        try {
+          const disk = JSON.parse(readFileSync(join(dir, 'sideline-espn-scores.json'), 'utf8')) as {
+            byId?: Record<string, { payload?: unknown }>
+          }
+          return Boolean(disk.byId?.[espnId])
+        } catch {
+          return false
+        }
+      })
+      .toBe(true)
   })
 
   it('does not paint a false ESPN bye or Sleeper lineup when the ESPN fetch 401s', async () => {

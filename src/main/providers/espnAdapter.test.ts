@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
-import { BENCH_SLOT_IDS, espnLivePayloadIsStub, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
+import { BENCH_SLOT_IDS, espnLivePayloadIsStub, espnPayloadHasNamedLineup, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 
 const fixture = JSON.parse(
@@ -1763,6 +1763,138 @@ describe('toEspnMatchup', () => {
     expect(matchup?.myTeam.owner).toBe('Kevin Etheridge')
     expect(matchup?.starters[0]?.name).toBe('Patrick Mahomes')
     expect(matchup?.starters[0]?.playerId).toBe('3139477')
+  })
+
+  it('drops current mMatchupScore stats-only roster rows that omit playerId and name', () => {
+    const kevinSwid = '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    const payload = {
+      scoringPeriodId: 1,
+      teams: [
+        { id: 8, name: 'Team Etheridge', primaryOwner: kevinSwid },
+        { id: 3, name: "Django Achane'd", primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 8,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerPoolEntry: {
+                    player: { stats: [{ statSourceId: 1, statSplitTypeId: 1, appliedTotal: 18.4 }] }
+                  }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 3,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 2,
+                  playerPoolEntry: {
+                    player: { stats: [{ statSourceId: 1, statSplitTypeId: 1, appliedTotal: 12 }] }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: { espn_s2: 's2', SWID: kevinSwid },
+      displayWeek: 1
+    })
+    expect(espnPayloadHasNamedLineup(payload)).toBe(false)
+    expect(matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(matchup?.oppTeam?.name).toBe("Django Achane'd")
+    expect(matchup?.starters).toEqual([])
+    expect(matchup?.oppStarters).toEqual([])
+  })
+
+  it('reads starter identity from mScoreboard roster rows (playerId + name + position)', () => {
+    const kevinSwid = '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    const payload = {
+      scoringPeriodId: 1,
+      teams: [
+        { id: 8, name: 'Team Etheridge', primaryOwner: kevinSwid },
+        { id: 3, name: "Django Achane'd", primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 8,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  injuryStatus: 'NORMAL',
+                  lineupSlotId: 0,
+                  playerId: 3139477,
+                  playerPoolEntry: {
+                    id: 3139477,
+                    player: {
+                      id: 3139477,
+                      fullName: 'Patrick Mahomes',
+                      defaultPositionId: 1,
+                      proTeamId: 12
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 3,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  injuryStatus: 'NORMAL',
+                  lineupSlotId: 2,
+                  playerId: 4427366,
+                  playerPoolEntry: {
+                    id: 4427366,
+                    player: {
+                      id: 4427366,
+                      fullName: 'De\'Von Achane',
+                      defaultPositionId: 2,
+                      proTeamId: 15
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: { espn_s2: 's2', SWID: kevinSwid },
+      displayWeek: 1
+    })
+    expect(espnPayloadHasNamedLineup(payload)).toBe(true)
+    expect(matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(matchup?.oppTeam?.name).toBe("Django Achane'd")
+    expect(matchup?.starters[0]).toMatchObject({
+      playerId: '3139477',
+      name: 'Patrick Mahomes',
+      position: 'QB'
+    })
+    expect(matchup?.oppStarters[0]).toMatchObject({
+      playerId: '4427366',
+      name: 'De\'Von Achane',
+      position: 'RB'
+    })
   })
 })
 
