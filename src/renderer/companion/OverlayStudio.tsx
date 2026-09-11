@@ -78,7 +78,7 @@ export const OverlayStudio = ({
   }
 
   return (
-    <aside className="flex w-[280px] shrink-0 flex-col border-l border-line bg-card">
+    <aside className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden border-l border-line bg-card">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <h2 className="font-cond text-sm font-bold uppercase tracking-[0.16em]">Overlay Studio</h2>
         <button type="button" onClick={onClose} className="cursor-pointer text-xs text-muted hover:text-text">
@@ -86,7 +86,7 @@ export const OverlayStudio = ({
         </button>
       </div>
 
-      <div className="grid gap-3 overflow-auto p-3 text-sm">
+      <div className="grid min-h-0 flex-1 gap-3 overflow-auto p-3 text-sm">
         <button
           type="button"
           onClick={() => void api().toggleOverlay()}
@@ -104,7 +104,7 @@ export const OverlayStudio = ({
 
         <div className="grid gap-1">
           <span className="text-xs uppercase tracking-wide text-muted">Preset</span>
-          <div className="grid grid-cols-5 gap-1">
+          <div className="studio-presets">
             {OVERLAY_PRESET_IDS.map((id) => (
               <button
                 key={id}

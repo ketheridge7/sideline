@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "./**/*.{ts,tsx}";
+@source "../shared/**/*.ts";
 
 @theme {
   --color-bg: #07080a;
@@ -188,7 +190,17 @@ select {
 }
 
 .hud-rail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+}
+
+.studio-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.25rem;
 }
 
 .lineup-row {
