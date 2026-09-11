@@ -64,6 +64,8 @@ export type Player = {
   nflTeam: string
   lastPlay?: string
   tickDelta?: number
+  /** ESPN `lineupSlotId` when known — used to match website starter column order. */
+  lineupSlotId?: number
 }
 
 export type Matchup = {
@@ -268,7 +270,8 @@ const samePlayer = (prev: Player, next: Player): boolean =>
   prev.status === next.status &&
   prev.nflTeam === next.nflTeam &&
   prev.lastPlay === next.lastPlay &&
-  prev.tickDelta === next.tickDelta
+  prev.tickDelta === next.tickDelta &&
+  prev.lineupSlotId === next.lineupSlotId
 
 const samePlayers = (prev: Player[], next: Player[]): boolean =>
   prev.length === next.length && prev.every((row, index) => samePlayer(row, next[index]))
