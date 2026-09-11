@@ -1,10 +1,10 @@
 import { type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
 import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
+import { visibleInjury } from '@shared/display'
 import { formatDelta, overlayName } from '../shared/format'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { ScoreTick } from '../shared/ScoreTick'
-import { visibleInjury } from '@shared/display'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
 
@@ -14,23 +14,17 @@ const FROST_DIM = '#E4EAF1'
 const RailColumn = ({
   players,
   field,
-  hash,
   align,
   restColor
 }: {
   players: Player[]
   field: 'pos' | 'name' | 'nfl' | 'pts'
-  hash?: 'you' | 'them'
   align: 'left' | 'right'
   restColor: string
 }): JSX.Element => {
   const rows = Math.max(players.length, 1)
   return (
-    <div
-      className={`hud-rail flex h-full min-h-0 min-w-0 flex-col ${
-        hash === 'you' ? 'hud-hash-you' : ''
-      }`}
-    >
+    <div className="hud-rail flex h-full min-h-0 min-w-0 flex-col">
       {Array.from({ length: rows }, (_, index) => {
         const player = players[index]
         const textAlign = align === 'right' ? 'text-right' : 'text-left'
@@ -81,6 +75,22 @@ const RailColumn = ({
     </div>
   )
 }
+
+const TeamName = ({
+  name,
+  tone
+}: {
+  name: string
+  tone: 'you' | 'them'
+}): JSX.Element => (
+  <div
+    className={`hud-type-name ${tone === 'you' ? 'text-you' : 'text-them'}`}
+    data-hud="team-name"
+    data-hud-side={tone === 'you' ? 'mine' : 'opp'}
+  >
+    <span>{name}</span>
+  </div>
+)
 
 const BenchList = ({
   players,
@@ -138,20 +148,21 @@ export const OverlayWidgetView = ({
         </div>
       )
     case 'team.mine.name':
-      return (
-        <div className="hud-type-name flex h-full items-end truncate text-you">{hud.myName}</div>
-      )
+      return <TeamName name={hud.myName} tone="you" />
     case 'team.opp.name':
-      return (
-        <div className="hud-type-name flex h-full items-end truncate text-them">{hud.oppName}</div>
-      )
+      return <TeamName name={hud.oppName} tone="them" />
     case 'score.mine':
       return (
-        <ScoreTick value={hud.myPoints} restColor={FROST} className="hud-type-score" />
+        <ScoreTick value={hud.myPoints} restColor={FROST} align="center" className="hud-type-score w-full" />
       )
     case 'score.opp':
       return (
-        <ScoreTick value={hud.oppPoints} restColor={FROST_DIM} className="hud-type-score" />
+        <ScoreTick
+          value={hud.oppPoints}
+          restColor={FROST_DIM}
+          align="center"
+          className="hud-type-score w-full"
+        />
       )
     case 'score.delta': {
       const leading = hud.delta > 0
@@ -164,7 +175,7 @@ export const OverlayWidgetView = ({
       )
     }
     case 'col.mine.pos':
-      return <RailColumn players={hud.myStarters} field="pos" hash="you" align="left" restColor={FROST} />
+      return <RailColumn players={hud.myStarters} field="pos" align="left" restColor={FROST} />
     case 'col.mine.name':
       return <RailColumn players={hud.myStarters} field="name" align="left" restColor={FROST} />
     case 'col.mine.nfl':

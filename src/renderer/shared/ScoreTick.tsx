@@ -73,7 +73,7 @@ export const ScoreTick = ({
   restColor: string
   className?: string
   style?: CSSProperties
-  align?: 'left' | 'right'
+  align?: 'left' | 'right' | 'center'
 }): JSX.Element => {
   const { phase, delta, kind } = useScoreTick(value)
 
@@ -82,7 +82,8 @@ export const ScoreTick = ({
   }
 
   const showDelta = phase === 'delta'
-  const justify = align === 'right' ? 'justify-end' : 'justify-start'
+  const justify =
+    align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
   const flashColor = kind === 'down' ? AIR : LIME
   const color = phase === 'delta' ? flashColor : restColor
   const colorTransition = phase === 'settle' ? `color ${SETTLE_MS}ms linear` : 'color 0s'
@@ -98,7 +99,7 @@ export const ScoreTick = ({
       data-score-tick={phase}
       data-score-tick-kind={kind ?? undefined}
     >
-      <span className="invisible tabular-nums">{formatScore(value)}</span>
+      <span className="invisible tabular-nums score-tick-sizer">{formatScore(value)}</span>
       <span className={`score-tick-slot ${justify}`} style={{ opacity: showDelta ? 1 : 0 }}>
         {scoreTickLabel('delta', value, delta)}
       </span>

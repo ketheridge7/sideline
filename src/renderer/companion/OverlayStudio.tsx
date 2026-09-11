@@ -100,7 +100,9 @@ export const OverlayStudio = ({
           </select>
         </label>
         <p className="text-xs text-muted">
-          Default is Tape rails: them left, you right. Frosted type only — no wash, no card. Hide or drag after.
+          Default is Tape rails: you left, them right. Names and scores centered over each rail;
+          names enlarged. Frosted type only — no wash, no card. Saved layouts keep old geometry until
+          Revert preset.
         </p>
 
         <div className="relative aspect-video overflow-hidden bg-[#0c2418]">
