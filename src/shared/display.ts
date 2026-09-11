@@ -63,31 +63,6 @@ export const leadShare = (mine: number, opp: number): { mine: number; opp: numbe
   return { mine: mine / total, opp: opp / total }
 }
 
-export type HudLeadTone = 'lead' | 'trail' | 'tie'
-
-const signedPoints = (value: number): string => {
-  if (!Number.isFinite(value)) return '—'
-  const abs = Math.abs(value).toFixed(1)
-  if (value > 0) return `+${abs}`
-  if (value < 0) return `-${abs}`
-  return '0.0'
-}
-
-/** Signed margin under each HUD total (mine left / opp right). Not the old ice chip. */
-export const hudLeadMargin = (
-  delta: number,
-  side: 'mine' | 'opp'
-): { label: string; tone: HudLeadTone } => {
-  const signed = Math.round((side === 'mine' ? delta : -delta) * 100) / 100
-  if (!Number.isFinite(signed) || signed === 0) {
-    return { label: 'TIE', tone: 'tie' }
-  }
-  return {
-    label: signedPoints(signed),
-    tone: signed > 0 ? 'lead' : 'trail'
-  }
-}
-
 export const sparklinePoints = (values: number[], width: number, height: number): string => {
   if (values.length < 2) return ''
   const min = Math.min(...values)

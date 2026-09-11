@@ -22,8 +22,7 @@ const HIDDEN_EVERYWHERE = [
   'col.opp.nfl',
   'meta.league',
   'meta.week',
-  'toast.slot',
-  'score.delta'
+  'toast.slot'
 ] as const
 
 describe('layoutFromPreset', () => {
@@ -56,7 +55,7 @@ describe('layoutFromPreset', () => {
     expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.density).toBe('compact')
   })
 
-  it('Tape rails keep dual skinny rails with you left, them right, names and scores above each', () => {
+  it('Tape rails keep dual skinny rails with names and scores above each, both teams visible', () => {
     const layout = layoutFromPreset('national')
     const vis = visible('national')
     expect(vis.every((row) => row.y >= 8)).toBe(true)
@@ -65,13 +64,13 @@ describe('layoutFromPreset', () => {
     expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.hidden).toBe(false)
     expect(layout.widgets.find((row) => row.id === 'score.mine')?.hidden).toBe(false)
     expect(layout.widgets.find((row) => row.id === 'score.opp')?.hidden).toBe(false)
-    expect(layout.widgets.find((row) => row.id === 'score.delta')?.hidden).toBe(true)
-    const leftRail = layout.widgets.find((row) => row.id === 'col.mine.name')
-    const rightRail = layout.widgets.find((row) => row.id === 'col.opp.name')
+    expect(layout.widgets.find((row) => row.id === 'score.delta')?.hidden).toBe(false)
+    const leftRail = layout.widgets.find((row) => row.id === 'col.opp.name')
+    const rightRail = layout.widgets.find((row) => row.id === 'col.mine.name')
     expect(leftRail?.x).toBeLessThan(8)
     expect(rightRail?.x).toBeGreaterThanOrEqual(82)
-    expect(layout.widgets.find((row) => row.id === 'team.mine.name')?.x).toBeLessThan(8)
-    expect(layout.widgets.find((row) => row.id === 'team.opp.name')?.x).toBeGreaterThanOrEqual(80)
+    expect(layout.widgets.find((row) => row.id === 'team.opp.name')?.x).toBeLessThan(8)
+    expect(layout.widgets.find((row) => row.id === 'team.mine.name')?.x).toBeGreaterThanOrEqual(80)
     expect(layout.widgets.find((row) => row.id === 'score.mine')?.w).toBe(
       layout.widgets.find((row) => row.id === 'team.mine.name')?.w
     )
@@ -86,7 +85,7 @@ describe('layoutFromPreset', () => {
     expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.density).toBe('regular')
     expect(leftRail?.y).toBe(rightRail?.y)
     expect(leftRail?.h).toBe(rightRail?.h)
-    expect(layout.widgets.find((row) => row.id === 'team.mine.name')?.h ?? 0).toBeGreaterThanOrEqual(5)
+    expect(layout.widgets.find((row) => row.id === 'team.mine.name')?.h ?? 0).toBeGreaterThanOrEqual(4.5)
   })
 
   it('Ticket stays left-only and stacks both teams inside the YouTube TV pocket', () => {
@@ -148,7 +147,7 @@ describe('parseOverlayLayout', () => {
     expect(parsed.presetId).toBe('corners')
     const score = parsed.widgets.find((row) => row.id === 'score.mine')
     expect(score?.x).toBe(10)
-    expect(parsed.widgets.find((row) => row.id === 'score.opp')?.x).toBe(80.6)
+    expect(parsed.widgets.find((row) => row.id === 'score.opp')?.x).toBe(1.2)
   })
 
   it('clamps out-of-range geometry and allows a fully transparent fill', () => {

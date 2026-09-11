@@ -81,7 +81,7 @@ export const WIDGET_LABELS: Record<OverlayWidgetId, string> = {
   'team.opp.name': 'Their team',
   'score.mine': 'Your score',
   'score.opp': 'Their score',
-  'score.delta': 'Lead margin',
+  'score.delta': 'Lead',
   'col.mine.pos': 'Your positions',
   'col.mine.name': 'Your names',
   'col.mine.nfl': 'Your NFL tags',
@@ -205,17 +205,17 @@ const hide = (
 
 const stackedLeft = (): OverlayWidgetInstance[] => [
   ghost('meta.live', 14.8, 14.2, 1.2, 1.2),
-  ghost('team.mine.name', 1.5, 14, 14.7, 3.4),
-  ghost('score.mine', 1.5, 17.6, 14.7, 5.4),
+  ghost('team.mine.name', 1.5, 14, 13, 2.6),
+  ghost('score.mine', 1.5, 16.8, 8.4, 6.2),
+  ghost('score.delta', 10.2, 18, 4.2, 4),
   railCol('col.mine.pos', 1.5, 23.2, 3.5, 25),
   railCol('col.mine.name', 5, 23.2, 7.2, 25),
   railCol('col.mine.pts', 12.2, 23.2, 4, 25),
-  ghost('team.opp.name', 1.5, 49.6, 14.7, 3.4),
-  ghost('score.opp', 1.5, 53.2, 14.7, 3.8),
+  ghost('team.opp.name', 1.5, 50, 14.7, 2.6),
+  ghost('score.opp', 1.5, 52.8, 14.7, 4.2),
   railCol('col.opp.pos', 1.5, 57.2, 3.5, 22.8),
   railCol('col.opp.name', 5, 57.2, 7.2, 22.8),
   railCol('col.opp.pts', 12.2, 57.2, 4, 22.8),
-  hide('score.delta', 1.5, 18),
   hide('meta.league', 1.5, 22),
   hide('meta.week', 1.5, 22, 5, 2),
   hide('col.mine.nfl', 12, 22, 4.2, 26),
@@ -227,28 +227,28 @@ const stackedLeft = (): OverlayWidgetInstance[] => [
 
 const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetInstance[] => {
   const density: OverlayDensity = 'regular'
-  const posW = 3.2
-  const nameW = 10.8
+  const posW = 2.8
+  const nameW = 11
   const ptsW = 4.2
   const railW = posW + nameW + ptsW
   const railH = 58
   const railY = 23.2
-  const nameY = 8.6
-  const nameH = 5.8
-  const scoreY = 14.6
+  const nameY = 9.2
+  const nameH = 4.8
+  const scoreY = 14.2
   return [
     ghost('meta.live', mineX + railW - 1.2, nameY + 0.2, 1.2, 1.2, density),
-    ghost('team.mine.name', mineX, nameY, railW, nameH, density),
-    ghost('score.mine', mineX, scoreY, railW, scoreH, density),
-    railCol('col.mine.pos', mineX, railY, posW, railH, density),
-    railCol('col.mine.name', mineX + posW, railY, nameW, railH, density),
-    railCol('col.mine.pts', mineX + posW + nameW, railY, ptsW, railH, density),
     ghost('team.opp.name', oppX, nameY, railW, nameH, density),
     ghost('score.opp', oppX, scoreY, railW, scoreH, density),
     railCol('col.opp.pos', oppX, railY, posW, railH, density),
     railCol('col.opp.name', oppX + posW, railY, nameW, railH, density),
     railCol('col.opp.pts', oppX + posW + nameW, railY, ptsW, railH, density),
-    hide('score.delta', mineX, scoreY),
+    ghost('team.mine.name', mineX, nameY, railW, nameH, density),
+    ghost('score.mine', mineX, scoreY, railW, scoreH, density),
+    ghost('score.delta', mineX + 12.6, scoreY + 2, 5.2, 5.4, density),
+    railCol('col.mine.pos', mineX, railY, posW, railH, density),
+    railCol('col.mine.name', mineX + posW, railY, nameW, railH, density),
+    railCol('col.mine.pts', mineX + posW + nameW, railY, ptsW, railH, density),
     hide('meta.league', mineX, railY),
     hide('meta.week', mineX, railY, 5, 2),
     hide('col.mine.nfl', mineX + posW + nameW, railY, ptsW, railH),
@@ -259,7 +259,7 @@ const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetIn
   ]
 }
 
-const tapeRails = (): OverlayWidgetInstance[] => dualRails(1.0, 80.6, 8.2)
+const tapeRails = (): OverlayWidgetInstance[] => dualRails(80.8, 1.2, 9)
 
 const redzoneWidgets = (): OverlayWidgetInstance[] => stackedLeft()
 
@@ -280,17 +280,17 @@ export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
     case 'pip':
       return layout('pip', [
         ghost('meta.live', 96.8, 14.2, 1.2, 1.2),
-        ghost('team.mine.name', 78, 14, 20, 3.2),
-        ghost('score.mine', 78, 17.4, 20, 4.6),
+        ghost('team.mine.name', 78, 14, 18, 2.4),
+        ghost('score.mine', 78, 16.6, 12, 5),
+        ghost('score.delta', 90.5, 17.2, 6.5, 3.6),
         railCol('col.mine.pos', 78, 22.2, 3.5, 26),
         railCol('col.mine.name', 81.5, 22.2, 7.4, 26),
         railCol('col.mine.pts', 88.9, 22.2, 9.1, 26),
-        ghost('team.opp.name', 78, 49.4, 20, 3.2),
-        ghost('score.opp', 78, 52.8, 20, 4.2),
+        ghost('team.opp.name', 78, 50, 20, 2.4),
+        ghost('score.opp', 78, 52.6, 20, 4.4),
         railCol('col.opp.pos', 78, 57.2, 3.5, 22.8),
         railCol('col.opp.name', 81.5, 57.2, 7.4, 22.8),
         railCol('col.opp.pts', 88.9, 57.2, 9.1, 22.8),
-        hide('score.delta', 78, 17),
         hide('meta.league', 78, 21),
         hide('meta.week', 78, 21, 5, 2),
         hide('col.mine.nfl', 88.5, 21, 9.5, 26),
@@ -302,11 +302,11 @@ export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
     case 'minimal':
       return layout('minimal', [
         ghost('meta.live', 86.5, 13.2, 1.2, 1.2),
-        ghost('team.mine.name', 78, 13, 12.4, 2.8),
-        ghost('score.mine', 78, 16, 12.4, 6.2),
-        ghost('team.opp.name', 91.2, 13, 6.8, 2.8),
-        ghost('score.opp', 91.2, 16, 6.8, 6.2),
-        hide('score.delta', 86.4, 16.8, 4.4, 4.2),
+        ghost('team.mine.name', 78, 13, 10, 2.6),
+        ghost('score.mine', 78, 15.8, 8, 6.4),
+        ghost('score.delta', 86.4, 16.8, 4.4, 4.2),
+        ghost('team.opp.name', 91.2, 13, 6.8, 2.6),
+        ghost('score.opp', 91.2, 15.8, 6.8, 6.4),
         hide('meta.week', 78, 13, 8, 3),
         hide('meta.league', 78, 13, 18, 3),
         hide('toast.slot', 78, 13, 20, 8),

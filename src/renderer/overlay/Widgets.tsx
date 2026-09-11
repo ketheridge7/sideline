@@ -1,8 +1,8 @@
 import { type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
 import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
-import { hudLeadMargin, visibleInjury, type HudLeadTone } from '@shared/display'
-import { overlayName } from '../shared/format'
+import { visibleInjury } from '@shared/display'
+import { formatDelta, overlayName } from '../shared/format'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { ScoreTick } from '../shared/ScoreTick'
 import { resolveDensity, type Density } from './density'
@@ -76,21 +76,6 @@ const RailColumn = ({
   )
 }
 
-const marginToneClass = (tone: HudLeadTone): string => {
-  switch (tone) {
-    case 'lead':
-      return 'hud-margin-lead'
-    case 'trail':
-      return 'hud-margin-trail'
-    case 'tie':
-      return 'hud-margin-tie'
-    default: {
-      const _never: never = tone
-      return _never
-    }
-  }
-}
-
 const TeamName = ({
   name,
   tone
@@ -99,49 +84,11 @@ const TeamName = ({
   tone: 'you' | 'them'
 }): JSX.Element => (
   <div
-    className={`hud-type-name flex h-full w-full items-end justify-center text-center ${
-      tone === 'you' ? 'text-you' : 'text-them'
-    }`}
+    className={`hud-type-name ${tone === 'you' ? 'text-you' : 'text-them'}`}
     data-hud="team-name"
     data-hud-side={tone === 'you' ? 'mine' : 'opp'}
   >
-    <span className="min-w-0 truncate">{name}</span>
-  </div>
-)
-
-const LeadMargin = ({
-  delta,
-  side
-}: {
-  delta: number
-  side: 'mine' | 'opp'
-}): JSX.Element => {
-  const margin = hudLeadMargin(delta, side)
-  return (
-    <div
-      className={`hud-type-margin ${marginToneClass(margin.tone)}`}
-      data-hud="lead-margin"
-      data-hud-tone={margin.tone}
-    >
-      {margin.label}
-    </div>
-  )
-}
-
-const TeamScore = ({
-  value,
-  restColor,
-  delta,
-  side
-}: {
-  value: number
-  restColor: string
-  delta: number
-  side: 'mine' | 'opp'
-}): JSX.Element => (
-  <div className="hud-score-stack" data-hud="team-score" data-hud-side={side}>
-    <ScoreTick value={value} restColor={restColor} align="center" className="hud-type-score" />
-    <LeadMargin delta={delta} side={side} />
+    <span>{name}</span>
   </div>
 )
 
@@ -206,20 +153,24 @@ export const OverlayWidgetView = ({
       return <TeamName name={hud.oppName} tone="them" />
     case 'score.mine':
       return (
-        <TeamScore value={hud.myPoints} restColor={FROST} delta={hud.delta} side="mine" />
+        <ScoreTick value={hud.myPoints} restColor={FROST} align="center" className="hud-type-score" />
       )
     case 'score.opp':
       return (
-        <TeamScore value={hud.oppPoints} restColor={FROST_DIM} delta={hud.delta} side="opp" />
+        <ScoreTick
+          value={hud.oppPoints}
+          restColor={FROST_DIM}
+          align="center"
+          className="hud-type-score"
+        />
       )
     case 'score.delta': {
-      const margin = hudLeadMargin(hud.delta, 'mine')
+      const leading = hud.delta > 0
+      const trailing = hud.delta < 0
+      const deltaClass = leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
       return (
-        <div
-          className={`hud-score-stack ${marginToneClass(margin.tone)}`}
-          data-hud="lead-margin-solo"
-        >
-          <span className="hud-type-margin">{margin.label}</span>
+        <div className={`hud-type-delta flex h-full items-end tabular-nums ${deltaClass}`}>
+          {formatDelta(hud.delta)}
         </div>
       )
     }
