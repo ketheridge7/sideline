@@ -143,7 +143,8 @@ export const DISCOVERY_VIEWS = ['mSettings', 'mStatus', 'mTeam']
 
 export const SETTINGS_VIEWS = ['mSettings', 'mStatus']
 
-export const SCORE_VIEWS = ['mMatchupScore']
+/** mMatchupScore alone now ships stats-only roster rows (no playerId/name). mScoreboard fills identity. */
+export const SCORE_VIEWS = ['mMatchupScore', 'mScoreboard']
 
 export const LIVE_VIEWS = ['mLiveScoring']
 

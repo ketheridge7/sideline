@@ -42,6 +42,7 @@ import {
   leaguesFromFanPayload,
   espnTeamsFromPayload,
   espnTeamsHaveOwners,
+  espnPayloadHasNamedLineup,
   findMyTeam,
   mergeEspnTeams,
   espnLivePayloadIsStub,
@@ -405,6 +406,9 @@ const loadEspnCookies = async (): Promise<EspnCookies | null> => {
   }
   return espnCookieInFlight
 }
+
+/** Sign-in invalidates the 60s session cache; reload the jar before the next scoring GET. */
+export const primeEspnCookies = (): Promise<EspnCookies | null> => loadEspnCookiesFresh()
 
 const kickEspnCookieSwr = (liveTick = false): void => {
   if (isReplayMode()) return
@@ -853,10 +857,11 @@ const dropCachedMatchups = (provider: 'sleeper' | 'espn'): void => {
 }
 
 const persistEspnScores = (): void => {
-  persistLiveSnapshot(() => {
+  persistAfterPaint(() => {
     const byId: Record<string, { week: number; payload: Record<string, unknown> }> = {}
     for (const [id, row] of espnScoreCache) {
       if (typeof row.payload !== 'object' || row.payload == null || Array.isArray(row.payload)) continue
+      if (!espnPayloadHasNamedLineup(row.payload)) continue
       byId[id] = { week: row.week, payload: row.payload as Record<string, unknown> }
     }
     writeEspnScoresDisk(byId)
@@ -876,6 +881,7 @@ const hydrateEspnScoresFromDisk = (): void => {
 }
 
 const rememberEspnScorePayload = (leagueId: string, week: number, payload: unknown): void => {
+  if (!espnPayloadHasNamedLineup(payload)) return
   espnScoreCache.set(leagueId, { at: Date.now(), week, payload })
   persistEspnScores()
 }
@@ -1509,6 +1515,8 @@ const fetchEspnScorePayload = async (
   }
   const hudPriority = liveScorePriority(hud)
   const cached = espnScoreCache.get(league.id)
+  const namedCached =
+    cached && espnPayloadHasNamedLineup(cached.payload) ? cached : undefined
   const plan = espnScoreOverlayPlan(cached, nfl.displayWeek, Date.now(), ESPN_SCORE_TTL_MS)
   const refreshFull = (priority?: 'high'): Promise<unknown> => {
     const key = espnScoreRefreshKey({
@@ -1532,6 +1540,7 @@ const fetchEspnScorePayload = async (
   }
   const overlayCache = plan.overlay ? cached : undefined
   const hasOverlay = overlayCache != null || (hasPrevMatchup && hasPrevLineup)
+  const hasNamedLineup = namedCached != null || hasPrevLineup
   const kick = espnScoreKickOrder({ hasOverlay })
   const overlayAfterLive = (
     liveOnly: unknown,
@@ -1563,7 +1572,11 @@ const fetchEspnScorePayload = async (
     if (!liveFailed) rememberEspnLivePayload(league.id, liveOnly)
     const afterLiveRow = espnScoreCache.get(league.id)
     const afterLive =
-      afterLiveRow != null && afterLiveRow.week === nfl.displayWeek ? afterLiveRow : undefined
+      afterLiveRow != null &&
+      afterLiveRow.week === nfl.displayWeek &&
+      espnPayloadHasNamedLineup(afterLiveRow.payload)
+        ? afterLiveRow
+        : undefined
     const cachePlan = espnLiveOverlayCachePlan({
       cachedAtKick: overlayCache != null,
       cachedAfterLive: afterLive != null,
@@ -1581,7 +1594,8 @@ const fetchEspnScorePayload = async (
       hasOverlay,
       hud,
       gamesIn: liveTick,
-      compactIsStub: stub
+      compactIsStub: stub,
+      hasNamedLineup
     })
     let pendingFull: Promise<unknown> | null = null
     switch (fullPlan) {
@@ -2041,21 +2055,25 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
 
     const persistSelectedHud = (key: string | null, loaded: Matchup | null): void => {
       if (replay || !key || !loaded || !nfl) return
+      const nflState = nfl
       const parsed = parseLeagueKey(key)
       if (parsed?.provider === 'espn' && !matchupHasLineup(loaded) && loaded.oppTeam != null) return
       if (isLiveLeagueKey(key)) matchupCache.set(key, { at: Date.now(), matchup: loaded })
       const sig = [
         key,
-        nfl.displayWeek,
+        nflState.displayWeek,
         loaded.myPoints,
         loaded.oppPoints,
         ...loaded.starters.map((player) => `${player.playerId}:${player.points ?? ''}`)
       ].join('|')
       if (sig === lastHudSig) return
       lastHudSig = sig
-      lastHudMem = { displayWeek: nfl.displayWeek, selectedKey: key, matchup: loaded }
+      lastHudMem = { displayWeek: nflState.displayWeek, selectedKey: key, matchup: loaded }
       persistAfterPaint(() => {
         if (lastHudMem) writeLastHud(lastHudMem)
+        if (parsed?.provider === 'espn' && matchupHasLineup(loaded)) {
+          persistMatchups(nflState.displayWeek)
+        }
       })
     }
 

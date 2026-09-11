@@ -19,12 +19,12 @@ describe('espnClient', () => {
     expect(url).toContain('scoringPeriodId=1')
   })
 
-  it('omits mLiveScoring, mTeam, mScoreboard, and mBoxscore from the cached score-only view set', () => {
+  it('keeps mLiveScoring, mTeam, mBoxscore, and mRoster off the boxscore view set and includes mScoreboard for named lineups', () => {
     const url = leagueUrl('2026', '123', SCORE_VIEWS, 1)
     expect(url).toContain('view=mMatchupScore')
+    expect(url).toContain('view=mScoreboard')
     expect(url).not.toContain('view=mLiveScoring')
     expect(url).not.toContain('view=mTeam')
-    expect(url).not.toContain('view=mScoreboard')
     expect(url).not.toContain('view=mBoxscore')
     expect(url).not.toContain('view=mRoster')
     expect(url).not.toContain('view=mMatchup&')

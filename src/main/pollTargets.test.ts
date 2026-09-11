@@ -401,6 +401,29 @@ describe('espnLiveFullSwrPlan', () => {
       })
     ).toBe('recover')
   })
+
+  it('recovers HUD mScoreboard when overlay cache has no named starters', () => {
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        hasNamedLineup: false
+      })
+    ).toBe('recover')
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        hasNamedLineup: true
+      })
+    ).toBe('skip')
+  })
 })
 
 describe('espnDeferredBoxscoreDrainPlan', () => {

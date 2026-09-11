@@ -36,10 +36,15 @@ export const readNflDiskStale = (): NflState | null => {
   }
 }
 
+const writeChains = new Map<string, Promise<void>>()
+
 const writeJson = (path: string, payload: unknown): void => {
   try {
     ensureUserData()
-    void writeFile(path, JSON.stringify(payload)).catch(() => undefined)
+    const body = JSON.stringify(payload)
+    const prev = writeChains.get(path) ?? Promise.resolve()
+    const next = prev.then(() => writeFile(path, body)).catch(() => undefined)
+    writeChains.set(path, next)
   } catch {
     // live path must not fail if userData is unwritable
   }
