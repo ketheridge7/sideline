@@ -1,80 +1,15 @@
 import { type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
 import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
-import { visibleInjury } from '@shared/display'
 import { formatDelta, overlayName } from '../shared/format'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
+import { HudRail } from '../shared/LineupRow'
 import { ScoreTick } from '../shared/ScoreTick'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
 
 const FROST = '#F8FBFF'
-const FROST_DIM = '#E4EAF1'
-
-const RailColumn = ({
-  players,
-  field,
-  align,
-  restColor
-}: {
-  players: Player[]
-  field: 'pos' | 'name' | 'nfl' | 'pts'
-  align: 'left' | 'right'
-  restColor: string
-}): JSX.Element => {
-  const rows = Math.max(players.length, 1)
-  return (
-    <div className="hud-rail flex h-full min-h-0 min-w-0 flex-col">
-      {Array.from({ length: rows }, (_, index) => {
-        const player = players[index]
-        const textAlign = align === 'right' ? 'text-right' : 'text-left'
-        const injury = field === 'name' ? visibleInjury(player?.status) : null
-        let body: JSX.Element | string = '—'
-        let typeClass = 'hud-type-player'
-        if (field === 'pos') {
-          typeClass = 'hud-type-pos'
-          body = player?.position || '—'
-        } else if (field === 'name') {
-          typeClass = 'hud-type-player'
-          body = player ? overlayName(player.name) : '—'
-        } else if (field === 'nfl') {
-          typeClass = 'hud-type-pos'
-          body = player?.nflTeam || '—'
-        } else if (field === 'pts') {
-          typeClass = 'hud-type-pts'
-          body = player ? (
-            <ScoreTick
-              value={player.points}
-              restColor={restColor}
-              align={align}
-              className="hud-type-pts"
-            />
-          ) : (
-            '—'
-          )
-        } else {
-          const _never: never = field
-          body = _never
-        }
-        return (
-          <div
-            key={player?.playerId ?? `${field}-${index}`}
-            className={`hud-rail-row flex flex-1 items-center ${textAlign}`}
-          >
-            {typeof body === 'string' ? (
-              <span className={`w-full truncate ${typeClass}`}>
-                {body}
-                {injury ? <span className="ml-1 text-air">{injury}</span> : null}
-              </span>
-            ) : (
-              body
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+const FROST_DIM = '#E8E4DC'
 
 const TeamName = ({
   name,
@@ -174,22 +109,17 @@ export const OverlayWidgetView = ({
         </div>
       )
     }
-    case 'col.mine.pos':
-      return <RailColumn players={hud.myStarters} field="pos" align="left" restColor={FROST} />
     case 'col.mine.name':
-      return <RailColumn players={hud.myStarters} field="name" align="left" restColor={FROST} />
-    case 'col.mine.nfl':
-      return <RailColumn players={hud.myStarters} field="nfl" align="left" restColor={FROST} />
-    case 'col.mine.pts':
-      return <RailColumn players={hud.myStarters} field="pts" align="right" restColor={FROST} />
-    case 'col.opp.pos':
-      return <RailColumn players={hud.oppStarters} field="pos" align="left" restColor={FROST_DIM} />
+      return <HudRail players={hud.myStarters} you />
     case 'col.opp.name':
-      return <RailColumn players={hud.oppStarters} field="name" align="left" restColor={FROST_DIM} />
+      return <HudRail players={hud.oppStarters} />
+    case 'col.mine.pos':
+    case 'col.mine.nfl':
+    case 'col.mine.pts':
+    case 'col.opp.pos':
     case 'col.opp.nfl':
-      return <RailColumn players={hud.oppStarters} field="nfl" align="left" restColor={FROST_DIM} />
     case 'col.opp.pts':
-      return <RailColumn players={hud.oppStarters} field="pts" align="right" restColor={FROST_DIM} />
+      return <></>
     case 'bench.mine':
       return <BenchList players={hud.myBench} density={resolved} align="left" />
     case 'bench.opp':

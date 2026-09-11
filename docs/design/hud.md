@@ -10,7 +10,7 @@ Locked spec for the Sunday watch companion and Hashmark overlay. Sleeper is the 
 
 - **Companion.** Board is the production truck for **one** matchup: left watchlist of pinned leagues, center you-vs-them board, right scoring TAPE, Overlay Studio.
 - **Overlay = Hashmark.** One fullscreen transparent canvas. Modules sit on the **sidelines**; the center stays empty so live video is the product. Smoke panes, never a near-opaque card.
-- **Editor.** Companion Overlay Studio is canonical. Desktop overlay can enter Edit (`Ctrl/Cmd+Shift+E`) to drag/resize. TV (`?tv=1`) and OBS (`?surface=obs`) never mount edit chrome, even if `?edit=1` is appended.
+- **Editor.** Companion Overlay Studio is canonical: five dual-rail placements, position/size sliders, save/overwrite. Desktop overlay can still enter Edit (`Ctrl/Cmd+Shift+E`) to drag/resize. TV (`?tv=1`) and OBS (`?surface=obs`) never mount edit chrome, even if `?edit=1` is appended.
 
 Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a fourth nav destination.
 
@@ -24,9 +24,9 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 | `--card` | `#101216` | Panels |
 | `--line` | `#1E232B` | Hairline |
 | `--text` | `#F4F6F8` | Primary |
-| `--muted` | `#94A3B8` | Meta / them steel |
-| `--you` | `#7DD3FC` | Ice — your hash, lead, selected |
-| `--them` | `#94A3B8` | Opponent. Not “loss” |
+| `--muted` | `#94A3B8` | Meta |
+| `--you` | `#A6E6A0` | Warm ice-green — your team name, lead, selected |
+| `--them` | `#E8E4DC` | Warm silver — opponent name. Not “loss” |
 | `--lime` | `#B6FF3B` | Just scored / HUD on |
 | `--air` | `#FF4D4D` | ON AIR, injury, waiver |
 | Sleeper / ESPN | cyan / crimson | **tiny stamps only** |
@@ -39,63 +39,46 @@ Do not show betting percentages. A lead bar is share of combined fantasy points 
 
 ## Overlay widget catalog
 
-Coordinates are **percent of canvas**. Each id is independently placed, hidden, resized, locked, and given fill opacity.
+Coordinates are **percent of canvas**. Studio moves the HUD as one group (position + size). Per-widget show/hide/lock chrome is gone.
 
 - Meta: `meta.league`, `meta.week` (hidden in every canned preset), `meta.live` (1px lime live/replay pip, no ON AIR wordmark)
 - Identity: `team.mine.name`, `team.opp.name` — condensed uppercase, **centered** and enlarged in the name widget (`cqh`), above the team score
 - Scores: `score.mine`, `score.opp` (loudest number, **centered** in the score widget), `score.delta` (tiny lead next to your score, not a third scoreboard)
-- Rails: `col.mine.pos|name|pts`, `col.opp.pos|name|pts` — pos muted, last name, pts right-aligned tabular. Row type scales with row height. `col.*.nfl` stays in the catalog but is hidden. No ice hash line on either rail.
+- Rails: one `col.*.name` widget per side paints a CSS grid `POS | NAME | PTS`. Split `col.*.pos` / `col.*.pts` stay in the catalog but are hidden so points cannot drift or overlap position labels. `col.*.nfl` stays hidden. No ice hash line on either rail.
 - Bench / alerts: `bench.mine`, `bench.opp`, `toast.slot` stay in the catalog, hidden in every canned preset. No crawler, no toast chips, no marquee.
 
 Visible HUD is **names, scores, and both starter rails**. Last names only (`overlayName`). No NFL city tags.
 
 ### Score ticks (inline, not tape)
 
-When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`) for the full ~1.1s beat (limeT held at 1), then eases to the new total. Lime eases off over ~1.6s total back to ice (`#7DD3FC`, you) or steel (`#94A3B8`, them).
+When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`) for the full ~1.1s beat (limeT held at 1), then eases to the new total. Lime eases off over ~1.6s total back to frost white on the roster. Team names stay ice-green (you) / warm silver (them).
 
 When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
 
-Default preset **Tape rails** (`national`): dual skinny rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Tiny lead chip stays next to your total. No framed card. Type fills the allocated widgets. Center video stays clear.
+Default **Preset 1** (far sides): dual skinny frost rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Tiny lead chip stays next to your total. No framed card. Each starter row is a CSS grid `POS | NAME | PTS`. Center video stays clear.
 
-```
-you left / them right
-y 9.2–14.0  team name (centered, enlarged)
-y 14.2–23.2 team total (centered) + tiny lead on you
-y 23.2–81.2 starters  pos | name | pts
-```
+Studio has **exactly five** dual-column placements (same you/them theme, different screen regions):
 
-**RedZone** (optional): both lineups stacked on the **left** so NFL RedZone keeps the right ~20% (`x >= 80`), top banner (`y < 12`), and bottom ticker (`y > 82`).
+| Preset | Placement | Notes |
+| --- | --- | --- |
+| 1 | Far sides | You on the left gutter, them on the right gutter, full-height-ish rails |
+| 2 | Upper corners | Same gutters, shorter rails tucked to the top |
+| 3 | Lower corners | Same gutters, shorter rails tucked to the bottom |
+| 4 | Inset sides | Dual rails pulled in from the edges, mid-height |
+| 5 | Side bands | You left-upper band, them right-lower band (offset stack) |
 
-```
-y 14–23  YOUR name + YOUR score + tiny lead
-y 23–48  YOUR starters  pos | name | pts
-y 50–57  THEIR name + THEIR score
-y 57–80  THEIR starters pos | name | pts
-```
+Clicking a preset **applies it immediately** to the live HUD (factory map, or the overwritten slot if you saved). Position X/Y and Width/Height sliders move the whole HUD group. **Save over Preset N** writes the current geometry into that slot.
 
-Watch templates (Studio dropdown order): **Tape rails**, **RedZone**, **Ticket**, then Minimal, Broadcast L, Corners, PiP, Custom.
+Old saved ids (`national`, `redzone`, `ticket`, `broadcast-l`, `corners`, `pip`, `minimal`, `user.1`) migrate onto these five. Split pos/name/pts columns coalesce into one rail widget so leftover settings cannot recreate the offset-points bug.
 
-Occupied broadcast chrome — Tape rails relaxes the old eyebar floor so type can use the rail. RedZone / Ticket still vacate network chrome:
+Occupied broadcast chrome — stay off the live video rectangle:
 
 | Zone | Occupancy |
 | --- | --- |
-| `y < 12` | Network eyebar / RedZone banner (**RedZone / Ticket**) |
-| `y > 82` (RedZone / Ticket) or `y+h > 86` (Tape rails) | Bottom ticker + modern scorebug |
-| `x >= 80` on RedZone | Persistent RedZone score/stat rail (full height) |
-| `x > 78` on Ticket | Optional YouTube TV / Sunday Ticket right panel (~25%) |
 | Center `x 22–78`, `y 22–86` | Live video. Stay off it. |
+| Side gutters `x < 22` / `x >= 78` | Dual rails |
 
-**Tape rails:** dual skinny rails — you left, them right — enlarged centered names + centered scores above each rail, `y >= 9.2`, `y+h <= 86`. Fill `0` everywhere (no wash). Frosted type + 0.4px glyph stroke. No crawler. No ice hash accent.
-
-Saved layouts keep old geometry (them left / you right, tiny names). **Revert preset** in Overlay Studio to pick up you-left Tape rails and centered names/scores.
-
-**Ticket:** stacked like RedZone (both teams), left-only, `x <= 78`, `y 14–82`.
-
-**Broadcast L / Corners / PiP:** same widget visibility (both starter rails). **Minimal:** scores only.
-
-Saved `presetId`s are kept; unknown ids fall back to Tape rails (`national`). `user.1` clones Tape rails until you drag.
-
-Rails group by default (`groupedRails`). Ungroup to place columns separately. `trackLock` keeps row Y/H aligned.
+Fill `0` everywhere (no wash). Frosted type + 0.4px glyph stroke. No crawler. No ice hash accent.
 
 Watch mode: Electron `setIgnoreMouseEvents(true, { forward: true })`. Edit: mouse restored, 8-column percent grid, 1% snap (Alt free-place).
 
@@ -116,7 +99,7 @@ Layout persists in `sideline-settings.json` and is pushed on the same SSE `/even
 - Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
 - Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle, quiet Studio.
-- Overlay Studio: real mini HUD preview, not gold rectangles.
+- Overlay Studio: five presets, position/size sliders, save/overwrite. Mini HUD preview. No per-widget show/hide/lock.
 
 Keyboard: `[` `]` channels, `O` HUD, `E` Studio, `Esc` close Studio.
 

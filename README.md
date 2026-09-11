@@ -37,8 +37,8 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 
 ## Overlay
 
-- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) edits layout.
-- Default layout is **Tape rails**: dual skinny rails (**you left, them right**), enlarged centered names and centered scores above each roster, frosted type with no pane or wash. Type scales to the allocated widget. Score ticks flash lime `+N` or alert red `-N` on the pts cell, then settle. Saved layouts keep old geometry until **Revert preset**. **RedZone** and **Ticket** remain as watch templates.
+- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) picks one of five dual-rail placements, then nudges position/size.
+- Default **Preset 1** is far-side frost rails (**you left, them right**), enlarged centered names and centered scores above each roster. Starter rows are a locked `POS | NAME | PTS` grid. Score ticks flash lime `+N` or alert red `-N` on the pts cell, then settle. **Save over Preset N** keeps the current layout on that slot.
 - Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)
 - Center ~60% of the canvas stays empty so live video is the product. See [`docs/design/hud.md`](docs/design/hud.md) for occupied zones.
