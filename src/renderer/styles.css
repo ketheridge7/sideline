@@ -153,6 +153,11 @@ select {
 }
 
 .hud-type-score {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
   font-family: var(--font-cond);
   font-size: var(--hud-score, 36px);
   font-weight: 800;
@@ -166,6 +171,11 @@ select {
   justify-content: center;
   width: 100%;
   height: 100%;
+}
+
+.hud-type-score .score-tick-slot {
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .hud-type-delta {

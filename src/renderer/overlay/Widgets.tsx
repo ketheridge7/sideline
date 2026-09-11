@@ -153,7 +153,7 @@ export const OverlayWidgetView = ({
       return <TeamName name={hud.oppName} tone="them" />
     case 'score.mine':
       return (
-        <ScoreTick value={hud.myPoints} restColor={FROST} align="center" className="hud-type-score" />
+        <ScoreTick value={hud.myPoints} restColor={FROST} align="center" className="hud-type-score w-full" />
       )
     case 'score.opp':
       return (
@@ -161,7 +161,7 @@ export const OverlayWidgetView = ({
           value={hud.oppPoints}
           restColor={FROST_DIM}
           align="center"
-          className="hud-type-score"
+          className="hud-type-score w-full"
         />
       )
     case 'score.delta': {
