@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, lastName, leadShare, liveScorers, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, hudLeadMargin, lastName, leadShare, liveScorers, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -59,6 +59,17 @@ describe('leadShare', () => {
     expect(share.mine + share.opp).toBeCloseTo(1)
     expect(share.mine).toBeGreaterThan(0.5)
     expect(leadShare(0, 0)).toEqual({ mine: 0.5, opp: 0.5 })
+  })
+})
+
+describe('hudLeadMargin', () => {
+  it('puts a signed +/- under each total, TIE when even', () => {
+    expect(hudLeadMargin(5.3, 'mine')).toEqual({ label: '+5.3', tone: 'lead' })
+    expect(hudLeadMargin(5.3, 'opp')).toEqual({ label: '-5.3', tone: 'trail' })
+    expect(hudLeadMargin(-4.1, 'mine')).toEqual({ label: '-4.1', tone: 'trail' })
+    expect(hudLeadMargin(-4.1, 'opp')).toEqual({ label: '+4.1', tone: 'lead' })
+    expect(hudLeadMargin(0, 'mine')).toEqual({ label: 'TIE', tone: 'tie' })
+    expect(hudLeadMargin(0, 'opp')).toEqual({ label: 'TIE', tone: 'tie' })
   })
 })
 

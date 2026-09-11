@@ -1,10 +1,10 @@
 import { type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
 import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
-import { formatDelta, overlayName } from '../shared/format'
+import { hudLeadMargin, visibleInjury, type HudLeadTone } from '@shared/display'
+import { overlayName } from '../shared/format'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { ScoreTick } from '../shared/ScoreTick'
-import { visibleInjury } from '@shared/display'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
 
@@ -14,23 +14,17 @@ const FROST_DIM = '#E4EAF1'
 const RailColumn = ({
   players,
   field,
-  hash,
   align,
   restColor
 }: {
   players: Player[]
   field: 'pos' | 'name' | 'nfl' | 'pts'
-  hash?: 'you' | 'them'
   align: 'left' | 'right'
   restColor: string
 }): JSX.Element => {
   const rows = Math.max(players.length, 1)
   return (
-    <div
-      className={`hud-rail flex h-full min-h-0 min-w-0 flex-col ${
-        hash === 'you' ? 'hud-hash-you' : ''
-      }`}
-    >
+    <div className="hud-rail flex h-full min-h-0 min-w-0 flex-col">
       {Array.from({ length: rows }, (_, index) => {
         const player = players[index]
         const textAlign = align === 'right' ? 'text-right' : 'text-left'
@@ -81,6 +75,75 @@ const RailColumn = ({
     </div>
   )
 }
+
+const marginToneClass = (tone: HudLeadTone): string => {
+  switch (tone) {
+    case 'lead':
+      return 'hud-margin-lead'
+    case 'trail':
+      return 'hud-margin-trail'
+    case 'tie':
+      return 'hud-margin-tie'
+    default: {
+      const _never: never = tone
+      return _never
+    }
+  }
+}
+
+const TeamName = ({
+  name,
+  tone
+}: {
+  name: string
+  tone: 'you' | 'them'
+}): JSX.Element => (
+  <div
+    className={`hud-type-name flex h-full w-full items-end justify-center text-center ${
+      tone === 'you' ? 'text-you' : 'text-them'
+    }`}
+    data-hud="team-name"
+    data-hud-side={tone === 'you' ? 'mine' : 'opp'}
+  >
+    <span className="min-w-0 truncate">{name}</span>
+  </div>
+)
+
+const LeadMargin = ({
+  delta,
+  side
+}: {
+  delta: number
+  side: 'mine' | 'opp'
+}): JSX.Element => {
+  const margin = hudLeadMargin(delta, side)
+  return (
+    <div
+      className={`hud-type-margin ${marginToneClass(margin.tone)}`}
+      data-hud="lead-margin"
+      data-hud-tone={margin.tone}
+    >
+      {margin.label}
+    </div>
+  )
+}
+
+const TeamScore = ({
+  value,
+  restColor,
+  delta,
+  side
+}: {
+  value: number
+  restColor: string
+  delta: number
+  side: 'mine' | 'opp'
+}): JSX.Element => (
+  <div className="hud-score-stack" data-hud="team-score" data-hud-side={side}>
+    <ScoreTick value={value} restColor={restColor} align="center" className="hud-type-score" />
+    <LeadMargin delta={delta} side={side} />
+  </div>
+)
 
 const BenchList = ({
   players,
@@ -138,33 +201,30 @@ export const OverlayWidgetView = ({
         </div>
       )
     case 'team.mine.name':
-      return (
-        <div className="hud-type-name flex h-full items-end truncate text-you">{hud.myName}</div>
-      )
+      return <TeamName name={hud.myName} tone="you" />
     case 'team.opp.name':
-      return (
-        <div className="hud-type-name flex h-full items-end truncate text-them">{hud.oppName}</div>
-      )
+      return <TeamName name={hud.oppName} tone="them" />
     case 'score.mine':
       return (
-        <ScoreTick value={hud.myPoints} restColor={FROST} className="hud-type-score" />
+        <TeamScore value={hud.myPoints} restColor={FROST} delta={hud.delta} side="mine" />
       )
     case 'score.opp':
       return (
-        <ScoreTick value={hud.oppPoints} restColor={FROST_DIM} className="hud-type-score" />
+        <TeamScore value={hud.oppPoints} restColor={FROST_DIM} delta={hud.delta} side="opp" />
       )
     case 'score.delta': {
-      const leading = hud.delta > 0
-      const trailing = hud.delta < 0
-      const deltaClass = leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
+      const margin = hudLeadMargin(hud.delta, 'mine')
       return (
-        <div className={`hud-type-delta flex h-full items-end tabular-nums ${deltaClass}`}>
-          {formatDelta(hud.delta)}
+        <div
+          className={`hud-score-stack ${marginToneClass(margin.tone)}`}
+          data-hud="lead-margin-solo"
+        >
+          <span className="hud-type-margin">{margin.label}</span>
         </div>
       )
     }
     case 'col.mine.pos':
-      return <RailColumn players={hud.myStarters} field="pos" hash="you" align="left" restColor={FROST} />
+      return <RailColumn players={hud.myStarters} field="pos" align="left" restColor={FROST} />
     case 'col.mine.name':
       return <RailColumn players={hud.myStarters} field="name" align="left" restColor={FROST} />
     case 'col.mine.nfl':

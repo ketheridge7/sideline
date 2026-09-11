@@ -54,14 +54,14 @@ const BoardCard = ({
       </div>
       <button type="button" onClick={onOpen} className="cursor-pointer text-left">
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-          <div>
+          <div className="text-center">
             <div className="truncate text-[12px] font-medium">{board.myName}</div>
             <div className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${leadMine ? 'text-you' : 'text-them'}`}>
               {formatScore(board.myPoints)}
             </div>
           </div>
           <div className="pb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Vs</div>
-          <div className="text-right">
+          <div className="text-center">
             <div className="truncate text-[12px] font-medium text-muted">{board.oppName ?? 'BYE'}</div>
             <div
               className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${
