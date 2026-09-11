@@ -259,7 +259,7 @@ const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetIn
   ]
 }
 
-const tapeRails = (): OverlayWidgetInstance[] => dualRails(80.8, 1.2, 9)
+const tapeRails = (): OverlayWidgetInstance[] => dualRails(1.2, 80.8, 9)
 
 const redzoneWidgets = (): OverlayWidgetInstance[] => stackedLeft()
 

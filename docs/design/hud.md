@@ -55,10 +55,10 @@ When a player's points **increase**, that pts cell (and the team total if the su
 
 When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
 
-Default preset **Tape rails** (`national`): dual skinny rails — them left, you right — with enlarged centered names + centered scores above each rail. Tiny lead chip stays next to your total. No framed card. Type fills the allocated widgets. Center video stays clear.
+Default preset **Tape rails** (`national`): dual skinny rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Tiny lead chip stays next to your total. No framed card. Type fills the allocated widgets. Center video stays clear.
 
 ```
-them left / you right
+you left / them right
 y 9.2–14.0  team name (centered, enlarged)
 y 14.2–23.2 team total (centered) + tiny lead on you
 y 23.2–81.2 starters  pos | name | pts
@@ -85,9 +85,9 @@ Occupied broadcast chrome — Tape rails relaxes the old eyebar floor so type ca
 | `x > 78` on Ticket | Optional YouTube TV / Sunday Ticket right panel (~25%) |
 | Center `x 22–78`, `y 22–86` | Live video. Stay off it. |
 
-**Tape rails:** dual skinny rails — them left, you right — enlarged centered names + centered scores above each rail, `y >= 9.2`, `y+h <= 86`. Fill `0` everywhere (no wash). Frosted type + 0.4px glyph stroke. No crawler. No ice hash accent.
+**Tape rails:** dual skinny rails — you left, them right — enlarged centered names + centered scores above each rail, `y >= 9.2`, `y+h <= 86`. Fill `0` everywhere (no wash). Frosted type + 0.4px glyph stroke. No crawler. No ice hash accent.
 
-Saved layouts keep old geometry (tiny edge-aligned names, ice hash). **Revert preset** in Overlay Studio to pick up centered names/scores.
+Saved layouts keep old geometry (them left / you right, tiny names). **Revert preset** in Overlay Studio to pick up you-left Tape rails and centered names/scores.
 
 **Ticket:** stacked like RedZone (both teams), left-only, `x <= 78`, `y 14–82`.
 
@@ -112,7 +112,7 @@ Layout persists in `sideline-settings.json` and is pushed on the same SSE `/even
 ## Companion Board
 
 - Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle.
-- Center: one head-to-head (readable team names, dominant totals, lead bar / delta), slot-aligned starters as pos | name | pts, no framed card around the data.
+- Center: one head-to-head (you left / them right, readable team names, dominant totals, lead bar / delta), slot-aligned starters as pos | name | pts, no framed card around the data.
 - Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
 - Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle, quiet Studio.
