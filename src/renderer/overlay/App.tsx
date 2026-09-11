@@ -115,7 +115,7 @@ export const OverlayApp = (): JSX.Element => {
           className="pointer-events-none absolute inset-0 opacity-30"
           style={{
             backgroundImage:
-              'linear-gradient(to right, rgba(125,211,252,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(125,211,252,0.12) 1px, transparent 1px)',
+              'linear-gradient(to right, rgba(166,230,160,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(166,230,160,0.12) 1px, transparent 1px)',
             backgroundSize: '12.5% 12.5%'
           }}
           aria-hidden="true"
@@ -145,7 +145,7 @@ export const OverlayApp = (): JSX.Element => {
               width: `${widget.w}%`,
               height: `${widget.h}%`,
               background: hudWidgetFill(fill),
-              outline: active ? '1px dashed #7DD3FC' : 'none',
+              outline: active ? '1px dashed #A6E6A0' : 'none',
               color: '#F4F6F8',
               textShadow: HUD_TEXT_SHADOW
             }}

@@ -14,7 +14,7 @@ export const Sparkline = ({
     <svg viewBox="0 0 48 16" className="h-4 w-12 shrink-0" aria-hidden="true">
       <polyline
         fill="none"
-        stroke={positive ? '#7DD3FC' : '#FF4D4D'}
+        stroke={positive ? '#A6E6A0' : '#FF4D4D'}
         strokeWidth="1.5"
         points={points}
       />

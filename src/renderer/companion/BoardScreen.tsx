@@ -124,7 +124,6 @@ export const BoardScreen = ({
                     <LineupRow
                       key={matchup.oppStarters?.[index]?.playerId ?? `opp-${index}`}
                       player={matchup.oppStarters?.[index]}
-                      mirror
                     />
                   ))}
                 </div>

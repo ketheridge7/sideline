@@ -1,16 +1,14 @@
-import { useState, type JSX } from 'react'
-import { Eye, EyeOff, Lock, Unlock } from 'lucide-react'
+import { type JSX } from 'react'
 import {
   applyPreset,
-  DEFAULT_OVERLAY_PRESET,
-  OVERLAY_PRESET_IDS,
-  OVERLAY_WIDGET_IDS,
-  patchWidget,
+  hudGroupBox,
+  overwritePreset,
   PRESET_LABELS,
-  WIDGET_LABELS,
+  PRESET_PLACEMENTS,
+  setHudGroupBox,
+  OVERLAY_PRESET_IDS,
   type OverlayLayout,
-  type OverlayPresetId,
-  type OverlayWidgetId
+  type OverlayPresetId
 } from '@shared/overlayLayout'
 import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
@@ -26,6 +24,36 @@ const api = (): NonNullable<Window['sideline']> => {
 const PREVIEW_W = 1280
 const PREVIEW_H = 720
 
+const Slider = ({
+  label,
+  value,
+  min,
+  max,
+  onChange
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+}): JSX.Element => (
+  <label className="grid gap-1 text-xs uppercase tracking-wide text-muted">
+    <span className="flex items-center justify-between">
+      {label}
+      <span className="tabular-nums text-text">{Math.round(value)}</span>
+    </span>
+    <input
+      type="range"
+      min={min}
+      max={max}
+      value={Math.round(value)}
+      onChange={(event) => onChange(Number(event.target.value))}
+      className="accent-you"
+      aria-label={label}
+    />
+  </label>
+)
+
 export const OverlayStudio = ({
   state,
   onClose
@@ -35,15 +63,18 @@ export const OverlayStudio = ({
 }): JSX.Element => {
   const layout = state.overlayLayout
   const hud = toOverlayHud(state)
-  const [selected, setSelected] = useState<OverlayWidgetId>('score.mine')
-  const current = layout.widgets.find((row) => row.id === selected)
+  const box = hudGroupBox(layout)
 
   const save = (next: OverlayLayout): void => {
     void api().setOverlayLayout(next)
   }
 
   const handlePreset = (presetId: OverlayPresetId): void => {
-    save(applyPreset(presetId))
+    save(applyPreset(presetId, layout))
+  }
+
+  const handleBox = (next: Partial<typeof box>): void => {
+    save(setHudGroupBox(layout, { ...box, ...next }))
   }
 
   return (
@@ -56,54 +87,43 @@ export const OverlayStudio = ({
       </div>
 
       <div className="grid gap-3 overflow-auto p-3 text-sm">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => void api().toggleOverlay()}
-            className={`flex-1 cursor-pointer border px-2 py-1.5 text-xs font-semibold uppercase ${
-              state.overlayVisible ? 'border-lime text-lime' : 'border-line text-muted'
-            }`}
-            aria-pressed={state.overlayVisible}
-          >
-            HUD {state.overlayVisible ? 'on' : 'off'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void api().setOverlayEditMode(!state.overlayEditMode)}
-            className={`flex-1 cursor-pointer border px-2 py-1.5 text-xs font-semibold uppercase ${
-              state.overlayEditMode ? 'border-you text-you' : 'border-line text-muted'
-            }`}
-            aria-pressed={state.overlayEditMode}
-            disabled={!state.overlayVisible}
-          >
-            Edit {state.overlayEditMode ? 'on' : 'off'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void api().toggleOverlay()}
+          className={`cursor-pointer border px-2 py-1.5 text-xs font-semibold uppercase ${
+            state.overlayVisible ? 'border-lime text-lime' : 'border-line text-muted'
+          }`}
+          aria-pressed={state.overlayVisible}
+        >
+          HUD {state.overlayVisible ? 'on' : 'off'}
+        </button>
 
         {!state.overlayVisible ? (
           <p className="text-xs text-muted">HUD is off — layout still applies when you turn it on.</p>
         ) : null}
 
-        <label className="grid gap-1 text-xs uppercase tracking-wide text-muted">
-          Preset
-          <select
-            value={layout.presetId}
-            onChange={(event) => handlePreset(event.target.value as OverlayPresetId)}
-            className="cursor-pointer border border-line bg-bg px-2 py-1.5 text-sm text-text"
-            aria-label="Overlay preset"
-          >
+        <div className="grid gap-1">
+          <span className="text-xs uppercase tracking-wide text-muted">Preset</span>
+          <div className="grid grid-cols-5 gap-1">
             {OVERLAY_PRESET_IDS.map((id) => (
-              <option key={id} value={id}>
-                {PRESET_LABELS[id]}
-              </option>
+              <button
+                key={id}
+                type="button"
+                onClick={() => handlePreset(id)}
+                className={`cursor-pointer border px-1 py-1.5 font-cond text-sm font-bold ${
+                  layout.presetId === id ? 'border-you text-you' : 'border-line text-muted'
+                }`}
+                aria-pressed={layout.presetId === id}
+                aria-label={`${PRESET_LABELS[id]}, ${PRESET_PLACEMENTS[id]}`}
+              >
+                {id}
+              </button>
             ))}
-          </select>
-        </label>
-        <p className="text-xs text-muted">
-          Default is Tape rails: you left, them right. Names and scores centered over each rail;
-          names enlarged. Frosted type only — no wash, no card. Saved layouts keep old geometry until
-          Revert preset.
-        </p>
+          </div>
+          <p className="text-xs text-muted">
+            {PRESET_LABELS[layout.presetId]} · {PRESET_PLACEMENTS[layout.presetId]}. You left, them right.
+          </p>
+        </div>
 
         <div className="relative aspect-video overflow-hidden bg-[#0c2418]">
           <div
@@ -156,126 +176,19 @@ export const OverlayStudio = ({
               </div>
             ) : null}
           </div>
-          {layout.widgets.map((widget) =>
-            widget.hidden ? null : (
-              <button
-                key={widget.id}
-                type="button"
-                onClick={() => setSelected(widget.id)}
-                className={`absolute cursor-pointer ${
-                  selected === widget.id ? 'outline outline-1 outline-you' : ''
-                }`}
-                style={{
-                  left: `${widget.x}%`,
-                  top: `${widget.y}%`,
-                  width: `${widget.w}%`,
-                  height: `${widget.h}%`
-                }}
-                aria-label={WIDGET_LABELS[widget.id]}
-                aria-pressed={selected === widget.id}
-              />
-            )
-          )}
         </div>
 
-        <div className="grid gap-1">
-          {OVERLAY_WIDGET_IDS.map((id) => {
-            const widget = layout.widgets.find((row) => row.id === id)
-            if (!widget) return null
-            return (
-              <div key={id} className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => save(patchWidget(layout, id, { hidden: !widget.hidden }))}
-                  className="cursor-pointer text-muted hover:text-text"
-                  aria-label={widget.hidden ? `Show ${WIDGET_LABELS[id]}` : `Hide ${WIDGET_LABELS[id]}`}
-                >
-                  {widget.hidden ? (
-                    <EyeOff className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <Eye className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => save(patchWidget(layout, id, { locked: !widget.locked }))}
-                  className="cursor-pointer text-muted hover:text-text"
-                  aria-label={widget.locked ? `Unlock ${WIDGET_LABELS[id]}` : `Lock ${WIDGET_LABELS[id]}`}
-                >
-                  {widget.locked ? (
-                    <Lock className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <Unlock className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelected(id)}
-                  className={`min-w-0 flex-1 truncate text-left text-xs ${
-                    selected === id ? 'text-you' : 'text-text'
-                  }`}
-                >
-                  {WIDGET_LABELS[id]}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-
-        {current ? (
-          <label className="grid gap-1 text-xs uppercase tracking-wide text-muted">
-            Fill opacity
-            <input
-              type="range"
-              min={0}
-              max={85}
-              value={Math.round(current.opacity * 100)}
-              onChange={(event) =>
-                save(patchWidget(layout, current.id, { opacity: Number(event.target.value) / 100 }))
-              }
-              className="accent-you"
-              aria-label="Widget fill opacity"
-            />
-          </label>
-        ) : null}
-
-        <div className="grid gap-1 text-xs">
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              checked={layout.groupedRails.mine}
-              onChange={(event) =>
-                save({
-                  ...layout,
-                  presetId: 'user.1',
-                  groupedRails: { ...layout.groupedRails, mine: event.target.checked }
-                })
-              }
-            />
-            Group your rail
-          </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              checked={layout.groupedRails.opp}
-              onChange={(event) =>
-                save({
-                  ...layout,
-                  presetId: 'user.1',
-                  groupedRails: { ...layout.groupedRails, opp: event.target.checked }
-                })
-              }
-            />
-            Group their rail
-          </label>
-        </div>
+        <Slider label="Position X" value={box.x} min={0} max={80} onChange={(x) => handleBox({ x })} />
+        <Slider label="Position Y" value={box.y} min={0} max={70} onChange={(y) => handleBox({ y })} />
+        <Slider label="Width" value={box.w} min={20} max={100} onChange={(w) => handleBox({ w })} />
+        <Slider label="Height" value={box.h} min={20} max={90} onChange={(h) => handleBox({ h })} />
 
         <button
           type="button"
-          onClick={() => handlePreset(layout.presetId === 'user.1' ? DEFAULT_OVERLAY_PRESET : layout.presetId)}
+          onClick={() => save(overwritePreset(layout))}
           className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text"
         >
-          Revert preset
+          Save over {PRESET_LABELS[layout.presetId]}
         </button>
       </div>
     </aside>

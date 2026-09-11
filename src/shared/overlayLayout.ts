@@ -22,20 +22,11 @@ export const OVERLAY_WIDGET_IDS = [
 
 export type OverlayWidgetId = (typeof OVERLAY_WIDGET_IDS)[number]
 
-export const OVERLAY_PRESET_IDS = [
-  'national',
-  'redzone',
-  'ticket',
-  'minimal',
-  'broadcast-l',
-  'corners',
-  'pip',
-  'user.1'
-] as const
+export const OVERLAY_PRESET_IDS = ['1', '2', '3', '4', '5'] as const
 
 export type OverlayPresetId = (typeof OVERLAY_PRESET_IDS)[number]
 
-export const DEFAULT_OVERLAY_PRESET: OverlayPresetId = 'national'
+export const DEFAULT_OVERLAY_PRESET: OverlayPresetId = '1'
 
 export type OverlayDensity = 'inherit' | 'compact' | 'regular' | 'large'
 
@@ -54,9 +45,17 @@ export type OverlayWidgetInstance = {
 export type OverlayLayout = {
   presetId: OverlayPresetId
   widgets: OverlayWidgetInstance[]
+  slots: Partial<Record<OverlayPresetId, OverlayWidgetInstance[]>>
   groupedRails: { mine: boolean; opp: boolean }
   trackLock: { mine: boolean; opp: boolean }
   showCrawler: boolean
+}
+
+export type HudGroupBox = {
+  x: number
+  y: number
+  w: number
+  h: number
 }
 
 export const MINE_RAIL_IDS: OverlayWidgetId[] = [
@@ -96,26 +95,39 @@ export const WIDGET_LABELS: Record<OverlayWidgetId, string> = {
 }
 
 export const PRESET_LABELS: Record<OverlayPresetId, string> = {
-  national: 'Tape rails',
-  redzone: 'RedZone',
-  ticket: 'Ticket',
-  minimal: 'Minimal',
-  'broadcast-l': 'Broadcast L',
-  corners: 'Corners',
-  pip: 'PiP',
-  'user.1': 'Custom'
+  '1': 'Preset 1',
+  '2': 'Preset 2',
+  '3': 'Preset 3',
+  '4': 'Preset 4',
+  '5': 'Preset 5'
+}
+
+export const PRESET_PLACEMENTS: Record<OverlayPresetId, string> = {
+  '1': 'Far sides',
+  '2': 'Upper corners',
+  '3': 'Lower corners',
+  '4': 'Inset sides',
+  '5': 'Side bands'
+}
+
+const LEGACY_PRESET_IDS: Record<string, OverlayPresetId> = {
+  national: '1',
+  'user.1': '1',
+  'broadcast-l': '1',
+  redzone: '5',
+  ticket: '5',
+  corners: '2',
+  pip: '2',
+  minimal: '2'
 }
 
 export const presetShowsCrawler = (presetId: OverlayPresetId): boolean => {
   switch (presetId) {
-    case 'redzone':
-    case 'national':
-    case 'ticket':
-    case 'minimal':
-    case 'broadcast-l':
-    case 'corners':
-    case 'pip':
-    case 'user.1':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
       return false
     default: {
       const _never: never = presetId
@@ -190,6 +202,7 @@ const layout = (
 ): OverlayLayout => ({
   presetId,
   widgets,
+  slots: {},
   groupedRails,
   trackLock: { mine: true, opp: true },
   showCrawler: presetShowsCrawler(presetId)
@@ -203,124 +216,115 @@ const hide = (
   h = 6
 ): OverlayWidgetInstance => compact(id, x, y, w, h, { hidden: true })
 
-const stackedLeft = (): OverlayWidgetInstance[] => [
-  ghost('meta.live', 14.8, 14.2, 1.2, 1.2),
-  ghost('team.mine.name', 1.5, 14, 13, 2.6),
-  ghost('score.mine', 1.5, 16.8, 8.4, 6.2),
-  ghost('score.delta', 10.2, 18, 4.2, 4),
-  railCol('col.mine.pos', 1.5, 23.2, 3.5, 25),
-  railCol('col.mine.name', 5, 23.2, 7.2, 25),
-  railCol('col.mine.pts', 12.2, 23.2, 4, 25),
-  ghost('team.opp.name', 1.5, 50, 14.7, 2.6),
-  ghost('score.opp', 1.5, 52.8, 14.7, 4.2),
-  railCol('col.opp.pos', 1.5, 57.2, 3.5, 22.8),
-  railCol('col.opp.name', 5, 57.2, 7.2, 22.8),
-  railCol('col.opp.pts', 12.2, 57.2, 4, 22.8),
-  hide('meta.league', 1.5, 22),
-  hide('meta.week', 1.5, 22, 5, 2),
-  hide('col.mine.nfl', 12, 22, 4.2, 26),
-  hide('col.opp.nfl', 12, 56, 4.2, 24),
-  hide('bench.mine', 1.5, 22),
-  hide('bench.opp', 1.5, 56),
-  hide('toast.slot', 1.5, 22)
-]
-
-const dualRails = (mineX: number, oppX: number, scoreH: number): OverlayWidgetInstance[] => {
-  const density: OverlayDensity = 'regular'
-  const posW = 2.8
-  const nameW = 11
-  const ptsW = 4.2
-  const railW = posW + nameW + ptsW
-  const railH = 58
-  const railY = 23.2
-  const nameY = 9.2
-  const nameH = 4.8
-  const scoreY = 14.2
-  return [
-    ghost('meta.live', mineX + railW - 1.2, nameY + 0.2, 1.2, 1.2, density),
-    ghost('team.opp.name', oppX, nameY, railW, nameH, density),
-    ghost('score.opp', oppX, scoreY, railW, scoreH, density),
-    railCol('col.opp.pos', oppX, railY, posW, railH, density),
-    railCol('col.opp.name', oppX + posW, railY, nameW, railH, density),
-    railCol('col.opp.pts', oppX + posW + nameW, railY, ptsW, railH, density),
-    ghost('team.mine.name', mineX, nameY, railW, nameH, density),
-    ghost('score.mine', mineX, scoreY, railW, scoreH, density),
-    ghost('score.delta', mineX + 12.6, scoreY + 2, 5.2, 5.4, density),
-    railCol('col.mine.pos', mineX, railY, posW, railH, density),
-    railCol('col.mine.name', mineX + posW, railY, nameW, railH, density),
-    railCol('col.mine.pts', mineX + posW + nameW, railY, ptsW, railH, density),
-    hide('meta.league', mineX, railY),
-    hide('meta.week', mineX, railY, 5, 2),
-    hide('col.mine.nfl', mineX + posW + nameW, railY, ptsW, railH),
-    hide('col.opp.nfl', oppX + posW + nameW, railY, ptsW, railH),
-    hide('bench.mine', mineX, railY),
-    hide('bench.opp', oppX, railY),
-    hide('toast.slot', mineX, railY)
-  ]
+type RailAnchor = {
+  x: number
+  nameY: number
+  railY: number
+  railH: number
 }
 
-const tapeRails = (): OverlayWidgetInstance[] => dualRails(1.2, 80.8, 9)
+const NAME_H = 4.8
+const SCORE_GAP = 0.2
+const DELTA_W = 5.2
 
-const redzoneWidgets = (): OverlayWidgetInstance[] => stackedLeft()
+const teamChrome = (
+  side: 'mine' | 'opp',
+  anchor: RailAnchor,
+  scoreH: number,
+  railW: number,
+  density: OverlayDensity
+): OverlayWidgetInstance[] => {
+  const scoreY = anchor.nameY + NAME_H + SCORE_GAP
+  const nameId = side === 'mine' ? 'team.mine.name' : 'team.opp.name'
+  const scoreId = side === 'mine' ? 'score.mine' : 'score.opp'
+  const colName = side === 'mine' ? 'col.mine.name' : 'col.opp.name'
+  const colPos = side === 'mine' ? 'col.mine.pos' : 'col.opp.pos'
+  const colPts = side === 'mine' ? 'col.mine.pts' : 'col.opp.pts'
+  const colNfl = side === 'mine' ? 'col.mine.nfl' : 'col.opp.nfl'
+  const bench = side === 'mine' ? 'bench.mine' : 'bench.opp'
+  const rows: OverlayWidgetInstance[] = [
+    ghost(nameId, anchor.x, anchor.nameY, railW, NAME_H, density),
+    ghost(scoreId, anchor.x, scoreY, railW, scoreH, density),
+    railCol(colName, anchor.x, anchor.railY, railW, anchor.railH, density),
+    hide(colPos, anchor.x, anchor.railY),
+    hide(colPts, anchor.x, anchor.railY),
+    hide(colNfl, anchor.x, anchor.railY, 4, anchor.railH),
+    hide(bench, anchor.x, anchor.railY)
+  ]
+  if (side === 'mine') {
+    rows.push(
+      ghost('score.delta', anchor.x + Math.max(railW - DELTA_W, 0), scoreY + 2, DELTA_W, 5.4, density)
+    )
+    rows.push(ghost('meta.live', anchor.x + railW - 1.2, anchor.nameY + 0.2, 1.2, 1.2, density))
+  }
+  return rows
+}
+
+const dualColumn = (
+  mine: RailAnchor,
+  opp: RailAnchor,
+  scoreH: number,
+  railW: number
+): OverlayWidgetInstance[] => [
+  ...teamChrome('mine', mine, scoreH, railW, 'regular'),
+  ...teamChrome('opp', opp, scoreH, railW, 'regular'),
+  hide('meta.league', mine.x, mine.railY),
+  hide('meta.week', mine.x, mine.railY, 5, 2),
+  hide('toast.slot', mine.x, mine.railY)
+]
 
 export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
   switch (presetId) {
-    case 'redzone':
-      return layout('redzone', redzoneWidgets())
-    case 'user.1':
-      return layout('user.1', tapeRails())
-    case 'ticket':
-      return layout('ticket', stackedLeft())
-    case 'national':
-      return layout('national', tapeRails())
-    case 'broadcast-l':
-      return layout('broadcast-l', tapeRails())
-    case 'corners':
-      return layout('corners', tapeRails())
-    case 'pip':
-      return layout('pip', [
-        ghost('meta.live', 96.8, 14.2, 1.2, 1.2),
-        ghost('team.mine.name', 78, 14, 18, 2.4),
-        ghost('score.mine', 78, 16.6, 12, 5),
-        ghost('score.delta', 90.5, 17.2, 6.5, 3.6),
-        railCol('col.mine.pos', 78, 22.2, 3.5, 26),
-        railCol('col.mine.name', 81.5, 22.2, 7.4, 26),
-        railCol('col.mine.pts', 88.9, 22.2, 9.1, 26),
-        ghost('team.opp.name', 78, 50, 20, 2.4),
-        ghost('score.opp', 78, 52.6, 20, 4.4),
-        railCol('col.opp.pos', 78, 57.2, 3.5, 22.8),
-        railCol('col.opp.name', 81.5, 57.2, 7.4, 22.8),
-        railCol('col.opp.pts', 88.9, 57.2, 9.1, 22.8),
-        hide('meta.league', 78, 21),
-        hide('meta.week', 78, 21, 5, 2),
-        hide('col.mine.nfl', 88.5, 21, 9.5, 26),
-        hide('col.opp.nfl', 88.5, 56.2, 9.5, 24),
-        hide('bench.mine', 78, 21),
-        hide('bench.opp', 78, 56.2),
-        hide('toast.slot', 78, 21)
-      ])
-    case 'minimal':
-      return layout('minimal', [
-        ghost('meta.live', 86.5, 13.2, 1.2, 1.2),
-        ghost('team.mine.name', 78, 13, 10, 2.6),
-        ghost('score.mine', 78, 15.8, 8, 6.4),
-        ghost('score.delta', 86.4, 16.8, 4.4, 4.2),
-        ghost('team.opp.name', 91.2, 13, 6.8, 2.6),
-        ghost('score.opp', 91.2, 15.8, 6.8, 6.4),
-        hide('meta.week', 78, 13, 8, 3),
-        hide('meta.league', 78, 13, 18, 3),
-        hide('toast.slot', 78, 13, 20, 8),
-        hide('col.mine.pos', 78, 25, 2.5, 46),
-        hide('col.mine.name', 80.5, 25, 6, 46),
-        hide('col.mine.nfl', 86.5, 25, 3.5, 46),
-        hide('col.mine.pts', 86.5, 25, 3.5, 46),
-        hide('col.opp.pos', 96, 25, 2.5, 46),
-        hide('col.opp.name', 87, 25, 6, 46),
-        hide('col.opp.nfl', 83, 25, 3.5, 46),
-        hide('col.opp.pts', 82.3, 25, 4.5, 46),
-        hide('bench.mine', 78, 60, 10, 8),
-        hide('bench.opp', 88, 60, 10, 8)
-      ])
+    case '1':
+      return layout(
+        '1',
+        dualColumn(
+          { x: 1.2, nameY: 9.2, railY: 23.2, railH: 58 },
+          { x: 80.8, nameY: 9.2, railY: 23.2, railH: 58 },
+          9,
+          18
+        )
+      )
+    case '2':
+      return layout(
+        '2',
+        dualColumn(
+          { x: 1.2, nameY: 2.4, railY: 16.2, railH: 30 },
+          { x: 81.2, nameY: 2.4, railY: 16.2, railH: 30 },
+          7.2,
+          17.4
+        )
+      )
+    case '3':
+      return layout(
+        '3',
+        dualColumn(
+          { x: 1.2, nameY: 48.2, railY: 62.4, railH: 21.6 },
+          { x: 80.8, nameY: 48.2, railY: 62.4, railH: 21.6 },
+          7.4,
+          18
+        )
+      )
+    case '4':
+      return layout(
+        '4',
+        dualColumn(
+          { x: 5.2, nameY: 14, railY: 28.4, railH: 46 },
+          { x: 79.4, nameY: 14, railY: 28.4, railH: 46 },
+          8.2,
+          15.4
+        )
+      )
+    case '5':
+      return layout(
+        '5',
+        dualColumn(
+          { x: 1.2, nameY: 6, railY: 19.8, railH: 34 },
+          { x: 80.8, nameY: 38.4, railY: 52.2, railH: 30 },
+          7.6,
+          18
+        )
+      )
     default: {
       const _never: never = presetId
       return _never
@@ -336,10 +340,13 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null
 
-const parsePresetId = (value: unknown): OverlayPresetId =>
-  typeof value === 'string' && (OVERLAY_PRESET_IDS as readonly string[]).includes(value)
-    ? (value as OverlayPresetId)
-    : DEFAULT_OVERLAY_PRESET
+export const parsePresetId = (value: unknown): OverlayPresetId => {
+  if (typeof value === 'string' && (OVERLAY_PRESET_IDS as readonly string[]).includes(value)) {
+    return value as OverlayPresetId
+  }
+  if (typeof value === 'string' && value in LEGACY_PRESET_IDS) return LEGACY_PRESET_IDS[value]
+  return DEFAULT_OVERLAY_PRESET
+}
 
 const parseDensity = (value: unknown): OverlayDensity => {
   if (value === 'compact' || value === 'regular' || value === 'large' || value === 'inherit') return value
@@ -366,22 +373,87 @@ const parseWidget = (raw: unknown, fallback: OverlayWidgetInstance): OverlayWidg
   }
 }
 
+const widgetMap = (rows: unknown): Map<string, unknown> => {
+  const byId = new Map<string, unknown>()
+  if (!Array.isArray(rows)) return byId
+  for (const row of rows) {
+    const item = asRecord(row)
+    if (item && typeof item.id === 'string') byId.set(item.id, row)
+  }
+  return byId
+}
+
+const mergeWidgets = (
+  base: OverlayWidgetInstance[],
+  saved: unknown
+): OverlayWidgetInstance[] => {
+  const byId = widgetMap(saved)
+  return base.map((widget) => parseWidget(byId.get(widget.id), widget))
+}
+
+export const coalesceRailColumns = (widgets: OverlayWidgetInstance[]): OverlayWidgetInstance[] => {
+  const sides: Array<'mine' | 'opp'> = ['mine', 'opp']
+  let next = widgets
+  for (const side of sides) {
+    const posId = `col.${side}.pos` as OverlayWidgetId
+    const nameId = `col.${side}.name` as OverlayWidgetId
+    const ptsId = `col.${side}.pts` as OverlayWidgetId
+    const pos = next.find((row) => row.id === posId)
+    const name = next.find((row) => row.id === nameId)
+    const pts = next.find((row) => row.id === ptsId)
+    if (!name) continue
+    const vis = [pos, name, pts].filter((row): row is OverlayWidgetInstance => row != null && !row.hidden)
+    if (vis.length === 0) {
+      next = next.map((row) => (row.id === posId || row.id === ptsId ? { ...row, hidden: true } : row))
+      continue
+    }
+    const x = Math.min(...vis.map((row) => row.x))
+    const y = Math.min(...vis.map((row) => row.y))
+    const right = Math.max(...vis.map((row) => row.x + row.w))
+    const bottom = Math.max(...vis.map((row) => row.y + row.h))
+    next = next.map((row) => {
+      if (row.id === nameId) {
+        return {
+          ...row,
+          x,
+          y,
+          w: clamp(right - x, 1, 100),
+          h: clamp(bottom - y, 1, 100),
+          hidden: false
+        }
+      }
+      if (row.id === posId || row.id === ptsId) return { ...row, hidden: true }
+      return row
+    })
+  }
+  return next
+}
+
+const parseSlots = (raw: unknown): OverlayLayout['slots'] => {
+  const rec = asRecord(raw)
+  if (!rec) return {}
+  const slots: OverlayLayout['slots'] = {}
+  for (const id of OVERLAY_PRESET_IDS) {
+    const rows = rec[id]
+    if (!Array.isArray(rows)) continue
+    const base = layoutFromPreset(id).widgets
+    slots[id] = coalesceRailColumns(mergeWidgets(base, rows))
+  }
+  return slots
+}
+
 export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
   const rec = asRecord(raw)
   const presetId = parsePresetId(rec?.presetId)
   const base = layoutFromPreset(presetId)
   if (!rec) return base
-  const saved = Array.isArray(rec.widgets) ? rec.widgets : []
-  const byId = new Map<string, unknown>()
-  for (const row of saved) {
-    const item = asRecord(row)
-    if (item && typeof item.id === 'string') byId.set(item.id, row)
-  }
   const grouped = asRecord(rec.groupedRails)
   const track = asRecord(rec.trackLock)
+  const slots = parseSlots(rec.slots)
   return {
     presetId,
-    widgets: base.widgets.map((widget) => parseWidget(byId.get(widget.id), widget)),
+    widgets: coalesceRailColumns(mergeWidgets(base.widgets, rec.widgets)),
+    slots,
     groupedRails: {
       mine: typeof grouped?.mine === 'boolean' ? grouped.mine : base.groupedRails.mine,
       opp: typeof grouped?.opp === 'boolean' ? grouped.opp : base.groupedRails.opp
@@ -405,7 +477,6 @@ export const patchWidget = (
   patch: Partial<Omit<OverlayWidgetInstance, 'id'>>
 ): OverlayLayout => ({
   ...layout,
-  presetId: 'user.1',
   widgets: layout.widgets.map((row) => (row.id === id ? { ...row, ...patch, id: row.id } : row))
 })
 
@@ -433,7 +504,6 @@ export const translateWidgets = (
   const set = new Set(ids)
   return {
     ...layout,
-    presetId: 'user.1',
     widgets: layout.widgets.map((row) => {
       if (!set.has(row.id) || row.locked) return row
       return {
@@ -465,7 +535,60 @@ export const resizeWidget = (
   if (rail && lock) {
     widgets = widgets.map((row) => (rail.includes(row.id) ? { ...row, y: next.y, h: next.h } : row))
   }
-  return { ...layout, presetId: 'user.1', widgets }
+  return { ...layout, widgets }
 }
 
-export const applyPreset = (presetId: OverlayPresetId): OverlayLayout => layoutFromPreset(presetId)
+export const applyPreset = (presetId: OverlayPresetId, current?: OverlayLayout): OverlayLayout => {
+  const slots = current?.slots ?? {}
+  const factory = layoutFromPreset(presetId)
+  const saved = slots[presetId]
+  if (!saved) return { ...factory, slots }
+  return {
+    ...factory,
+    slots,
+    widgets: coalesceRailColumns(mergeWidgets(factory.widgets, saved))
+  }
+}
+
+export const overwritePreset = (
+  layout: OverlayLayout,
+  presetId: OverlayPresetId = layout.presetId
+): OverlayLayout => ({
+  ...layout,
+  presetId,
+  slots: {
+    ...layout.slots,
+    [presetId]: layout.widgets.map((row) => ({ ...row }))
+  }
+})
+
+export const hudGroupBox = (layout: OverlayLayout): HudGroupBox => {
+  const vis = layout.widgets.filter((row) => !row.hidden)
+  if (vis.length === 0) return { x: 0, y: 0, w: 100, h: 100 }
+  const x = Math.min(...vis.map((row) => row.x))
+  const y = Math.min(...vis.map((row) => row.y))
+  const right = Math.max(...vis.map((row) => row.x + row.w))
+  const bottom = Math.max(...vis.map((row) => row.y + row.h))
+  return { x, y, w: Math.max(1, right - x), h: Math.max(1, bottom - y) }
+}
+
+export const setHudGroupBox = (layout: OverlayLayout, box: HudGroupBox): OverlayLayout => {
+  const origin = hudGroupBox(layout)
+  const nextX = clamp(box.x, 0, 92)
+  const nextY = clamp(box.y, 0, 92)
+  const nextW = clamp(box.w, 12, 100 - nextX)
+  const nextH = clamp(box.h, 12, 100 - nextY)
+  const sx = nextW / origin.w
+  const sy = nextH / origin.h
+  return {
+    ...layout,
+    widgets: layout.widgets.map((row) => {
+      if (row.hidden) return row
+      const w = clamp(row.w * sx, 1, 100)
+      const h = clamp(row.h * sy, 1, 100)
+      const x = clamp(nextX + (row.x - origin.x) * sx, 0, 100 - w)
+      const y = clamp(nextY + (row.y - origin.y) * sy, 0, 100 - h)
+      return { ...row, x, y, w, h }
+    })
+  }
+}

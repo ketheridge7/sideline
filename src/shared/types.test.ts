@@ -17,7 +17,7 @@ describe('toOverlayHud', () => {
     state.selectedLeagueKey = 'sleeper:1'
     state.pollingLive = true
     state.lastToast = { id: 't1', title: 'Homies · add', body: 'Hurts' }
-    state.overlayLayout = layoutFromPreset('minimal')
+    state.overlayLayout = layoutFromPreset('2')
     state.matchup = {
       myTeam: { id: 'a', name: 'Mine', owner: 'Me', record: '1-0' },
       oppTeam: { id: 'b', name: 'Yours', owner: 'You', record: '0-1' },
@@ -35,7 +35,7 @@ describe('toOverlayHud', () => {
     expect(hud.oppStarters[0]?.name).toBe('Allen')
     expect(hud.toast?.id).toBe('t1')
     expect(hud.tape).toEqual([])
-    expect(hud.layout.presetId).toBe('minimal')
+    expect(hud.layout.presetId).toBe('2')
     expect(hud.delta).toBe(2)
     expect(hud.nflTicker).toEqual([])
   })
@@ -45,7 +45,7 @@ describe('toOverlayHud', () => {
     expect(hud.oppName).toBe('—')
     expect(hud.myBench).toEqual([])
     expect(hud.tape).toEqual([])
-    expect(hud.layout.presetId).toBe('national')
+    expect(hud.layout.presetId).toBe('1')
   })
 
   it('asks ESPN to sign in instead of painting a false bye when cookies are invalid', () => {

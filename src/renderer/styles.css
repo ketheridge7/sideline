@@ -6,8 +6,8 @@
   --color-line: #1e232b;
   --color-text: #f4f6f8;
   --color-muted: #94a3b8;
-  --color-you: #7dd3fc;
-  --color-them: #94a3b8;
+  --color-you: #a6e6a0;
+  --color-them: #e8e4dc;
   --color-lime: #b6ff3b;
   --color-air: #ff4d4d;
   --color-live: #b6ff3b;
@@ -39,7 +39,7 @@ select {
 }
 
 :focus-visible {
-  outline: 2px solid #7dd3fc;
+  outline: 2px solid #a6e6a0;
   outline-offset: 2px;
 }
 
@@ -191,13 +191,47 @@ select {
   min-width: 0;
 }
 
-.hud-rail-row {
-  display: flex;
-  flex: 1;
+.lineup-row {
+  display: grid;
+  grid-template-columns: 3.25em minmax(0, 1fr) 3.75em;
+  column-gap: 0.4em;
   align-items: center;
-  container-type: size;
+  width: 100%;
+  min-width: 0;
+}
+
+.lineup-row-pos {
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+}
+
+.lineup-row-name {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lineup-row-pts {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.lineup-row-pts .score-tick,
+.lineup-row-pts > span {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.hud-rail-row {
+  flex: 1;
   min-height: 0;
-  padding: 0 0.28em;
+  padding: 0;
 }
 
 .hud-type-pos,
