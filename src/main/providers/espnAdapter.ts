@@ -171,6 +171,79 @@ const POSITION_BY_ID: Record<number, string> = {
   16: 'D/ST'
 }
 
+/**
+ * ESPN website starter column order. Numeric `lineupSlotId` is not display order —
+ * FLEX is 23, which would otherwise sort after D/ST (16) and K (17).
+ * Slot ids match espn-api POSITION_MAP / ESPN fantasy roster entries.
+ */
+const ESPN_STARTER_SLOTS: ReadonlyArray<{ id: number; position: string }> = [
+  { id: 0, position: 'QB' },
+  { id: 1, position: 'TQB' },
+  { id: 2, position: 'RB' },
+  { id: 3, position: 'RB/WR' },
+  { id: 4, position: 'WR' },
+  { id: 5, position: 'WR/TE' },
+  { id: 6, position: 'TE' },
+  { id: 23, position: 'FLEX' },
+  { id: 7, position: 'OP' },
+  { id: 8, position: 'DT' },
+  { id: 9, position: 'DE' },
+  { id: 10, position: 'LB' },
+  { id: 11, position: 'DL' },
+  { id: 12, position: 'CB' },
+  { id: 13, position: 'S' },
+  { id: 14, position: 'DB' },
+  { id: 15, position: 'DP' },
+  { id: 16, position: 'D/ST' },
+  { id: 17, position: 'K' },
+  { id: 18, position: 'P' },
+  { id: 19, position: 'HC' },
+  { id: 24, position: 'ER' },
+  { id: 25, position: 'Rookie' }
+]
+
+const ESPN_STARTER_SLOT_RANK = new Map<number, number>(
+  ESPN_STARTER_SLOTS.map((slot, index) => [slot.id, index])
+)
+
+const ESPN_SLOT_POSITION: Record<number, string> = Object.fromEntries(
+  ESPN_STARTER_SLOTS.map((slot) => [slot.id, slot.position])
+)
+
+const ESPN_POSITION_RANK = new Map<string, number>([
+  ...ESPN_STARTER_SLOTS.map((slot, index): [string, number] => [slot.position, index]),
+  ['DEF', ESPN_STARTER_SLOT_RANK.get(16) ?? 17],
+  ['DST', ESPN_STARTER_SLOT_RANK.get(16) ?? 17]
+])
+
+const espnStarterRank = (
+  slotId: number | undefined,
+  position: string,
+  index: number
+): [number, number, number] => {
+  if (slotId != null) {
+    const rank = ESPN_STARTER_SLOT_RANK.get(slotId)
+    if (rank != null) return [0, rank, index]
+    return [1, slotId, index]
+  }
+  return [2, ESPN_POSITION_RANK.get(position) ?? Number.MAX_SAFE_INTEGER, index]
+}
+
+const compareEspnStarterRank = (left: [number, number, number], right: [number, number, number]): number => {
+  if (left[0] !== right[0]) return left[0] - right[0]
+  if (left[1] !== right[1]) return left[1] - right[1]
+  return left[2] - right[2]
+}
+
+const espnDisplayPosition = (entry: EspnRosterEntry, defaultPositionId?: number): string => {
+  const slotId = num(entry.lineupSlotId)
+  if (slotId != null && !isBenchSlot(slotId)) {
+    const fromSlot = ESPN_SLOT_POSITION[slotId]
+    if (fromSlot) return fromSlot
+  }
+  return POSITION_BY_ID[num(defaultPositionId) ?? -1] ?? ''
+}
+
 export type EspnRosterEntry = {
   lineupSlotId?: number
   playerId?: number
@@ -823,7 +896,7 @@ const entryToPlayer = (entry: EspnRosterEntry, scoringPeriodId?: number): Player
   return {
     playerId,
     name: player?.fullName || playerId,
-    position: POSITION_BY_ID[num(player?.defaultPositionId) ?? -1] ?? '',
+    position: espnDisplayPosition(entry, player?.defaultPositionId),
     nflTeam: espnTeamAbbr(num(player?.proTeamId)),
     status: espnInjuryLabel(player?.injuryStatus),
     points: getAppliedTotal(entry, scoringPeriodId)
@@ -834,15 +907,22 @@ const lineupPlayers = (
   entries: EspnRosterEntry[],
   scoringPeriodId?: number
 ): { starters: Player[]; bench: Player[] } => {
-  const starters: Player[] = []
+  const starters: Array<{ player: Player; rank: [number, number, number] }> = []
   const bench: Player[] = []
-  for (const entry of entries) {
+  entries.forEach((entry, index) => {
     const player = entryToPlayer(entry, scoringPeriodId)
-    if (!player.playerId) continue
-    if (isBenchSlot(entry.lineupSlotId)) bench.push(player)
-    else starters.push(player)
-  }
-  return { starters, bench }
+    if (!player.playerId) return
+    if (isBenchSlot(entry.lineupSlotId)) {
+      bench.push(player)
+      return
+    }
+    starters.push({
+      player,
+      rank: espnStarterRank(num(entry.lineupSlotId), player.position, index)
+    })
+  })
+  starters.sort((left, right) => compareEspnStarterRank(left.rank, right.rank))
+  return { starters: starters.map((row) => row.player), bench }
 }
 
 const periodActual = (side: Record<string, unknown>, scoringPeriodId?: number): number | undefined => {

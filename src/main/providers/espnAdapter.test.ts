@@ -343,6 +343,148 @@ describe('toEspnMatchup', () => {
     expect(BENCH_SLOT_IDS.has(20)).toBe(true)
   })
 
+  const cookie = { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' }
+
+  const starterEntry = (args: {
+    slot?: number | string
+    id: number
+    name: string
+    pos: number
+  }): Record<string, unknown> => ({
+    ...(args.slot != null ? { lineupSlotId: args.slot } : {}),
+    playerId: args.id,
+    playerPoolEntry: {
+      player: { fullName: args.name, defaultPositionId: args.pos, proTeamId: 12 }
+    }
+  })
+
+  const matchupFromEntries = (
+    mine: Record<string, unknown>[],
+    opp: Record<string, unknown>[] = []
+  ) =>
+    toEspnMatchup({
+      payload: {
+        teams: [
+          { id: 1, primaryOwner: cookie.SWID, location: 'Mine', nickname: 'Squad' },
+          { id: 2, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: { teamId: 1, rosterForCurrentScoringPeriod: { entries: mine } },
+            away: { teamId: 2, rosterForCurrentScoringPeriod: { entries: opp } }
+          }
+        ]
+      },
+      cookies: cookie,
+      displayWeek: 1
+    })
+
+  it('orders ESPN starters like the website: QB, RB, RB, WR, WR, FLEX, D/ST, K', () => {
+    const matchup = matchupFromEntries(
+      [
+        starterEntry({ slot: 17, id: 8, name: 'Kicker', pos: 5 }),
+        starterEntry({ slot: 16, id: 7, name: 'Chiefs D/ST', pos: 16 }),
+        starterEntry({ slot: 23, id: 6, name: 'Flex WR', pos: 3 }),
+        starterEntry({ slot: 4, id: 4, name: 'WR 1', pos: 3 }),
+        starterEntry({ slot: 4, id: 5, name: 'WR 2', pos: 3 }),
+        starterEntry({ slot: 2, id: 2, name: 'RB 1', pos: 2 }),
+        starterEntry({ slot: 2, id: 3, name: 'RB 2', pos: 2 }),
+        starterEntry({ slot: 0, id: 1, name: 'QB', pos: 1 })
+      ],
+      [
+        starterEntry({ slot: 23, id: 16, name: 'Opp Flex', pos: 2 }),
+        starterEntry({ slot: 0, id: 11, name: 'Opp QB', pos: 1 }),
+        starterEntry({ slot: 17, id: 18, name: 'Opp K', pos: 5 })
+      ]
+    )
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'QB',
+      'RB 1',
+      'RB 2',
+      'WR 1',
+      'WR 2',
+      'Flex WR',
+      'Chiefs D/ST',
+      'Kicker'
+    ])
+    expect(matchup?.oppStarters.map((player) => player.name)).toEqual(['Opp QB', 'Opp Flex', 'Opp K'])
+    expect(matchup?.oppStarters.map((player) => player.position)).toEqual(['QB', 'FLEX', 'K'])
+  })
+
+  it('places TE and extra ESPN slots in website order (TE, FLEX, OP, then D/ST, K)', () => {
+    const matchup = matchupFromEntries([
+      starterEntry({ slot: 17, id: 9, name: 'Kicker', pos: 5 }),
+      starterEntry({ slot: 7, id: 8, name: 'Superflex QB', pos: 1 }),
+      starterEntry({ slot: 16, id: 7, name: 'D/ST', pos: 16 }),
+      starterEntry({ slot: 23, id: 6, name: 'Flex RB', pos: 2 }),
+      starterEntry({ slot: 6, id: 5, name: 'TE', pos: 4 }),
+      starterEntry({ slot: 4, id: 4, name: 'WR', pos: 3 }),
+      starterEntry({ slot: 2, id: 3, name: 'RB', pos: 2 }),
+      starterEntry({ slot: 0, id: 1, name: 'QB', pos: 1 })
+    ])
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'WR',
+      'TE',
+      'FLEX',
+      'OP',
+      'D/ST',
+      'K'
+    ])
+  })
+
+  it('falls back to website position order when lineupSlotId is missing', () => {
+    const matchup = matchupFromEntries([
+      starterEntry({ id: 8, name: 'Kicker', pos: 5 }),
+      starterEntry({ id: 7, name: 'Chiefs D/ST', pos: 16 }),
+      starterEntry({ id: 6, name: 'Flex-looking WR', pos: 3 }),
+      starterEntry({ id: 5, name: 'WR 2', pos: 3 }),
+      starterEntry({ id: 2, name: 'RB 1', pos: 2 }),
+      starterEntry({ id: 3, name: 'RB 2', pos: 2 }),
+      starterEntry({ id: 1, name: 'QB', pos: 1 })
+    ])
+    expect(matchup?.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'D/ST',
+      'K'
+    ])
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'QB',
+      'RB 1',
+      'RB 2',
+      'Flex-looking WR',
+      'WR 2',
+      'Chiefs D/ST',
+      'Kicker'
+    ])
+  })
+
+  it('reads quoted lineupSlotId strings in website order', () => {
+    const matchup = matchupFromEntries([
+      starterEntry({ slot: '17', id: 3, name: 'Kicker', pos: 5 }),
+      starterEntry({ slot: '23', id: 2, name: 'Flex', pos: 3 }),
+      starterEntry({ slot: '0', id: 1, name: 'QB', pos: 1 })
+    ])
+    expect(matchup?.starters.map((player) => player.name)).toEqual(['QB', 'Flex', 'Kicker'])
+    expect(matchup?.starters.map((player) => player.position)).toEqual(['QB', 'FLEX', 'K'])
+  })
+
   it('maps proTeamId to NFL abbr, hides ACTIVE, and shows IR', () => {
     const payload = {
       ...(fixture as Record<string, unknown>),
@@ -1340,7 +1482,11 @@ describe('toEspnMatchup', () => {
       displayWeek: 1
     })
     expect(matchup).not.toBeNull()
-    expect(matchup?.starters[0]?.name).toBe('James Cook III')
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'Ravens TQB',
+      'James Cook III',
+      'Saquon Barkley'
+    ])
     expect(typeof matchup?.myPoints).toBe('number')
     expect(matchup?.oppTeam).not.toBeNull()
   })
@@ -1486,9 +1632,17 @@ describe('toEspnMatchup', () => {
       displayWeek: 1
     })
     expect(matchup?.myPoints).toBe(112.24)
-    expect(matchup?.starters[0]?.name).toBe('Nico Collins')
-    expect(matchup?.starters[0]?.points).toBe(2.5)
-    expect(matchup?.starters[0]?.nflTeam).toBe('HOU')
+    expect(matchup?.starters.map((player) => player.name)).toEqual([
+      'Bills TQB',
+      'Nico Collins',
+      'David Montgomery',
+      'Aaron Jones Sr.',
+      'Broncos D/ST'
+    ])
+    const nico = matchup?.starters.find((player) => player.name === 'Nico Collins')
+    expect(nico?.points).toBe(2.5)
+    expect(nico?.nflTeam).toBe('HOU')
+    expect(nico?.position).toBe('FLEX')
     expect(matchup?.oppTeam?.name).toBe('SLB')
   })
 
@@ -1510,7 +1664,8 @@ describe('toEspnMatchup', () => {
       displayWeek: 1
     })
     expect(matchup?.myPoints).toBe(112.24)
-    expect(matchup?.starters[0]?.name).toBe('Nico Collins')
+    expect(matchup?.starters.find((player) => player.name === 'Nico Collins')?.points).toBe(2.5)
+    expect(matchup?.starters[0]?.name).toBe('Bills TQB')
     expect(matchup?.oppTeam?.name).toBe('SLB')
   })
 
