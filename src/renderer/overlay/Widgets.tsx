@@ -1,31 +1,12 @@
 import { type JSX } from 'react'
 import type { OverlayDensity, OverlayWidgetId } from '@shared/overlayLayout'
 import type { OverlayHudState, Player, TapeEvent } from '@shared/types'
-import { formatDelta, overlayName } from '../shared/format'
+import { overlayName } from '../shared/format'
+import { HudTeamName, HudTeamScore, LeadChip } from '../shared/HudChrome'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { HudRail } from '../shared/LineupRow'
-import { ScoreTick } from '../shared/ScoreTick'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
-
-const FROST = '#F8FBFF'
-const FROST_DIM = '#E8E4DC'
-
-const TeamName = ({
-  name,
-  tone
-}: {
-  name: string
-  tone: 'you' | 'them'
-}): JSX.Element => (
-  <div
-    className={`hud-type-name ${tone === 'you' ? 'text-you' : 'text-them'}`}
-    data-hud="team-name"
-    data-hud-side={tone === 'you' ? 'mine' : 'opp'}
-  >
-    <span>{name}</span>
-  </div>
-)
 
 const BenchList = ({
   players,
@@ -83,32 +64,15 @@ export const OverlayWidgetView = ({
         </div>
       )
     case 'team.mine.name':
-      return <TeamName name={hud.myName} tone="you" />
+      return <HudTeamName name={hud.myName} tone="you" surface="overlay" />
     case 'team.opp.name':
-      return <TeamName name={hud.oppName} tone="them" />
+      return <HudTeamName name={hud.oppName} tone="them" surface="overlay" />
     case 'score.mine':
-      return (
-        <ScoreTick value={hud.myPoints} restColor={FROST} align="center" className="hud-type-score w-full" />
-      )
+      return <HudTeamScore value={hud.myPoints} tone="you" surface="overlay" />
     case 'score.opp':
-      return (
-        <ScoreTick
-          value={hud.oppPoints}
-          restColor={FROST_DIM}
-          align="center"
-          className="hud-type-score w-full"
-        />
-      )
-    case 'score.delta': {
-      const leading = hud.delta > 0
-      const trailing = hud.delta < 0
-      const deltaClass = leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
-      return (
-        <div className={`hud-type-delta flex h-full items-end tabular-nums ${deltaClass}`}>
-          {formatDelta(hud.delta)}
-        </div>
-      )
-    }
+      return <HudTeamScore value={hud.oppPoints} tone="them" surface="overlay" />
+    case 'score.delta':
+      return <LeadChip delta={hud.delta} surface="overlay" />
     case 'col.mine.name':
       return <HudRail players={hud.myStarters} you />
     case 'col.opp.name':

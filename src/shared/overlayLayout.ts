@@ -28,6 +28,13 @@ export type OverlayPresetId = (typeof OVERLAY_PRESET_IDS)[number]
 
 export const DEFAULT_OVERLAY_PRESET: OverlayPresetId = '1'
 
+/**
+ * Bump when canned preset geometry or the widget catalog changes incompatibly.
+ * v2 = you-left dual frost rails and five placements from HUD PRs #13/#14.
+ * Unversioned / older saves reset live widgets to Preset 1 once; slots 1–5 stay.
+ */
+export const OVERLAY_LAYOUT_SCHEMA_VERSION = 2
+
 export type OverlayDensity = 'inherit' | 'compact' | 'regular' | 'large'
 
 export type OverlayWidgetInstance = {
@@ -43,6 +50,7 @@ export type OverlayWidgetInstance = {
 }
 
 export type OverlayLayout = {
+  schemaVersion: number
   presetId: OverlayPresetId
   widgets: OverlayWidgetInstance[]
   slots: Partial<Record<OverlayPresetId, OverlayWidgetInstance[]>>
@@ -200,6 +208,7 @@ const layout = (
   widgets: OverlayWidgetInstance[],
   groupedRails = { mine: true, opp: true }
 ): OverlayLayout => ({
+  schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
   presetId,
   widgets,
   slots: {},
@@ -348,6 +357,15 @@ export const parsePresetId = (value: unknown): OverlayPresetId => {
   return DEFAULT_OVERLAY_PRESET
 }
 
+const parseSchemaVersion = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0
+
+/** True when disk JSON is missing or behind the current factory map. */
+export const overlayLayoutDidMigrate = (raw: unknown): boolean => {
+  const rec = asRecord(raw)
+  return parseSchemaVersion(rec?.schemaVersion) < OVERLAY_LAYOUT_SCHEMA_VERSION
+}
+
 const parseDensity = (value: unknown): OverlayDensity => {
   if (value === 'compact' || value === 'regular' || value === 'large' || value === 'inherit') return value
   return 'inherit'
@@ -444,13 +462,17 @@ const parseSlots = (raw: unknown): OverlayLayout['slots'] => {
 
 export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
   const rec = asRecord(raw)
-  const presetId = parsePresetId(rec?.presetId)
+  if (!rec) return layoutFromPreset(DEFAULT_OVERLAY_PRESET)
+  const slots = parseSlots(rec.slots)
+  if (overlayLayoutDidMigrate(rec)) {
+    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots }
+  }
+  const presetId = parsePresetId(rec.presetId)
   const base = layoutFromPreset(presetId)
-  if (!rec) return base
   const grouped = asRecord(rec.groupedRails)
   const track = asRecord(rec.trackLock)
-  const slots = parseSlots(rec.slots)
   return {
+    schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
     presetId,
     widgets: coalesceRailColumns(mergeWidgets(base.widgets, rec.widgets)),
     slots,
@@ -542,10 +564,11 @@ export const applyPreset = (presetId: OverlayPresetId, current?: OverlayLayout):
   const slots = current?.slots ?? {}
   const factory = layoutFromPreset(presetId)
   const saved = slots[presetId]
-  if (!saved) return { ...factory, slots }
+  if (!saved) return { ...factory, slots, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
   return {
     ...factory,
     slots,
+    schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
     widgets: coalesceRailColumns(mergeWidgets(factory.widgets, saved))
   }
 }
@@ -555,6 +578,7 @@ export const overwritePreset = (
   presetId: OverlayPresetId = layout.presetId
 ): OverlayLayout => ({
   ...layout,
+  schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
   presetId,
   slots: {
     ...layout.slots,

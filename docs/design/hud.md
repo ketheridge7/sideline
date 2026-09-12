@@ -88,7 +88,9 @@ Watch mode: Electron `setIgnoreMouseEvents(true, { forward: true })`. Edit: mous
 
 `OverlayHudState` is provider-agnostic: scores, both starters, both benches, week, `pollingLive`, last toast, `tape`, `layout`. Adapters map transactions to `trade | add | drop | add_drop | status`. Score ticks and injuries append to `tape` only from real diffs. Do not branch overlay markup on `provider === 'sleeper'`.
 
-Layout persists in `sideline-settings.json` and is pushed on the same SSE `/events` payload so OBS and Google TV update when Studio saves.
+Layout persists in `sideline-settings.json` and is pushed on the same SSE `/events` payload so OBS and Google TV update when Studio saves. Each layout JSON carries `schemaVersion` (currently **2**: you-left dual frost rails, five placements). When that number is missing or behind the factory, Sideline **auto-migrates once**: live widget geometry resets to Preset 1 (far sides) and is written back. Intentionally saved preset slots 1–5 are kept. Current-version Studio overwrites still merge as before — no manual Revert.
+
+SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip` / `LineupRow` (POS | NAME | PTS). Team names stay ice-green (you) / warm silver (them); scores and rows stay frost. Overlay still last-names the rail; the board keeps full names.
 
 ---
 
