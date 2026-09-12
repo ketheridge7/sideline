@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, lastName, leadShare, liveScorers, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, espnBoardUx, espnIndicatorHealthy, lastName, leadShare, liveScorers, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -174,6 +174,73 @@ describe('applyCompanionHudPatch', () => {
     expect(next.boards.find((row) => row.key === 'sleeper:1')?.myPoints).toBe(150.4)
     expect(next.boards.find((row) => row.key === 'espn:543268341')?.myName).toBe('Dawg House')
     expect(next.boards.find((row) => row.key === 'espn:543268341')?.lastScorers[0]?.playerId).toBe('lamar')
+  })
+})
+
+describe('espnBoardUx', () => {
+  const espnMatchup: Matchup = {
+    myTeam: { id: '8', name: 'Team Etheridge', owner: 'KE', record: '1-0' },
+    oppTeam: { id: '3', name: "Django Achane'd", owner: 'DA', record: '0-1' },
+    myPoints: 0,
+    oppPoints: 0,
+    starters: [],
+    bench: [],
+    oppStarters: [],
+    oppBench: []
+  }
+
+  it('signals auth-fail when cookies are missing or the last fetch was 401', () => {
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: false,
+        espnNeedsRelogin: true,
+        matchup: espnMatchup
+      })
+    ).toBe('auth-fail')
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: false,
+        espnNeedsRelogin: false,
+        matchup: espnMatchup
+      })
+    ).toBe('auth-fail')
+    expect(espnIndicatorHealthy({ replay: false, espnConnected: false, espnNeedsRelogin: true })).toBe(false)
+  })
+
+  it('signals empty-roster when cookies are valid but the board has names without starters', () => {
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: true,
+        espnNeedsRelogin: false,
+        matchup: espnMatchup
+      })
+    ).toBe('empty-roster')
+    expect(espnIndicatorHealthy({ replay: false, espnConnected: true, espnNeedsRelogin: false })).toBe(true)
+  })
+
+  it('signals healthy-lineup when cookies are valid and starters are named', () => {
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: true,
+        espnNeedsRelogin: false,
+        matchup: {
+          ...espnMatchup,
+          starters: [{ playerId: '3139477', name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 12 }]
+        }
+      })
+    ).toBe('healthy-lineup')
+    expect(
+      espnBoardUx({
+        provider: 'sleeper',
+        espnConnected: false,
+        espnNeedsRelogin: false,
+        matchup: null
+      })
+    ).toBe('healthy-lineup')
   })
 })
 

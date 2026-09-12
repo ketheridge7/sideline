@@ -57,6 +57,66 @@ describe('toOverlayHud', () => {
     expect(hud.myName).toBe('Sign in')
     expect(hud.oppName).toBe('Sign in')
     expect(hud.myStarters).toEqual([])
+    expect(hud.pollingLive).toBe(false)
+  })
+
+  it('does not keep On air on an ESPN board that has team names but no starters', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.pollingLive = true
+    state.matchup = {
+      myTeam: { id: '8', name: 'Team Etheridge', owner: 'KE', record: '1-0' },
+      oppTeam: { id: '3', name: "Django Achane'd", owner: 'DA', record: '0-1' },
+      myPoints: 0,
+      oppPoints: 0,
+      starters: [],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+    const hud = toOverlayHud(state)
+    expect(hud.myName).toBe('Team Etheridge')
+    expect(hud.myStarters).toEqual([])
+    expect(hud.pollingLive).toBe(false)
+  })
+
+  it('scopes overlay tape to the selected league', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.matchup = {
+      myTeam: { id: '8', name: 'Team Etheridge', owner: 'KE', record: '1-0' },
+      oppTeam: { id: '3', name: "Django Achane'd", owner: 'DA', record: '0-1' },
+      myPoints: 12,
+      oppPoints: 9,
+      starters: [{ playerId: '3139477', name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 12 }],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+    state.tape = [
+      {
+        id: 'sleeper-inj',
+        at: 2,
+        kind: 'injury',
+        player: 'Dowdle DAL',
+        detail: 'OUT',
+        leagueKey: 'sleeper:1',
+        leagueName: 'Gucci Gang Dynasty'
+      },
+      {
+        id: 'espn-score',
+        at: 1,
+        kind: 'score',
+        player: 'Mahomes KC',
+        detail: 'QB',
+        delta: 2.4,
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      }
+    ]
+    expect(toOverlayHud(state).tape.map((row) => row.id)).toEqual(['espn-score'])
   })
 
   it('paints overlay scores from a matchup before league discovery returns', () => {

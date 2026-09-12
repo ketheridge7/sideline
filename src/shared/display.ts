@@ -1,4 +1,13 @@
-import type { AppState, CompanionHudPatch, League, Matchup, MatchupBoard, Player, ScorerChip } from './types'
+import type {
+  AppState,
+  CompanionHudPatch,
+  League,
+  Matchup,
+  MatchupBoard,
+  Player,
+  Provider,
+  ScorerChip
+} from './types'
 import { leagueKey, parseLeagueKey } from './types'
 
 const HIDDEN_STATUS = new Set(['', 'ACTIVE', 'NORMAL', 'HEALTHY', 'NA', 'N/A'])
@@ -7,6 +16,29 @@ export const matchupHasLineup = (matchup: Matchup | null | undefined): boolean =
   if (!matchup) return false
   return matchup.starters.some((player) => Boolean(player.playerId && player.name && player.position))
 }
+
+/** Companion SCOREBOARD / ES pip: auth-fail vs names-without-starters vs a named lineup. */
+export type EspnBoardUx = 'healthy-lineup' | 'empty-roster' | 'auth-fail'
+
+export const espnBoardUx = (opts: {
+  provider?: Provider | null
+  espnConnected: boolean
+  espnNeedsRelogin: boolean
+  matchup: Matchup | null
+}): EspnBoardUx => {
+  if (opts.provider !== 'espn') return 'healthy-lineup'
+  const named = matchupHasLineup(opts.matchup)
+  if (opts.espnNeedsRelogin || (!opts.espnConnected && !named)) return 'auth-fail'
+  if (!named) return 'empty-roster'
+  return 'healthy-lineup'
+}
+
+/** ES pip is healthy only when the session is connected and the last ESPN fetch was not 401. */
+export const espnIndicatorHealthy = (opts: {
+  replay: boolean
+  espnConnected: boolean
+  espnNeedsRelogin: boolean
+}): boolean => opts.replay || (opts.espnConnected && !opts.espnNeedsRelogin)
 
 export const overlayStartersBelong = (prev: Player[], liveIds: Iterable<string>): boolean => {
   const ids = new Set<string>()

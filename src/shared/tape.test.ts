@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from './tape'
+import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, tapeForLeague, transactionToTape, withTickDeltas } from './tape'
 import type { League, Matchup, TapeEvent } from './types'
 
 const league: League = {
@@ -68,6 +68,39 @@ describe('mergeTape', () => {
       { id: 'b', at: 1, kind: 'add', player: 'B', detail: 'add' }
     ]
     expect(mergeTape(live, snap, 2).map((row) => row.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('tapeForLeague', () => {
+  it('keeps only the selected league key so ESPN Dawg Pound does not show Sleeper injuries', () => {
+    const mixed: TapeEvent[] = [
+      {
+        id: 'sleeper-inj',
+        at: 2,
+        kind: 'injury',
+        player: 'Dowdle DAL',
+        detail: 'OUT',
+        leagueKey: 'sleeper:1333470459076804608',
+        leagueName: 'Gucci Gang Dynasty'
+      },
+      {
+        id: 'espn-score',
+        at: 1,
+        kind: 'score',
+        player: 'Mahomes KC',
+        detail: 'QB',
+        delta: 2.4,
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      { id: 'toast', at: 0, kind: 'status', player: 'Sideline', detail: 'ok' }
+    ]
+    expect(tapeForLeague(mixed, 'espn:543268341').map((row) => row.id)).toEqual(['espn-score', 'toast'])
+    expect(tapeForLeague(mixed, 'sleeper:1333470459076804608').map((row) => row.id)).toEqual([
+      'sleeper-inj',
+      'toast'
+    ])
+    expect(tapeForLeague(mixed, null)).toHaveLength(3)
   })
 })
 

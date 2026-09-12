@@ -34,7 +34,7 @@ const kindBadge = (event: TapeEvent): { label: string; className: string } => {
 
 export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element => {
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-l border-line bg-card">
+    <aside className="flex w-64 shrink-0 flex-col border-l border-line bg-card" data-scoring-tape="selected">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <h2 className="font-cond text-[11px] font-bold uppercase tracking-[0.2em]">Scoring tape</h2>
         <span className="font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-lime">Live</span>

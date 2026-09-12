@@ -115,3 +115,9 @@ export const mergeTape = (live: TapeEvent[], snapshot: TapeEvent[], limit = 24):
   }
   return out
 }
+
+/** SCOREBOARD tape follows the selected league; rows without a key (status toasts) still pass. */
+export const tapeForLeague = (events: TapeEvent[], selectedKey: string | null | undefined): TapeEvent[] => {
+  if (!selectedKey) return events
+  return events.filter((row) => !row.leagueKey || row.leagueKey === selectedKey)
+}

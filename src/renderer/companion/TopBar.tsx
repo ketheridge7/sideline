@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import type { AppState } from '@shared/types'
+import { espnIndicatorHealthy } from '@shared/display'
 
 export type Screen = 'board' | 'boards' | 'connect'
 
@@ -24,6 +25,11 @@ export const TopBar = ({
   const handleOverlay = (): void => {
     void api().toggleOverlay()
   }
+  const espnHealthy = espnIndicatorHealthy({
+    replay: state.replay,
+    espnConnected: state.espnConnected,
+    espnNeedsRelogin: state.espnNeedsRelogin
+  })
   return (
     <header className="flex items-center gap-4 border-b border-line px-4 py-2">
       <span className="font-cond text-2xl font-extrabold uppercase italic tracking-[0.14em]">Sideline</span>
@@ -96,8 +102,12 @@ export const TopBar = ({
             <span className={`h-1.5 w-1.5 ${state.sleeperConnected ? 'bg-sleeper' : 'bg-line'}`} />
             SL
           </span>
-          <span className={`flex items-center gap-1 ${state.espnConnected ? 'text-espn' : 'text-muted'}`}>
-            <span className={`h-1.5 w-1.5 ${state.espnConnected ? 'bg-espn' : 'bg-line'}`} />
+          <span
+            className={`flex items-center gap-1 ${espnHealthy ? 'text-espn' : 'text-muted'}`}
+            data-espn-health={espnHealthy ? 'healthy' : 'unhealthy'}
+            title={espnHealthy ? 'ESPN session healthy' : 'ESPN sign in needed'}
+          >
+            <span className={`h-1.5 w-1.5 ${espnHealthy ? 'bg-espn' : 'bg-line'}`} />
             ES
           </span>
         </div>
