@@ -250,7 +250,9 @@ const hudShell = (state: AppState): Omit<
   replay: state.replay,
   pollingLive: state.pollingLive,
   toast: state.lastToast,
-  tape: state.tape,
+  tape: state.selectedLeagueKey
+    ? state.tape.filter((row) => !row.leagueKey || row.leagueKey === state.selectedLeagueKey)
+    : state.tape,
   layout: state.overlayLayout,
   overlayEditMode: state.overlayEditMode,
   nflTicker: state.nflTicker
@@ -364,10 +366,17 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
     ? state.leagues.find((row) => leagueKey(row.provider, row.id) === state.selectedLeagueKey)
     : undefined
   const matchup = state.matchup
+  const espnSelected = (league?.provider ?? selected?.provider) === 'espn'
+  const namedLineup = Boolean(
+    matchup?.starters.some((player) => Boolean(player.playerId && player.name && player.position))
+  )
+  const espnSignIn =
+    espnSelected && (state.espnNeedsRelogin || (!state.espnConnected && !namedLineup))
+  const fakeOnAir = espnSelected && (state.espnNeedsRelogin || !namedLineup)
   if (!matchup) {
-    const espnSignIn = state.espnNeedsRelogin && (league?.provider ?? selected?.provider) === 'espn'
     return {
       ...hudShell(state),
+      pollingLive: fakeOnAir ? false : state.pollingLive,
       leagueName: league?.name ?? 'Sideline',
       provider: league?.provider ?? selected?.provider ?? null,
       week: league?.week ?? state.nfl?.displayWeek ?? null,
@@ -382,20 +391,21 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
       oppBench: []
     }
   }
-  const espnSignIn = state.espnNeedsRelogin && (league?.provider ?? selected?.provider) === 'espn'
+  const hideUnnamed = espnSignIn && !namedLineup
   return {
     ...hudShell(state),
+    pollingLive: fakeOnAir ? false : state.pollingLive,
     leagueName: league?.name ?? matchup.myTeam.name,
     provider: league?.provider ?? selected?.provider ?? null,
     week: league?.week ?? state.nfl?.displayWeek ?? null,
     myPoints: matchup.myPoints,
     oppPoints: matchup.oppPoints,
     delta: Math.round((matchup.myPoints - matchup.oppPoints) * 100) / 100,
-    myName: matchup.myTeam.name,
-    oppName: matchup.oppTeam?.name ?? (espnSignIn ? 'Sign in' : 'BYE'),
-    myStarters: matchup.starters ?? [],
-    oppStarters: matchup.oppStarters ?? [],
-    myBench: matchup.bench ?? [],
-    oppBench: matchup.oppBench ?? []
+    myName: hideUnnamed ? 'Sign in' : matchup.myTeam.name,
+    oppName: hideUnnamed ? 'Sign in' : (matchup.oppTeam?.name ?? (espnSignIn ? 'Sign in' : 'BYE')),
+    myStarters: namedLineup ? matchup.starters ?? [] : [],
+    oppStarters: namedLineup ? matchup.oppStarters ?? [] : [],
+    myBench: namedLineup ? matchup.bench ?? [] : [],
+    oppBench: namedLineup ? matchup.oppBench ?? [] : []
   }
 }

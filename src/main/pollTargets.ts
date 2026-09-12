@@ -151,7 +151,25 @@ export const espnConnectedPlan = (opts: {
   replay: boolean
   hasCookies: boolean
   lastConnected: boolean
-}): boolean => opts.replay || opts.hasCookies || opts.lastConnected
+  unauthorized?: boolean
+}): boolean => {
+  if (opts.replay) return true
+  if (opts.unauthorized) return false
+  return opts.hasCookies || opts.lastConnected
+}
+
+export const ESPN_COOKIE_PRIME_ATTEMPTS = 4
+
+/** After Sign in, reread persist:espn a few times if the first jar snapshot is empty. */
+export const espnCookiePrimePlan = (opts: {
+  hasCookies: boolean
+  attempt: number
+  maxAttempts?: number
+}): 'done' | 'retry' => {
+  if (opts.hasCookies) return 'done'
+  const max = opts.maxAttempts ?? ESPN_COOKIE_PRIME_ATTEMPTS
+  return opts.attempt + 1 < max ? 'retry' : 'done'
+}
 
 export const settleSelectedKeyPlan = (opts: {
   discoveredKey: string | null

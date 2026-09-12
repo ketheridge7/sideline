@@ -18,8 +18,10 @@ export const registerIpc = (): void => {
     // whether the window finished or the user closed it.
     invalidateEspnSession()
     if (result.ok) {
-      markEspnRelogin(false)
-      await primeEspnCookies()
+      const cookies = await primeEspnCookies()
+      if (!cookies) markEspnRelogin(true)
+    } else {
+      markEspnRelogin(true)
     }
     await refresh({ waitForBoards: true })
     return result

@@ -1,6 +1,8 @@
 import { useEffect, type JSX } from 'react'
 import type { AppState, ToastPayload } from '@shared/types'
-import { leagueKey } from '@shared/types'
+import { leagueKey, parseLeagueKey } from '@shared/types'
+import { espnBoardUx } from '@shared/display'
+import { tapeForLeague } from '@shared/tape'
 import { HudBench } from '../shared/HudBench'
 import { HudScoreboard } from '../shared/HudScoreboard'
 import { LineupRow } from '../shared/LineupRow'
@@ -11,6 +13,43 @@ import { NflTicker } from './NflTicker'
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
   return window.sideline
+}
+
+const EspnRecoverBanner = ({
+  ux,
+  onSignIn
+}: {
+  ux: 'auth-fail' | 'empty-roster'
+  onSignIn: () => void
+}): JSX.Element => {
+  let copy: string
+  switch (ux) {
+    case 'auth-fail':
+      copy = 'ESPN session is not healthy. Sign in so Sideline can load named starters.'
+      break
+    case 'empty-roster':
+      copy = 'ESPN returned team names without starters. Sign in again to recover the lineup.'
+      break
+    default: {
+      const _never: never = ux
+      return _never
+    }
+  }
+  return (
+    <div
+      className="flex flex-wrap items-center gap-3 border-b border-air/40 bg-air/10 px-5 py-2"
+      data-espn-board-ux={ux}
+    >
+      <p className="min-w-0 flex-1 text-sm text-air">{copy}</p>
+      <button
+        type="button"
+        onClick={onSignIn}
+        className="cursor-pointer bg-espn px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white"
+      >
+        Sign in
+      </button>
+    </div>
+  )
 }
 
 export const BoardScreen = ({
@@ -29,13 +68,27 @@ export const BoardScreen = ({
   onBoards: () => void
 }): JSX.Element => {
   const matchup = state.matchup
-  const tape = state.tape.length > 0 ? state.tape : toasts.map((toast) => ({
-    id: toast.id,
-    at: Date.now(),
-    kind: 'status' as const,
-    player: toast.title,
-    detail: toast.body
-  }))
+  const selected = state.selectedLeagueKey ? parseLeagueKey(state.selectedLeagueKey) : null
+  const boardUx = espnBoardUx({
+    provider: selected?.provider,
+    espnConnected: state.espnConnected,
+    espnNeedsRelogin: state.espnNeedsRelogin,
+    matchup
+  })
+  const showOnAir = boardUx === 'healthy-lineup' && (state.pollingLive || state.replay)
+  const showLineups = boardUx === 'healthy-lineup'
+  const tape = tapeForLeague(
+    state.tape.length > 0
+      ? state.tape
+      : toasts.map((toast) => ({
+          id: toast.id,
+          at: Date.now(),
+          kind: 'status' as const,
+          player: toast.title,
+          detail: toast.body
+        })),
+    state.selectedLeagueKey
+  )
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent): void => {
@@ -76,16 +129,19 @@ export const BoardScreen = ({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         <Watchlist state={state} history={history} onBoards={onBoards} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-espn-board-ux={boardUx}>
+        {boardUx === 'auth-fail' || boardUx === 'empty-roster' ? (
+          <EspnRecoverBanner ux={boardUx} onSignIn={() => void api().signInEspn()} />
+        ) : null}
         {!matchup ? (
           <div className="p-8 text-sm text-muted">
-            {state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')
+            {boardUx === 'auth-fail'
               ? 'Sign in with ESPN to load this league. Sideline cannot see a private ESPN matchup without cookies.'
               : 'Pin a Sunday board, then open it. Sideline shows one matchup at a time.'}
           </div>
         ) : (
           <>
-            {state.pollingLive || state.replay ? (
+            {showOnAir ? (
               <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
                 {state.pollingLive ? (
                   <span className="flex items-center gap-1.5 font-cond font-bold text-air">
@@ -100,39 +156,47 @@ export const BoardScreen = ({
             ) : null}
             <HudScoreboard
               matchup={matchup}
-              needsSignIn={state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')}
+              needsSignIn={boardUx === 'auth-fail'}
             />
-            <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
-              <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-                <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
-                <div className="flex min-h-0 flex-1 flex-col">
-                  {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
-                    <LineupRow
-                      key={matchup.starters[index]?.playerId ?? `mine-${index}`}
-                      player={matchup.starters[index]}
-                      you
-                    />
-                  ))}
+            {showLineups ? (
+              <>
+                <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
+                  <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
+                    <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
+                    <div className="flex min-h-0 flex-1 flex-col">
+                      {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
+                        <LineupRow
+                          key={matchup.starters[index]?.playerId ?? `mine-${index}`}
+                          player={matchup.starters[index]}
+                          you
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
+                    <h2 className="mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">
+                      Them
+                    </h2>
+                    <div className="flex min-h-0 flex-1 flex-col">
+                      {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
+                        <LineupRow
+                          key={matchup.oppStarters?.[index]?.playerId ?? `opp-${index}`}
+                          player={matchup.oppStarters?.[index]}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </section>
+                <div className="grid grid-cols-2">
+                  <HudBench players={matchup.bench} label="Bench" />
+                  <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
                 </div>
-              </div>
-              <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-                <h2 className="mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">
-                  Them
-                </h2>
-                <div className="flex min-h-0 flex-1 flex-col">
-                  {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
-                    <LineupRow
-                      key={matchup.oppStarters?.[index]?.playerId ?? `opp-${index}`}
-                      player={matchup.oppStarters?.[index]}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-            <div className="grid grid-cols-2">
-              <HudBench players={matchup.bench} label="Bench" />
-              <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
-            </div>
+              </>
+            ) : (
+              <p className="px-5 py-4 text-sm text-muted">
+                Starters stay hidden until ESPN returns a named lineup.
+              </p>
+            )}
           </>
         )}
       </div>

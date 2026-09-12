@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writeFileSync, existsSync, unlinkSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { leagueKey, toOverlayHud } from '@shared/types'
+import { espnBoardUx, espnIndicatorHealthy } from '@shared/display'
 
 vi.mock('electron', () => {
   const fs = require('fs') as typeof import('fs')
@@ -1663,6 +1664,16 @@ describe('poller live tick order', () => {
     await refresh({ waitForBoards: true })
     await expect.poll(() => currentState().matchup?.starters[0]?.name).toBe('Patrick Mahomes')
     expect(currentState().espnConnected).toBe(true)
+    expect(currentState().espnNeedsRelogin).toBe(false)
+    expect(espnIndicatorHealthy(currentState())).toBe(true)
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: currentState().espnConnected,
+        espnNeedsRelogin: currentState().espnNeedsRelogin,
+        matchup: currentState().matchup
+      })
+    ).toBe('healthy-lineup')
     expect(currentState().matchup?.myTeam.name).toBe('Team Etheridge')
     expect(currentState().matchup?.oppTeam?.name).toBe("Django Achane'd")
     expect(currentState().matchup?.oppStarters[0]?.name).toBe("De'Von Achane")
@@ -1790,6 +1801,16 @@ describe('poller live tick order', () => {
     await refresh({ waitForBoards: true })
     await expect.poll(() => currentState().selectedLeagueKey).toBe(espnKey)
     expect(currentState().espnNeedsRelogin).toBe(true)
+    expect(currentState().espnConnected).toBe(false)
+    expect(espnIndicatorHealthy(currentState())).toBe(false)
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: currentState().espnConnected,
+        espnNeedsRelogin: currentState().espnNeedsRelogin,
+        matchup: currentState().matchup
+      })
+    ).toBe('auth-fail')
     expect(currentState().matchup?.myTeam.name).not.toBe('Gibbs Me Head')
     expect(currentState().matchup?.starters[0]?.playerId).not.toBe('4046')
     expect(currentState().matchup?.oppTeam).not.toBeNull()
@@ -1797,5 +1818,79 @@ describe('poller live tick order', () => {
     expect(hud.provider).toBe('espn')
     expect(hud.oppName).not.toBe('BYE')
     expect(hud.myStarters[0]?.playerId).not.toBe('4046')
+    expect(hud.pollingLive).toBe(false)
+  })
+
+  it('treats cookies + empty named starters as empty-roster, not a healthy on-air board', async () => {
+    const dir = app.getPath('userData')
+    const espnId = '543268341'
+    const espnKey = leagueKey('espn', espnId)
+    const kevinSwid = '{F203DEEE-D22E-4EC9-A095-40196C2FC577}'
+    saveSettings({
+      sleeperUsername: null,
+      selectedLeagueKey: espnKey,
+      espnLeagueIds: [espnId],
+      pinnedLeagueKeys: []
+    })
+    writeNfl(dir)
+    writeFileSync(join(dir, 'sideline-matchups.json'), JSON.stringify({ at: Date.now(), week: 1, byKey: {} }))
+    writeFileSync(join(dir, 'sideline-espn-scores.json'), JSON.stringify({ at: Date.now(), byId: {} }))
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: espnId,
+        leagues: [{ id: espnId, name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }]
+      })
+    )
+    warmupPollerCaches()
+    espnAuth.cookies = { espn_s2: 'live-s2', SWID: kevinSwid }
+    await primeEspnCookies()
+
+    const namesWithoutStarters = {
+      scoringPeriodId: 1,
+      id: Number(espnId),
+      teams: [
+        { id: 8, name: 'Team Etheridge', primaryOwner: kevinSwid },
+        { id: 3, name: "Django Achane'd", primaryOwner: '{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: { teamId: 8, totalPointsLive: 0 },
+          away: { teamId: 3, totalPointsLive: 0 }
+        }
+      ]
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({ scoringPeriodId: 1, id: Number(espnId), schedule: [{ matchupPeriodId: 1 }] })
+        }
+        if (url.includes('mMatchupScore') || url.includes('mScoreboard') || url.includes('mTeam')) {
+          return jsonOk(namesWithoutStarters)
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(currentState().espnConnected).toBe(true)
+    expect(currentState().espnNeedsRelogin).toBe(false)
+    expect(currentState().matchup?.starters ?? []).toEqual([])
+    expect(
+      espnBoardUx({
+        provider: 'espn',
+        espnConnected: currentState().espnConnected,
+        espnNeedsRelogin: currentState().espnNeedsRelogin,
+        matchup: currentState().matchup
+      })
+    ).toBe('empty-roster')
+    expect(toOverlayHud(currentState()).pollingLive).toBe(false)
+    expect(toOverlayHud(currentState()).myStarters).toEqual([])
   })
 })

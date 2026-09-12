@@ -144,6 +144,7 @@ import {
   seedHudMatchupPlan,
   refreshJoinPlan,
   espnConnectedPlan,
+  espnCookiePrimePlan,
   settleSelectedKeyPlan
 } from './pollTargets'
 
@@ -2311,6 +2312,34 @@ describe('espnConnectedPlan', () => {
     expect(espnConnectedPlan({ replay: false, hasCookies: false, lastConnected: true })).toBe(true)
     expect(espnConnectedPlan({ replay: false, hasCookies: false, lastConnected: false })).toBe(false)
     expect(espnConnectedPlan({ replay: true, hasCookies: false, lastConnected: false })).toBe(true)
+  })
+
+  it('does not treat leftover cookies as healthy after a 401', () => {
+    expect(
+      espnConnectedPlan({
+        replay: false,
+        hasCookies: true,
+        lastConnected: true,
+        unauthorized: true
+      })
+    ).toBe(false)
+    expect(
+      espnConnectedPlan({
+        replay: false,
+        hasCookies: true,
+        lastConnected: true,
+        unauthorized: false
+      })
+    ).toBe(true)
+  })
+})
+
+describe('espnCookiePrimePlan', () => {
+  it('retries an empty jar a few times after Sign in, then stops', () => {
+    expect(espnCookiePrimePlan({ hasCookies: true, attempt: 0 })).toBe('done')
+    expect(espnCookiePrimePlan({ hasCookies: false, attempt: 0 })).toBe('retry')
+    expect(espnCookiePrimePlan({ hasCookies: false, attempt: 2 })).toBe('retry')
+    expect(espnCookiePrimePlan({ hasCookies: false, attempt: 3 })).toBe('done')
   })
 })
 

@@ -70,7 +70,7 @@ import { runtime } from './runtime'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
-import { cacheFresh, espnDiscoverySwrPlan, espnFanExtraIds, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
+import { cacheFresh, espnDiscoverySwrPlan, espnFanExtraIds, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
 
 let timer: NodeJS.Timeout | null = null
@@ -83,6 +83,9 @@ const markEspnHttpAuth = (error: unknown): void => {
   if (error instanceof EspnHttpError && (error.status === 401 || error.status === 403)) {
     espnNeedsRelogin = true
   }
+}
+const markEspnSessionHealthy = (): void => {
+  espnNeedsRelogin = false
 }
 const espnBoardExtra = (league: League, extra?: MatchupBoardExtra): MatchupBoardExtra => ({
   ...extra,
@@ -408,7 +411,24 @@ const loadEspnCookies = async (): Promise<EspnCookies | null> => {
 }
 
 /** Sign-in invalidates the 60s session cache; reload the jar before the next scoring GET. */
-export const primeEspnCookies = (): Promise<EspnCookies | null> => loadEspnCookiesFresh()
+export const primeEspnCookies = async (): Promise<EspnCookies | null> => {
+  for (let attempt = 0; ; attempt += 1) {
+    const cookies = await loadEspnCookiesFresh()
+    const plan = espnCookiePrimePlan({ hasCookies: Boolean(cookies), attempt })
+    switch (plan) {
+      case 'done':
+        return cookies
+      case 'retry':
+        await new Promise<void>((resolve) => setTimeout(resolve, 150 * (attempt + 1)))
+        break
+      default: {
+        const _never: never = plan
+        void _never
+        return cookies
+      }
+    }
+  }
+}
 
 const kickEspnCookieSwr = (liveTick = false): void => {
   if (isReplayMode()) return
@@ -435,6 +455,7 @@ const kickEspnCookieSwr = (liveTick = false): void => {
 }
 
 export const invalidateEspnSession = (): void => {
+  espnNeedsRelogin = true
   espnCookieCache = null
   espnCookieInFlight = null
   espnLeaguesCache = null
@@ -464,6 +485,7 @@ export const invalidateEspnSession = (): void => {
   lastState = {
     ...lastState,
     espnConnected: false,
+    espnNeedsRelogin: true,
     matchup: lastState.selectedLeagueKey?.startsWith('espn:') ? null : lastState.matchup
   }
 }
@@ -1751,7 +1773,10 @@ const espnMatchup = async (
             recover: true,
             teams
           })
-          if (next) onBoxscore?.(next)
+          if (next) {
+            if (cookies && matchupHasLineup(next)) markEspnSessionHealthy()
+            onBoxscore?.(next)
+          }
         })
         .catch((error: unknown) => {
           markEspnHttpAuth(error)
@@ -1782,6 +1807,7 @@ const espnMatchup = async (
   }
   const score = await scorePromise
   espnCompactLiveHit.set(league.id, score.compactHit)
+  if (cookies && score.compactHit) markEspnSessionHealthy()
   const diskPlan = espnTeamsHydrateAfterScorePlan({
     overlayFromMatchup: score.overlayFromMatchup,
     memoryHasTeams: Boolean(espnTeamCache.get(league.id)),
@@ -2106,7 +2132,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         espnConnected: espnConnectedPlan({
           replay,
           hasCookies: Boolean(cookies),
-          lastConnected: lastState.espnConnected
+          lastConnected: lastState.espnConnected,
+          unauthorized: espnNeedsRelogin
         }),
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         overlayPort: runtime.overlayPort(),
@@ -2226,7 +2253,6 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           return cookiePromise.then(async (nextCookies) => {
             if (stale()) return null
             cookies = nextCookies
-            if (nextCookies) espnNeedsRelogin = false
             try {
               return await fetchWith(nextCookies)
             } catch (caught: unknown) {
@@ -2253,7 +2279,6 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
                   if (stale()) return first
                   cookies = nextCookies
                   if (!nextCookies) return first
-                  espnNeedsRelogin = false
                   return fetchWith(nextCookies)
                 }
                 default: {
@@ -2350,7 +2375,6 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           case 'await-cookies': {
             const nextCookies = await cookiePromise
             cookies = nextCookies
-            if (nextCookies) espnNeedsRelogin = false
             return discoverEspnLeagues(nextCookies, nflState, { waitForBoards: waitForLeagueFetch })
           }
           case 'kick-then-refresh': {
@@ -2361,7 +2385,6 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
             const nextCookies = await cookiePromise
             cookies = nextCookies
             if (!nextCookies) return first
-            espnNeedsRelogin = false
             return discoverEspnLeagues(nextCookies, nflState, { waitForBoards: waitForLeagueFetch })
           }
           default: {
@@ -2914,13 +2937,6 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     void cookiePromise.then((resolved) => {
       if (gen !== pollGen) return
       cookies = resolved
-      if (!resolved || lastState.espnConnected) return
-      broadcast({
-        ...lastState,
-        espnConnected: true,
-        espnNeedsRelogin: false,
-        lastUpdated: Date.now()
-      })
     })
     if (gen !== pollGen) return lastState
     leagues = [...sleeperLeagues, ...espnLeagues]
@@ -3098,7 +3114,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         espnConnected: espnConnectedPlan({
           replay,
           hasCookies: Boolean(cookies),
-          lastConnected: lastState.espnConnected
+          lastConnected: lastState.espnConnected,
+          unauthorized: espnNeedsRelogin
         }),
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         nfl,
@@ -3364,7 +3381,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       espnConnected: espnConnectedPlan({
         replay,
         hasCookies: Boolean(espnCookieCache?.cookies),
-        lastConnected: lastState.espnConnected
+        lastConnected: lastState.espnConnected,
+        unauthorized: espnNeedsRelogin
       }),
       espnNeedsRelogin,
       overlayPort: runtime.overlayPort(),
