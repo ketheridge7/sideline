@@ -79,6 +79,7 @@ describe('BoardScreen ESPN UX', () => {
     expect(html).toContain('Sign in')
     expect(html).toContain('without starters')
     expect(html).not.toContain('On air')
+    expect(html).not.toContain('data-hud-rail')
   })
 
   it('keeps named starters and On air when ESPN is healthy', () => {
@@ -90,6 +91,8 @@ describe('BoardScreen ESPN UX', () => {
     const html = renderBoard(state)
     expect(html).toContain('data-espn-board-ux="healthy-lineup"')
     expect(html).toContain('Patrick Mahomes')
+    expect(html).toContain('data-hud-rail="mine"')
+    expect(html).toContain('data-hud-rail="opp"')
     expect(html).toContain('On air')
     expect(html).not.toContain('without starters')
   })

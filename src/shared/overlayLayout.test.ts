@@ -6,6 +6,7 @@ import {
   dragIdsFor,
   hudGroupBox,
   layoutFromPreset,
+  overlayLayoutDidMigrate,
   overwritePreset,
   parseOverlayLayout,
   parsePresetId,
@@ -13,6 +14,7 @@ import {
   presetShowsCrawler,
   setHudGroupBox,
   translateWidgets,
+  OVERLAY_LAYOUT_SCHEMA_VERSION,
   OVERLAY_PRESET_IDS,
   OVERLAY_WIDGET_IDS,
   PRESET_LABELS,
@@ -54,6 +56,7 @@ describe('layoutFromPreset', () => {
       }
       expect(layout.widgets.find((row) => row.id === 'col.mine.name')?.hidden).toBe(false)
       expect(layout.widgets.find((row) => row.id === 'col.opp.name')?.hidden).toBe(false)
+      expect(layout.schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
     }
   })
 
@@ -121,6 +124,7 @@ describe('layoutFromPreset', () => {
 describe('parseOverlayLayout', () => {
   it('falls back to Preset 1 for garbage and migrates old names', () => {
     expect(parseOverlayLayout(null).presetId).toBe('1')
+    expect(parseOverlayLayout(null).schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
     expect(parsePresetId('national')).toBe('1')
     expect(parsePresetId('broadcast-l')).toBe('1')
     expect(parsePresetId('redzone')).toBe('5')
@@ -129,9 +133,49 @@ describe('parseOverlayLayout', () => {
     expect(parseOverlayLayout('nope').widgets).toHaveLength(OVERLAY_WIDGET_IDS.length)
   })
 
-  it('coalesces split pos/name/pts columns into one aligned rail widget', () => {
+  it('resets stale freeform widget maps to Preset 1 without merging old geometry', () => {
+    const factory = layoutFromPreset('1')
+    const parsed = parseOverlayLayout({
+      presetId: '2',
+      widgets: [
+        { id: 'score.mine', x: 40, y: 40, w: 20, h: 12 },
+        { id: 'col.mine.name', x: 50, y: 10, w: 8, h: 20, hidden: false }
+      ]
+    })
+    expect(overlayLayoutDidMigrate({ presetId: '2', widgets: [] })).toBe(true)
+    expect(parsed.schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
+    expect(parsed.presetId).toBe('1')
+    expect(parsed.widgets.find((row) => row.id === 'score.mine')?.x).toBe(
+      factory.widgets.find((row) => row.id === 'score.mine')?.x
+    )
+    expect(parsed.widgets.find((row) => row.id === 'col.mine.name')?.x).toBe(
+      factory.widgets.find((row) => row.id === 'col.mine.name')?.x
+    )
+    expect(parsed.widgets.find((row) => row.id === 'col.mine.name')?.y).toBe(
+      factory.widgets.find((row) => row.id === 'col.mine.name')?.y
+    )
+  })
+
+  it('keeps Save-over slots 1–5 when auto-migrating a stale live map', () => {
     const parsed = parseOverlayLayout({
       presetId: 'national',
+      widgets: [{ id: 'score.mine', x: 40, y: 40, w: 10, h: 10 }],
+      slots: {
+        '1': [{ id: 'team.mine.name', x: 3, y: 12, w: 18, h: 4.8 }],
+        '4': [{ id: 'col.mine.name', x: 8, y: 30, w: 15.4, h: 40 }]
+      }
+    })
+    expect(parsed.presetId).toBe('1')
+    expect(parsed.widgets.find((row) => row.id === 'score.mine')?.x).not.toBe(40)
+    expect(parsed.slots['1']?.find((row) => row.id === 'team.mine.name')?.x).toBe(3)
+    expect(parsed.slots['4']?.find((row) => row.id === 'col.mine.name')?.x).toBe(8)
+    expect(applyPreset('4', parsed).widgets.find((row) => row.id === 'col.mine.name')?.x).toBe(8)
+  })
+
+  it('coalesces split pos/name/pts columns on a current-version save', () => {
+    const parsed = parseOverlayLayout({
+      schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
+      presetId: '1',
       widgets: [
         { id: 'col.mine.pos', x: 1.2, y: 23.2, w: 2.8, h: 58, hidden: false },
         { id: 'col.mine.name', x: 4, y: 23.2, w: 11, h: 58, hidden: false },
@@ -146,18 +190,22 @@ describe('parseOverlayLayout', () => {
     expect(parsed.widgets.find((row) => row.id === 'col.mine.pts')?.hidden).toBe(true)
   })
 
-  it('merges saved widget positions onto the named preset', () => {
+  it('merges saved widget positions when schemaVersion is current', () => {
     const parsed = parseOverlayLayout({
+      schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
       presetId: '2',
       widgets: [{ id: 'score.mine', x: 10, y: 10, w: 20, h: 12 }]
     })
     expect(parsed.presetId).toBe('2')
+    expect(parsed.schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
     expect(parsed.widgets.find((row) => row.id === 'score.mine')?.x).toBe(10)
     expect(parsed.widgets.find((row) => row.id === 'score.opp')?.x).toBe(81.2)
+    expect(overlayLayoutDidMigrate(parsed)).toBe(false)
   })
 
   it('clamps out-of-range geometry and allows a fully transparent fill', () => {
     const parsed = parseOverlayLayout({
+      schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
       widgets: [{ id: 'score.delta', x: -4, y: 200, w: 0, h: 999, opacity: 2 }]
     })
     const delta = parsed.widgets.find((row) => row.id === 'score.delta')
@@ -166,6 +214,7 @@ describe('parseOverlayLayout', () => {
     expect(delta?.w).toBe(1)
     expect(delta?.opacity).toBe(0.85)
     const clear = parseOverlayLayout({
+      schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
       widgets: [{ id: 'score.mine', opacity: -1 }]
     })
     expect(clear.widgets.find((row) => row.id === 'score.mine')?.opacity).toBe(0)

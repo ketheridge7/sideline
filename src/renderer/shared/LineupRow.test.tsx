@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Player } from '@shared/types'
-import { HudRail, LineupRow } from './LineupRow'
+import { BoardRails, HudRail, LineupRow } from './LineupRow'
 
 const player = (row: Partial<Player> & Pick<Player, 'playerId' | 'name' | 'position'>): Player => ({
   nflTeam: 'SF',
@@ -78,5 +78,23 @@ describe('HudRail', () => {
     expect(html).toContain('McCaffrey')
     expect(html).toContain('Mevis')
     expect(html).not.toMatch(/data-lineup-col="pos"[^>]*>([^<]*1\.0)/)
+  })
+})
+
+describe('BoardRails', () => {
+  it('uses the same POS | NAME | PTS columns on you and them', () => {
+    const html = renderToStaticMarkup(
+      <BoardRails
+        mine={[player({ playerId: 'cmc', name: 'Christian McCaffrey', position: 'RB', points: 11.9 })]}
+        opp={[player({ playerId: 'mevis', name: 'Jake Mevis', position: 'K', points: 1.0 })]}
+      />
+    )
+    expect(html).toContain('data-hud-rail="mine"')
+    expect(html).toContain('data-hud-rail="opp"')
+    expect(html.indexOf('data-lineup-col="pos"')).toBeLessThan(html.indexOf('data-lineup-col="pts"'))
+    expect(html).toContain('Christian McCaffrey')
+    expect(html).toContain('11.9')
+    expect(html).toContain('Jake Mevis')
+    expect(html).toContain('1.0')
   })
 })

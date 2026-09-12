@@ -2,9 +2,8 @@ import { type JSX } from 'react'
 import type { Player } from '@shared/types'
 import { nflTeamLabel, visibleInjury } from '@shared/display'
 import { overlayName } from './format'
+import { HUD_FROST } from './HudChrome'
 import { LastTickMark, ScoreTick } from './ScoreTick'
-
-const FROST = '#F8FBFF'
 
 export const HudRail = ({
   players,
@@ -12,17 +11,60 @@ export const HudRail = ({
 }: {
   players: Player[]
   you?: boolean
+}): JSX.Element => (
+  <StarterColumn players={players} you={you} hud compact />
+)
+
+export const BoardRails = ({
+  mine,
+  opp
+}: {
+  mine: Player[]
+  opp: Player[]
 }): JSX.Element => {
-  const rows = Math.max(players.length, 1)
+  const rows = Math.max(mine.length, opp.length, 1)
   return (
-    <div className="hud-rail flex h-full min-h-0 min-w-0 flex-col" data-hud-rail={you ? 'mine' : 'opp'}>
-      {Array.from({ length: rows }, (_, index) => (
+    <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
+        <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
+        <StarterColumn players={mine} you rows={rows} />
+      </div>
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
+        <h2 className="mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">
+          Them
+        </h2>
+        <StarterColumn players={opp} rows={rows} />
+      </div>
+    </section>
+  )
+}
+
+const StarterColumn = ({
+  players,
+  you,
+  hud,
+  compact,
+  rows
+}: {
+  players: Player[]
+  you?: boolean
+  hud?: boolean
+  compact?: boolean
+  rows?: number
+}): JSX.Element => {
+  const count = Math.max(rows ?? players.length, 1)
+  return (
+    <div
+      className={`${hud ? 'hud-rail' : ''} flex h-full min-h-0 min-w-0 flex-col`}
+      data-hud-rail={you ? 'mine' : 'opp'}
+    >
+      {Array.from({ length: count }, (_, index) => (
         <LineupRow
           key={players[index]?.playerId ?? `${you ? 'mine' : 'opp'}-${index}`}
           player={players[index]}
-          compact
+          compact={compact}
           you={you}
-          hud
+          hud={hud}
         />
       ))}
     </div>
@@ -81,7 +123,7 @@ export const LineupRow = ({
       </span>
       <span className="lineup-row-pts" data-lineup-col="pts">
         {!compact ? <LastTickMark value={player.points} /> : null}
-        <ScoreTick value={player.points} restColor={FROST} align="right" className={ptsClass} />
+        <ScoreTick value={player.points} restColor={HUD_FROST} align="right" className={ptsClass} />
       </span>
     </div>
   )
