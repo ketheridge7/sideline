@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { leadShare } from '@shared/display'
-import { formatDelta } from './format'
+import { LeadChip } from './HudChrome'
 
 export const LeadBar = ({
   mine,
@@ -13,8 +13,6 @@ export const LeadBar = ({
 }): JSX.Element => {
   const share = leadShare(mine, opp)
   const delta = Math.round((mine - opp) * 100) / 100
-  const leading = delta > 0
-  const trailing = delta < 0
   return (
     <div className={`flex flex-col justify-end ${compact ? 'gap-1' : 'gap-1.5'}`}>
       <div
@@ -30,13 +28,7 @@ export const LeadBar = ({
           <span>{Math.round(share.opp * 100)}%</span>
         </div>
       ) : null}
-      <div
-        className={`text-center font-cond font-extrabold uppercase tracking-[0.14em] tabular-nums ${
-          leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
-        } ${compact ? 'text-[11px]' : 'text-sm'}`}
-      >
-        {delta === 0 ? 'Tied' : `${leading ? 'Lead' : 'Trail'} ${formatDelta(delta)}`}
-      </div>
+      <LeadChip delta={delta} surface="board" />
     </div>
   )
 }

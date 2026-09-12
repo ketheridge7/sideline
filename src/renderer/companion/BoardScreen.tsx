@@ -3,7 +3,7 @@ import type { AppState, ToastPayload } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { HudBench } from '../shared/HudBench'
 import { HudScoreboard } from '../shared/HudScoreboard'
-import { LineupRow } from '../shared/LineupRow'
+import { BoardRails } from '../shared/LineupRow'
 import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
 import { NflTicker } from './NflTicker'
@@ -102,33 +102,7 @@ export const BoardScreen = ({
               matchup={matchup}
               needsSignIn={state.espnNeedsRelogin && state.selectedLeagueKey?.startsWith('espn:')}
             />
-            <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
-              <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-                <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
-                <div className="flex min-h-0 flex-1 flex-col">
-                  {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
-                    <LineupRow
-                      key={matchup.starters[index]?.playerId ?? `mine-${index}`}
-                      player={matchup.starters[index]}
-                      you
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-                <h2 className="mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">
-                  Them
-                </h2>
-                <div className="flex min-h-0 flex-1 flex-col">
-                  {Array.from({ length: Math.max(matchup.starters.length, matchup.oppStarters?.length ?? 0, 1) }, (_, index) => (
-                    <LineupRow
-                      key={matchup.oppStarters?.[index]?.playerId ?? `opp-${index}`}
-                      player={matchup.oppStarters?.[index]}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
+            <BoardRails mine={matchup.starters} opp={matchup.oppStarters ?? []} />
             <div className="grid grid-cols-2">
               <HudBench players={matchup.bench} label="Bench" />
               <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
