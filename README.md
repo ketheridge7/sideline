@@ -59,9 +59,21 @@ Google TV overlay app: see [`tv/README.md`](tv/README.md).
 
 Yahoo, pick'em, DFS, betting, odds, moneylines, sportsbook UI, chat, drafts, and any write actions (lineups, waivers).
 
-## Build
+## Packaging
+
+Windows is the first packaging target: a private one-click NSIS installer on this PC. macOS can wait.
+
+On a **Windows** machine:
 
 ```bash
+npm install
 npm run build:win
-npm run build:mac
 ```
+
+The setup exe lands at `dist/sideline-1.0.0-setup.exe`. It is a per-user install (no Administrator prompt), creates a **desktop shortcut** and a Start menu entry named Sideline, and does not need to be code-signed to run.
+
+Because the build is unsigned, Windows SmartScreen will likely show **Windows protected your PC**. Choose **More info** → **Run anyway**. Expected for a personal unsigned `.exe`. Authenticode signing is an optional follow-up so that warning goes away; it is not required for private use and is not part of CI.
+
+Icon theme A (Kevin's mark: charcoal `#12141A`, left ice-green gradient stripe, white split S) is in `build/`: `icon.png` master, `icon.svg` vector, `icon.ico` for Windows, `icon.icns` for later Mac builds. `scripts/generate-app-icon.py` only derives `.ico` / `.icns` from that PNG.
+
+`npm run build:mac` is wired and uses `build/icon.icns`, with notarization off. Run that on a Mac when you want a `.dmg`; it is not the current goal.

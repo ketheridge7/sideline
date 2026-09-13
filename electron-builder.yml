@@ -1,11 +1,14 @@
 appId: com.sideline.app
 productName: Sideline
+copyright: Copyright 2026 Kevin Etheridge
 directories:
   buildResources: build
+  output: dist
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!fixtures/*'
+  - '!scripts/**/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,vitest.config.ts}'
   - '!{README.md,.gitignore}'
@@ -15,12 +18,21 @@ extraResources:
     to: fixtures
 win:
   executableName: Sideline
+  icon: build/icon.ico
+  # Unsigned personal builds. Authenticode signing is an optional follow-up.
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
+  artifactName: ${name}-${version}-setup.${ext}
+  installerIcon: icon.ico
+  uninstallerIcon: icon.ico
 mac:
+  icon: build/icon.icns
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}

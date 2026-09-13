@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="stripe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7DFFB0"/>
+      <stop offset="42%" stop-color="#A6E6A0"/>
+      <stop offset="100%" stop-color="#D6F34A"/>
+    </linearGradient>
+    <clipPath id="app">
+      <rect width="1024" height="1024" rx="220" ry="220"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#app)">
+    <rect width="1024" height="1024" fill="#12141A"/>
+    <rect width="192" height="1024" fill="url(#stripe)"/>
+    <g fill="#FFFFFF" transform="translate(610 514) skewX(-7) scale(1.04)">
+      <path d="
+        M -28 22
+        C -176 22 -240 -44 -240 -158
+        C -240 -262 -166 -322 -38 -322
+        L 150 -322
+        L 248 -186
+        L 64 -186
+        C 8 -186 -24 -154 -24 -102
+        C -24 22 -28 22 -28 22
+        Z
+      "/>
+      <path transform="rotate(180)" d="
+        M -28 22
+        C -176 22 -240 -44 -240 -158
+        C -240 -262 -166 -322 -38 -322
+        L 150 -322
+        L 248 -186
+        L 64 -186
+        C 8 -186 -24 -154 -24 -102
+        C -24 22 -28 22 -28 22
+        Z
+      "/>
+    </g>
+  </g>
+</svg>
