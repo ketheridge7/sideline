@@ -74,6 +74,6 @@ The setup exe lands at `dist/sideline-1.0.0-setup.exe`. It is a per-user install
 
 Because the build is unsigned, Windows SmartScreen will likely show **Windows protected your PC**. Choose **More info** → **Run anyway**. Expected for a personal unsigned `.exe`. Authenticode signing is an optional follow-up so that warning goes away; it is not required for private use and is not part of CI.
 
-Icon theme A (charcoal `#12141A`, left ice-green stripe `#A6E6A0`, white S) is in `build/`: `icon.png` master, `icon.ico` for Windows, `icon.icns` for later Mac builds.
+Icon theme A (Kevin's mark: charcoal `#12141A`, left ice-green gradient stripe, white split S) is in `build/`: `icon.png` master, `icon.svg` vector, `icon.ico` for Windows, `icon.icns` for later Mac builds. `scripts/generate-app-icon.py` only derives `.ico` / `.icns` from that PNG.
 
 `npm run build:mac` is wired and uses `build/icon.icns`, with notarization off. Run that on a Mac when you want a `.dmg`; it is not the current goal.
