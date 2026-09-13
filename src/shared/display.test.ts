@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, espnBoardUx, espnIndicatorHealthy, lastName, leadShare, liveScorers, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, boardChanceToWin, espnBoardUx, espnIndicatorHealthy, lastName, liveScorers, matchupChanceToWin, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -53,12 +53,27 @@ describe('nflTeamLabel', () => {
   })
 })
 
-describe('leadShare', () => {
-  it('splits combined score, not a win probability', () => {
-    const share = leadShare(142.8, 131.2)
-    expect(share.mine + share.opp).toBeCloseTo(1)
-    expect(share.mine).toBeGreaterThan(0.5)
-    expect(leadShare(0, 0)).toEqual({ mine: 0.5, opp: 0.5 })
+describe('matchupChanceToWin', () => {
+  it('is chance to win from projected finals, not score-share', () => {
+    expect(
+      matchupChanceToWin({
+        ...matchup,
+        myPoints: 0,
+        oppPoints: 0,
+        myProjectedPoints: 110,
+        oppProjectedPoints: 110
+      })?.mine
+    ).toBeCloseTo(0.5)
+    expect(
+      matchupChanceToWin({
+        ...matchup,
+        myPoints: 0,
+        oppPoints: 0,
+        myProjectedPoints: 140,
+        oppProjectedPoints: 80
+      })?.mine
+    ).toBeGreaterThan(0.9)
+    expect(matchupChanceToWin({ ...matchup, myPoints: 0, oppPoints: 0 })).toBeNull()
   })
 })
 
@@ -80,6 +95,17 @@ describe('toMatchupBoard', () => {
       'Derrick Henry'
     ])
     expect(liveScorers(null)).toEqual([])
+  })
+
+  it('copies projected finals onto the LEAGUES card for the shared Win% bar', () => {
+    const board = toMatchupBoard(league, {
+      ...matchup,
+      myProjectedPoints: 118.2,
+      oppProjectedPoints: 96.4
+    })
+    expect(board.myProjectedPoints).toBe(118.2)
+    expect(board.oppProjectedPoints).toBe(96.4)
+    expect(boardChanceToWin(board)?.mine).toBeGreaterThan(0.5)
   })
 
   it('labels an ESPN board Sign in when cookies are missing instead of a false bye', () => {

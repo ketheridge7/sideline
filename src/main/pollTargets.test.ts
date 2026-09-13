@@ -1772,6 +1772,28 @@ describe('lastHudFromDiskPayload', () => {
       }
     })
   })
+
+  it('hydrates ESPN projected finals for Win% without treating them as live points', () => {
+    const now = 1_000_000
+    const withProj = { ...matchup, myProjectedPoints: 101.46, oppProjectedPoints: 94.2 }
+    expect(
+      lastHudFromDiskPayload(
+        { at: now, displayWeek: 1, selectedKey: 'espn:1', matchup: withProj },
+        now
+      )?.matchup
+    ).toEqual(withProj)
+    expect(
+      lastHudFromDiskPayload(
+        {
+          at: now,
+          displayWeek: 1,
+          selectedKey: 'espn:1',
+          matchup: { ...matchup, myProjectedPoints: '101.46', oppProjectedPoints: '94.2' }
+        },
+        now
+      )?.matchup.myProjectedPoints
+    ).toBe(101.46)
+  })
 })
 
 describe('matchupsFromDiskPayload', () => {

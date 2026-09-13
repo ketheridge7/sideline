@@ -9,6 +9,7 @@ import type {
   ScorerChip
 } from './types'
 import { leagueKey, parseLeagueKey } from './types'
+import { chanceToWin, type ChanceToWin } from './winPct'
 
 const HIDDEN_STATUS = new Set(['', 'ACTIVE', 'NORMAL', 'HEALTHY', 'NA', 'N/A'])
 
@@ -89,10 +90,31 @@ export const tapePlayerLabel = (player: Player): string => {
   return team ? `${name} ${team}` : name
 }
 
-export const leadShare = (mine: number, opp: number): { mine: number; opp: number } => {
-  const total = mine + opp
-  if (!(total > 0)) return { mine: 0.5, opp: 0.5 }
-  return { mine: mine / total, opp: opp / total }
+/** Chance to win from live scores + projected finals. Null when we would have to fake it. */
+export const matchupChanceToWin = (
+  matchup: Pick<Matchup, 'myPoints' | 'oppPoints' | 'myProjectedPoints' | 'oppProjectedPoints' | 'scoresFinal' | 'oppTeam'>
+): ChanceToWin | null => {
+  if (!matchup.oppTeam) return null
+  return chanceToWin({
+    myLive: matchup.myPoints,
+    oppLive: matchup.oppPoints,
+    myProjected: matchup.myProjectedPoints,
+    oppProjected: matchup.oppProjectedPoints,
+    scoresFinal: matchup.scoresFinal
+  })
+}
+
+export const boardChanceToWin = (
+  board: Pick<MatchupBoard, 'myPoints' | 'oppPoints' | 'myProjectedPoints' | 'oppProjectedPoints' | 'scoresFinal' | 'oppName'>
+): ChanceToWin | null => {
+  if (!board.oppName) return null
+  return chanceToWin({
+    myLive: board.myPoints,
+    oppLive: board.oppPoints,
+    myProjected: board.myProjectedPoints,
+    oppProjected: board.oppProjectedPoints,
+    scoresFinal: board.scoresFinal
+  })
 }
 
 export const sparklinePoints = (values: number[], width: number, height: number): string => {
@@ -155,6 +177,9 @@ export const toMatchupBoard = (
     oppName: matchup?.oppTeam?.name ?? (espnSignIn ? 'Sign in' : null),
     myPoints: matchup?.myPoints ?? 0,
     oppPoints: matchup?.oppPoints ?? 0,
+    ...(matchup?.myProjectedPoints != null ? { myProjectedPoints: matchup.myProjectedPoints } : {}),
+    ...(matchup?.oppProjectedPoints != null ? { oppProjectedPoints: matchup.oppProjectedPoints } : {}),
+    ...(matchup?.scoresFinal ? { scoresFinal: true } : {}),
     lastScorers: extra?.lastScorers?.length ? extra.lastScorers.slice(0, 3) : liveScorers(matchup),
     leadSpark: extra?.leadSpark,
     size: extra?.size

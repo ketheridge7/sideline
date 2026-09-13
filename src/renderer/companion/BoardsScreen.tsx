@@ -1,6 +1,7 @@
 import type { JSX } from 'react'
 import { Pin, Users } from 'lucide-react'
 import { parseLeagueKey, type AppState, type MatchupBoard } from '@shared/types'
+import { boardChanceToWin } from '@shared/display'
 import { formatDelta, formatScore, overlayName } from '../shared/format'
 import { LeadBar } from '../shared/LeadBar'
 import { ProviderBadge } from '../shared/ProviderBadge'
@@ -73,7 +74,7 @@ const BoardCard = ({
           </div>
         </div>
         <div className="mt-3">
-          <LeadBar mine={board.myPoints} opp={board.oppPoints} compact />
+          <LeadBar mine={board.myPoints} opp={board.oppPoints} chance={boardChanceToWin(board)} compact />
         </div>
         {board.lastScorers.length > 0 ? (
           <div className="mt-3">

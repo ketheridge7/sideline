@@ -1158,7 +1158,20 @@ export const asMatchup = (value: unknown): Matchup | null => {
   if (!starters || !bench || !oppStarters || !oppBench) return null
   const oppTeam = row.oppTeam == null ? null : asTeam(row.oppTeam)
   if (row.oppTeam != null && !oppTeam) return null
-  return { myTeam, oppTeam, myPoints, oppPoints, starters, bench, oppStarters, oppBench }
+  const myProjectedPoints = diskPts(row.myProjectedPoints)
+  const oppProjectedPoints = diskPts(row.oppProjectedPoints)
+  return {
+    myTeam,
+    oppTeam,
+    myPoints,
+    oppPoints,
+    starters,
+    bench,
+    oppStarters,
+    oppBench,
+    ...(myProjectedPoints != null && myProjectedPoints > 0 ? { myProjectedPoints } : {}),
+    ...(oppProjectedPoints != null && oppProjectedPoints > 0 ? { oppProjectedPoints } : {})
+  }
 }
 
 export const lastHudFromDiskPayload = (parsed: unknown, now: number): LastHudSnapshot | null => {

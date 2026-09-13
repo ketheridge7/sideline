@@ -887,6 +887,10 @@ const mergeSide = (
   if (periodPoints) merged.pointsByScoringPeriod = periodPoints
   const roster = mergeRosterPeriod(side, live)
   if (roster) merged.rosterForCurrentScoringPeriod = roster
+  const fromLiveProj = sideProjectedTotal(live)
+  const fromSideProj = sideProjectedTotal(side)
+  if (fromLiveProj != null) merged.totalProjectedPointsLive = fromLiveProj
+  else if (fromSideProj != null) merged.totalProjectedPointsLive = fromSideProj
   return merged
 }
 
@@ -996,6 +1000,52 @@ const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number): num
   const period = periodActual(side, scoringPeriodId)
   const final = num(side.totalPoints)
   return Math.max(period ?? 0, final ?? 0, starters)
+}
+
+const PROJECTED_TOTAL_KEYS = [
+  'totalProjectedPointsLive',
+  'projectedPointsLive',
+  'totalProjectedPoints',
+  'projectedPoints',
+  'totalProjectedScore'
+] as const
+
+const projectedFieldPts = (value: unknown): number | undefined => {
+  const direct = num(value)
+  if (direct != null) return direct
+  if (!isRecord(value)) return undefined
+  return num(value.points) ?? num(value.pts) ?? num(value.score)
+}
+
+/** ESPN projected **final** (live + remaining). Never a live scoring chip. */
+const sideProjectedTotal = (side: Record<string, unknown> | null | undefined): number | undefined => {
+  if (!side) return undefined
+  for (const key of PROJECTED_TOTAL_KEYS) {
+    const pts = projectedFieldPts(side[key])
+    if (pts != null && pts > 0) return pts
+  }
+  return undefined
+}
+
+const pickProjected = (next: number | undefined, prev: number | undefined): number | undefined => {
+  if (next != null && next > 0) return next
+  if (prev != null && prev > 0) return prev
+  return undefined
+}
+
+const withEspnProjected = (
+  matchup: Matchup,
+  mySide: Record<string, unknown> | null | undefined,
+  oppSide: Record<string, unknown> | null | undefined,
+  prev?: Matchup
+): Matchup => {
+  const mine = pickProjected(sideProjectedTotal(mySide), prev?.myProjectedPoints)
+  const opp = pickProjected(sideProjectedTotal(oppSide), prev?.oppProjectedPoints)
+  return {
+    ...matchup,
+    ...(mine != null ? { myProjectedPoints: mine } : {}),
+    ...(opp != null ? { oppProjectedPoints: opp } : {})
+  }
 }
 
 const rosterEntries = (side: Record<string, unknown>, teams: Record<string, unknown>[]): EspnRosterEntry[] => {
@@ -1300,18 +1350,23 @@ export const overlayEspnMatchup = (
     trust ? livePts : Math.max(prevPts, livePts)
   const mySlots = lineupSlotByPlayerId(mySide)
   const oppSlots = oppSide ? lineupSlotByPlayerId(oppSide) : new Map<string, number>()
-  return {
-    ...prev,
-    myPoints: overlayTotal(prev.myPoints, sideTotal(mySide, displayWeek), trustMine),
-    oppPoints: oppSide ? overlayTotal(prev.oppPoints, sideTotal(oppSide, displayWeek), trustOpp) : prev.oppPoints,
-    starters: orderEspnStarters(overlayEspnPlayers(prev.starters, myById, trustMine), mySlots),
-    bench: overlayEspnPlayers(prev.bench, myById, trustMine),
-    oppStarters: oppSide
-      ? orderEspnStarters(overlayEspnPlayers(prev.oppStarters, oppById, trustOpp), oppSlots)
-      : prev.oppStarters,
-    oppBench: oppSide ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp) : prev.oppBench,
-    scoresFinal: espnGameIsFinal(game)
-  }
+  return withEspnProjected(
+    {
+      ...prev,
+      myPoints: overlayTotal(prev.myPoints, sideTotal(mySide, displayWeek), trustMine),
+      oppPoints: oppSide ? overlayTotal(prev.oppPoints, sideTotal(oppSide, displayWeek), trustOpp) : prev.oppPoints,
+      starters: orderEspnStarters(overlayEspnPlayers(prev.starters, myById, trustMine), mySlots),
+      bench: overlayEspnPlayers(prev.bench, myById, trustMine),
+      oppStarters: oppSide
+        ? orderEspnStarters(overlayEspnPlayers(prev.oppStarters, oppById, trustOpp), oppSlots)
+        : prev.oppStarters,
+      oppBench: oppSide ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp) : prev.oppBench,
+      scoresFinal: espnGameIsFinal(game)
+    },
+    mySide,
+    oppSide,
+    prev
+  )
 }
 
 export const toEspnMatchup = (args: {
@@ -1363,16 +1418,20 @@ export const toEspnMatchup = (args: {
     }
     const entries = rosterEntries(liveMine, teams)
     const { starters, bench } = lineupPlayers(entries, period)
-    return {
-      myTeam: toTeam(myTeamRaw, members),
-      oppTeam: null,
-      myPoints: sideTotal(liveMine, period),
-      oppPoints: 0,
-      starters,
-      bench,
-      oppStarters: [],
-      oppBench: []
-    }
+    return withEspnProjected(
+      {
+        myTeam: toTeam(myTeamRaw, members),
+        oppTeam: null,
+        myPoints: sideTotal(liveMine, period),
+        oppPoints: 0,
+        starters,
+        bench,
+        oppStarters: [],
+        oppBench: []
+      },
+      liveMine,
+      null
+    )
   }
   const home = isRecord(game.home) ? game.home : null
   const away = isRecord(game.away) ? game.away : null
@@ -1385,17 +1444,21 @@ export const toEspnMatchup = (args: {
   const { starters, bench } = lineupPlayers(entries, period)
   const oppEntries = oppSide ? rosterEntries(oppSide, teams) : []
   const oppLineup = lineupPlayers(oppEntries, period)
-  return {
-    myTeam: toTeam(myTeamRaw, members),
-    oppTeam: teamFromId(oppId, teams, members, iAmHome ? away : home),
-    myPoints: sideTotal(mySide, period),
-    oppPoints: oppSide ? sideTotal(oppSide, period) : 0,
-    starters,
-    bench,
-    oppStarters: oppLineup.starters,
-    oppBench: oppLineup.bench,
-    scoresFinal: espnGameIsFinal(game)
-  }
+  return withEspnProjected(
+    {
+      myTeam: toTeam(myTeamRaw, members),
+      oppTeam: teamFromId(oppId, teams, members, iAmHome ? away : home),
+      myPoints: sideTotal(mySide, period),
+      oppPoints: oppSide ? sideTotal(oppSide, period) : 0,
+      starters,
+      bench,
+      oppStarters: oppLineup.starters,
+      oppBench: oppLineup.bench,
+      scoresFinal: espnGameIsFinal(game)
+    },
+    mySide,
+    oppSide
+  )
 }
 
 /** True when a boxscore payload has starter identity (playerId + name + position), not stats-only mMatchupScore rows. */

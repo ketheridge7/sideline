@@ -137,4 +137,21 @@ describe('stabilizeMatchup', () => {
     expect(week2.myPoints).toBe(0)
     expect(memory.week).toBe(2)
   })
+
+  it('passes projected finals through without the live-point watermark', () => {
+    const memory = emptyScoreMemory()
+    const shown = stabilizeMatchup(
+      null,
+      { ...matchup(22.4, 15.1), myProjectedPoints: 118.2, oppProjectedPoints: 96.4 },
+      memory
+    )
+    const next = stabilizeMatchup(
+      shown,
+      { ...matchup(24.1, 15.1), myProjectedPoints: 110.4, oppProjectedPoints: 99.1 },
+      memory
+    )
+    expect(next.myPoints).toBe(24.1)
+    expect(next.myProjectedPoints).toBe(110.4)
+    expect(next.oppProjectedPoints).toBe(99.1)
+  })
 })

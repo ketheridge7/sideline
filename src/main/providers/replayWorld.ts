@@ -55,10 +55,13 @@ const cloneMatchup = (row: Matchup): Matchup => ({
   oppTeam: row.oppTeam ? { ...row.oppTeam } : null,
   myPoints: row.myPoints,
   oppPoints: row.oppPoints,
+  ...(row.myProjectedPoints != null ? { myProjectedPoints: row.myProjectedPoints } : {}),
+  ...(row.oppProjectedPoints != null ? { oppProjectedPoints: row.oppProjectedPoints } : {}),
   starters: clonePlayers(row.starters),
   bench: clonePlayers(row.bench),
   oppStarters: clonePlayers(row.oppStarters),
-  oppBench: clonePlayers(row.oppBench)
+  oppBench: clonePlayers(row.oppBench),
+  ...(row.scoresFinal ? { scoresFinal: true } : {})
 })
 
 const WORLD_LEAGUES: WorldLeague[] = [

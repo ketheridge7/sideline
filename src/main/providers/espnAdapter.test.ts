@@ -634,6 +634,8 @@ describe('toEspnMatchup', () => {
     })
     expect(matchup?.myPoints).toBe(0)
     expect(matchup?.oppPoints).toBe(0)
+    expect(matchup?.myProjectedPoints).toBe(101.46)
+    expect(matchup?.oppProjectedPoints).toBe(94.2)
   })
 
   it('keeps leftover boxscore starters that compact mLiveScoring omitted', () => {
@@ -828,6 +830,7 @@ describe('toEspnMatchup', () => {
     })
     expect(matchup?.myPoints).toBe(22.4)
     expect(matchup?.oppPoints).toBe(18.1)
+    expect(matchup?.myProjectedPoints).toBe(101.46)
   })
 
   it('sums starter actuals when team live totals are still zero', () => {
@@ -2183,6 +2186,48 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.name).toBe('Hurts')
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppStarters[0]?.points).toBe(15.1)
+  })
+
+  it('parses projected finals for win% without treating them as live points', () => {
+    const live = {
+      liveScoring: {
+        teams: [
+          {
+            teamId: 1,
+            totalPointsLive: 22.4,
+            totalProjectedPointsLive: 118.2,
+            players: [{ playerId: 100, totalPointsLive: 22.4 }]
+          },
+          {
+            teamId: 2,
+            totalPointsLive: 15.1,
+            totalProjectedPointsLive: 96.4,
+            players: [{ playerId: 200, totalPointsLive: 15.1 }]
+          }
+        ]
+      }
+    }
+    const next = overlayEspnMatchup(prev, live, 1)
+    expect(next?.myPoints).toBe(22.4)
+    expect(next?.oppPoints).toBe(15.1)
+    expect(next?.myProjectedPoints).toBe(118.2)
+    expect(next?.oppProjectedPoints).toBe(96.4)
+  })
+
+  it('keeps last projected finals when compact live omits them', () => {
+    const seeded = { ...prev, myProjectedPoints: 101.46, oppProjectedPoints: 94.2 }
+    const live = {
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 22.4, players: [{ playerId: 100, totalPointsLive: 22.4 }] },
+          { teamId: 2, totalPointsLive: 15.1, players: [{ playerId: 200, totalPointsLive: 15.1 }] }
+        ]
+      }
+    }
+    const next = overlayEspnMatchup(seeded, live, 1)
+    expect(next?.myPoints).toBe(22.4)
+    expect(next?.myProjectedPoints).toBe(101.46)
+    expect(next?.oppProjectedPoints).toBe(94.2)
   })
 
   it('reorders overlay HUD starters from Dawg Pound screenshot order using live lineupSlotId', () => {
