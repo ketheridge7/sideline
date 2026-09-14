@@ -33,6 +33,10 @@ export type MatchupBoard = {
   oppName: string | null
   myPoints: number
   oppPoints: number
+  /** ESPN projected final (`totalProjectedPointsLive`). Never live points. */
+  myProjectedPoints?: number
+  oppProjectedPoints?: number
+  scoresFinal?: boolean
   lastScorers: ScorerChip[]
   leadSpark?: number[]
   size?: number
@@ -73,6 +77,12 @@ export type Matchup = {
   oppTeam: Team | null
   myPoints: number
   oppPoints: number
+  /**
+   * Projected **final** team total (ESPN `totalProjectedPointsLive`).
+   * Used for chance-to-win only — never as live scored points.
+   */
+  myProjectedPoints?: number
+  oppProjectedPoints?: number
   starters: Player[]
   bench: Player[]
   oppStarters: Player[]
