@@ -1,12 +1,49 @@
 import { useEffect, useState, type JSX } from 'react'
+import {
+  acceleratorFromEvent,
+  actionForAccelerator,
+  isGlobalAccelerator,
+  shortcutMapFromSettings,
+  type ShortcutAction
+} from '@shared/shortcuts'
+import { useSideline, useToasts } from '../shared/useSideline'
 import { BoardScreen } from './BoardScreen'
 import { BoardsScreen } from './BoardsScreen'
 import { ConnectScreen } from './ConnectScreen'
 import { OverlayStudio } from './OverlayStudio'
 import { TopBar, type Screen } from './TopBar'
-import { useSideline, useToasts } from '../shared/useSideline'
 
 const HISTORY = 12
+const STATUS_TOAST = 'sideline:'
+
+const api = (): NonNullable<Window['sideline']> => {
+  if (!window.sideline) throw new Error('Sideline preload missing')
+  return window.sideline
+}
+
+const runCompanionShortcut = (action: ShortcutAction, overlayEditMode: boolean): void => {
+  switch (action) {
+    case 'overlay':
+      void api().toggleOverlay()
+      return
+    case 'overlayDisplay':
+      void api().cycleOverlayDisplay()
+      return
+    case 'nextLeague':
+      void api().cycleLeague(1)
+      return
+    case 'prevLeague':
+      void api().cycleLeague(-1)
+      return
+    case 'overlayEdit':
+      void api().setOverlayEditMode(!overlayEditMode)
+      return
+    default: {
+      const _never: never = action
+      return _never
+    }
+  }
+}
 
 const pushHistory = (
   prev: Record<string, number[]>,
@@ -29,11 +66,43 @@ export const App = (): JSX.Element => {
   const [studioOpen, setStudioOpen] = useState(false)
   const [history, setHistory] = useState<Record<string, number[]>>({})
   const ready = state.sleeperConnected || state.espnConnected || state.replay
+  const tapeToasts = toasts.filter((toast) => !toast.id.startsWith(STATUS_TOAST))
+  const statusToast = toasts.find((toast) => toast.id.startsWith(STATUS_TOAST)) ?? null
 
   useEffect(() => {
     if (state.boards.length === 0) return
     setHistory((prev) => pushHistory(prev, state.boards))
   }, [state.boards])
+
+  useEffect(() => {
+    const shortcuts = shortcutMapFromSettings(state)
+    const handleKey = (event: KeyboardEvent): void => {
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      ) {
+        return
+      }
+      const accelerator = acceleratorFromEvent(event)
+      if (!accelerator) return
+      const action = actionForAccelerator(shortcuts, accelerator)
+      if (!action) return
+      if (isGlobalAccelerator(shortcuts[action])) return
+      event.preventDefault()
+      runCompanionShortcut(action, state.overlayEditMode)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [
+    state.overlayHotkey,
+    state.overlayEditHotkey,
+    state.overlayDisplayHotkey,
+    state.nextLeagueHotkey,
+    state.prevLeagueHotkey,
+    state.overlayEditMode
+  ])
 
   return (
     <div className="relative flex h-full flex-col bg-bg text-text">
@@ -60,7 +129,7 @@ export const App = (): JSX.Element => {
           {ready && screen === 'board' ? (
             <BoardScreen
               state={state}
-              toasts={toasts}
+              toasts={tapeToasts}
               history={history}
               studioOpen={studioOpen}
               onStudio={setStudioOpen}
@@ -72,6 +141,14 @@ export const App = (): JSX.Element => {
           <OverlayStudio state={state} onClose={() => setStudioOpen(false)} />
         ) : null}
       </div>
+      {statusToast ? (
+        <div
+          className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 border border-line bg-card px-3 py-2 text-xs text-muted"
+          role="status"
+        >
+          {statusToast.body}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { transactionKindLabel } from '@shared/transactionKind'
 import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
 import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
+import { settingsHotkeys } from '@shared/settings'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 import { recentFetchTimings } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
@@ -243,6 +244,11 @@ export const applyOverlayLayout = (layout: AppState['overlayLayout']): void => {
 
 export const applyLanOverlay = (): void => {
   lastState = { ...lastState, overlayPort: runtime.overlayPort(), ...lanFields() }
+  broadcast(lastState)
+}
+
+export const applyHotkeys = (): void => {
+  lastState = { ...lastState, ...settingsHotkeys(loadSettings()) }
   broadcast(lastState)
 }
 
@@ -2138,7 +2144,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         overlayPort: runtime.overlayPort(),
         overlayVisible,
-        overlayHotkey: settings.overlayHotkey,
+        ...settingsHotkeys(settings),
         overlayEditMode,
         overlayLayout: settings.overlayLayout,
         lastToast,
@@ -3128,7 +3134,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         nflTicker,
         overlayPort: runtime.overlayPort(),
         overlayVisible,
-        overlayHotkey: settings.overlayHotkey,
+        ...settingsHotkeys(settings),
         overlayEditMode,
         overlayLayout: settings.overlayLayout,
         lastToast,
@@ -3387,7 +3393,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       espnNeedsRelogin,
       overlayPort: runtime.overlayPort(),
       overlayVisible,
-      overlayHotkey: loadSettings().overlayHotkey,
+      ...settingsHotkeys(loadSettings()),
       overlayEditMode,
       overlayLayout: loadSettings().overlayLayout,
       lastToast,
@@ -3504,7 +3510,7 @@ export const warmupPollerCaches = (): void => {
           espnBoardExtra(league)
         )
       }),
-      overlayHotkey: settings.overlayHotkey,
+      ...settingsHotkeys(settings),
       overlayLayout: settings.overlayLayout,
       lastUpdated: Date.now(),
       ...lanFields()

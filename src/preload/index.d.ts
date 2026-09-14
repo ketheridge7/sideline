@@ -1,4 +1,5 @@
 import type { OverlayLayout } from '@shared/overlayLayout'
+import type { ShortcutAction } from '@shared/shortcuts'
 import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
 
 export type SidelineApi = {
@@ -21,6 +22,11 @@ export type SidelineApi = {
   setOverlayEditMode: (edit: boolean) => Promise<void>
   setOverlayLayout: (layout: OverlayLayout) => Promise<void>
   setOverlayDisplay: (id: number | null) => Promise<void>
+  cycleOverlayDisplay: () => Promise<void>
+  cycleLeague: (delta: number) => Promise<void>
+  setShortcut: (action: ShortcutAction, accelerator: string) => Promise<{ ok: boolean; error?: string }>
+  resetShortcut: (action: ShortcutAction) => Promise<{ ok: boolean; error?: string }>
+  setShortcutCapture: (active: boolean) => Promise<void>
   setLanOverlay: (enabled: boolean) => Promise<void>
   showCompanion: () => Promise<void>
 }

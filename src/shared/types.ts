@@ -151,6 +151,10 @@ export type AppState = {
   overlayPort: number
   overlayVisible: boolean
   overlayHotkey: string
+  overlayEditHotkey: string
+  overlayDisplayHotkey: string
+  nextLeagueHotkey: string
+  prevLeagueHotkey: string
   overlayEditMode: boolean
   overlayLayout: OverlayLayout
   lastToast: ToastPayload | null
@@ -216,6 +220,10 @@ export const emptyAppState = (): AppState => ({
   overlayPort: 7333,
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',
+  overlayEditHotkey: 'CommandOrControl+Shift+E',
+  overlayDisplayHotkey: 'CommandOrControl+Shift+M',
+  nextLeagueHotkey: ']',
+  prevLeagueHotkey: '[',
   overlayEditMode: false,
   overlayLayout: layoutFromPreset(DEFAULT_OVERLAY_PRESET),
   lastToast: null,

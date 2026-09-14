@@ -37,11 +37,27 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 
 ## Overlay
 
-- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) picks one of five dual-rail placements, then nudges position/size.
+- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) picks one of five dual-rail placements, then nudges position/size. Cycle the HUD onto the next monitor with `Ctrl+Shift+M`. `[` / `]` cycle leagues in the companion. All of these are editable under Connect → Keyboard shortcuts.
 - Default **Preset 1** is far-side frost rails (**you left, them right**), enlarged centered names and centered scores above each roster. Starter rows are a locked `POS | NAME | PTS` grid. Score ticks flash lime `+N` or alert red `-N` on the pts cell, then settle. **Save over Preset N** keeps the current layout on that slot.
 - Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)
 - Center ~60% of the canvas stays empty so live video is the product. See [`docs/design/hud.md`](docs/design/hud.md) for occupied zones.
+
+### Keyboard shortcuts
+
+Defaults (Windows-first; `Ctrl` is `Cmd` on Mac via `CommandOrControl`):
+
+| Action | Default |
+| --- | --- |
+| Toggle HUD | `Ctrl+Shift+O` |
+| Cycle HUD to next display | `Ctrl+Shift+M` |
+| Next league | `]` |
+| Previous league | `[` |
+| Edit HUD on the overlay | `Ctrl+Shift+E` |
+
+Chorded shortcuts are global (work even when Sideline is not focused). `[` / `]` work in the companion when you are not typing in a field. Connect → **Keyboard shortcuts** to change or reset them; Sideline will not bind the same key to two actions. One monitor: cycle-display is a no-op and shows a brief status.
+
+Companion still has `O` (HUD), `E` (Studio panel), and `Esc` (close Studio) on the Scoreboard.
 
 ### TV / LAN
 

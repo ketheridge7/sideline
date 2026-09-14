@@ -950,6 +950,11 @@ describe('companionFlagsUnchanged', () => {
     const prev = emptyAppState()
     expect(companionFlagsUnchanged(prev, { ...prev, overlayPairingCode: '418302' })).toBe(false)
   })
+
+  it('treats a shortcut change as a companion clone', () => {
+    const prev = emptyAppState()
+    expect(companionFlagsUnchanged(prev, { ...prev, nextLeagueHotkey: 'CommandOrControl+]' })).toBe(false)
+  })
 })
 
 describe('companionBoardsUnchanged', () => {

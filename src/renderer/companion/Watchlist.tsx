@@ -1,9 +1,10 @@
 import { useMemo, type JSX } from 'react'
+import { Settings2 } from 'lucide-react'
 import type { AppState } from '@shared/types'
 import { formatDelta, formatScore } from '../shared/format'
 import { ProviderBadge } from '../shared/ProviderBadge'
 import { Sparkline } from '../shared/Sparkline'
-import { Settings2 } from 'lucide-react'
+import { ProviderHealth } from './ProviderHealth'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -27,8 +28,11 @@ export const Watchlist = ({
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-card">
-      <div className="border-b border-line px-3 py-2 font-cond text-[11px] font-bold uppercase tracking-[0.2em] text-muted">
-        My leagues
+      <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+        <span className="min-w-0 flex-1 truncate font-cond text-[11px] font-bold uppercase tracking-[0.2em] text-muted">
+          My leagues
+        </span>
+        <ProviderHealth state={state} />
       </div>
       <div className="min-h-0 flex-1 overflow-auto" role="tablist">
         {channels.length === 0 ? (
