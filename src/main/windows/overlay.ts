@@ -1,5 +1,6 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
+import { nextOverlayDisplayId } from '@shared/shortcuts'
 import { loadSettings, saveSettings } from '../store'
 import { setOverlayEditMode as setPollerEditMode } from '../poller'
 import { runtime } from '../runtime'
@@ -103,4 +104,16 @@ export const setOverlayDisplayId = (id: number | null): void => {
   saveSettings({ overlayDisplayId: id })
   const win = runtime.overlay()
   if (win && !win.isDestroyed()) applyOverlayBounds(win)
+}
+
+export const cycleOverlayDisplay = (): { cycled: boolean; count: number } => {
+  const displays = screen.getAllDisplays()
+  const result = nextOverlayDisplayId(
+    loadSettings().overlayDisplayId,
+    displays.map((row) => row.id),
+    screen.getPrimaryDisplay().id
+  )
+  if (!result.cycled) return { cycled: false, count: displays.length }
+  setOverlayDisplayId(result.id)
+  return { cycled: true, count: displays.length }
 }

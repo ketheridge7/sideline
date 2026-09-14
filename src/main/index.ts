@@ -3,13 +3,13 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { bindAppFetch, bindEspnFetch } from './http'
 import { espnSession } from './windows/espnLogin'
 import { registerIpc } from './ipc'
-import { startPoller, setOverlayVisible, warmupPollerCaches, publishWarmupState } from './poller'
+import { startPoller, warmupPollerCaches, publishWarmupState } from './poller'
 import { runtime } from './runtime'
 import { startOverlayServer, publishOverlay } from './server'
 import { loadSettings } from './store'
+import { registerAppShortcuts } from './shortcuts'
 import { createTray } from './tray'
 import { createCompanionWindow } from './windows/companion'
-import { overlayEditMode, setOverlayEditMode, toggleOverlay } from './windows/overlay'
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -44,17 +44,7 @@ app.whenReady().then(async () => {
 
   createTray()
   createCompanionWindow()
-
-  const settings = loadSettings()
-  globalShortcut.register(settings.overlayHotkey, () => {
-    const visible = toggleOverlay()
-    setOverlayVisible(visible)
-  })
-  globalShortcut.register(settings.overlayEditHotkey, () => {
-    const win = runtime.overlay()
-    if (!win || win.isDestroyed() || !win.isVisible()) return
-    setOverlayEditMode(!overlayEditMode())
-  })
+  registerAppShortcuts()
 
   startPoller()
 })

@@ -533,6 +533,10 @@ export const companionFlagsUnchanged = (prev: AppState, next: AppState): boolean
   prev.overlayPort === next.overlayPort &&
   prev.overlayVisible === next.overlayVisible &&
   prev.overlayHotkey === next.overlayHotkey &&
+  prev.overlayEditHotkey === next.overlayEditHotkey &&
+  prev.overlayDisplayHotkey === next.overlayDisplayHotkey &&
+  prev.nextLeagueHotkey === next.nextLeagueHotkey &&
+  prev.prevLeagueHotkey === next.prevLeagueHotkey &&
   prev.replay === next.replay &&
   prev.error === next.error &&
   prev.lanOverlayEnabled === next.lanOverlayEnabled &&

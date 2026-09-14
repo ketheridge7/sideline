@@ -46,6 +46,11 @@ const api: SidelineApi = {
   setOverlayEditMode: (edit) => ipcRenderer.invoke('sideline:setOverlayEditMode', edit),
   setOverlayLayout: (layout) => ipcRenderer.invoke('sideline:setOverlayLayout', layout),
   setOverlayDisplay: (id) => ipcRenderer.invoke('sideline:setOverlayDisplay', id),
+  cycleOverlayDisplay: () => ipcRenderer.invoke('sideline:cycleOverlayDisplay'),
+  cycleLeague: (delta) => ipcRenderer.invoke('sideline:cycleLeague', delta),
+  setShortcut: (action, accelerator) => ipcRenderer.invoke('sideline:setShortcut', action, accelerator),
+  resetShortcut: (action) => ipcRenderer.invoke('sideline:resetShortcut', action),
+  setShortcutCapture: (active) => ipcRenderer.invoke('sideline:setShortcutCapture', active),
   setLanOverlay: (enabled) => ipcRenderer.invoke('sideline:setLanOverlay', enabled),
   showCompanion: () => ipcRenderer.invoke('sideline:showCompanion')
 }

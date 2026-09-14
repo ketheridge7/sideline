@@ -1,6 +1,5 @@
 import { useEffect, type JSX } from 'react'
-import type { AppState, ToastPayload } from '@shared/types'
-import { leagueKey, parseLeagueKey } from '@shared/types'
+import { parseLeagueKey, type AppState, type ToastPayload } from '@shared/types'
 import { espnBoardUx } from '@shared/display'
 import { tapeForLeague } from '@shared/tape'
 import { HudBench } from '../shared/HudBench'
@@ -109,21 +108,10 @@ export const BoardScreen = ({
         if (state.overlayEditMode) void api().setOverlayEditMode(false)
         return
       }
-      if (event.key === '[' || event.key === ']') {
-        const pinned = state.leagues.filter((row) =>
-          state.pinnedLeagueKeys.includes(leagueKey(row.provider, row.id))
-        )
-        const list = pinned.length > 0 ? pinned : state.leagues
-        const index = list.findIndex((row) => leagueKey(row.provider, row.id) === state.selectedLeagueKey)
-        if (list.length === 0) return
-        const delta = event.key === ']' ? 1 : -1
-        const next = list[(index + delta + list.length) % list.length]
-        void api().selectLeague(leagueKey(next.provider, next.id))
-      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onStudio, state.leagues, state.overlayEditMode, state.pinnedLeagueKeys, state.selectedLeagueKey, studioOpen])
+  }, [onStudio, state.overlayEditMode, studioOpen])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
