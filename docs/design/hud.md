@@ -33,7 +33,7 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 
 Type: Barlow + Barlow Condensed (condensed grotesk for scores/headers, UI sans for body). Data radii 0–2px. Tabular nums. Overlay fill is `0` — frosted type only, no smoke wash, no pane, no drop-shadow card. A 0.4px dark glyph stroke keeps contrast on grass. Type scales with widget size (`cqh`). One focal matchup; rails sit at ~60% visual weight.
 
-SCOREBOARD LeadBar is **chance to win** (Win%), not score-share and not a betting line. ESPN mirrors official `schedule[].home.winProbability` / `away.winProbability` from `mMatchupScore`. Sleeper public `/matchups` has no win% field — hide Win% rather than faking 50/50 from 0–0 or from projections. Overlay still shows the point delta only.
+SCOREBOARD LeadBar is **chance to win**, not score-share and not a betting line. ESPN mirrors official `schedule[].home.winProbability` / `away.winProbability` from `mMatchupScore` (**Chance to win**). Sleeper public `/matchups` has no win% field — SCOREBOARD shows **Est. win%** from weekly `GET /projections/nfl/{season_type}/{season}/{week}` plus live starter points (remaining-aware). Missing projections stay **Est. win% pending**; never fake 50/50 from 0–0. Overlay still shows the point delta only.
 
 ---
 
@@ -97,14 +97,14 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 
 ## Companion Board
 
-- Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle.
+- Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle. SL / ES health pips sit to the right of the **My leagues** header, not in the top bar.
 - Center: one head-to-head (you left / them right, readable team names, dominant totals, lead bar / delta), slot-aligned starters as pos | name | pts, no framed card around the data.
 - Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
 - Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle, quiet Studio.
 - Overlay Studio: five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No drag, no per-widget show/hide/lock.
 
-Keyboard: `[` `]` channels, `O` HUD, `E` Studio, `Esc` close Studio.
+Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).
 
 ---
 

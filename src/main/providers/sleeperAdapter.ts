@@ -1,6 +1,10 @@
 import { overlayStartersBelong } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
+import {
+  estimatedChanceToWin,
+  hasProjectedFinals
+} from '@shared/winPct'
 import type {
   CachedPlayer,
   SleeperLeague,
@@ -246,6 +250,89 @@ const overlayPlayers = (players: Player[], row: SleeperMatchup): Player[] =>
     return { ...player, points: Math.max(pts, player.points ?? 0) }
   })
 
+const sleeperOfficialWin = (
+  mine?: number,
+  opp?: number,
+  prev?: Pick<Matchup, 'myWinPct' | 'oppWinPct' | 'winPctSource'>
+): Pick<Matchup, 'myWinPct' | 'oppWinPct' | 'winPctSource'> => {
+  const officialNow = mine != null || opp != null
+  const keepOfficial = prev?.winPctSource === 'official' && (prev.myWinPct != null || prev.oppWinPct != null)
+  if (!officialNow && !keepOfficial) return { winPctSource: 'estimated' }
+  return {
+    winPctSource: 'official',
+    ...(mine != null ? { myWinPct: mine } : prev?.myWinPct != null ? { myWinPct: prev.myWinPct } : {}),
+    ...(opp != null ? { oppWinPct: opp } : prev?.oppWinPct != null ? { oppWinPct: prev.oppWinPct } : {})
+  }
+}
+
+const projectionOf = (map: Record<string, number>, playerId: string): number | undefined => {
+  const direct = map[playerId]
+  if (typeof direct === 'number' && Number.isFinite(direct)) return direct
+  const coerced = Number(playerId)
+  if (!Number.isFinite(coerced)) return undefined
+  const alt = map[String(coerced)] ?? map[coerced as unknown as string]
+  return typeof alt === 'number' && Number.isFinite(alt) ? alt : undefined
+}
+
+/** Weekly starter projection sum. Any missing starter projection → undefined (pending). */
+export const starterProjectedTotal = (
+  starters: Player[],
+  projections: Record<string, number>
+): number | undefined => {
+  const ids = starters.map((player) => player.playerId).filter((id) => Boolean(id))
+  if (ids.length === 0) return undefined
+  let sum = 0
+  for (const id of ids) {
+    const pts = projectionOf(projections, id)
+    if (pts == null) return undefined
+    sum += pts
+  }
+  return sum
+}
+
+const withoutEstimatedWin = (matchup: Matchup): Matchup => {
+  const {
+    myWinPct: _mine,
+    oppWinPct: _opp,
+    myProjectedPoints: _myProj,
+    oppProjectedPoints: _oppProj,
+    winPctSource: _source,
+    ...rest
+  } = matchup
+  return { ...rest, winPctSource: 'estimated' }
+}
+
+/**
+ * Sleeper Est. win% from weekly projection sums + live points.
+ * Official REST win_probability is left alone. Missing projections stay pending.
+ */
+export const applySleeperWinEstimate = (
+  matchup: Matchup,
+  projections: Record<string, number> | null | undefined
+): Matchup => {
+  if (matchup.winPctSource === 'official') return matchup
+  const pending = withoutEstimatedWin(matchup)
+  if (!projections || !matchup.oppTeam) return pending
+  const myProjected = starterProjectedTotal(matchup.starters, projections)
+  const oppProjected = starterProjectedTotal(matchup.oppStarters, projections)
+  if (!hasProjectedFinals(myProjected, oppProjected)) return pending
+  const chance = estimatedChanceToWin({
+    myLive: matchup.myPoints,
+    oppLive: matchup.oppPoints,
+    myProjected,
+    oppProjected,
+    scoresFinal: matchup.scoresFinal
+  })
+  return {
+    ...pending,
+    myProjectedPoints: myProjected,
+    oppProjectedPoints: oppProjected,
+    ...(chance
+      ? { myWinPct: chance.mine, oppWinPct: chance.opp, winPctSource: 'estimated' as const }
+      : { winPctSource: 'estimated' as const })
+  }
+}
+
 export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]): Matchup | null => {
   const myId = asInt(prev.myTeam.id)
   if (myId == null) return null
@@ -260,7 +347,7 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
       : matchups.find(
           (row) => matchupIdOf(row) === matchupIdOf(mine) && rosterIdOf(row) !== rosterIdOf(mine)
         )
-  return {
+  const next: Matchup = {
     ...prev,
     myPoints: overlayTotal(prev.myPoints, mine),
     oppPoints: opp ? overlayTotal(prev.oppPoints, opp) : prev.oppPoints,
@@ -268,18 +355,11 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
     bench: overlayPlayers(prev.bench, mine),
     oppStarters: opp ? overlayPlayers(prev.oppStarters, opp) : prev.oppStarters,
     oppBench: opp ? overlayPlayers(prev.oppBench, opp) : prev.oppBench,
-    scoresFinal: mine.custom_points != null || opp?.custom_points != null,
-    ...(mine.win_probability != null
-      ? { myWinPct: mine.win_probability }
-      : prev.myWinPct != null
-        ? { myWinPct: prev.myWinPct }
-        : {}),
-    ...(opp?.win_probability != null
-      ? { oppWinPct: opp.win_probability }
-      : prev.oppWinPct != null
-        ? { oppWinPct: prev.oppWinPct }
-        : {})
+    scoresFinal: mine.custom_points != null || opp?.custom_points != null
   }
+  const win = sleeperOfficialWin(mine.win_probability, opp?.win_probability, prev)
+  if (win.winPctSource === 'official') return { ...next, ...win }
+  return withoutEstimatedWin(next)
 }
 
 export const toMatchup = (args: {
@@ -332,8 +412,7 @@ export const toMatchup = (args: {
     oppStarters: oppMatchup ? oppStarters : [],
     oppBench: oppMatchup ? oppBench : [],
     scoresFinal: myMatchup.custom_points != null || oppMatchup?.custom_points != null,
-    ...(myMatchup.win_probability != null ? { myWinPct: myMatchup.win_probability } : {}),
-    ...(oppMatchup?.win_probability != null ? { oppWinPct: oppMatchup.win_probability } : {})
+    ...sleeperOfficialWin(myMatchup.win_probability, oppMatchup?.win_probability)
   }
 }
 

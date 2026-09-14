@@ -37,11 +37,27 @@ Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + 
 
 ## Overlay
 
-- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) picks one of five placements, click-selects a team frame or the ticker, then nudges that block’s position/size. **Preset 4** stacks both teams on the same side.
+- Companion: **HUD** toggle, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Studio** (or `E`) picks one of five placements, click-selects a team frame or the ticker, then nudges that block’s position/size. **Preset 4** stacks both teams on the same side. Cycle the HUD onto the next monitor with `Ctrl+Shift+M`. `[` / `]` cycle leagues in the companion. All of these are editable under Connect → Keyboard shortcuts.
 - Default **Preset 1** is far-side frost rails (**you left, them right**), enlarged centered names and centered scores above each roster. Starter rows are a locked `POS | NAME | PTS` grid. Score ticks flash lime `+N` or alert red `-N` on the pts cell, then settle. **Save over Preset N** keeps the current layout on that slot.
 - Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)
 - Center ~60% of the canvas stays empty so live video is the product. See [`docs/design/hud.md`](docs/design/hud.md) for occupied zones.
+
+### Keyboard shortcuts
+
+Defaults (Windows-first; `Ctrl` is `Cmd` on Mac via `CommandOrControl`):
+
+| Action | Default |
+| --- | --- |
+| Toggle HUD | `Ctrl+Shift+O` |
+| Cycle HUD to next display | `Ctrl+Shift+M` |
+| Next league | `]` |
+| Previous league | `[` |
+| Edit HUD on the overlay | `Ctrl+Shift+E` |
+
+Chorded shortcuts are global (work even when Sideline is not focused). `[` / `]` work in the companion when you are not typing in a field. Connect → **Keyboard shortcuts** to change or reset them; Sideline will not bind the same key to two actions. One monitor: cycle-display is a no-op and shows a brief status.
+
+Companion still has `O` (HUD), `E` (Studio panel), and `Esc` (close Studio) on the Scoreboard.
 
 ### TV / LAN
 
@@ -61,7 +77,7 @@ Yahoo, pick'em, DFS, betting, odds, moneylines, sportsbook UI, chat, drafts, and
 
 ## Packaging
 
-Windows is the first packaging target: a private one-click NSIS installer on this PC. macOS can wait.
+Windows is the first packaging target: a one-click NSIS installer. macOS can wait.
 
 On a **Windows** machine:
 
@@ -70,10 +86,36 @@ npm install
 npm run build:win
 ```
 
-The setup exe lands at `dist/sideline-1.0.0-setup.exe`. It is a per-user install (no Administrator prompt), creates a **desktop shortcut** and a Start menu entry named Sideline, and does not need to be code-signed to run.
+The setup exe lands at `dist/sideline-1.0.0-setup.exe`. It is a per-user install (no Administrator prompt), creates a **desktop shortcut** and a Start menu entry named Sideline, and does not need to be code-signed to run. That command never uploads a GitHub Release (`--publish never`).
 
-Because the build is unsigned, Windows SmartScreen will likely show **Windows protected your PC**. Choose **More info** → **Run anyway**. Expected for a personal unsigned `.exe`. Authenticode signing is an optional follow-up so that warning goes away; it is not required for private use and is not part of CI.
+Because the build is unsigned, Windows SmartScreen will likely show **Windows protected your PC**. Choose **More info** → **Run anyway**. Expected for a personal unsigned `.exe`. Authenticode signing is an optional follow-up so that warning goes away; it is not required for private use and is not part of this updater work.
 
 Icon theme A (Kevin's mark: charcoal `#12141A`, left ice-green gradient stripe, white split S) is in `build/`: `icon.png` master, `icon.svg` vector, `icon.ico` for Windows, `icon.icns` for later Mac builds. `scripts/generate-app-icon.py` only derives `.ico` / `.icns` from that PNG.
 
-`npm run build:mac` is wired and uses `build/icon.icns`, with notarization off. Run that on a Mac when you want a `.dmg`; it is not the current goal.
+`npm run build:mac` is wired and uses `build/icon.icns`, with notarization off. Run that on a Mac when you want a `.dmg`; it is not the current goal. macOS auto-update is out of scope until the app is signed/notarized.
+
+## Updates
+
+Installed Windows builds check **public GitHub Releases** (`ketheridge7/sideline`) via `electron-updater`. People running the installed app do **not** need a GitHub token. `npm start` / `electron-vite` never talks to the updater.
+
+Connect → **Check for updates**. On startup (packaged only) Sideline also checks once. A toast appears when an update is available or finished downloading. **Restart to install** runs the NSIS installer (`quitAndInstall`).
+
+### Ship a release
+
+1. Merge to `main`.
+2. Bump `version` in `package.json` (semver).
+3. Commit, tag `vX.Y.Z` to match that version, and push the tag — or on Windows run `npm run build:win:publish`.
+4. Publishing uploads `sideline-X.Y.Z-setup.exe`, `latest.yml`, and the `.blockmap` to a GitHub Release.
+5. `releaseType: release` publishes that Release immediately (not a draft) so `electron-updater` can read `/releases/latest`.
+6. Already-installed Sideline offers the update on the next check.
+
+Tag workflow (`.github/workflows/release.yml`) builds NSIS on `windows-latest` when you push `v*`. It maps `GITHUB_TOKEN` to `GH_TOKEN` for electron-builder (`contents: write` on the same repo). No extra secret.
+
+### Publishing auth (maintainers only)
+
+Uploading assets needs GitHub auth. Checking/downloading updates does not.
+
+- **GitHub Actions:** `GITHUB_TOKEN` (already provided). Do not add a PAT to the workflow.
+- **Local Windows:** `gh auth login`, or set a `GH_TOKEN` env var to a PAT that can create releases, then `npm run build:win:publish`. electron-builder reads `GH_TOKEN`. Never commit it, and never bake it into the app.
+
+`npm run build:win` still builds the installer without publishing.

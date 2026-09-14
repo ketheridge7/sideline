@@ -25,4 +25,21 @@ describe('hydrateSettings', () => {
     expect(next.overlayLayout.slots['1']?.find((row) => row.id === 'score.mine')?.x).toBe(2)
     expect(defaultSettings().overlayLayout.schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
   })
+
+  it('hydrates shortcut defaults and heals a colliding persisted accelerator', () => {
+    expect(defaultSettings().overlayDisplayHotkey).toBe('CommandOrControl+Shift+M')
+    expect(defaultSettings().nextLeagueHotkey).toBe(']')
+    expect(defaultSettings().prevLeagueHotkey).toBe('[')
+    const healed = hydrateSettings({
+      overlayHotkey: 'CommandOrControl+Shift+O',
+      overlayDisplayHotkey: 'CommandOrControl+Shift+O',
+      nextLeagueHotkey: 'nope',
+      prevLeagueHotkey: '['
+    })
+    expect(healed.overlayHotkey).toBe('CommandOrControl+Shift+O')
+    expect(healed.overlayDisplayHotkey).toBe('CommandOrControl+Shift+M')
+    expect(healed.nextLeagueHotkey).toBe(']')
+    expect(healed.prevLeagueHotkey).toBe('[')
+    expect(healed.overlayEditHotkey).toBe('CommandOrControl+Shift+E')
+  })
 })

@@ -533,6 +533,10 @@ export const companionFlagsUnchanged = (prev: AppState, next: AppState): boolean
   prev.overlayPort === next.overlayPort &&
   prev.overlayVisible === next.overlayVisible &&
   prev.overlayHotkey === next.overlayHotkey &&
+  prev.overlayEditHotkey === next.overlayEditHotkey &&
+  prev.overlayDisplayHotkey === next.overlayDisplayHotkey &&
+  prev.nextLeagueHotkey === next.nextLeagueHotkey &&
+  prev.prevLeagueHotkey === next.prevLeagueHotkey &&
   prev.replay === next.replay &&
   prev.error === next.error &&
   prev.lanOverlayEnabled === next.lanOverlayEnabled &&
@@ -1162,6 +1166,7 @@ export const asMatchup = (value: unknown): Matchup | null => {
   const oppProjectedPoints = diskPts(row.oppProjectedPoints)
   const myWinPct = diskPts(row.myWinPct)
   const oppWinPct = diskPts(row.oppWinPct)
+  const winPctSource = row.winPctSource === 'estimated' || row.winPctSource === 'official' ? row.winPctSource : undefined
   return {
     myTeam,
     oppTeam,
@@ -1174,7 +1179,8 @@ export const asMatchup = (value: unknown): Matchup | null => {
     ...(myProjectedPoints != null && myProjectedPoints > 0 ? { myProjectedPoints } : {}),
     ...(oppProjectedPoints != null && oppProjectedPoints > 0 ? { oppProjectedPoints } : {}),
     ...(myWinPct != null && myWinPct >= 0 && myWinPct <= 1 ? { myWinPct } : {}),
-    ...(oppWinPct != null && oppWinPct >= 0 && oppWinPct <= 1 ? { oppWinPct } : {})
+    ...(oppWinPct != null && oppWinPct >= 0 && oppWinPct <= 1 ? { oppWinPct } : {}),
+    ...(winPctSource ? { winPctSource } : {})
   }
 }
 

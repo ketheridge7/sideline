@@ -950,6 +950,11 @@ describe('companionFlagsUnchanged', () => {
     const prev = emptyAppState()
     expect(companionFlagsUnchanged(prev, { ...prev, overlayPairingCode: '418302' })).toBe(false)
   })
+
+  it('treats a shortcut change as a companion clone', () => {
+    const prev = emptyAppState()
+    expect(companionFlagsUnchanged(prev, { ...prev, nextLeagueHotkey: 'CommandOrControl+]' })).toBe(false)
+  })
 })
 
 describe('companionBoardsUnchanged', () => {
@@ -1797,7 +1802,7 @@ describe('lastHudFromDiskPayload', () => {
 
   it('hydrates provider win% without treating it as live points', () => {
     const now = 1_000_000
-    const withWp = { ...matchup, myWinPct: 0.74, oppWinPct: 0.26 }
+    const withWp = { ...matchup, myWinPct: 0.74, oppWinPct: 0.26, winPctSource: 'official' as const }
     expect(
       lastHudFromDiskPayload({ at: now, displayWeek: 1, selectedKey: 'espn:1', matchup: withWp }, now)?.matchup
     ).toEqual(withWp)
@@ -1807,11 +1812,21 @@ describe('lastHudFromDiskPayload', () => {
           at: now,
           displayWeek: 1,
           selectedKey: 'espn:1',
-          matchup: { ...matchup, myWinPct: '0.74', oppWinPct: '0.26' }
+          matchup: { ...matchup, myWinPct: '0.74', oppWinPct: '0.26', winPctSource: 'official' }
         },
         now
       )?.matchup.myWinPct
     ).toBe(0.74)
+    const estimated = {
+      ...matchup,
+      myProjectedPoints: 140,
+      oppProjectedPoints: 80,
+      winPctSource: 'estimated' as const
+    }
+    expect(
+      lastHudFromDiskPayload({ at: now, displayWeek: 1, selectedKey: 'sleeper:1', matchup: estimated }, now)?.matchup
+        .winPctSource
+    ).toBe('estimated')
   })
 })
 

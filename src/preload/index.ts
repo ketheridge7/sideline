@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import type { UpdateSnapshot } from '@shared/updater'
 import type { SidelineApi } from './index.d'
 
 const api: SidelineApi = {
@@ -46,8 +47,21 @@ const api: SidelineApi = {
   setOverlayEditMode: (edit) => ipcRenderer.invoke('sideline:setOverlayEditMode', edit),
   setOverlayLayout: (layout) => ipcRenderer.invoke('sideline:setOverlayLayout', layout),
   setOverlayDisplay: (id) => ipcRenderer.invoke('sideline:setOverlayDisplay', id),
+  cycleOverlayDisplay: () => ipcRenderer.invoke('sideline:cycleOverlayDisplay'),
+  cycleLeague: (delta) => ipcRenderer.invoke('sideline:cycleLeague', delta),
+  setShortcut: (action, accelerator) => ipcRenderer.invoke('sideline:setShortcut', action, accelerator),
+  resetShortcut: (action) => ipcRenderer.invoke('sideline:resetShortcut', action),
+  setShortcutCapture: (active) => ipcRenderer.invoke('sideline:setShortcutCapture', active),
   setLanOverlay: (enabled) => ipcRenderer.invoke('sideline:setLanOverlay', enabled),
-  showCompanion: () => ipcRenderer.invoke('sideline:showCompanion')
+  showCompanion: () => ipcRenderer.invoke('sideline:showCompanion'),
+  getUpdateStatus: () => ipcRenderer.invoke('sideline:getUpdateStatus'),
+  onUpdate: (cb) => {
+    const listener = (_event: unknown, snapshot: UpdateSnapshot): void => cb(snapshot)
+    ipcRenderer.on('sideline:update', listener)
+    return () => ipcRenderer.removeListener('sideline:update', listener)
+  },
+  checkForUpdates: () => ipcRenderer.invoke('sideline:checkForUpdates'),
+  installUpdate: () => ipcRenderer.invoke('sideline:installUpdate')
 }
 
 contextBridge.exposeInMainWorld('sideline', api)

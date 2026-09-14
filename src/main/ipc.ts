@@ -4,8 +4,10 @@ import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { saveSettings } from './store'
+import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
 import { clearEspnCookies, openEspnLogin } from './windows/espnLogin'
+import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
 import { setOverlayDisplayId, setOverlayEditMode, toggleOverlay } from './windows/overlay'
 
 export const registerIpc = (): void => {
@@ -56,6 +58,19 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:setOverlayDisplay', (_event, id: number | null) => {
     setOverlayDisplayId(id)
   })
+  ipcMain.handle('sideline:cycleOverlayDisplay', () => {
+    cycleHudDisplay()
+  })
+  ipcMain.handle('sideline:cycleLeague', (_event, delta: number) =>
+    cycleLeague(Number(delta) < 0 ? -1 : 1)
+  )
+  ipcMain.handle('sideline:setShortcut', (_event, action: unknown, accelerator: unknown) =>
+    applyShortcut(action, accelerator)
+  )
+  ipcMain.handle('sideline:resetShortcut', (_event, action: unknown) => resetShortcut(action))
+  ipcMain.handle('sideline:setShortcutCapture', (_event, active: boolean) => {
+    setShortcutCapture(Boolean(active))
+  })
   ipcMain.handle('sideline:setLanOverlay', async (_event, enabled: boolean) => {
     saveSettings({ lanOverlayEnabled: Boolean(enabled) })
     const port = await setOverlayLanEnabled(Boolean(enabled))
@@ -65,4 +80,7 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:showCompanion', () => {
     createCompanionWindow().show()
   })
+  ipcMain.handle('sideline:getUpdateStatus', () => getUpdateStatus())
+  ipcMain.handle('sideline:checkForUpdates', () => checkForUpdates(true))
+  ipcMain.handle('sideline:installUpdate', () => installUpdate())
 }

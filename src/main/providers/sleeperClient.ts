@@ -212,6 +212,7 @@ const CDN_TX_MS = 30_000
 const CDN_STATE_MS = 60_000
 const CDN_USER_MS = 120_000
 const CDN_LIST_MS = 300_000
+const CDN_PROJECTIONS_MS = 600_000
 
 const cdnBust = (intervalMs: number, explicit?: string): string =>
   explicit ?? String(Math.floor(Date.now() / intervalMs))
@@ -691,3 +692,132 @@ export const getPlayersNfl = (): Promise<Record<string, unknown>> =>
     retries: 0,
     cacheBust: String(Math.floor(Date.now() / 86_400_000))
   })
+
+export type SleeperPlayerProjection = {
+  pts_ppr?: number
+  pts_half_ppr?: number
+  pts_std?: number
+}
+
+export type SleeperScoringKind = 'ppr' | 'half_ppr' | 'std'
+
+const PROJECTION_WRAP_KEYS = ['projections', 'data', 'payload', 'stats', 'players'] as const
+
+const projectionPtsRow = (row: Record<string, unknown>): SleeperPlayerProjection | null => {
+  const stats = asJsonObject(row.stats) ?? row
+  const ppr = asFinite(stats.pts_ppr)
+  const half = asFinite(stats.pts_half_ppr)
+  const std = asFinite(stats.pts_std)
+  if (ppr == null && half == null && std == null) return null
+  return {
+    ...(ppr != null ? { pts_ppr: ppr } : {}),
+    ...(half != null ? { pts_half_ppr: half } : {}),
+    ...(std != null ? { pts_std: std } : {})
+  }
+}
+
+const addProjection = (
+  out: Record<string, SleeperPlayerProjection>,
+  id: unknown,
+  row: unknown
+): void => {
+  const obj = asJsonObject(row)
+  if (!obj) return
+  const playerId = asPlayerId(id) ?? chipPlayerId(obj)
+  if (!playerId) return
+  const pts = projectionPtsRow(obj)
+  if (!pts) return
+  out[playerId] = pts
+}
+
+/** Weekly projection rows with pts_ppr / pts_half_ppr / pts_std. ADP-only keys are dropped. */
+export const parseWeekProjections = (raw: unknown): Record<string, SleeperPlayerProjection> => {
+  const out: Record<string, SleeperPlayerProjection> = {}
+  if (Array.isArray(raw)) {
+    for (const item of raw) addProjection(out, undefined, item)
+    return out
+  }
+  const row = asJsonObject(raw)
+  if (!row) return out
+  for (const key of PROJECTION_WRAP_KEYS) {
+    const nested = row[key]
+    if (nested == null || nested === row) continue
+    const inner = parseWeekProjections(nested)
+    if (Object.keys(inner).length > 0) return inner
+  }
+  for (const [id, value] of Object.entries(row)) {
+    addProjection(out, id, value)
+  }
+  return out
+}
+
+export const projectionPts = (
+  row: SleeperPlayerProjection | undefined,
+  kind: SleeperScoringKind = 'ppr'
+): number | undefined => {
+  if (!row) return undefined
+  switch (kind) {
+    case 'ppr':
+      return row.pts_ppr ?? row.pts_half_ppr ?? row.pts_std
+    case 'half_ppr':
+      return row.pts_half_ppr ?? row.pts_ppr ?? row.pts_std
+    case 'std':
+      return row.pts_std ?? row.pts_half_ppr ?? row.pts_ppr
+    default: {
+      const _never: never = kind
+      return _never
+    }
+  }
+}
+
+export const toProjectionPtsMap = (
+  rows: Record<string, SleeperPlayerProjection>,
+  kind: SleeperScoringKind = 'ppr'
+): Record<string, number> => {
+  const out: Record<string, number> = {}
+  for (const [id, row] of Object.entries(rows)) {
+    const pts = projectionPts(row, kind)
+    if (pts != null) out[id] = pts
+  }
+  return out
+}
+
+const sleeperSeasonType = (value: string): string => {
+  const key = value.trim().toLowerCase()
+  switch (key) {
+    case 'regular':
+    case 'post':
+    case 'pre':
+    case 'off':
+      return key
+    default:
+      return 'regular'
+  }
+}
+
+/**
+ * Weekly player projections from api.sleeper.app.
+ * `GET /v1/projections/nfl/{season_type}/{season}/{week}` (probed 2026-09-14:
+ * ~550KB, `s-maxage=600`, player-id map with pts_ppr / pts_half_ppr / pts_std).
+ * Not live scoring — cache 10 min, never on the 3s HUD tick.
+ */
+export const getWeekProjections = async (
+  season: string,
+  week: number,
+  seasonType = 'regular',
+  opts: SleeperGetOpts = {}
+): Promise<Record<string, SleeperPlayerProjection>> => {
+  if (!isSleeperScoringWeek(week) || !season.trim()) return {}
+  const type = sleeperSeasonType(seasonType)
+  return parseWeekProjections(
+    await getJson(
+      `/projections/nfl/${encodeURIComponent(type)}/${encodeURIComponent(season)}/${week}`,
+      {
+        timeoutMs: opts.timeoutMs ?? 10_000,
+        retries: opts.retries ?? 0,
+        priority: opts.priority ?? 'low',
+        cacheBust: cdnBust(CDN_PROJECTIONS_MS, opts.cacheBust)
+      }
+    )
+  )
+}

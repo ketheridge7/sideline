@@ -101,5 +101,28 @@ describe('HudChrome parity', () => {
       />
     )
     expect(fromProj).toContain('Win% pending')
+    expect(fromProj).toContain('Chance to win')
+    expect(fromProj).not.toContain('Est. win%')
+    const estimated = renderToStaticMarkup(
+      <HudScoreboard
+        matchup={{
+          ...matchup,
+          myPoints: 0,
+          oppPoints: 0,
+          myProjectedPoints: 140,
+          oppProjectedPoints: 80,
+          winPctSource: 'estimated'
+        }}
+      />
+    )
+    expect(estimated).toContain('Est. win%')
+    expect(estimated).toContain('Est.')
+    expect(estimated).not.toContain('Chance to win')
+    expect(estimated).not.toContain('Win% pending')
+    const estPending = renderToStaticMarkup(
+      <HudScoreboard matchup={{ ...matchup, winPctSource: 'estimated' }} />
+    )
+    expect(estPending).toContain('Est. win% pending')
+    expect(estPending).not.toContain('Chance to win')
   })
 })
