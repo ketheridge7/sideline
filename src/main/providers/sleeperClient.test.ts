@@ -16,6 +16,9 @@ import {
   parseSleeperRoster,
   parseSleeperTransaction,
   parseSleeperUser,
+  parseWeekProjections,
+  getWeekProjections,
+  toProjectionPtsMap,
   SleeperHttpError
 } from './sleeperClient'
 
@@ -856,3 +859,46 @@ describe('sleeperClient', () => {
     })
   })
 })
+
+describe('week projections', () => {
+  it('parses sleeper.app player-id maps and community array rows, dropping ADP-only keys', () => {
+    expect(
+      parseWeekProjections({
+        '4046': { adp_dd_ppr: 12, gp: 1, pts_ppr: 17.49, pts_half_ppr: 14.32, pts_std: 11.15 },
+        '6462': { adp_dd_ppr: 1000 },
+        SF: { gp: 1, pts_ppr: 5.66, pts_std: 5.66 }
+      })
+    ).toEqual({
+      '4046': { pts_ppr: 17.49, pts_half_ppr: 14.32, pts_std: 11.15 },
+      SF: { pts_ppr: 5.66, pts_std: 5.66 }
+    })
+    expect(
+      parseWeekProjections([
+        { player_id: '4881', stats: { pts_ppr: 19.56, pts_half_ppr: 19.56, pts_std: 19.56 } }
+      ])
+    ).toEqual({ '4881': { pts_ppr: 19.56, pts_half_ppr: 19.56, pts_std: 19.56 } })
+    expect(toProjectionPtsMap({ '4046': { pts_ppr: 17.49, pts_std: 11.15 } })).toEqual({ '4046': 17.49 })
+    expect(toProjectionPtsMap({ '4046': { pts_ppr: 17.49, pts_std: 11.15 } }, 'std')).toEqual({ '4046': 11.15 })
+  })
+
+  it('GETs api.sleeper.app /projections/nfl/{season_type}/{season}/{week} at low priority with a 10 min bust', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      text: async () => JSON.stringify({ '4046': { pts_ppr: 17.4 } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(getWeekProjections('2026', 1, 'regular')).resolves.toEqual({
+      '4046': { pts_ppr: 17.4 }
+    })
+    const url = fetchMock.mock.calls[0]?.[0] as string
+    expect(url).toMatch(/^https:\/\/api\.sleeper\.app\/v1\/projections\/nfl\/regular\/2026\/1\?_=\d+$/)
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      signal: expect.any(AbortSignal),
+      priority: 'low'
+    })
+    await expect(getWeekProjections('2026', 0)).resolves.toEqual({})
+  })
+})
+

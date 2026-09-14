@@ -1162,6 +1162,7 @@ export const asMatchup = (value: unknown): Matchup | null => {
   const oppProjectedPoints = diskPts(row.oppProjectedPoints)
   const myWinPct = diskPts(row.myWinPct)
   const oppWinPct = diskPts(row.oppWinPct)
+  const winPctSource = row.winPctSource === 'estimated' || row.winPctSource === 'official' ? row.winPctSource : undefined
   return {
     myTeam,
     oppTeam,
@@ -1174,7 +1175,8 @@ export const asMatchup = (value: unknown): Matchup | null => {
     ...(myProjectedPoints != null && myProjectedPoints > 0 ? { myProjectedPoints } : {}),
     ...(oppProjectedPoints != null && oppProjectedPoints > 0 ? { oppProjectedPoints } : {}),
     ...(myWinPct != null && myWinPct >= 0 && myWinPct <= 1 ? { myWinPct } : {}),
-    ...(oppWinPct != null && oppWinPct >= 0 && oppWinPct <= 1 ? { oppWinPct } : {})
+    ...(oppWinPct != null && oppWinPct >= 0 && oppWinPct <= 1 ? { oppWinPct } : {}),
+    ...(winPctSource ? { winPctSource } : {})
   }
 }
 

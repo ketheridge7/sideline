@@ -9,7 +9,12 @@ import type {
   ScorerChip
 } from './types'
 import { leagueKey, parseLeagueKey } from './types'
-import { providerChanceToWin, type ChanceToWin } from './winPct'
+import {
+  estimatedChanceToWin,
+  providerChanceToWin,
+  type ChanceToWin,
+  type WinPctSource
+} from './winPct'
 
 const HIDDEN_STATUS = new Set(['', 'ACTIVE', 'NORMAL', 'HEALTHY', 'NA', 'N/A'])
 
@@ -90,16 +95,49 @@ export const tapePlayerLabel = (player: Player): string => {
   return team ? `${name} ${team}` : name
 }
 
-/** Chance to win from the provider's published win%. Null when we would have to fake it. */
+export const matchupWinPctSource = (
+  matchup: Pick<Matchup, 'winPctSource'> | Pick<MatchupBoard, 'winPctSource'>
+): WinPctSource => (matchup.winPctSource === 'estimated' ? 'estimated' : 'official')
+
+/** Chance to win. ESPN stays official; Sleeper estimate uses projected finals. */
 export const matchupChanceToWin = (matchup: Matchup): ChanceToWin | null => {
   if (!matchup.oppTeam) return null
+  if (matchup.winPctSource === 'estimated') {
+    return estimatedChanceToWin({
+      myLive: matchup.myPoints,
+      oppLive: matchup.oppPoints,
+      myProjected: matchup.myProjectedPoints,
+      oppProjected: matchup.oppProjectedPoints,
+      scoresFinal: matchup.scoresFinal
+    })
+  }
   return providerChanceToWin(matchup.myWinPct, matchup.oppWinPct)
 }
 
 export const boardChanceToWin = (
-  board: Pick<MatchupBoard, 'myWinPct' | 'oppWinPct' | 'oppName'>
+  board: Pick<
+    MatchupBoard,
+    | 'myWinPct'
+    | 'oppWinPct'
+    | 'oppName'
+    | 'winPctSource'
+    | 'myPoints'
+    | 'oppPoints'
+    | 'myProjectedPoints'
+    | 'oppProjectedPoints'
+    | 'scoresFinal'
+  >
 ): ChanceToWin | null => {
   if (!board.oppName) return null
+  if (board.winPctSource === 'estimated') {
+    return estimatedChanceToWin({
+      myLive: board.myPoints,
+      oppLive: board.oppPoints,
+      myProjected: board.myProjectedPoints,
+      oppProjected: board.oppProjectedPoints,
+      scoresFinal: board.scoresFinal
+    })
+  }
   return providerChanceToWin(board.myWinPct, board.oppWinPct)
 }
 
@@ -167,6 +205,7 @@ export const toMatchupBoard = (
     ...(matchup?.oppProjectedPoints != null ? { oppProjectedPoints: matchup.oppProjectedPoints } : {}),
     ...(matchup?.myWinPct != null ? { myWinPct: matchup.myWinPct } : {}),
     ...(matchup?.oppWinPct != null ? { oppWinPct: matchup.oppWinPct } : {}),
+    ...(matchup?.winPctSource ? { winPctSource: matchup.winPctSource } : {}),
     ...(matchup?.scoresFinal ? { scoresFinal: true } : {}),
     lastScorers: extra?.lastScorers?.length ? extra.lastScorers.slice(0, 3) : liveScorers(matchup),
     leadSpark: extra?.leadSpark,

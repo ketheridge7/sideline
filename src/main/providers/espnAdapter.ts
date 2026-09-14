@@ -1071,7 +1071,8 @@ const withEspnProjected = (
     ...(mine != null ? { myProjectedPoints: mine } : {}),
     ...(opp != null ? { oppProjectedPoints: opp } : {}),
     ...(myWin != null ? { myWinPct: myWin } : {}),
-    ...(oppWin != null ? { oppWinPct: oppWin } : {})
+    ...(oppWin != null ? { oppWinPct: oppWin } : {}),
+    ...(myWin != null || oppWin != null ? { winPctSource: 'official' as const } : {})
   }
 }
 
