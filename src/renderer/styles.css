@@ -45,6 +45,27 @@ select {
   outline-offset: 2px;
 }
 
+.connect-howto > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.connect-howto > summary::-webkit-details-marker {
+  display: none;
+}
+
+.connect-howto > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  color: #94a3b8;
+  transition: transform 0.12s ease;
+}
+
+.connect-howto[open] > summary::before {
+  transform: rotate(90deg);
+}
+
 .overlay-root,
 .overlay-root body,
 .overlay-root #root {

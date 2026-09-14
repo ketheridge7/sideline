@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import type { AppState } from '@shared/types'
 import { ShortcutSettings } from './ShortcutSettings'
 import { UpdateSettings } from './UpdateSettings'
@@ -6,6 +6,38 @@ import { UpdateSettings } from './UpdateSettings'
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
   return window.sideline
+}
+
+const HowTo = ({
+  id,
+  defaultOpen,
+  children
+}: {
+  id: string
+  defaultOpen: boolean
+  children: ReactNode
+}): JSX.Element => {
+  const [open, setOpen] = useState(defaultOpen)
+
+  useEffect(() => {
+    setOpen(defaultOpen)
+  }, [defaultOpen])
+
+  return (
+    <details
+      className="connect-howto mt-4 border-t border-line pt-3"
+      data-howto={id}
+      data-howto-default={defaultOpen ? 'open' : 'closed'}
+      open={open}
+      onToggle={(event) => {
+        const next = event.currentTarget.open
+        if (next !== open) setOpen(next)
+      }}
+    >
+      <summary className="text-xs font-semibold uppercase tracking-wide text-muted">How to</summary>
+      <ol className="mt-2 grid list-decimal gap-1.5 pl-5 text-sm text-muted select-text">{children}</ol>
+    </details>
+  )
 }
 
 export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
@@ -35,6 +67,14 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-4 p-6">
+      <section className="rounded-sm border border-line bg-card p-5">
+        <h2 className="text-base font-semibold">Getting started</h2>
+        <p className="mt-1 text-sm text-muted">
+          Sideline is a companion for live fantasy while you watch. Connect Sleeper and/or ESPN, pick a
+          league on Boards, then show the HUD on this PC — or share it to a phone/TV on your Wi-Fi.
+        </p>
+      </section>
+
       <section className="rounded-sm border border-line bg-card p-5">
         <h2 className="text-base font-semibold">Sleeper</h2>
         <p className="mt-1 text-sm text-muted">Username only. No password. Production API.</p>
@@ -72,6 +112,21 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
         <p className="mt-2 text-xs text-muted">
           {state.sleeperConnected ? `Connected as ${state.sleeperUsername}` : 'Not connected'}
         </p>
+        <HowTo id="sleeper" defaultOpen={!state.sleeperConnected}>
+          <li>
+            In the Sleeper app or on sleeper.com, find your{' '}
+            <strong className="font-medium text-text">username</strong> (the handle you connect with — not
+            your password).
+          </li>
+          <li>
+            Type that username here and press Connect. Sideline uses Sleeper’s public API; no password.
+          </li>
+          <li>
+            After connect, your leagues appear under{' '}
+            <strong className="font-medium text-text">Boards → My leagues</strong>.
+          </li>
+          <li>Select a Sleeper league there to drive the live HUD.</li>
+        </HowTo>
       </section>
 
       <section className="rounded-sm border border-line bg-card p-5">
@@ -129,6 +184,27 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
             Add league
           </button>
         </div>
+        <HowTo id="espn" defaultOpen={!state.espnConnected || state.espnNeedsRelogin}>
+          <li>
+            Click <strong className="font-medium text-text">Sign in with ESPN</strong>. Log in in ESPN’s own
+            window. Sideline never sees your password; it only keeps session cookies on this PC.
+          </li>
+          <li>
+            When status shows the session is saved, open your league on fantasy.espn.com.
+          </li>
+          <li>
+            Copy the <strong className="font-medium text-text">league ID</strong> from the URL (
+            <code className="font-mono text-xs text-text">leagueId=</code> followed by numbers).
+          </li>
+          <li>
+            Paste that ID here and <strong className="font-medium text-text">Add league</strong>, then select
+            it under Boards.
+          </li>
+          <li>
+            If cookies expire later, sign in again. ESPN access is unofficial, uses your login, and is for
+            personal companion use only.
+          </li>
+        </HowTo>
       </section>
 
       <section className="rounded-sm border border-line bg-card p-5">
@@ -186,6 +262,31 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
             )}
           </div>
         ) : null}
+        <HowTo id="overlay" defaultOpen={!state.lanOverlayEnabled}>
+          <li>
+            <strong className="font-medium text-text">This PC:</strong> use the companion HUD / shortcuts — no
+            LAN toggle required.
+          </li>
+          <li>
+            <strong className="font-medium text-text">Phone or browser on the same Wi-Fi:</strong> turn on
+            “Allow devices on this Wi-Fi to load the overlay”, then open the{' '}
+            <strong className="font-medium text-text">Phone / browser URL</strong> shown.
+          </li>
+          <li>
+            <strong className="font-medium text-text">OBS on this PC:</strong> browser source at{' '}
+            <code className="font-mono text-xs text-text">127.0.0.1</code> on the overlay port. When LAN is
+            on, copy the OBS URL shown (<code className="font-mono text-xs text-text">127.0.0.1</code> +
+            token).
+          </li>
+          <li>
+            <strong className="font-medium text-text">Google TV Sideline app (if already installed):</strong>{' '}
+            enter the <strong className="font-medium text-text">6-digit pairing code</strong> on the same
+            Wi-Fi. Code refreshes about every 10 minutes; you do not type the IP or hex token by hand.
+          </li>
+          <li>
+            LAN only serves derived scores, never cookies. Studio edit chrome never mounts on TV or OBS.
+          </li>
+        </HowTo>
       </section>
 
       <UpdateSettings />
