@@ -54,16 +54,26 @@ describe('nflTeamLabel', () => {
 })
 
 describe('matchupChanceToWin', () => {
-  it('is chance to win from projected finals, not score-share', () => {
+  it('mirrors the provider win% field, not score-share or projected finals', () => {
     expect(
       matchupChanceToWin({
         ...matchup,
         myPoints: 0,
         oppPoints: 0,
-        myProjectedPoints: 110,
-        oppProjectedPoints: 110
+        myWinPct: 0.5,
+        oppWinPct: 0.5
       })?.mine
-    ).toBeCloseTo(0.5)
+    ).toBe(0.5)
+    expect(
+      matchupChanceToWin({
+        ...matchup,
+        myPoints: 0,
+        oppPoints: 0,
+        myWinPct: 0.99,
+        oppWinPct: 0.01
+      })?.mine
+    ).toBe(0.99)
+    expect(matchupChanceToWin({ ...matchup, myPoints: 80, oppPoints: 40 })).toBeNull()
     expect(
       matchupChanceToWin({
         ...matchup,
@@ -71,9 +81,8 @@ describe('matchupChanceToWin', () => {
         oppPoints: 0,
         myProjectedPoints: 140,
         oppProjectedPoints: 80
-      })?.mine
-    ).toBeGreaterThan(0.9)
-    expect(matchupChanceToWin({ ...matchup, myPoints: 0, oppPoints: 0 })).toBeNull()
+      })
+    ).toBeNull()
   })
 })
 
@@ -97,15 +106,26 @@ describe('toMatchupBoard', () => {
     expect(liveScorers(null)).toEqual([])
   })
 
-  it('copies projected finals onto the LEAGUES card for the shared Win% bar', () => {
+  it('copies provider win% onto the LEAGUES card for the shared LeadBar', () => {
     const board = toMatchupBoard(league, {
       ...matchup,
       myProjectedPoints: 118.2,
-      oppProjectedPoints: 96.4
+      oppProjectedPoints: 96.4,
+      myWinPct: 0.74,
+      oppWinPct: 0.26
     })
     expect(board.myProjectedPoints).toBe(118.2)
     expect(board.oppProjectedPoints).toBe(96.4)
-    expect(boardChanceToWin(board)?.mine).toBeGreaterThan(0.5)
+    expect(board.myWinPct).toBe(0.74)
+    expect(board.oppWinPct).toBe(0.26)
+    expect(boardChanceToWin(board)?.mine).toBe(0.74)
+    expect(
+      boardChanceToWin({
+        ...board,
+        myWinPct: undefined,
+        oppWinPct: undefined
+      })
+    ).toBeNull()
   })
 
   it('labels an ESPN board Sign in when cookies are missing instead of a false bye', () => {

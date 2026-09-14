@@ -1160,6 +1160,8 @@ export const asMatchup = (value: unknown): Matchup | null => {
   if (row.oppTeam != null && !oppTeam) return null
   const myProjectedPoints = diskPts(row.myProjectedPoints)
   const oppProjectedPoints = diskPts(row.oppProjectedPoints)
+  const myWinPct = diskPts(row.myWinPct)
+  const oppWinPct = diskPts(row.oppWinPct)
   return {
     myTeam,
     oppTeam,
@@ -1170,7 +1172,9 @@ export const asMatchup = (value: unknown): Matchup | null => {
     oppStarters,
     oppBench,
     ...(myProjectedPoints != null && myProjectedPoints > 0 ? { myProjectedPoints } : {}),
-    ...(oppProjectedPoints != null && oppProjectedPoints > 0 ? { oppProjectedPoints } : {})
+    ...(oppProjectedPoints != null && oppProjectedPoints > 0 ? { oppProjectedPoints } : {}),
+    ...(myWinPct != null && myWinPct >= 0 && myWinPct <= 1 ? { myWinPct } : {}),
+    ...(oppWinPct != null && oppWinPct >= 0 && oppWinPct <= 1 ? { oppWinPct } : {})
   }
 }
 

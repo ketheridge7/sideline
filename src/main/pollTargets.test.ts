@@ -1773,7 +1773,7 @@ describe('lastHudFromDiskPayload', () => {
     })
   })
 
-  it('hydrates ESPN projected finals for Win% without treating them as live points', () => {
+  it('hydrates ESPN projected finals without treating them as live points', () => {
     const now = 1_000_000
     const withProj = { ...matchup, myProjectedPoints: 101.46, oppProjectedPoints: 94.2 }
     expect(
@@ -1793,6 +1793,25 @@ describe('lastHudFromDiskPayload', () => {
         now
       )?.matchup.myProjectedPoints
     ).toBe(101.46)
+  })
+
+  it('hydrates provider win% without treating it as live points', () => {
+    const now = 1_000_000
+    const withWp = { ...matchup, myWinPct: 0.74, oppWinPct: 0.26 }
+    expect(
+      lastHudFromDiskPayload({ at: now, displayWeek: 1, selectedKey: 'espn:1', matchup: withWp }, now)?.matchup
+    ).toEqual(withWp)
+    expect(
+      lastHudFromDiskPayload(
+        {
+          at: now,
+          displayWeek: 1,
+          selectedKey: 'espn:1',
+          matchup: { ...matchup, myWinPct: '0.74', oppWinPct: '0.26' }
+        },
+        now
+      )?.matchup.myWinPct
+    ).toBe(0.74)
   })
 })
 

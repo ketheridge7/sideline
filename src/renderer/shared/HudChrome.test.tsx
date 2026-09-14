@@ -78,21 +78,28 @@ describe('HudChrome parity', () => {
     expect(boardRails).toContain('1.0')
   })
 
-  it('labels SCOREBOARD chance-to-win from projected finals, not score-share', () => {
-    const projected: Matchup = {
+  it('labels SCOREBOARD chance-to-win from the provider win% field, not score-share', () => {
+    const published: Matchup = {
       ...matchup,
       myPoints: 0,
       oppPoints: 0,
-      myProjectedPoints: 140,
-      oppProjectedPoints: 80
+      myWinPct: 0.99,
+      oppWinPct: 0.01
     }
-    const html = renderToStaticMarkup(<HudScoreboard matchup={projected} />)
+    const html = renderToStaticMarkup(<HudScoreboard matchup={published} />)
     expect(html).toContain('Chance to win')
     expect(html).toContain('data-hud="win-pct"')
-    expect(html).toContain('Win')
+    expect(html).toContain('99% Win')
+    expect(html).toContain('1% Win')
     expect(html).not.toContain('Win% pending')
     const pending = renderToStaticMarkup(<HudScoreboard matchup={matchup} />)
     expect(pending).toContain('Win% pending')
     expect(pending).toContain('data-hud-win-pct="pending"')
+    const fromProj = renderToStaticMarkup(
+      <HudScoreboard
+        matchup={{ ...matchup, myPoints: 0, oppPoints: 0, myProjectedPoints: 140, oppProjectedPoints: 80 }}
+      />
+    )
+    expect(fromProj).toContain('Win% pending')
   })
 })

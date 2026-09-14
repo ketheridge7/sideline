@@ -1,6 +1,7 @@
 import { matchupHasLineup, overlayStartersBelong, visibleInjury } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
+import { asWinProbability } from '@shared/winPct'
 import type { EspnCookies } from './espnClient'
 
 export const BENCH_SLOT_IDS = new Set([20, 21])
@@ -891,6 +892,10 @@ const mergeSide = (
   const fromSideProj = sideProjectedTotal(side)
   if (fromLiveProj != null) merged.totalProjectedPointsLive = fromLiveProj
   else if (fromSideProj != null) merged.totalProjectedPointsLive = fromSideProj
+  const fromLiveWp = sideWinProbability(live)
+  const fromSideWp = sideWinProbability(side)
+  if (fromLiveWp != null) merged.winProbability = fromLiveWp
+  else if (fromSideWp != null) merged.winProbability = fromSideWp
   return merged
 }
 
@@ -1033,6 +1038,24 @@ const pickProjected = (next: number | undefined, prev: number | undefined): numb
   return undefined
 }
 
+const WIN_PROBABILITY_KEYS = ['winProbability', 'homeWinPercentage', 'awayWinPercentage', 'chanceToWin'] as const
+
+/** ESPN `mMatchupScore` schedule side `winProbability` (0–1). Compact `mLiveScoring` omits it. */
+const sideWinProbability = (side: Record<string, unknown> | null | undefined): number | undefined => {
+  if (!side) return undefined
+  for (const key of WIN_PROBABILITY_KEYS) {
+    const pts = asWinProbability(num(side[key]))
+    if (pts != null) return pts
+  }
+  return undefined
+}
+
+const pickWinPct = (next: number | undefined, prev: number | undefined): number | undefined => {
+  if (next != null) return next
+  if (prev != null) return prev
+  return undefined
+}
+
 const withEspnProjected = (
   matchup: Matchup,
   mySide: Record<string, unknown> | null | undefined,
@@ -1041,10 +1064,14 @@ const withEspnProjected = (
 ): Matchup => {
   const mine = pickProjected(sideProjectedTotal(mySide), prev?.myProjectedPoints)
   const opp = pickProjected(sideProjectedTotal(oppSide), prev?.oppProjectedPoints)
+  const myWin = pickWinPct(sideWinProbability(mySide), prev?.myWinPct)
+  const oppWin = pickWinPct(sideWinProbability(oppSide), prev?.oppWinPct)
   return {
     ...matchup,
     ...(mine != null ? { myProjectedPoints: mine } : {}),
-    ...(opp != null ? { oppProjectedPoints: opp } : {})
+    ...(opp != null ? { oppProjectedPoints: opp } : {}),
+    ...(myWin != null ? { myWinPct: myWin } : {}),
+    ...(oppWin != null ? { oppWinPct: oppWin } : {})
   }
 }
 

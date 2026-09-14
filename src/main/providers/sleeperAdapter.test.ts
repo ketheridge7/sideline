@@ -44,6 +44,19 @@ describe('toMatchup', () => {
     expect(result?.starters[0]?.points).toBe(12.4)
     expect(result?.oppStarters.map((row) => row.name)).toEqual(['Allen'])
     expect(result?.oppStarters[0]?.points).toBe(18)
+    expect(result?.myWinPct).toBeUndefined()
+    expect(result?.oppWinPct).toBeUndefined()
+  })
+
+  it('copies a published Sleeper win_probability onto the matchup when present', () => {
+    const live = [
+      { ...matchups[0], win_probability: 0.62 },
+      { ...matchups[1], win_probability: 0.38 }
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.myPoints).toBe(20)
+    expect(result?.myWinPct).toBe(0.62)
+    expect(result?.oppWinPct).toBe(0.38)
   })
 
   it('treats co_owners as my roster', () => {
@@ -174,6 +187,26 @@ describe('overlaySleeperMatchups', () => {
     expect(next?.starters[0]?.name).toBe('Hurts')
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppStarters[0]?.points).toBe(27.6)
+  })
+
+  it('overlays published Sleeper win_probability and keeps last when compact omits it', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(prev).not.toBeNull()
+    if (!prev) return
+    const withWp = overlaySleeperMatchups(prev, [
+      { ...matchups[0], points: 41.2, win_probability: 0.62, players_points: { '1': 22.4, '2': 18.8, '9': 1 } },
+      { ...matchups[1], points: 27.6, win_probability: 0.38, players_points: { '3': 27.6 } }
+    ])
+    expect(withWp?.myPoints).toBe(41.2)
+    expect(withWp?.myWinPct).toBe(0.62)
+    expect(withWp?.oppWinPct).toBe(0.38)
+    const omitted = overlaySleeperMatchups(withWp!, [
+      { ...matchups[0], points: 42.1, players_points: { '1': 23.3, '2': 18.8, '9': 1 } },
+      { ...matchups[1], points: 27.6, players_points: { '3': 27.6 } }
+    ])
+    expect(omitted?.myPoints).toBe(42.1)
+    expect(omitted?.myWinPct).toBe(0.62)
+    expect(omitted?.oppWinPct).toBe(0.38)
   })
 
   it('overlays player-id keyed starters_points when the payload omits starters', () => {

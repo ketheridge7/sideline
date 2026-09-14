@@ -1,4 +1,5 @@
 import { fetchJson, HttpError, type FetchPriority } from '../http'
+import { asWinProbability } from '@shared/winPct'
 
 export type CachedPlayer = {
   name: string
@@ -57,6 +58,8 @@ export type SleeperMatchup = {
   players?: string[]
   players_points?: Record<string, number>
   starters_points?: number[]
+  /** Official matchup win% when Sleeper publishes one on the REST row (0–1). */
+  win_probability?: number
 }
 
 export type SleeperTransaction = {
@@ -521,6 +524,24 @@ export const parseSleeperLeagueUser = (raw: unknown): SleeperLeagueUser | null =
   }
 }
 
+const SLEEPER_WIN_PROB_KEYS = [
+  'win_probability',
+  'win_prob',
+  'chance_to_win',
+  'chanceToWin',
+  'win_pct',
+  'winPercentage',
+  'winProbability'
+] as const
+
+const sleeperWinProbability = (row: Record<string, unknown>): number | undefined => {
+  for (const key of SLEEPER_WIN_PROB_KEYS) {
+    const pct = asWinProbability(row[key])
+    if (pct != null) return pct
+  }
+  return undefined
+}
+
 export const parseSleeperMatchup = (raw: unknown): SleeperMatchup | null => {
   const row = unwrapSleeperObject(raw, (next) => asInt(next.roster_id) != null)
   if (!row) return null
@@ -534,6 +555,7 @@ export const parseSleeperMatchup = (raw: unknown): SleeperMatchup | null => {
   const playerPts = asPtsMap(playersPoints, ptsMapIds(playersPoints, players, starters))
   const starterPtsAsMap =
     starterPts == null && startersPoints != null ? asPtsMap(startersPoints) : undefined
+  const winProbability = sleeperWinProbability(row)
   return {
     roster_id: rosterId,
     matchup_id: row.matchup_id == null ? null : (asInt(row.matchup_id) ?? null),
@@ -549,7 +571,8 @@ export const parseSleeperMatchup = (raw: unknown): SleeperMatchup | null => {
     starters,
     players,
     players_points: mergePtsMaps(starterPtsAsMap, playerPts),
-    starters_points: starterPts
+    starters_points: starterPts,
+    ...(winProbability != null ? { win_probability: winProbability } : {})
   }
 }
 
