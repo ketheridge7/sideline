@@ -9,6 +9,7 @@ files:
   - '!src/*'
   - '!fixtures/*'
   - '!scripts/**/*'
+  - '!.github/**/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,vitest.config.ts}'
   - '!{README.md,.gitignore}'
@@ -36,4 +37,9 @@ mac:
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
+publish:
+  provider: github
+  owner: ketheridge7
+  repo: sideline
+  releaseType: release
 npmRebuild: false

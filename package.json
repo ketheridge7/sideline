@@ -14,11 +14,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
     "test": "vitest run",
     "postinstall": "electron-builder install-app-deps",
-    "build:win": "npm run build && electron-builder --win",
-    "build:mac": "npm run build && electron-builder --mac"
+    "build:win": "npm run build && electron-builder --win --publish never",
+    "build:win:publish": "npm run build && electron-builder --win --publish always",
+    "build:mac": "npm run build && electron-builder --mac --publish never"
   },
   "dependencies": {
-    "@electron-toolkit/utils": "^4.0.0"
+    "@electron-toolkit/utils": "^4.0.0",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",

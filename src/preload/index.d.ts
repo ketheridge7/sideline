@@ -1,6 +1,7 @@
 import type { OverlayLayout } from '@shared/overlayLayout'
 import type { ShortcutAction } from '@shared/shortcuts'
 import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import type { UpdateSnapshot } from '@shared/updater'
 
 export type SidelineApi = {
   getState: () => Promise<AppState>
@@ -29,6 +30,10 @@ export type SidelineApi = {
   setShortcutCapture: (active: boolean) => Promise<void>
   setLanOverlay: (enabled: boolean) => Promise<void>
   showCompanion: () => Promise<void>
+  getUpdateStatus: () => Promise<UpdateSnapshot>
+  onUpdate: (cb: (snapshot: UpdateSnapshot) => void) => () => void
+  checkForUpdates: () => Promise<UpdateSnapshot>
+  installUpdate: () => Promise<{ ok: boolean; error?: string }>
 }
 
 declare global {
