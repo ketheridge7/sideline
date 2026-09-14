@@ -1,6 +1,7 @@
 import type { OverlayLayout } from './overlayLayout'
 import { DEFAULT_OVERLAY_PRESET, layoutFromPreset } from './overlayLayout'
 import type { TransactionKind } from './transactionKind'
+import type { WinPctSource } from './winPct'
 
 export type TapeKind = TransactionKind | 'score' | 'injury'
 
@@ -39,6 +40,8 @@ export type MatchupBoard = {
   /** Provider matchup win% (0–1). ESPN `schedule[].home|away.winProbability`. */
   myWinPct?: number
   oppWinPct?: number
+  /** Official ESPN/Sleeper field vs Sleeper projection estimate. */
+  winPctSource?: WinPctSource
   scoresFinal?: boolean
   lastScorers: ScorerChip[]
   leadSpark?: number[]
@@ -87,12 +90,14 @@ export type Matchup = {
   myProjectedPoints?: number
   oppProjectedPoints?: number
   /**
-   * Official matchup win probability (0–1) from the provider JSON.
-   * ESPN: `schedule[].home.winProbability` / `away.winProbability` on `mMatchupScore`.
-   * Sleeper: REST `/matchups` has no field today — pending unless a published key appears.
+   * Matchup win probability (0–1).
+   * ESPN official: `schedule[].home.winProbability` / `away.winProbability` on `mMatchupScore`.
+   * Sleeper: REST `/matchups` has no field today. When `winPctSource` is `estimated`,
+   * this is Sideline’s remaining-aware CDF from weekly projections + live points.
    */
   myWinPct?: number
   oppWinPct?: number
+  winPctSource?: WinPctSource
   starters: Player[]
   bench: Player[]
   oppStarters: Player[]

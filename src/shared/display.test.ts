@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, boardChanceToWin, espnBoardUx, espnIndicatorHealthy, lastName, liveScorers, matchupChanceToWin, matchupHasLineup, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, boardChanceToWin, espnBoardUx, espnIndicatorHealthy, lastName, liveScorers, matchupChanceToWin, matchupHasLineup, matchupWinPctSource, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -83,6 +83,29 @@ describe('matchupChanceToWin', () => {
         oppProjectedPoints: 80
       })
     ).toBeNull()
+    expect(matchupWinPctSource(matchup)).toBe('official')
+  })
+
+  it('estimates Sleeper win% from projected finals and does not score-share', () => {
+    expect(
+      matchupChanceToWin({
+        ...matchup,
+        myPoints: 0,
+        oppPoints: 0,
+        myProjectedPoints: 140,
+        oppProjectedPoints: 80,
+        winPctSource: 'estimated'
+      })?.mine
+    ).toBeGreaterThan(0.9)
+    expect(
+      matchupChanceToWin({
+        ...matchup,
+        myPoints: 80,
+        oppPoints: 40,
+        winPctSource: 'estimated'
+      })
+    ).toBeNull()
+    expect(matchupWinPctSource({ ...matchup, winPctSource: 'estimated' })).toBe('estimated')
   })
 })
 
@@ -126,6 +149,14 @@ describe('toMatchupBoard', () => {
         oppWinPct: undefined
       })
     ).toBeNull()
+    const estimated = toMatchupBoard(league, {
+      ...matchup,
+      myProjectedPoints: 140,
+      oppProjectedPoints: 80,
+      winPctSource: 'estimated'
+    })
+    expect(estimated.winPctSource).toBe('estimated')
+    expect(boardChanceToWin(estimated)?.mine).toBeGreaterThan(0.9)
   })
 
   it('labels an ESPN board Sign in when cookies are missing instead of a false bye', () => {

@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import type { Matchup } from '@shared/types'
-import { matchupChanceToWin } from '@shared/display'
+import { matchupChanceToWin, matchupWinPctSource } from '@shared/display'
 import { HudTeamName, HudTeamScore } from './HudChrome'
 import { LeadBar } from './LeadBar'
 
@@ -24,7 +24,12 @@ export const HudScoreboard = ({
           <div className="text-xs text-muted">{matchup.myTeam.record}</div>
           <HudTeamScore value={matchup.myPoints} tone="you" surface="board" />
         </div>
-        <LeadBar mine={matchup.myPoints} opp={matchup.oppPoints} chance={matchupChanceToWin(matchup)} />
+        <LeadBar
+          mine={matchup.myPoints}
+          opp={matchup.oppPoints}
+          chance={matchupChanceToWin(matchup)}
+          source={matchupWinPctSource(matchup)}
+        />
         <div className="min-w-0 text-center">
           {matchup.oppTeam?.owner ? (
             <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.oppTeam.owner}</div>

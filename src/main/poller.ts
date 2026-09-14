@@ -10,6 +10,12 @@ import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './l
 import { recentFetchTimings } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
 import {
+  getSleeperProjectionPts,
+  hydrateSleeperProjectionsFromDisk,
+  peekSleeperProjectionPts,
+  resetSleeperProjectionsCache
+} from './providers/sleeperProjections'
+import {
   getLeagueUsers,
   getMatchups,
   getNflState,
@@ -23,7 +29,7 @@ import {
   type SleeperRoster,
   type SleeperUser
 } from './providers/sleeperClient'
-import { applyPlayerNames, overlaySleeperMatchups, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
 import {
   DISCOVERY_VIEWS,
   EspnHttpError,
@@ -2161,6 +2167,18 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const tickedThisPoll = new Map<string, Matchup>()
     const stampLive = (league: League, loaded: Matchup, replace = false): Matchup => {
       if (replay) return loaded
+      let incoming = loaded
+      switch (league.provider) {
+        case 'sleeper':
+          incoming = applySleeperWinEstimate(loaded, peekSleeperProjectionPts())
+          break
+        case 'espn':
+          break
+        default: {
+          const _never: never = league.provider
+          void _never
+        }
+      }
       const key = leagueKey(league.provider, league.id)
       if (!replace) {
         const already = tickedThisPoll.get(key)
@@ -2175,9 +2193,9 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         memory = emptyScoreMemory()
         scoreDisplayByKey.set(key, memory)
       }
-      const stable = stabilizeMatchup(prevDisplayed, loaded, memory, {
+      const stable = stabilizeMatchup(prevDisplayed, incoming, memory, {
         week: liveNfl.displayWeek,
-        official: Boolean(loaded.scoresFinal)
+        official: Boolean(incoming.scoresFinal)
       })
       const stamped = withTickDeltas(league, stable, prevPlayerPts)
       tickedThisPoll.set(key, stamped)
@@ -2580,7 +2598,48 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     }
 
     let restPrefetchDone = Promise.resolve()
+    const paintSleeperEstimates = (pts: Record<string, number> | null): void => {
+      if (gen !== pollGen || replay) return
+      const apply = (loaded: Matchup): Matchup => applySleeperWinEstimate(loaded, pts)
+      for (const [key, row] of matchupCache) {
+        const parsed = parseLeagueKey(key)
+        if (parsed?.provider !== 'sleeper') continue
+        matchupCache.set(key, { at: row.at, matchup: apply(row.matchup) })
+      }
+      let nextMatchup = lastState.matchup
+      const selectedKey = lastState.selectedLeagueKey
+      if (selectedKey && parseLeagueKey(selectedKey)?.provider === 'sleeper' && nextMatchup) {
+        nextMatchup = apply(nextMatchup)
+        matchup = nextMatchup
+        persistSelectedHud(selectedKey, nextMatchup)
+      }
+      let boards = lastState.boards
+      for (const league of lastState.leagues) {
+        if (league.provider !== 'sleeper') continue
+        const key = leagueKey(league.provider, league.id)
+        const loaded = (selectedKey === key ? nextMatchup : null) ?? matchupCache.get(key)?.matchup
+        if (!loaded) continue
+        boards = upsertMatchupBoard(boards, toMatchupBoard(league, loaded, espnBoardExtra(league)))
+      }
+      broadcast({
+        ...lastState,
+        matchup: nextMatchup,
+        boards,
+        lastUpdated: Date.now()
+      })
+    }
     const kickFatSwr = (): void => {
+      if (!replay) {
+        void getSleeperProjectionPts({
+          season: liveNfl.leagueSeason,
+          week: liveNfl.displayWeek,
+          seasonType: liveNfl.seasonType
+        })
+          .then((result) => {
+            if (result.refreshed) paintSleeperEstimates(result.pts)
+          })
+          .catch(() => undefined)
+      }
       const parts = sleeperFatSwrPartsPlan({
         liveTick,
         hasPlayerPeek: peekPlayerDumpReady(),
@@ -3459,6 +3518,13 @@ export const warmupPollerCaches = (): void => {
     }
   }
   if (nflStateCache) hydrateMatchupsFromDisk(nflStateCache.nfl.displayWeek)
+  if (nflStateCache) {
+    hydrateSleeperProjectionsFromDisk({
+      season: nflStateCache.nfl.leagueSeason,
+      week: nflStateCache.nfl.displayWeek,
+      seasonType: nflStateCache.nfl.seasonType
+    })
+  }
   if (!isReplayMode() && nflStateCache) {
     const nfl = nflStateCache.nfl
     hydrateSleeperLeaguesFromDisk(nfl)
@@ -3577,6 +3643,7 @@ export const resetPollerForTests = (): void => {
   matchupsHydrated = false
   liveTape = []
   espnNeedsRelogin = false
+  resetSleeperProjectionsCache()
 }
 
 export const startPoller = (): void => {

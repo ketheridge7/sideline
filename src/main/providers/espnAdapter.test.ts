@@ -638,6 +638,7 @@ describe('toEspnMatchup', () => {
     expect(matchup?.oppProjectedPoints).toBe(94.2)
     expect(matchup?.myWinPct).toBeUndefined()
     expect(matchup?.oppWinPct).toBeUndefined()
+    expect(matchup?.winPctSource).toBeUndefined()
   })
 
   it('mirrors ESPN schedule side winProbability and does not treat it as live points', () => {
@@ -680,6 +681,7 @@ describe('toEspnMatchup', () => {
     expect(matchup?.oppPoints).toBe(72.66)
     expect(matchup?.myWinPct).toBe(0.99)
     expect(matchup?.oppWinPct).toBe(0.01)
+    expect(matchup?.winPctSource).toBe('official')
     expect(matchup?.myProjectedPoints).toBe(103.24)
   })
 
@@ -2290,6 +2292,7 @@ describe('overlayEspnMatchup', () => {
     expect(next?.oppPoints).toBe(15.1)
     expect(next?.myWinPct).toBe(0.74)
     expect(next?.oppWinPct).toBe(0.26)
+    expect(next?.winPctSource).toBe('official')
   })
 
   it('keeps last ESPN winProbability when compact live omits it', () => {
@@ -2306,6 +2309,7 @@ describe('overlayEspnMatchup', () => {
     expect(next?.myPoints).toBe(22.4)
     expect(next?.myWinPct).toBe(0.74)
     expect(next?.oppWinPct).toBe(0.26)
+    expect(next?.winPctSource).toBe('official')
   })
 
   it('reorders overlay HUD starters from Dawg Pound screenshot order using live lineupSlotId', () => {

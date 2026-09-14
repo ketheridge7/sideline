@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlayerNames, overlaySleeperMatchups, toMatchup, toTransactions } from './sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, starterProjectedTotal, toMatchup, toTransactions } from './sleeperAdapter'
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 
@@ -46,6 +46,7 @@ describe('toMatchup', () => {
     expect(result?.oppStarters[0]?.points).toBe(18)
     expect(result?.myWinPct).toBeUndefined()
     expect(result?.oppWinPct).toBeUndefined()
+    expect(result?.winPctSource).toBe('estimated')
   })
 
   it('copies a published Sleeper win_probability onto the matchup when present', () => {
@@ -57,6 +58,7 @@ describe('toMatchup', () => {
     expect(result?.myPoints).toBe(20)
     expect(result?.myWinPct).toBe(0.62)
     expect(result?.oppWinPct).toBe(0.38)
+    expect(result?.winPctSource).toBe('official')
   })
 
   it('treats co_owners as my roster', () => {
@@ -200,6 +202,7 @@ describe('overlaySleeperMatchups', () => {
     expect(withWp?.myPoints).toBe(41.2)
     expect(withWp?.myWinPct).toBe(0.62)
     expect(withWp?.oppWinPct).toBe(0.38)
+    expect(withWp?.winPctSource).toBe('official')
     const omitted = overlaySleeperMatchups(withWp!, [
       { ...matchups[0], points: 42.1, players_points: { '1': 23.3, '2': 18.8, '9': 1 } },
       { ...matchups[1], points: 27.6, players_points: { '3': 27.6 } }
@@ -207,6 +210,7 @@ describe('overlaySleeperMatchups', () => {
     expect(omitted?.myPoints).toBe(42.1)
     expect(omitted?.myWinPct).toBe(0.62)
     expect(omitted?.oppWinPct).toBe(0.38)
+    expect(omitted?.winPctSource).toBe('official')
   })
 
   it('overlays player-id keyed starters_points when the payload omits starters', () => {
@@ -561,3 +565,63 @@ describe('toTransactions', () => {
     expect(rows[0]?.timestamp).toBe(1710000000000)
   })
 })
+
+describe('applySleeperWinEstimate', () => {
+  const projections = { '1': 22, '2': 18, '3': 16 }
+
+  it('fills Est. win% from starter projections + live points', () => {
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(matchup).not.toBeNull()
+    if (!matchup) return
+    expect(starterProjectedTotal(matchup.starters, projections)).toBe(40)
+    const next = applySleeperWinEstimate(matchup, projections)
+    expect(next.winPctSource).toBe('estimated')
+    expect(next.myProjectedPoints).toBe(40)
+    expect(next.oppProjectedPoints).toBe(16)
+    expect(next.myWinPct).toBeGreaterThan(0.8)
+    expect(next.myPoints).toBe(20)
+  })
+
+  it('stays pending when a starter is missing a projection (no score-share)', () => {
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(matchup).not.toBeNull()
+    if (!matchup) return
+    const next = applySleeperWinEstimate(matchup, { '1': 22, '3': 16 })
+    expect(next.winPctSource).toBe('estimated')
+    expect(next.myWinPct).toBeUndefined()
+    expect(next.myProjectedPoints).toBeUndefined()
+    expect(applySleeperWinEstimate(matchup, null).myWinPct).toBeUndefined()
+  })
+
+  it('does not replace a published Sleeper win_probability with the estimate', () => {
+    const live = [
+      { ...matchups[0], win_probability: 0.62 },
+      { ...matchups[1], win_probability: 0.38 }
+    ]
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(matchup).not.toBeNull()
+    if (!matchup) return
+    const next = applySleeperWinEstimate(matchup, projections)
+    expect(next.winPctSource).toBe('official')
+    expect(next.myWinPct).toBe(0.62)
+    expect(next.myProjectedPoints).toBeUndefined()
+  })
+
+  it('recomputes the estimate after overlaying live points', () => {
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(matchup).not.toBeNull()
+    if (!matchup) return
+    const first = applySleeperWinEstimate(matchup, projections)
+    const live = overlaySleeperMatchups(first, [
+      { ...matchups[0], points: 41.2, players_points: { '1': 22.4, '2': 18.8, '9': 1 } },
+      { ...matchups[1], points: 27.6, players_points: { '3': 27.6 } }
+    ])
+    expect(live?.winPctSource).toBe('estimated')
+    expect(live?.myWinPct).toBeUndefined()
+    const next = applySleeperWinEstimate(live!, projections)
+    expect(next.myPoints).toBe(41.2)
+    expect(next.winPctSource).toBe('estimated')
+    expect(next.myWinPct).toBeGreaterThan(0.5)
+  })
+})
+
