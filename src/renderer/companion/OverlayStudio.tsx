@@ -28,6 +28,9 @@ const api = (): NonNullable<Window['sideline']> => {
 
 const PREVIEW_W = 1280
 const PREVIEW_H = 720
+const PREVIEW_SCALE = 0.2
+const BLOCK_OUTLINE_PX = 12
+const BLOCK_OUTLINE_OFFSET_PX = 8
 
 const Slider = ({
   label,
@@ -173,7 +176,7 @@ export const OverlayStudio = ({
             style={{
               width: PREVIEW_W,
               height: PREVIEW_H,
-              transform: 'scale(0.2)'
+              transform: `scale(${PREVIEW_SCALE})`
             }}
           >
             {layout.widgets.map((widget) => {
@@ -228,8 +231,8 @@ export const OverlayStudio = ({
                     top: `${box.y}%`,
                     width: `${box.w}%`,
                     height: `${box.h}%`,
-                    outline: active ? '3px solid #A6E6A0' : '1px solid transparent',
-                    outlineOffset: 4,
+                    outline: active ? `${BLOCK_OUTLINE_PX}px solid #A6E6A0` : '4px solid transparent',
+                    outlineOffset: BLOCK_OUTLINE_OFFSET_PX,
                     zIndex: 2
                   }}
                   onClick={(event) => handleBlockClick(event, id)}

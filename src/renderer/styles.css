@@ -211,7 +211,7 @@ select {
 }
 
 .studio-block-idle:hover {
-  outline: 2px solid rgba(166, 230, 160, 0.45) !important;
+  outline: 8px solid rgba(166, 230, 160, 0.55) !important;
 }
 
 .lineup-row {
