@@ -17,7 +17,8 @@ export const OVERLAY_WIDGET_IDS = [
   'col.opp.pts',
   'bench.mine',
   'bench.opp',
-  'toast.slot'
+  'toast.slot',
+  'ticker.nfl'
 ] as const
 
 export type OverlayWidgetId = (typeof OVERLAY_WIDGET_IDS)[number]
@@ -31,9 +32,10 @@ export const DEFAULT_OVERLAY_PRESET: OverlayPresetId = '1'
 /**
  * Bump when canned preset geometry or the widget catalog changes incompatibly.
  * v2 = you-left dual frost rails and five placements from HUD PRs #13/#14.
+ * v3 = Preset 4 same-side stacked team frames; ticker.nfl in the catalog for Studio blocks.
  * Unversioned / older saves reset live widgets to Preset 1 once; slots 1–5 stay.
  */
-export const OVERLAY_LAYOUT_SCHEMA_VERSION = 2
+export const OVERLAY_LAYOUT_SCHEMA_VERSION = 3
 
 export type OverlayDensity = 'inherit' | 'compact' | 'regular' | 'large'
 
@@ -99,7 +101,8 @@ export const WIDGET_LABELS: Record<OverlayWidgetId, string> = {
   'col.opp.pts': 'Their player scores',
   'bench.mine': 'Your bench',
   'bench.opp': 'Their bench',
-  'toast.slot': 'Alerts'
+  'toast.slot': 'Alerts',
+  'ticker.nfl': 'Ticker'
 }
 
 export const PRESET_LABELS: Record<OverlayPresetId, string> = {
@@ -114,8 +117,16 @@ export const PRESET_PLACEMENTS: Record<OverlayPresetId, string> = {
   '1': 'Far sides',
   '2': 'Upper corners',
   '3': 'Lower corners',
-  '4': 'Inset sides',
+  '4': 'Same-side stack',
   '5': 'Side bands'
+}
+
+export const PRESET_HINTS: Record<OverlayPresetId, string> = {
+  '1': 'You left, them right.',
+  '2': 'You left, them right.',
+  '3': 'You left, them right.',
+  '4': 'Both teams on the same side, stacked one above the other.',
+  '5': 'You left-upper, them right-lower.'
 }
 
 const LEGACY_PRESET_IDS: Record<string, OverlayPresetId> = {
@@ -146,6 +157,7 @@ export const presetShowsCrawler = (presetId: OverlayPresetId): boolean => {
 
 export const coversLiveVideo = (row: OverlayWidgetInstance): boolean =>
   row.id !== 'toast.slot' &&
+  row.id !== 'ticker.nfl' &&
   !row.hidden &&
   row.x < 78 &&
   row.x + row.w > 22 &&
@@ -269,6 +281,9 @@ const teamChrome = (
   return rows
 }
 
+const TICKER_Y = 94.4
+const TICKER_H = 5.6
+
 const dualColumn = (
   mine: RailAnchor,
   opp: RailAnchor,
@@ -279,7 +294,8 @@ const dualColumn = (
   ...teamChrome('opp', opp, scoreH, railW, 'regular'),
   hide('meta.league', mine.x, mine.railY),
   hide('meta.week', mine.x, mine.railY, 5, 2),
-  hide('toast.slot', mine.x, mine.railY)
+  hide('toast.slot', mine.x, mine.railY),
+  ghost('ticker.nfl', 0, TICKER_Y, 100, TICKER_H, 'compact')
 ]
 
 export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
@@ -318,10 +334,10 @@ export const layoutFromPreset = (presetId: OverlayPresetId): OverlayLayout => {
       return layout(
         '4',
         dualColumn(
-          { x: 5.2, nameY: 14, railY: 28.4, railH: 46 },
-          { x: 79.4, nameY: 14, railY: 28.4, railH: 46 },
-          8.2,
-          15.4
+          { x: 1.2, nameY: 2.8, railY: 16.8, railH: 28 },
+          { x: 1.2, nameY: 50.2, railY: 64.2, railH: 26 },
+          7.4,
+          18
         )
       )
     case '5':
@@ -350,10 +366,12 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     : null
 
 export const parsePresetId = (value: unknown): OverlayPresetId => {
-  if (typeof value === 'string' && (OVERLAY_PRESET_IDS as readonly string[]).includes(value)) {
-    return value as OverlayPresetId
+  const raw =
+    typeof value === 'number' && Number.isFinite(value) ? String(Math.trunc(value)) : value
+  if (typeof raw === 'string' && (OVERLAY_PRESET_IDS as readonly string[]).includes(raw)) {
+    return raw as OverlayPresetId
   }
-  if (typeof value === 'string' && value in LEGACY_PRESET_IDS) return LEGACY_PRESET_IDS[value]
+  if (typeof raw === 'string' && raw in LEGACY_PRESET_IDS) return LEGACY_PRESET_IDS[raw]
   return DEFAULT_OVERLAY_PRESET
 }
 

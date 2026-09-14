@@ -203,6 +203,17 @@ select {
   gap: 0.25rem;
 }
 
+.studio-presets button[aria-pressed="true"],
+.studio-preset-active {
+  border-color: #a6e6a0;
+  background: rgba(166, 230, 160, 0.16);
+  color: #a6e6a0;
+}
+
+.studio-block-idle:hover {
+  outline: 2px solid rgba(166, 230, 160, 0.45) !important;
+}
+
 .lineup-row {
   display: grid;
   grid-template-columns: 3.25em minmax(0, 1fr) 3.75em;
