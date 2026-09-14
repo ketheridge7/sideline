@@ -17,6 +17,7 @@ import {
   OVERLAY_LAYOUT_SCHEMA_VERSION,
   OVERLAY_PRESET_IDS,
   OVERLAY_WIDGET_IDS,
+  PRESET_HINTS,
   PRESET_LABELS,
   PRESET_PLACEMENTS
 } from './overlayLayout'
@@ -51,6 +52,8 @@ describe('layoutFromPreset', () => {
       expect(layout.showCrawler).toBe(false)
       expect(PRESET_LABELS[id].startsWith('Preset ')).toBe(true)
       expect(PRESET_PLACEMENTS[id].length).toBeGreaterThan(0)
+      expect(PRESET_HINTS[id].length).toBeGreaterThan(0)
+      expect(layout.widgets.find((row) => row.id === 'ticker.nfl')?.hidden).toBe(false)
       for (const hiddenId of HIDDEN_EVERYWHERE) {
         expect(layout.widgets.find((row) => row.id === hiddenId)?.hidden).toBe(true)
       }
@@ -60,8 +63,9 @@ describe('layoutFromPreset', () => {
     }
   })
 
-  it('keeps you left / them right frost rails in every placement', () => {
+  it('keeps you left / them right frost rails except the same-side stack', () => {
     for (const id of OVERLAY_PRESET_IDS) {
+      if (id === '4') continue
       const mine = widget(id, 'col.mine.name')
       const opp = widget(id, 'col.opp.name')
       expect(mine?.x).toBeLessThan(opp?.x ?? 0)
@@ -90,10 +94,16 @@ describe('layoutFromPreset', () => {
     expect(widget('3', 'col.opp.name')?.x).toBeGreaterThanOrEqual(80)
   })
 
-  it('Preset 4 insets the side rails from the far edges', () => {
-    expect(widget('4', 'col.mine.name')?.x).toBeGreaterThan(widget('1', 'col.mine.name')?.x ?? 0)
-    expect(widget('4', 'col.opp.name')?.x).toBeLessThan(widget('1', 'col.opp.name')?.x ?? 100)
-    expect(widget('4', 'col.mine.name')?.w ?? 99).toBeLessThan(widget('1', 'col.mine.name')?.w ?? 0)
+  it('Preset 4 stacks both team frames on the same side', () => {
+    const mine = widget('4', 'col.mine.name')
+    const opp = widget('4', 'col.opp.name')
+    expect(mine?.x).toBe(opp?.x)
+    expect(widget('4', 'team.mine.name')?.x).toBe(widget('4', 'team.opp.name')?.x)
+    expect((mine?.y ?? 0) + (mine?.h ?? 0)).toBeLessThan(widget('4', 'team.opp.name')?.y ?? 0)
+    expect((mine?.x ?? 0) + (mine?.w ?? 0)).toBeLessThanOrEqual(22)
+    expect(PRESET_PLACEMENTS['4']).toBe('Same-side stack')
+    expect(PRESET_HINTS['4']).toMatch(/same side/i)
+    expect(PRESET_HINTS['4']).toMatch(/stacked/i)
   })
 
   it('Preset 5 offsets the side bands so them sits lower than you', () => {
@@ -106,12 +116,17 @@ describe('layoutFromPreset', () => {
     const one = applyPreset('1')
     const two = applyPreset('2', one)
     const three = applyPreset('3', two)
+    const four = applyPreset('4', three)
     expect(two.presetId).toBe('2')
     expect(three.presetId).toBe('3')
+    expect(four.presetId).toBe('4')
     expect(widget('2', 'col.mine.name')?.y).not.toBe(widget('1', 'col.mine.name')?.y)
     expect(widget('3', 'col.mine.name')?.y).not.toBe(widget('2', 'col.mine.name')?.y)
     expect(two.widgets.find((row) => row.id === 'col.mine.name')?.y).toBe(widget('2', 'col.mine.name')?.y)
     expect(three.widgets.find((row) => row.id === 'col.mine.name')?.y).toBe(widget('3', 'col.mine.name')?.y)
+    expect(four.widgets.find((row) => row.id === 'col.mine.name')?.x).toBe(
+      four.widgets.find((row) => row.id === 'col.opp.name')?.x
+    )
   })
 
   it('no canned preset covers the live video rectangle', () => {
@@ -129,6 +144,8 @@ describe('parseOverlayLayout', () => {
     expect(parsePresetId('broadcast-l')).toBe('1')
     expect(parsePresetId('redzone')).toBe('5')
     expect(parsePresetId('corners')).toBe('2')
+    expect(parsePresetId(4)).toBe('4')
+    expect(parsePresetId('4')).toBe('4')
     expect(parseOverlayLayout({ presetId: 'broadcast-l' }).presetId).toBe('1')
     expect(parseOverlayLayout('nope').widgets).toHaveLength(OVERLAY_WIDGET_IDS.length)
   })
@@ -247,6 +264,7 @@ describe('layout edits', () => {
     const other = applyPreset('4', saved)
     expect(other.presetId).toBe('4')
     expect(other.widgets.find((row) => row.id === 'col.mine.name')?.y).toBe(widget('4', 'col.mine.name')?.y)
+    expect(other.widgets.find((row) => row.id === 'col.mine.name')?.x).toBe(widget('4', 'col.mine.name')?.x)
     const restored = applyPreset('1', other)
     expect(restored.presetId).toBe('1')
     expect(restored.widgets.find((row) => row.id === 'team.mine.name')?.y).toBe(

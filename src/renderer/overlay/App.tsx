@@ -11,7 +11,6 @@ import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, toOverlayHud } from '@shared/types'
 import { OverlayWidgetView } from './Widgets'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from './density'
-import { NflTicker } from '../companion/NflTicker'
 import { canvasInsetPct, overlayAllowsEdit, overlaySurface, subscribeHud } from './subscribe'
 
 type DragSession = {
@@ -170,11 +169,6 @@ export const OverlayApp = (): JSX.Element => {
         )
       })}
       </div>
-      {hud.nflTicker.length > 0 ? (
-        <div className="absolute bottom-0 left-0 right-0">
-          <NflTicker games={hud.nflTicker} variant="overlay" />
-        </div>
-      ) : null}
     </div>
   )
 }

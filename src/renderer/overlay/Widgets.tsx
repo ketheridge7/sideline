@@ -5,6 +5,7 @@ import { overlayName } from '../shared/format'
 import { HudTeamName, HudTeamScore, LeadChip } from '../shared/HudChrome'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { HudRail } from '../shared/LineupRow'
+import { NflTicker } from '../companion/NflTicker'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
 
@@ -105,6 +106,8 @@ export const OverlayWidgetView = ({
             : []
       return showCrawler ? <HudCrawler events={events} /> : <ToastChip events={events} />
     }
+    case 'ticker.nfl':
+      return <NflTicker games={hud.nflTicker} variant="overlay" />
     default: {
       const _never: never = id
       return _never

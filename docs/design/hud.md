@@ -39,13 +39,14 @@ SCOREBOARD LeadBar is **chance to win**, not score-share and not a betting line.
 
 ## Overlay widget catalog
 
-Coordinates are **percent of canvas**. Studio moves the HUD as one group (position + size). Per-widget show/hide/lock chrome is gone.
+Coordinates are **percent of canvas**. Studio selects **big blocks** (your team frame, their team frame, bottom ticker) and moves that block with position/size sliders. Per-widget show/hide/lock chrome is gone. Preview clicks select; they do not drag.
 
 - Meta: `meta.league`, `meta.week` (hidden in every canned preset), `meta.live` (1px lime live/replay pip, no ON AIR wordmark)
 - Identity: `team.mine.name`, `team.opp.name` — condensed uppercase, **centered** and enlarged in the name widget (`cqh`), above the team score
 - Scores: `score.mine`, `score.opp` (loudest number, **centered** in the score widget), `score.delta` (tiny lead next to your score, not a third scoreboard)
 - Rails: one `col.*.name` widget per side paints a CSS grid `POS | NAME | PTS`. Split `col.*.pos` / `col.*.pts` stay in the catalog but are hidden so points cannot drift or overlap position labels. `col.*.nfl` stays hidden. No ice hash line on either rail.
 - Bench / alerts: `bench.mine`, `bench.opp`, `toast.slot` stay in the catalog, hidden in every canned preset. No crawler, no toast chips, no marquee.
+- Ticker: `ticker.nfl` is the bottom ON AIR strip. Studio treats it as one selectable block.
 
 Visible HUD is **names, scores, and both starter rails**. Last names only (`overlayName`). No NFL city tags.
 
@@ -57,17 +58,17 @@ When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. 
 
 Default **Preset 1** (far sides): dual skinny frost rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Tiny lead chip stays next to your total. No framed card. Each starter row is a CSS grid `POS | NAME | PTS`. Center video stays clear.
 
-Studio has **exactly five** dual-column placements (same you/them theme, different screen regions):
+Studio has **exactly five** placements (same you/them chrome, different screen regions):
 
 | Preset | Placement | Notes |
 | --- | --- | --- |
 | 1 | Far sides | You on the left gutter, them on the right gutter, full-height-ish rails |
 | 2 | Upper corners | Same gutters, shorter rails tucked to the top |
 | 3 | Lower corners | Same gutters, shorter rails tucked to the bottom |
-| 4 | Inset sides | Dual rails pulled in from the edges, mid-height |
+| 4 | Same-side stack | Both teams on the **same side**, stacked one above the other (not left/right) |
 | 5 | Side bands | You left-upper band, them right-lower band (offset stack) |
 
-Clicking a preset **applies it immediately** to the live HUD (factory map, or the overwritten slot if you saved). Position X/Y and Width/Height sliders move the whole HUD group. **Save over Preset N** writes the current geometry into that slot.
+Clicking a preset **applies it immediately** to the live HUD (factory map, or the overwritten slot if you saved). The green preset box follows the preset that was actually applied. Click a team frame or the ticker in the Studio preview, then Position X/Y and Width/Height sliders move **that block only**. **Save over Preset N** writes the current geometry into that slot.
 
 Old saved ids (`national`, `redzone`, `ticket`, `broadcast-l`, `corners`, `pip`, `minimal`, `user.1`) migrate onto these five. Split pos/name/pts columns coalesce into one rail widget so leftover settings cannot recreate the offset-points bug.
 
@@ -88,7 +89,7 @@ Watch mode: Electron `setIgnoreMouseEvents(true, { forward: true })`. Edit: mous
 
 `OverlayHudState` is provider-agnostic: scores, both starters, both benches, week, `pollingLive`, last toast, `tape`, `layout`. Adapters map transactions to `trade | add | drop | add_drop | status`. Score ticks and injuries append to `tape` only from real diffs. Do not branch overlay markup on `provider === 'sleeper'`.
 
-Layout persists in `sideline-settings.json` and is pushed on the same SSE `/events` payload so OBS and Google TV update when Studio saves. Each layout JSON carries `schemaVersion` (currently **2**: you-left dual frost rails, five placements). When that number is missing or behind the factory, Sideline **auto-migrates once**: live widget geometry resets to Preset 1 (far sides) and is written back. Intentionally saved preset slots 1–5 are kept. Current-version Studio overwrites still merge as before — no manual Revert.
+Layout persists in `sideline-settings.json` and is pushed on the same SSE `/events` payload so OBS and Google TV update when Studio saves. Each layout JSON carries `schemaVersion` (currently **3**: you-left dual frost rails, five placements, Preset 4 same-side stack, `ticker.nfl` block). When that number is missing or behind the factory, Sideline **auto-migrates once**: live widget geometry resets to Preset 1 (far sides) and is written back. Intentionally saved preset slots 1–5 are kept. Current-version Studio overwrites still merge as before — no manual Revert.
 
 SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip` / `LineupRow` (POS | NAME | PTS). Team names stay ice-green (you) / warm silver (them); scores and rows stay frost. Overlay still last-names the rail; the board keeps full names.
 
@@ -101,7 +102,7 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 - Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
 - Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle, quiet Studio.
-- Overlay Studio: five presets, position/size sliders, save/overwrite. Mini HUD preview. No per-widget show/hide/lock.
+- Overlay Studio: five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No drag, no per-widget show/hide/lock.
 
 Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).
 
