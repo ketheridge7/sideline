@@ -268,7 +268,17 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
     bench: overlayPlayers(prev.bench, mine),
     oppStarters: opp ? overlayPlayers(prev.oppStarters, opp) : prev.oppStarters,
     oppBench: opp ? overlayPlayers(prev.oppBench, opp) : prev.oppBench,
-    scoresFinal: mine.custom_points != null || opp?.custom_points != null
+    scoresFinal: mine.custom_points != null || opp?.custom_points != null,
+    ...(mine.win_probability != null
+      ? { myWinPct: mine.win_probability }
+      : prev.myWinPct != null
+        ? { myWinPct: prev.myWinPct }
+        : {}),
+    ...(opp?.win_probability != null
+      ? { oppWinPct: opp.win_probability }
+      : prev.oppWinPct != null
+        ? { oppWinPct: prev.oppWinPct }
+        : {})
   }
 }
 
@@ -321,7 +331,9 @@ export const toMatchup = (args: {
     bench,
     oppStarters: oppMatchup ? oppStarters : [],
     oppBench: oppMatchup ? oppBench : [],
-    scoresFinal: myMatchup.custom_points != null || oppMatchup?.custom_points != null
+    scoresFinal: myMatchup.custom_points != null || oppMatchup?.custom_points != null,
+    ...(myMatchup.win_probability != null ? { myWinPct: myMatchup.win_probability } : {}),
+    ...(oppMatchup?.win_probability != null ? { oppWinPct: oppMatchup.win_probability } : {})
   }
 }
 

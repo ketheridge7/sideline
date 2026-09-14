@@ -33,7 +33,7 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 
 Type: Barlow + Barlow Condensed (condensed grotesk for scores/headers, UI sans for body). Data radii 0–2px. Tabular nums. Overlay fill is `0` — frosted type only, no smoke wash, no pane, no drop-shadow card. A 0.4px dark glyph stroke keeps contrast on grass. Type scales with widget size (`cqh`). One focal matchup; rails sit at ~60% visual weight.
 
-SCOREBOARD LeadBar is **chance to win** (Win%), not score-share and not a betting line. ESPN uses live scores + remaining/projected finals (`totalProjectedPointsLive`); Sleeper has no public win% field yet — hide Win% rather than faking 50/50 from 0–0. Overlay still shows the point delta only.
+SCOREBOARD LeadBar is **chance to win** (Win%), not score-share and not a betting line. ESPN mirrors official `schedule[].home.winProbability` / `away.winProbability` from `mMatchupScore`. Sleeper public `/matchups` has no win% field — hide Win% rather than faking 50/50 from 0–0 or from projections. Overlay still shows the point delta only.
 
 ---
 

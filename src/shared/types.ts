@@ -36,6 +36,9 @@ export type MatchupBoard = {
   /** ESPN projected final (`totalProjectedPointsLive`). Never live points. */
   myProjectedPoints?: number
   oppProjectedPoints?: number
+  /** Provider matchup win% (0–1). ESPN `schedule[].home|away.winProbability`. */
+  myWinPct?: number
+  oppWinPct?: number
   scoresFinal?: boolean
   lastScorers: ScorerChip[]
   leadSpark?: number[]
@@ -79,10 +82,17 @@ export type Matchup = {
   oppPoints: number
   /**
    * Projected **final** team total (ESPN `totalProjectedPointsLive`).
-   * Used for chance-to-win only — never as live scored points.
+   * Never live scored points and never a substitute for published win%.
    */
   myProjectedPoints?: number
   oppProjectedPoints?: number
+  /**
+   * Official matchup win probability (0–1) from the provider JSON.
+   * ESPN: `schedule[].home.winProbability` / `away.winProbability` on `mMatchupScore`.
+   * Sleeper: REST `/matchups` has no field today — pending unless a published key appears.
+   */
+  myWinPct?: number
+  oppWinPct?: number
   starters: Player[]
   bench: Player[]
   oppStarters: Player[]

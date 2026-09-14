@@ -764,6 +764,26 @@ describe('sleeperClient', () => {
     ).toBe(12.4)
   })
 
+  it('reads a published win_probability without treating it as points', () => {
+    expect(
+      parseSleeperMatchup({
+        roster_id: 1,
+        matchup_id: 7,
+        points: 41.2,
+        win_probability: 0.62
+      })
+    ).toMatchObject({ roster_id: 1, points: 41.2, win_probability: 0.62 })
+    expect(
+      parseSleeperMatchup({
+        roster_id: 1,
+        matchup_id: 7,
+        points: 41.2,
+        chance_to_win: 62
+      })?.win_probability
+    ).toBe(0.62)
+    expect(parseSleeperMatchup({ roster_id: 1, matchup_id: 7, points: 41.2 })?.win_probability).toBeUndefined()
+  })
+
   it('reads player_points and starter_points as players_points / starters_points', () => {
     expect(
       parseSleeperMatchup({

@@ -154,4 +154,17 @@ describe('stabilizeMatchup', () => {
     expect(next.myProjectedPoints).toBe(110.4)
     expect(next.oppProjectedPoints).toBe(99.1)
   })
+
+  it('passes provider win% through without the live-point watermark', () => {
+    const memory = emptyScoreMemory()
+    const shown = stabilizeMatchup(null, { ...matchup(22.4, 15.1), myWinPct: 0.74, oppWinPct: 0.26 }, memory)
+    const next = stabilizeMatchup(
+      shown,
+      { ...matchup(24.1, 15.1), myWinPct: 0.61, oppWinPct: 0.39 },
+      memory
+    )
+    expect(next.myPoints).toBe(24.1)
+    expect(next.myWinPct).toBe(0.61)
+    expect(next.oppWinPct).toBe(0.39)
+  })
 })

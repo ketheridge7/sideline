@@ -636,6 +636,51 @@ describe('toEspnMatchup', () => {
     expect(matchup?.oppPoints).toBe(0)
     expect(matchup?.myProjectedPoints).toBe(101.46)
     expect(matchup?.oppProjectedPoints).toBe(94.2)
+    expect(matchup?.myWinPct).toBeUndefined()
+    expect(matchup?.oppWinPct).toBeUndefined()
+  })
+
+  it('mirrors ESPN schedule side winProbability and does not treat it as live points', () => {
+    const matchup = toEspnMatchup({
+      payload: {
+        teams: [
+          {
+            id: 4,
+            primaryOwner: '{11111111-1111-1111-1111-111111111111}',
+            location: 'Mine',
+            nickname: 'Squad'
+          },
+          { id: 5, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            winner: 'UNDECIDED',
+            home: {
+              teamId: 4,
+              totalPointsLive: 103.24,
+              totalPoints: 0,
+              totalProjectedPointsLive: 103.24,
+              winProbability: 0.99
+            },
+            away: {
+              teamId: 5,
+              totalPointsLive: 72.66,
+              totalPoints: 0,
+              totalProjectedPointsLive: 83.66420729,
+              winProbability: 0.01
+            }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' },
+      displayWeek: 1
+    })
+    expect(matchup?.myPoints).toBe(103.24)
+    expect(matchup?.oppPoints).toBe(72.66)
+    expect(matchup?.myWinPct).toBe(0.99)
+    expect(matchup?.oppWinPct).toBe(0.01)
+    expect(matchup?.myProjectedPoints).toBe(103.24)
   })
 
   it('keeps leftover boxscore starters that compact mLiveScoring omitted', () => {
@@ -2228,6 +2273,39 @@ describe('overlayEspnMatchup', () => {
     expect(next?.myPoints).toBe(22.4)
     expect(next?.myProjectedPoints).toBe(101.46)
     expect(next?.oppProjectedPoints).toBe(94.2)
+  })
+
+  it('parses ESPN winProbability without treating it as live points', () => {
+    const live = {
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: { teamId: 1, totalPointsLive: 22.4, winProbability: 0.74 },
+          away: { teamId: 2, totalPointsLive: 15.1, winProbability: 0.26 }
+        }
+      ]
+    }
+    const next = overlayEspnMatchup(prev, live, 1)
+    expect(next?.myPoints).toBe(22.4)
+    expect(next?.oppPoints).toBe(15.1)
+    expect(next?.myWinPct).toBe(0.74)
+    expect(next?.oppWinPct).toBe(0.26)
+  })
+
+  it('keeps last ESPN winProbability when compact live omits it', () => {
+    const seeded = { ...prev, myWinPct: 0.74, oppWinPct: 0.26 }
+    const live = {
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 22.4, players: [{ playerId: 100, totalPointsLive: 22.4 }] },
+          { teamId: 2, totalPointsLive: 15.1, players: [{ playerId: 200, totalPointsLive: 15.1 }] }
+        ]
+      }
+    }
+    const next = overlayEspnMatchup(seeded, live, 1)
+    expect(next?.myPoints).toBe(22.4)
+    expect(next?.myWinPct).toBe(0.74)
+    expect(next?.oppWinPct).toBe(0.26)
   })
 
   it('reorders overlay HUD starters from Dawg Pound screenshot order using live lineupSlotId', () => {

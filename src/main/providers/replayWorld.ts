@@ -57,6 +57,8 @@ const cloneMatchup = (row: Matchup): Matchup => ({
   oppPoints: row.oppPoints,
   ...(row.myProjectedPoints != null ? { myProjectedPoints: row.myProjectedPoints } : {}),
   ...(row.oppProjectedPoints != null ? { oppProjectedPoints: row.oppProjectedPoints } : {}),
+  ...(row.myWinPct != null ? { myWinPct: row.myWinPct } : {}),
+  ...(row.oppWinPct != null ? { oppWinPct: row.oppWinPct } : {}),
   starters: clonePlayers(row.starters),
   bench: clonePlayers(row.bench),
   oppStarters: clonePlayers(row.oppStarters),
