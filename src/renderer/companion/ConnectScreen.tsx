@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import type { AppState } from '@shared/types'
 import { ShortcutSettings } from './ShortcutSettings'
+import { UpdateSettings } from './UpdateSettings'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -186,6 +187,8 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
           </div>
         ) : null}
       </section>
+
+      <UpdateSettings />
 
       <ShortcutSettings state={state} />
 

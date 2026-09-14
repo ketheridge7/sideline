@@ -9,6 +9,7 @@ import { startOverlayServer, publishOverlay } from './server'
 import { loadSettings } from './store'
 import { registerAppShortcuts } from './shortcuts'
 import { createTray } from './tray'
+import { startAutoUpdater } from './updater'
 import { createCompanionWindow } from './windows/companion'
 
 const gotLock = app.requestSingleInstanceLock()
@@ -45,6 +46,7 @@ app.whenReady().then(async () => {
   createTray()
   createCompanionWindow()
   registerAppShortcuts()
+  startAutoUpdater()
 
   startPoller()
 })

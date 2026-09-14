@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import type { UpdateSnapshot } from '@shared/updater'
 
 let companion: BrowserWindow | null = null
 let overlay: BrowserWindow | null = null
@@ -45,5 +46,8 @@ export const runtime = {
   },
   sendToast: (toast: ToastPayload) => {
     if (!companion?.isDestroyed()) companion?.webContents.send('sideline:toast', toast)
+  },
+  sendUpdate: (snapshot: UpdateSnapshot) => {
+    if (!companion?.isDestroyed()) companion?.webContents.send('sideline:update', snapshot)
   }
 }

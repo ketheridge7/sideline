@@ -7,6 +7,7 @@ import { saveSettings } from './store'
 import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
 import { clearEspnCookies, openEspnLogin } from './windows/espnLogin'
+import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
 import { setOverlayDisplayId, setOverlayEditMode, toggleOverlay } from './windows/overlay'
 
 export const registerIpc = (): void => {
@@ -79,4 +80,7 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:showCompanion', () => {
     createCompanionWindow().show()
   })
+  ipcMain.handle('sideline:getUpdateStatus', () => getUpdateStatus())
+  ipcMain.handle('sideline:checkForUpdates', () => checkForUpdates(true))
+  ipcMain.handle('sideline:installUpdate', () => installUpdate())
 }

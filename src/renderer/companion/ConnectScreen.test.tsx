@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { emptyAppState } from '@shared/types'
 import { ConnectScreen } from './ConnectScreen'
 
+describe('ConnectScreen updates', () => {
+  it('puts Check for updates on Connect next to other settings', () => {
+    const html = renderToStaticMarkup(<ConnectScreen state={emptyAppState()} />)
+    expect(html).toContain('Check for updates')
+    expect(html).toContain('data-update-state="idle"')
+  })
+})
+
 describe('ConnectScreen shortcuts', () => {
   it('lists the HUD, display, league, and Studio accelerators with change/reset', () => {
     const html = renderToStaticMarkup(<ConnectScreen state={emptyAppState()} />)
