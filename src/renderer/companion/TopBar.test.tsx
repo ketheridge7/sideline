@@ -51,8 +51,10 @@ describe('TopBar', () => {
     )
     expect(html).toContain('data-wordmark="sideline"')
     expect(html).toContain('SIDELINE')
-    expect(html).toMatch(/<img[^>]+src="/)
-    expect(html).toContain('sideline-mark.svg')
+    expect(html).toMatch(/<img[^>]+src="data:image\/svg\+xml/)
+    expect(html).toContain('%2312141A')
+    expect(html).toContain('%237DFFB0')
+    expect(html).toContain('%23D6F34A')
   })
 
   it('keeps the renderer mark identical to build/icon.svg', () => {
