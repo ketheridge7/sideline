@@ -14,6 +14,7 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,vitest.config.ts}'
   - '!{README.md,.gitignore}'
   - '!tv/**/*'
+  - '!site/**/*'
 extraResources:
   - from: fixtures
     to: fixtures

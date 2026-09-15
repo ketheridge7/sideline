@@ -4,6 +4,16 @@ Second-screen fantasy companion for NFL Sundays. One Electron app, two windows: 
 
 **Sleeper** uses the official read-only HTTP API. **ESPN** access is unofficial, uses your own login, and is for personal companion use only.
 
+## Marketing site
+
+The public marketing site is a separate Next.js app in [`site/`](site/). It is not part of the Electron build.
+
+```bash
+cd site
+npm install
+npm run dev
+```
+
 ## Run
 
 ```bash
