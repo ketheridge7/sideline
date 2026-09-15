@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
+import { bindEmptyNativeTitle, NATIVE_WINDOW_TITLE, packagingWindowIconPath } from '../packagingIcon'
 import { runtime } from '../runtime'
 import { loadRenderer } from './load'
 
@@ -16,7 +17,8 @@ export const createCompanionWindow = (): BrowserWindow => {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: 'Sideline',
+    title: NATIVE_WINDOW_TITLE,
+    icon: packagingWindowIconPath(),
     backgroundColor: '#07080A',
     autoHideMenuBar: true,
     webPreferences: {
@@ -26,6 +28,8 @@ export const createCompanionWindow = (): BrowserWindow => {
       sandbox: false
     }
   })
+
+  bindEmptyNativeTitle(win)
 
   win.on('close', (event) => {
     if (runtime.isQuitting()) return
