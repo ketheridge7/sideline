@@ -36,7 +36,7 @@ export function Hero() {
           </p>
         </div>
 
-        <div className="relative fade min-h-[340px] sm:min-h-[420px] lg:min-h-[520px]">
+        <div className="relative fade min-h-[280px] sm:min-h-[420px] lg:min-h-[520px]">
           <TvBezel className="ml-auto w-[92%] max-w-[640px]">
             <FieldCanvas className="h-full w-full">
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/20" />
@@ -51,9 +51,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="relative h-16 wood-top">
-        <div className="absolute -top-6 left-[18%] h-8 w-8 rounded-full bg-[#1a120c] shadow-[inset_-2px_-3px_4px_rgba(0,0,0,0.5)]" />
-      </div>
+      <div className="relative h-16 wood-top" />
     </section>
   );
 }

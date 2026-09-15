@@ -55,6 +55,7 @@ body {
 .hud-frost {
   -webkit-text-stroke: 0.4px rgba(7, 8, 10, 0.45);
   paint-order: stroke fill;
+  text-shadow: 0 1px 10px rgba(7, 8, 10, 0.65);
 }
 
 @keyframes live-pulse {

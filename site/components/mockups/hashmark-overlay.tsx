@@ -51,32 +51,14 @@ function Rail({
 
 export function HashmarkOverlay({ className }: { className?: string }) {
   return (
-    <div className={cn("relative h-full w-full", className)} aria-hidden="true">
-      <div className="absolute left-[3%] top-[10%]">
+    <div className={cn("absolute inset-0", className)} aria-hidden="true">
+      <span className="live-dot absolute left-1/2 top-4 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-lime" />
+      <div className="absolute left-[2.5%] top-[8%] sm:left-[3.5%]">
         <Rail team="Squall" score="27" tone="you" starters={YOU_STARTERS} />
       </div>
-      <div className="absolute right-[3%] top-[10%]">
+      <div className="absolute right-[2.5%] top-[8%] sm:right-[3.5%]">
         <Rail team="Thunder" score="24" tone="them" starters={THEM_STARTERS} align="right" />
       </div>
-      <div className="pointer-events-none absolute inset-[22%_22%_14%_22%] border border-dashed border-white/0" />
-    </div>
-  );
-}
-
-export function OverlayScorebug() {
-  return (
-    <div className="glass-rail mx-auto flex max-w-lg items-center gap-3 px-3 py-2">
-      <span className="font-cond text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
-        Sideline
-      </span>
-      <span className="live-dot h-1.5 w-1.5 rounded-full bg-lime" />
-      <span className="font-cond text-lg font-extrabold tracking-wide text-you">KC</span>
-      <span className="font-cond text-2xl font-extrabold text-frost">14</span>
-      <span className="font-cond text-[11px] font-bold uppercase tracking-[0.12em] text-muted">
-        Qtr 2 · 8:37
-      </span>
-      <span className="font-cond text-2xl font-extrabold text-frost">10</span>
-      <span className="font-cond text-lg font-extrabold tracking-wide text-them">BUF</span>
     </div>
   );
 }

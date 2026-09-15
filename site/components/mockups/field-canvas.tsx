@@ -16,11 +16,11 @@ export function FieldCanvas({
         className="absolute inset-0"
         style={{
           background: `
-            radial-gradient(ellipse at center, rgba(34,90,52,0.55) 0%, rgba(12,36,24,0.92) 58%, #07080a 100%),
+            radial-gradient(ellipse at center, rgba(56,140,72,0.78) 0%, rgba(18,64,36,0.88) 52%, #07080a 100%),
             repeating-linear-gradient(
               90deg,
-              rgba(255,255,255,0.045) 0px,
-              rgba(255,255,255,0.045) 1px,
+              rgba(255,255,255,0.08) 0px,
+              rgba(255,255,255,0.08) 1px,
               transparent 1px,
               transparent 9.09%
             )
@@ -38,8 +38,8 @@ export function FieldCanvas({
         aria-hidden="true"
       />
       <PlayerMarks />
-      {dim ? <div className="absolute inset-0 bg-bg/25" aria-hidden="true" /> : null}
-      {children}
+      {dim ? <div className="absolute inset-0 z-[1] bg-bg/25" aria-hidden="true" /> : null}
+      <div className="absolute inset-0 z-10">{children}</div>
     </div>
   );
 }
