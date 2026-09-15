@@ -155,32 +155,25 @@ export const sparklinePoints = (values: number[], width: number, height: number)
     .join(' ')
 }
 
-const chipFrom = (player: Player, delta?: number): ScorerChip => ({
+const chipFrom = (player: Player): ScorerChip => ({
   playerId: player.playerId,
   name: player.name,
   position: player.position,
-  points: player.points ?? 0,
-  delta: delta ?? player.tickDelta
+  points: player.points ?? 0
 })
 
+/** LEAGUES card chips: highest starter points, not who just ticked. */
 export const liveScorers = (matchup: Matchup | null, limit = 3): ScorerChip[] => {
   if (!matchup) return []
   const roster = [...matchup.starters, ...matchup.oppStarters]
-  const ticked = roster.filter((player) => typeof player.tickDelta === 'number' && player.tickDelta !== 0)
-  const pool = ticked.length > 0 ? ticked : roster.filter((player) => typeof player.points === 'number' && player.points > 0)
-  return [...pool]
-    .sort((a, b) => {
-      const aDelta = Math.abs(a.tickDelta ?? 0)
-      const bDelta = Math.abs(b.tickDelta ?? 0)
-      if (aDelta !== bDelta) return bDelta - aDelta
-      return (b.points ?? 0) - (a.points ?? 0)
-    })
+  return roster
+    .filter((player) => typeof player.points === 'number' && player.points > 0)
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
     .slice(0, limit)
     .map((player) => chipFrom(player))
 }
 
 export type MatchupBoardExtra = {
-  lastScorers?: ScorerChip[]
   leadSpark?: number[]
   size?: number
   espnNeedsRelogin?: boolean
@@ -207,7 +200,7 @@ export const toMatchupBoard = (
     ...(matchup?.oppWinPct != null ? { oppWinPct: matchup.oppWinPct } : {}),
     ...(matchup?.winPctSource ? { winPctSource: matchup.winPctSource } : {}),
     ...(matchup?.scoresFinal ? { scoresFinal: true } : {}),
-    lastScorers: extra?.lastScorers?.length ? extra.lastScorers.slice(0, 3) : liveScorers(matchup),
+    lastScorers: liveScorers(matchup),
     leadSpark: extra?.leadSpark,
     size: extra?.size
   }

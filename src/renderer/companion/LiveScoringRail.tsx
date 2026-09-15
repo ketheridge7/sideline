@@ -56,16 +56,18 @@ export const LiveScoringRail = ({
   onOpenBoard: () => void
 }): JSX.Element => {
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-card">
+    <aside className="flex w-56 shrink-0 flex-col border-l border-line bg-card" data-scoring-tape="all-leagues">
       <div className="border-b border-line px-3 py-2">
-        <h2 className="font-cond text-[11px] font-bold uppercase tracking-[0.2em]">Live scoring</h2>
+        <h2 className="font-cond text-[11px] font-bold uppercase tracking-[0.2em]">Scoring tape</h2>
         <div className="mt-0.5 font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
           All leagues
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         {events.length === 0 ? (
-          <p className="px-3 py-6 text-xs text-muted">Tape is quiet until the next tick.</p>
+          <p className="px-3 py-6 text-xs text-muted">
+            Tape is quiet. Score ticks and transactions from every league land here.
+          </p>
         ) : (
           events.map((event) => (
             <div key={event.id} className="flex items-start gap-2 border-b border-line px-3 py-2">
@@ -90,7 +92,7 @@ export const LiveScoringRail = ({
         onClick={onOpenBoard}
         className="cursor-pointer border-t border-line px-3 py-2 text-left font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-you hover:text-text"
       >
-        View full play-by-play →
+        Open scoreboard →
       </button>
     </aside>
   )

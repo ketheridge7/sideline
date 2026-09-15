@@ -74,7 +74,7 @@ export const BoardScreen = ({
     espnNeedsRelogin: state.espnNeedsRelogin,
     matchup
   })
-  const showOnAir = boardUx === 'healthy-lineup' && (state.pollingLive || state.replay)
+  const showReplay = boardUx === 'healthy-lineup' && state.replay
   const showLineups = boardUx === 'healthy-lineup'
   const tape = tapeForLeague(
     state.tape.length > 0
@@ -129,17 +129,9 @@ export const BoardScreen = ({
           </div>
         ) : (
           <>
-            {showOnAir ? (
+            {showReplay ? (
               <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
-                {state.pollingLive ? (
-                  <span className="flex items-center gap-1.5 font-cond font-bold text-air">
-                    <span className="live-dot inline-block h-1.5 w-1.5 bg-air" aria-hidden="true" />
-                    On air
-                  </span>
-                ) : null}
-                {state.replay ? (
-                  <span className="font-cond font-bold text-lime">Replay</span>
-                ) : null}
+                <span className="font-cond font-bold text-lime">Replay</span>
               </div>
             ) : null}
             <HudScoreboard

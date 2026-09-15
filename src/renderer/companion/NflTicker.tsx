@@ -25,10 +25,6 @@ export const NflTicker = ({
   }
   return (
     <div className={shell} data-nfl-ticker="on-air">
-      <span className="flex shrink-0 items-center gap-1.5 font-cond text-[11px] font-extrabold uppercase tracking-[0.18em] text-air">
-        <span className="live-dot inline-block h-1.5 w-1.5 bg-air" aria-hidden="true" />
-        On air
-      </span>
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="tape-crawl gap-8 pr-8 font-cond text-sm font-bold uppercase tracking-wide">
           {loop.map((game, index) => (

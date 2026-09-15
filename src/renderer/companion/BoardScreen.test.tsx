@@ -82,7 +82,7 @@ describe('BoardScreen ESPN UX', () => {
     expect(html).not.toContain('data-hud-rail')
   })
 
-  it('keeps named starters and On air when ESPN is healthy', () => {
+  it('keeps named starters when ESPN is healthy and does not paint On air chrome', () => {
     const state = emptyAppState()
     state.selectedLeagueKey = 'espn:543268341'
     state.espnConnected = true
@@ -93,8 +93,21 @@ describe('BoardScreen ESPN UX', () => {
     expect(html).toContain('Patrick Mahomes')
     expect(html).toContain('data-hud-rail="mine"')
     expect(html).toContain('data-hud-rail="opp"')
-    expect(html).toContain('On air')
+    expect(html).not.toContain('On air')
     expect(html).not.toContain('without starters')
+  })
+
+  it('titles the right rail Scoring tape for this matchup', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.matchup = espnMatchup(true)
+    const html = renderBoard(state)
+    expect(html).toContain('data-scoring-tape="selected"')
+    expect(html).toContain('Scoring tape')
+    expect(html).toContain('This matchup')
+    expect(html).not.toContain('Live scoring')
+    expect(html).not.toContain('>Live<')
   })
 
   it('scopes scoring tape to the selected league', () => {

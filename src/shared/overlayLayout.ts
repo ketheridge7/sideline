@@ -85,7 +85,7 @@ export const OPP_RAIL_IDS: OverlayWidgetId[] = [
 export const WIDGET_LABELS: Record<OverlayWidgetId, string> = {
   'meta.league': 'League',
   'meta.week': 'Week',
-  'meta.live': 'On air',
+  'meta.live': 'Live',
   'team.mine.name': 'Your team',
   'team.opp.name': 'Their team',
   'score.mine': 'Your score',

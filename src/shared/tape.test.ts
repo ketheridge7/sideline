@@ -56,6 +56,22 @@ describe('injuryTapeFromDiff', () => {
     expect(next[0]?.kind).toBe('injury')
     expect(next[0]?.detail).toBe('OUT')
   })
+
+  it('does not refill tape with existing injuries on a cold open', () => {
+    const prev = new Map<string, string>()
+    expect(injuryTapeFromDiff(league, matchup(12, 'OUT'), prev)).toEqual([])
+    expect(prev.get('sleeper:1:1')).toBe('OUT')
+    expect(injuryTapeFromDiff(league, matchup(12, 'OUT'), prev)).toEqual([])
+  })
+
+  it('emits only after a baseline when injury status actually changes', () => {
+    const prev = new Map<string, string>()
+    expect(injuryTapeFromDiff(league, matchup(12, 'Questionable'), prev)).toEqual([])
+    const changed = injuryTapeFromDiff(league, matchup(12, 'OUT'), prev)
+    expect(changed).toHaveLength(1)
+    expect(changed[0]?.kind).toBe('injury')
+    expect(changed[0]?.detail).toBe('OUT')
+  })
 })
 
 describe('mergeTape', () => {
@@ -105,7 +121,7 @@ describe('tapeForLeague', () => {
 })
 
 describe('withTickDeltas', () => {
-  it('stamps the point delta after the first sample so live chips can show who just scored', () => {
+  it('stamps the point delta after the first sample so score ticks can flash who just scored', () => {
     const prev = new Map<string, number>()
     const first = withTickDeltas(league, matchup(12), prev)
     expect(first.starters[0]?.tickDelta).toBeUndefined()

@@ -32,12 +32,7 @@ export const TopBar = ({
           Week {state.nfl.displayWeek}
         </span>
       ) : null}
-      {state.pollingLive ? (
-        <span className="flex items-center gap-1.5 font-cond text-xs font-bold uppercase tracking-[0.18em] text-air">
-          <span className="live-dot inline-block h-1.5 w-1.5 bg-air" aria-hidden="true" />
-          Live
-        </span>
-      ) : state.replay ? (
+      {state.replay ? (
         <span className="font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime">Replay</span>
       ) : null}
       <nav className="ml-auto flex items-center gap-1">

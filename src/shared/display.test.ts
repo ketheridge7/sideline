@@ -126,6 +126,7 @@ describe('toMatchupBoard', () => {
       'Josh Allen',
       'Derrick Henry'
     ])
+    expect(board.lastScorers.every((row) => row.delta == null)).toBe(true)
     expect(liveScorers(null)).toEqual([])
   })
 
@@ -173,7 +174,7 @@ describe('toMatchupBoard', () => {
     expect(toMatchupBoard(espnLeague, null).oppName).toBeNull()
   })
 
-  it('prefers players who just ticked over season-long top scorers', () => {
+  it('ranks starters by points, not who just ticked', () => {
     const ticking: Matchup = {
       ...matchup,
       starters: [
@@ -181,7 +182,23 @@ describe('toMatchupBoard', () => {
         { playerId: '2', name: 'Josh Allen', position: 'QB', nflTeam: 'BUF', points: 18.2, tickDelta: 6.4 }
       ]
     }
-    expect(liveScorers(ticking, 1).map((row) => row.name)).toEqual(['Josh Allen'])
+    expect(liveScorers(ticking, 1).map((row) => row.name)).toEqual(['Jahmyr Gibbs'])
+    expect(liveScorers(ticking, 1)[0]?.delta).toBeUndefined()
+  })
+
+  it('does not let injected last-tick chips override top points on the card', () => {
+    const board = toMatchupBoard(league, {
+      ...matchup,
+      starters: [
+        { playerId: '2', name: 'Josh Allen', position: 'QB', nflTeam: 'BUF', points: 18.2, tickDelta: 6.4 },
+        { playerId: '1', name: 'Jahmyr Gibbs', position: 'RB', nflTeam: 'DET', points: 24.6 }
+      ]
+    })
+    expect(board.lastScorers.map((row) => row.name)).toEqual([
+      'Jahmyr Gibbs',
+      'Josh Allen',
+      'Derrick Henry'
+    ])
   })
 })
 
