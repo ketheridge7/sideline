@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { emptyAppState } from '@shared/types'
@@ -35,6 +37,32 @@ describe('TopBar', () => {
       <TopBar state={onState} screen="board" studioOpen={false} onScreen={() => undefined} onStudio={() => undefined} />
     )
     expect(on).toContain('aria-checked="true"')
+  })
+
+  it('paints the locked packaging mark plus SIDELINE wordmark', () => {
+    const html = renderToStaticMarkup(
+      <TopBar
+        state={emptyAppState()}
+        screen="board"
+        studioOpen={false}
+        onScreen={() => undefined}
+        onStudio={() => undefined}
+      />
+    )
+    expect(html).toContain('data-wordmark="sideline"')
+    expect(html).toContain('SIDELINE')
+    expect(html).toContain('data-wordmark="underline"')
+    expect(html).not.toContain('italic')
+    expect(html).toMatch(/<img[^>]+src="data:image\/svg\+xml/)
+    expect(html).toContain('%2312141A')
+    expect(html).toContain('%237DFFB0')
+    expect(html).toContain('%23D6F34A')
+  })
+
+  it('keeps the renderer mark identical to build/icon.svg', () => {
+    const packaging = readFileSync(resolve(process.cwd(), 'build/icon.svg'), 'utf8')
+    const renderer = readFileSync(resolve(process.cwd(), 'src/renderer/assets/sideline-mark.svg'), 'utf8')
+    expect(renderer).toBe(packaging)
   })
 
   it('does not paint a decorative Live pip when polling', () => {

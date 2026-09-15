@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import type { AppState } from '@shared/types'
+import { SidelineWordmark } from './SidelineWordmark'
 
 export type Screen = 'board' | 'boards' | 'connect'
 
@@ -26,7 +27,7 @@ export const TopBar = ({
   }
   return (
     <header className="flex items-center gap-4 border-b border-line px-4 py-2">
-      <span className="font-cond text-2xl font-extrabold uppercase italic tracking-[0.14em]">Sideline</span>
+      <SidelineWordmark />
       {state.nfl ? (
         <span className="font-cond text-sm font-bold uppercase tracking-[0.16em] text-muted">
           Week {state.nfl.displayWeek}
