@@ -82,7 +82,7 @@ describe('HudRail', () => {
 })
 
 describe('BoardRails', () => {
-  it('uses the same POS | NAME | PTS columns on you and them', () => {
+  it('labels both roster columns Starters while keeping you/them colors', () => {
     const html = renderToStaticMarkup(
       <BoardRails
         mine={[player({ playerId: 'cmc', name: 'Christian McCaffrey', position: 'RB', points: 11.9 })]}
@@ -96,5 +96,10 @@ describe('BoardRails', () => {
     expect(html).toContain('11.9')
     expect(html).toContain('Jake Mevis')
     expect(html).toContain('1.0')
+    expect(html.match(/>Starters<\/h2>/g)?.length).toBe(2)
+    expect(html).toContain('text-you">Starters</h2>')
+    expect(html).toContain('text-them">Starters</h2>')
+    expect(html).not.toContain('>You</h2>')
+    expect(html).not.toContain('>Them</h2>')
   })
 })
