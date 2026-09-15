@@ -951,9 +951,9 @@ describe('companionFlagsUnchanged', () => {
     expect(companionFlagsUnchanged(prev, { ...prev, overlayPairingCode: '418302' })).toBe(false)
   })
 
-  it('treats a shortcut change as a companion clone', () => {
+  it('treats overlayVisible as a companion clone so the HUD slider can sync', () => {
     const prev = emptyAppState()
-    expect(companionFlagsUnchanged(prev, { ...prev, nextLeagueHotkey: 'CommandOrControl+]' })).toBe(false)
+    expect(companionFlagsUnchanged(prev, { ...prev, overlayVisible: true })).toBe(false)
   })
 })
 

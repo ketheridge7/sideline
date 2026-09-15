@@ -41,12 +41,12 @@ SCOREBOARD LeadBar is **chance to win**, not score-share and not a betting line.
 
 Coordinates are **percent of canvas**. Studio selects **big blocks** (your team frame, their team frame, bottom ticker) and moves that block with position/size sliders. Per-widget show/hide/lock chrome is gone. Preview clicks select; they do not drag.
 
-- Meta: `meta.league`, `meta.week` (hidden in every canned preset), `meta.live` (1px lime live/replay pip, no ON AIR wordmark)
+- Meta: `meta.league`, `meta.week`, `meta.live` (hidden / unpainted in canned presets — no decorative live pip)
 - Identity: `team.mine.name`, `team.opp.name` — condensed uppercase, **centered** and enlarged in the name widget (`cqh`), above the team score
 - Scores: `score.mine`, `score.opp` (loudest number, **centered** in the score widget), `score.delta` (tiny lead next to your score, not a third scoreboard)
 - Rails: one `col.*.name` widget per side paints a CSS grid `POS | NAME | PTS`. Split `col.*.pos` / `col.*.pts` stay in the catalog but are hidden so points cannot drift or overlap position labels. `col.*.nfl` stays hidden. No ice hash line on either rail.
 - Bench / alerts: `bench.mine`, `bench.opp`, `toast.slot` stay in the catalog, hidden in every canned preset. No crawler, no toast chips, no marquee.
-- Ticker: `ticker.nfl` is the bottom ON AIR strip. Studio treats it as one selectable block.
+- Ticker: `ticker.nfl` is the bottom NFL score strip. Studio treats it as one selectable block. No ON AIR wordmark.
 
 Visible HUD is **names, scores, and both starter rails**. Last names only (`overlayName`). No NFL city tags.
 
@@ -99,10 +99,11 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 
 - Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle. SL / ES health pips sit to the right of the **My leagues** header, not in the top bar.
 - Center: one head-to-head (you left / them right, readable team names, dominant totals, lead bar / delta), slot-aligned starters as pos | name | pts, no framed card around the data.
-- Right rail: scoring TAPE (newest first) from existing transactions + point diffs. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play.
-- Bottom ON AIR ticker is **replay-only** chrome from the fixture (scripted NFL chips). No live sports-data API, no betting.
-- Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle, quiet Studio.
-- Overlay Studio: five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No drag, no per-widget show/hide/lock.
+- Right rail: **Scoring tape**. Scoreboard = Scoring tape · This matchup. Leagues/Boards = Scoring tape · All leagues (same name, same right-hand placement). Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play. Injuries land on tape only after a baseline exists (no cold-open injury dump).
+- Leagues matchup cards: **Top scorers** chips are highest starter points, not “who just scored.”
+- Bottom ticker is **replay-only** NFL chips from the fixture. No ON AIR wordmark, no live sports-data API, no betting.
+- Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle (tracks `overlayVisible` from hotkey and the switch), quiet Studio. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
+- Overlay Studio: five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No HUD on/off control — TopBar slider / hotkey owns visibility.
 
 Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).
 

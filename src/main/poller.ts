@@ -231,14 +231,14 @@ const lanFields = (): Pick<
 
 export const setOverlayVisible = (visible: boolean): void => {
   overlayVisible = visible
-  lastState = { ...lastState, overlayVisible }
-  broadcast(lastState)
+  // Broadcast the next snapshot without mutating lastState first — companionFlagsUnchanged
+  // compares prev vs next, and overlayVisible is not on the live HUD patch.
+  broadcast({ ...lastState, overlayVisible })
 }
 
 export const setOverlayEditMode = (edit: boolean): void => {
   overlayEditMode = edit
-  lastState = { ...lastState, overlayEditMode }
-  broadcast(lastState)
+  broadcast({ ...lastState, overlayEditMode })
 }
 
 export const applyOverlayLayout = (layout: AppState['overlayLayout']): void => {
@@ -3604,6 +3604,10 @@ export const resetPollerForTests = (): void => {
   inFlightSelectedKey = null
   boardsTail = null
   lastState = emptyAppState()
+  overlayVisible = false
+  overlayEditMode = false
+  prevInjury.clear()
+  prevPlayerPts.clear()
   lastPushedHud = null
   sleeperUser = null
   sleeperUserVerified = false

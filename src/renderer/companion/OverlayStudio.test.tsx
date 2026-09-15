@@ -89,4 +89,13 @@ describe('OverlayStudio block selection', () => {
     expect(html).toContain('Sliders move that block only')
     expect(pressedBlock(html)).toBeNull()
   })
+
+  it('does not host a HUD on/off control or HUD-is-off copy', () => {
+    const html = renderStudio(layoutFromPreset('1'), null)
+    expect(html).not.toContain('HUD on')
+    expect(html).not.toContain('HUD off')
+    expect(html).not.toContain('HUD is off')
+    expect(html).toContain('Overlay Studio')
+    expect(html).toContain('data-studio-preview="hud"')
+  })
 })

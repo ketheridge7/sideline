@@ -116,21 +116,6 @@ export const OverlayStudio = ({
       </div>
 
       <div className="grid min-h-0 flex-1 gap-3 overflow-auto p-3 text-sm">
-        <button
-          type="button"
-          onClick={() => void api().toggleOverlay()}
-          className={`cursor-pointer border px-2 py-1.5 text-xs font-semibold uppercase ${
-            state.overlayVisible ? 'border-lime text-lime' : 'border-line text-muted'
-          }`}
-          aria-pressed={state.overlayVisible}
-        >
-          HUD {state.overlayVisible ? 'on' : 'off'}
-        </button>
-
-        {!state.overlayVisible ? (
-          <p className="text-xs text-muted">HUD is off — layout still applies when you turn it on.</p>
-        ) : null}
-
         <div className="grid gap-1">
           <span className="text-xs uppercase tracking-wide text-muted">Preset</span>
           <div className="studio-presets" data-active-preset={layout.presetId}>

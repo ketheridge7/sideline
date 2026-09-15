@@ -17,4 +17,33 @@ describe('TopBar', () => {
     expect(html).not.toContain('>SL<')
     expect(html).not.toContain('>ES<')
   })
+
+  it('mirrors overlayVisible on the HUD switch', () => {
+    const off = renderToStaticMarkup(
+      <TopBar
+        state={emptyAppState()}
+        screen="board"
+        studioOpen={false}
+        onScreen={() => undefined}
+        onStudio={() => undefined}
+      />
+    )
+    expect(off).toContain('aria-checked="false"')
+    const onState = emptyAppState()
+    onState.overlayVisible = true
+    const on = renderToStaticMarkup(
+      <TopBar state={onState} screen="board" studioOpen={false} onScreen={() => undefined} onStudio={() => undefined} />
+    )
+    expect(on).toContain('aria-checked="true"')
+  })
+
+  it('does not paint a decorative Live pip when polling', () => {
+    const state = emptyAppState()
+    state.pollingLive = true
+    const html = renderToStaticMarkup(
+      <TopBar state={state} screen="board" studioOpen={false} onScreen={() => undefined} onStudio={() => undefined} />
+    )
+    expect(html).not.toContain('live-dot')
+    expect(html).not.toContain('>Live<')
+  })
 })

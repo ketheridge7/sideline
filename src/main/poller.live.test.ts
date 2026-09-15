@@ -33,7 +33,8 @@ vi.mock('./windows/espnLogin', () => ({
 
 import { app } from 'electron'
 import { saveSettings } from './store'
-import { warmupPollerCaches, refresh, resetPollerForTests, currentState, invalidateEspnSession, primeEspnCookies } from './poller'
+import { warmupPollerCaches, refresh, resetPollerForTests, currentState, invalidateEspnSession, primeEspnCookies, setOverlayVisible } from './poller'
+import { runtime } from './runtime'
 
 afterEach(() => {
   resetPollerForTests()
@@ -1892,5 +1893,23 @@ describe('poller live tick order', () => {
     ).toBe('empty-roster')
     expect(toOverlayHud(currentState()).pollingLive).toBe(false)
     expect(toOverlayHud(currentState()).myStarters).toEqual([])
+  })
+})
+
+describe('setOverlayVisible', () => {
+  it('clones companion AppState so the TopBar HUD slider can sync', async () => {
+    const sendState = vi.spyOn(runtime, 'sendState')
+    const sendTick = vi.spyOn(runtime, 'sendTick')
+    const sendLive = vi.spyOn(runtime, 'sendLive')
+    setOverlayVisible(true)
+    await Promise.resolve()
+    expect(currentState().overlayVisible).toBe(true)
+    expect(sendTick).not.toHaveBeenCalled()
+    expect(sendLive).not.toHaveBeenCalled()
+    expect(sendState).toHaveBeenCalled()
+    expect(sendState.mock.calls.at(-1)?.[0]?.overlayVisible).toBe(true)
+    sendState.mockRestore()
+    sendTick.mockRestore()
+    sendLive.mockRestore()
   })
 })

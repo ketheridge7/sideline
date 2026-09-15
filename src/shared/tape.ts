@@ -85,11 +85,12 @@ export const injuryTapeFromDiff = (
   const events: TapeEvent[] = []
   const prefix = leagueKey(league.provider, league.id)
   for (const player of allPlayers(matchup)) {
-    const next = visibleInjury(player.status)
+    const next = visibleInjury(player.status) ?? ''
     const key = `${prefix}:${player.playerId}`
-    const last = prev.get(key) ?? null
-    if (next) prev.set(key, next)
-    else prev.delete(key)
+    const last = prev.get(key)
+    prev.set(key, next)
+    // Empty prev is a cold baseline (app open / first paint), not a transition.
+    if (last === undefined) continue
     if (!next || next === last) continue
     events.push({
       id: `inj:${key}:${next}`,

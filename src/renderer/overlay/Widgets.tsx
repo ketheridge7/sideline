@@ -58,12 +58,7 @@ export const OverlayWidgetView = ({
         </div>
       )
     case 'meta.live':
-      if (!hud.pollingLive && !hud.replay) return <></>
-      return (
-        <div className="flex h-full items-center">
-          <span className="live-dot inline-block h-1 w-1 bg-lime" aria-label={hud.replay ? 'Replay' : 'Live'} />
-        </div>
-      )
+      return <></>
     case 'team.mine.name':
       return <HudTeamName name={hud.myName} tone="you" surface="overlay" />
     case 'team.opp.name':
