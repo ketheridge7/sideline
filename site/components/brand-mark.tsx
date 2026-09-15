@@ -1,35 +1,32 @@
 import Image from "next/image";
+import { WORDMARK_ASPECT, WORDMARK_TEXT } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 
 /**
- * Official packaging mark only: mint→lime left stripe + geometric white S
- * on near-black squircle. Wordmark is that mark + SIDELINE with a lime underline.
- * Do not substitute hexagon S, dual-bar S, or sportsbook gold.
+ * Kevin-confirmed lock: the packaging lime-stripe icon is the only Sideline logo.
+ * Nav/footer render the official wordmark (that mark + SIDELINE + mint→lime underline).
+ * Favicon uses `public/icon.png` / `icon.svg`. Do not substitute a hexagon S, dual-bar S,
+ * or any invented mark.
  */
 export function BrandMark({
   compact = false,
   className,
+  priority = false,
 }: {
   compact?: boolean;
   className?: string;
+  priority?: boolean;
 }) {
-  const size = compact ? 28 : 36;
+  const height = compact ? 28 : 36;
+  const width = Math.round(height * WORDMARK_ASPECT);
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <Image
-        src="/icon.png"
-        alt=""
-        width={size}
-        height={size}
-        className="rounded-[22%]"
-        priority
-      />
-      <span className="relative pb-1">
-        <span className="font-cond text-xl font-extrabold uppercase tracking-[0.16em] text-text sm:text-[1.35rem]">
-          Sideline
-        </span>
-        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-lime" aria-hidden="true" />
-      </span>
-    </span>
+    <Image
+      src="/wordmark.png"
+      alt={WORDMARK_TEXT}
+      width={width}
+      height={height}
+      className={cn("block", className)}
+      priority={priority}
+    />
   );
 }

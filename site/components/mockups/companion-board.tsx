@@ -102,7 +102,7 @@ export function CompanionBoardCard() {
     <div className="overflow-hidden rounded-xl border border-line bg-[#0b0c0e] shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
       <div className="flex items-center justify-between border-b border-line bg-card px-3 py-2">
         <span className="font-cond text-[11px] font-extrabold uppercase tracking-[0.18em]">
-          Sideline
+          SIDELINE
         </span>
         <span className="flex items-center gap-2 font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
           <span className="rounded-sm bg-lime/15 px-1.5 py-0.5 text-lime">Live</span>
