@@ -24,15 +24,13 @@ export const BoardRails = ({
 }): JSX.Element => {
   const rows = Math.max(mine.length, opp.length, 1)
   return (
-    <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-        <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
+    <section className="grid grid-cols-2">
+      <div className="min-w-0 px-5 py-3">
+        <h2 className="mb-2 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">You</h2>
         <StarterColumn players={mine} you rows={rows} />
       </div>
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-        <h2 className="mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">
-          Them
-        </h2>
+      <div className="min-w-0 px-5 py-3">
+        <h2 className="mb-2 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">Them</h2>
         <StarterColumn players={opp} rows={rows} />
       </div>
     </section>
@@ -86,7 +84,7 @@ export const LineupRow = ({
 }): JSX.Element => {
   const rowClass = hud
     ? 'lineup-row hud-rail-row'
-    : `lineup-row ${compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11 flex-1'}`
+    : `lineup-row ${compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11'}`
   if (!player) {
     return <div className={rowClass} data-lineup-row="empty" />
   }
