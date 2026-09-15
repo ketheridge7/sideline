@@ -22,6 +22,6 @@ Primary download CTA: [GitHub Releases latest](https://github.com/ketheridge7/si
 ## Notes
 
 - Tokens match `docs/design/hud.md` (`#07080A`, ice `#A6E6A0`, lime `#B6FF3B`, alert `#FF4D4D`).
-- Logo lock: official packaging mark only (`public/icon.png` / `public/icon.svg` — mint→lime stripe + geometric white S). Wordmark is that mark + SIDELINE with a lime underline. No hexagon S, dual-bar S, or sportsbook gold.
+- Logo lock (Kevin-confirmed): the packaging lime-stripe icon is the **only** Sideline logo. Favicon is `public/icon.png` / `icon.svg` (same files as `build/icon.png` / `build/icon.svg`). Nav and footer use `public/wordmark.svg` (that mark + SIDELINE + mint→lime underline). No hexagon S, dual-bar S, or invented marks.
 - Product stills in `public/images/` are synthetic Sunday Tape renders (not live scores, not photos of a real Sunday).
 - Do not add this app to the Electron installer; `electron-builder.yml` already excludes `site/`.
