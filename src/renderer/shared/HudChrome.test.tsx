@@ -1,10 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { emptyAppState, toOverlayHud, type Matchup, type Player } from '@shared/types'
-import { matchupChanceToWin, matchupWinPctSource } from '@shared/display'
 import { OverlayWidgetView } from '../overlay/Widgets'
 import { HudScoreboard } from './HudScoreboard'
-import { LeadBar } from './LeadBar'
 import { BoardRails, HudRail } from './LineupRow'
 
 const player = (row: Partial<Player> & Pick<Player, 'playerId' | 'name' | 'position'>): Player => ({
@@ -57,15 +55,10 @@ describe('HudChrome parity', () => {
 
     expect(board).toContain('data-hud="team-name"')
     expect(board).toContain('data-hud-side="mine"')
-    expect(board).toContain('data-hud-scoreboard="pin"')
-    expect(board).toContain('Gibbs Me Head')
-    expect(board).toContain('The Other Guys')
-    expect(board).not.toContain('YOUR TEAM')
-    expect(board).not.toContain('OPPONENT')
-    expect(board).toContain('Ice-lime')
-    expect(board).toContain('Silver')
     expect(board).toContain('text-you')
     expect(board).toContain('text-them')
+    expect(board).toContain('data-hud="lead-chip"')
+    expect(board).toContain('+11.6')
     expect(board).toContain('text-center')
     expect(youName).toContain('text-you')
     expect(youName).toContain('data-hud="team-name"')
@@ -85,7 +78,7 @@ describe('HudChrome parity', () => {
     expect(boardRails).toContain('1.0')
   })
 
-  it('labels chance-to-win from the provider win% field, not score-share', () => {
+  it('labels SCOREBOARD chance-to-win from the provider win% field, not score-share', () => {
     const published: Matchup = {
       ...matchup,
       myPoints: 0,
@@ -93,75 +86,41 @@ describe('HudChrome parity', () => {
       myWinPct: 0.99,
       oppWinPct: 0.01
     }
-    const html = renderToStaticMarkup(
-      <LeadBar
-        mine={published.myPoints}
-        opp={published.oppPoints}
-        chance={matchupChanceToWin(published)}
-        source={matchupWinPctSource(published)}
-      />
-    )
+    const html = renderToStaticMarkup(<HudScoreboard matchup={published} />)
     expect(html).toContain('Chance to win')
     expect(html).toContain('data-hud="win-pct"')
     expect(html).toContain('99% Win')
     expect(html).toContain('1% Win')
     expect(html).not.toContain('Win% pending')
-    const pending = renderToStaticMarkup(
-      <LeadBar
-        mine={matchup.myPoints}
-        opp={matchup.oppPoints}
-        chance={matchupChanceToWin(matchup)}
-        source={matchupWinPctSource(matchup)}
-      />
-    )
+    const pending = renderToStaticMarkup(<HudScoreboard matchup={matchup} />)
     expect(pending).toContain('Win% pending')
     expect(pending).toContain('data-hud-win-pct="pending"')
-    const fromProjMatchup = {
-      ...matchup,
-      myPoints: 0,
-      oppPoints: 0,
-      myProjectedPoints: 140,
-      oppProjectedPoints: 80
-    }
     const fromProj = renderToStaticMarkup(
-      <LeadBar
-        mine={fromProjMatchup.myPoints}
-        opp={fromProjMatchup.oppPoints}
-        chance={matchupChanceToWin(fromProjMatchup)}
-        source={matchupWinPctSource(fromProjMatchup)}
+      <HudScoreboard
+        matchup={{ ...matchup, myPoints: 0, oppPoints: 0, myProjectedPoints: 140, oppProjectedPoints: 80 }}
       />
     )
     expect(fromProj).toContain('Win% pending')
     expect(fromProj).toContain('Chance to win')
     expect(fromProj).not.toContain('Est. win%')
-    const estimatedMatchup: Matchup = {
-      ...matchup,
-      myPoints: 0,
-      oppPoints: 0,
-      myProjectedPoints: 140,
-      oppProjectedPoints: 80,
-      winPctSource: 'estimated'
-    }
     const estimated = renderToStaticMarkup(
-      <LeadBar
-        mine={estimatedMatchup.myPoints}
-        opp={estimatedMatchup.oppPoints}
-        chance={matchupChanceToWin(estimatedMatchup)}
-        source={matchupWinPctSource(estimatedMatchup)}
+      <HudScoreboard
+        matchup={{
+          ...matchup,
+          myPoints: 0,
+          oppPoints: 0,
+          myProjectedPoints: 140,
+          oppProjectedPoints: 80,
+          winPctSource: 'estimated'
+        }}
       />
     )
     expect(estimated).toContain('Est. win%')
     expect(estimated).toContain('Est.')
     expect(estimated).not.toContain('Chance to win')
     expect(estimated).not.toContain('Win% pending')
-    const estPendingMatchup: Matchup = { ...matchup, winPctSource: 'estimated' }
     const estPending = renderToStaticMarkup(
-      <LeadBar
-        mine={estPendingMatchup.myPoints}
-        opp={estPendingMatchup.oppPoints}
-        chance={matchupChanceToWin(estPendingMatchup)}
-        source={matchupWinPctSource(estPendingMatchup)}
-      />
+      <HudScoreboard matchup={{ ...matchup, winPctSource: 'estimated' }} />
     )
     expect(estPending).toContain('Est. win% pending')
     expect(estPending).not.toContain('Chance to win')

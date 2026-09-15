@@ -2,6 +2,11 @@ import type { JSX } from 'react'
 import type { TapeEvent } from '@shared/types'
 import { formatDelta } from '../shared/format'
 
+const clock = (at: number): string => {
+  if (!at) return '—'
+  return new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 const kindBadge = (event: TapeEvent): { label: string; className: string } => {
   switch (event.kind) {
     case 'score':
@@ -10,7 +15,7 @@ const kindBadge = (event: TapeEvent): { label: string; className: string } => {
         className: (event.delta ?? 0) < 0 ? 'text-air' : 'text-lime'
       }
     case 'injury':
-      return { label: '—', className: 'text-muted' }
+      return { label: 'Inj', className: 'text-air' }
     case 'add':
     case 'add_drop':
       return { label: 'Waiver', className: 'text-lime' }
@@ -20,25 +25,6 @@ const kindBadge = (event: TapeEvent): { label: string; className: string } => {
       return { label: 'Drop', className: 'text-muted' }
     case 'status':
       return { label: event.detail, className: 'text-muted' }
-    default: {
-      const _never: never = event.kind
-      return _never
-    }
-  }
-}
-
-const rowDetail = (event: TapeEvent): string | null => {
-  switch (event.kind) {
-    case 'score':
-      return event.detail || null
-    case 'injury':
-      return event.detail || null
-    case 'add':
-    case 'add_drop':
-    case 'trade':
-    case 'drop':
-    case 'status':
-      return event.detail || null
     default: {
       const _never: never = event.kind
       return _never
@@ -64,23 +50,19 @@ export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element =>
           events.map((event) => {
             const badge = kindBadge(event)
             const scoreDelta = event.kind === 'score' && event.delta != null
-            const detail = rowDetail(event)
             return (
-              <div key={event.id} className="border-b border-line px-3 py-2.5">
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="min-w-0 truncate text-[13px] font-medium">{event.player}</span>
-                      {event.kind === 'injury' ? (
-                        <span className="shrink-0 bg-air/15 px-1 py-px font-cond text-[10px] font-bold uppercase tracking-wide text-air">
-                          INJ
-                        </span>
-                      ) : null}
-                    </div>
-                    {detail && event.kind !== 'status' ? (
-                      <div className="mt-0.5 text-[11px] text-muted">{detail}</div>
+              <div key={event.id} className="border-b border-line px-3 py-2">
+                <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-muted">
+                  <span>{clock(event.at)}</span>
+                  {event.leagueName ? <span className="truncate">{event.leagueName}</span> : null}
+                </div>
+                <div className="mt-0.5 flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium uppercase">
+                    {event.player}
+                    {event.kind === 'score' && event.detail ? (
+                      <span className="ml-1.5 font-normal text-muted">{event.detail}</span>
                     ) : null}
-                  </div>
+                  </span>
                   <span
                     className={`shrink-0 font-cond text-sm font-bold uppercase tabular-nums ${badge.className}`}
                     data-tape-delta={scoreDelta ? event.delta : undefined}
@@ -92,6 +74,11 @@ export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element =>
                     {badge.label}
                   </span>
                 </div>
+                {event.kind === 'injury' ? (
+                  <div className="text-[11px] uppercase tracking-wide text-air">{event.detail}</div>
+                ) : event.kind !== 'score' ? (
+                  <div className="text-[11px] text-muted">{event.detail}</div>
+                ) : null}
               </div>
             )
           })

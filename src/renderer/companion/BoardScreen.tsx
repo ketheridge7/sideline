@@ -128,7 +128,7 @@ export const BoardScreen = ({
               : 'Pin a Sunday board, then open it. Sideline shows one matchup at a time.'}
           </div>
         ) : (
-          <div className="m-3 flex min-h-0 flex-1 flex-col overflow-hidden border border-line bg-card">
+          <>
             {showReplay ? (
               <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
                 <span className="font-cond font-bold text-lime">Replay</span>
@@ -139,19 +139,19 @@ export const BoardScreen = ({
               needsSignIn={boardUx === 'auth-fail'}
             />
             {showLineups ? (
-              <div className="min-h-0 flex-1 overflow-auto" data-roster-scroll>
+              <>
                 <BoardRails mine={matchup.starters} opp={matchup.oppStarters ?? []} />
                 <div className="grid grid-cols-2">
                   <HudBench players={matchup.bench} label="Bench" />
                   <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
                 </div>
-              </div>
+              </>
             ) : (
               <p className="px-5 py-4 text-sm text-muted">
                 Starters stay hidden until ESPN returns a named lineup.
               </p>
             )}
-          </div>
+          </>
         )}
       </div>
       <ScoringTape events={tape} />

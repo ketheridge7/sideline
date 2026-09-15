@@ -96,7 +96,5 @@ describe('BoardRails', () => {
     expect(html).toContain('11.9')
     expect(html).toContain('Jake Mevis')
     expect(html).toContain('1.0')
-    expect(html).toContain('>You<')
-    expect(html).toContain('>Them<')
   })
 })

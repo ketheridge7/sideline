@@ -1,11 +1,8 @@
 import type { JSX } from 'react'
-import { Pin } from 'lucide-react'
 import type { Matchup } from '@shared/types'
-
-const pinName = (value: string | undefined, fallback: string): string => {
-  const name = value?.trim()
-  return name ? name : fallback
-}
+import { matchupChanceToWin, matchupWinPctSource } from '@shared/display'
+import { HudTeamName, HudTeamScore } from './HudChrome'
+import { LeadBar } from './LeadBar'
 
 export const HudScoreboard = ({
   matchup,
@@ -15,37 +12,31 @@ export const HudScoreboard = ({
   needsSignIn?: boolean
 }): JSX.Element => {
   const bye = !matchup.oppTeam
-  const myName = pinName(matchup.myTeam.name, matchup.myTeam.owner.trim() || '—')
-  const opponentName = pinName(matchup.oppTeam?.name, needsSignIn ? 'Sign in' : 'BYE')
+  const opponentName = matchup.oppTeam?.name ?? (needsSignIn ? 'Sign in' : 'BYE')
   return (
-    <div className="shrink-0 border-b border-line px-5 py-3" data-hud-scoreboard="pin" aria-live="polite">
-      <div className="mb-3 flex items-center gap-1.5 font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
-        <Pin className="h-3 w-3 text-lime" aria-hidden="true" />
-        Pinned
-      </div>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-        <div className="min-w-0">
-          <div
-            className="truncate font-cond text-3xl font-extrabold uppercase tracking-[0.06em] text-text"
-            data-hud="team-name"
-            data-hud-side="mine"
-          >
-            {myName}
-          </div>
-          <div className="mt-0.5 font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-you">Ice-lime</div>
+    <div className="px-6 py-5" aria-live="polite">
+      <div className="grid grid-cols-[1fr_minmax(7rem,11rem)_1fr] items-end gap-6">
+        <div className="min-w-0 text-center">
+          {matchup.myTeam.owner ? (
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.myTeam.owner}</div>
+          ) : null}
+          <HudTeamName name={matchup.myTeam.name} tone="you" surface="board" />
+          <div className="text-xs text-muted">{matchup.myTeam.record}</div>
+          <HudTeamScore value={matchup.myPoints} tone="you" surface="board" />
         </div>
-        <div className="text-center font-cond text-sm font-bold uppercase tracking-[0.2em] text-muted">Vs</div>
-        <div className="min-w-0 text-right">
-          <div
-            className={`truncate font-cond text-3xl font-extrabold uppercase tracking-[0.06em] ${
-              bye ? 'text-muted' : 'text-text'
-            }`}
-            data-hud="team-name"
-            data-hud-side="opp"
-          >
-            {opponentName}
-          </div>
-          <div className="mt-0.5 font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-them">Silver</div>
+        <LeadBar
+          mine={matchup.myPoints}
+          opp={matchup.oppPoints}
+          chance={matchupChanceToWin(matchup)}
+          source={matchupWinPctSource(matchup)}
+        />
+        <div className="min-w-0 text-center">
+          {matchup.oppTeam?.owner ? (
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.oppTeam.owner}</div>
+          ) : null}
+          <HudTeamName name={opponentName} tone="them" surface="board" muted={bye} />
+          <div className="text-xs text-muted">{matchup.oppTeam?.record ?? ''}</div>
+          <HudTeamScore value={matchup.oppPoints} tone="them" surface="board" />
         </div>
       </div>
     </div>
