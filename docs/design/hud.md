@@ -98,8 +98,8 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 ## Companion Board
 
 - Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle. SL / ES health pips sit to the right of the **My leagues** header, not in the top bar.
-- Center: one head-to-head (you left / them right, readable team names, dominant totals, lead bar / delta), slot-aligned starters as pos | name | pts, no framed card around the data.
-- Right rail: **Scoring tape**. Scoreboard = Scoring tape · This matchup. Leagues/Boards = Scoring tape · All leagues (same name, same right-hand placement). Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play. Injuries land on tape only after a baseline exists (no cold-open injury dump).
+- Center: sticky **Pinned** you-vs-them header (real `myTeam` / `oppTeam` names, ice-lime / silver identity — no YOUR TEAM placeholders). Both teams’ starters + bench scroll underneath (`min-h-0 overflow-auto`). Slot-aligned pos | name | pts. No overlay pin in this slice.
+- Right rail: **Scoring tape**. Scoreboard = Scoring tape · This matchup. Rows are fantasy ticks/txs (player, optional INJ, detail, delta) — never invented NFL play-by-play. Leagues/Boards = Scoring tape · All leagues. Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play. Injuries land on tape only after a baseline exists (no cold-open injury dump).
 - Leagues matchup cards: **Top scorers** chips are highest starter points, not “who just scored.”
 - Bottom ticker is **replay-only** NFL chips from the fixture. No ON AIR wordmark, no live sports-data API, no betting.
 - Top bar: SIDELINE wordmark, week, SCOREBOARD / LEAGUES / CONNECT, HUD toggle (tracks `overlayVisible` from hotkey and the switch), quiet Studio. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
