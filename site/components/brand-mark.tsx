@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { WORDMARK_ASPECT } from "@/lib/brand";
+import { WORDMARK_ASPECT, WORDMARK_TEXT } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 
 /**
@@ -22,7 +22,7 @@ export function BrandMark({
   return (
     <Image
       src="/wordmark.png"
-      alt="Sideline"
+      alt={WORDMARK_TEXT}
       width={width}
       height={height}
       className={cn("block", className)}

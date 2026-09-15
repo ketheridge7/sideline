@@ -1,13 +1,14 @@
-import { BrandMark } from "@/components/brand-mark";
-import { REPO_URL } from "@/lib/constants";
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
+import { WORDMARK_TEXT } from "@/lib/brand";
+import { REPO_URL } from "@/lib/constants";
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-line pb-24">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div>
-          <Link href="/" aria-label="Sideline home">
+          <Link href="/" aria-label={`${WORDMARK_TEXT} home`}>
             <BrandMark compact />
           </Link>
           <p className="mt-3 max-w-sm text-sm text-muted">

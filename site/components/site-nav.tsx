@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { CtaLink } from "@/components/ui";
+import { WORDMARK_TEXT } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 import { DOWNLOAD_URL, NAV_LINKS } from "@/lib/constants";
 
@@ -35,7 +36,7 @@ export function SiteNav() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6">
-        <Link href="/" className="shrink-0" aria-label="Sideline home">
+        <Link href="/" className="shrink-0" aria-label={`${WORDMARK_TEXT} home`}>
           <BrandMark compact priority />
         </Link>
         <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
