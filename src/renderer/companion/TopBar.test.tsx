@@ -51,6 +51,8 @@ describe('TopBar', () => {
     )
     expect(html).toContain('data-wordmark="sideline"')
     expect(html).toContain('SIDELINE')
+    expect(html).toContain('data-wordmark="underline"')
+    expect(html).not.toContain('italic')
     expect(html).toMatch(/<img[^>]+src="data:image\/svg\+xml/)
     expect(html).toContain('%2312141A')
     expect(html).toContain('%237DFFB0')
