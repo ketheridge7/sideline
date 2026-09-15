@@ -76,6 +76,14 @@ describe('HudChrome parity', () => {
     }
     expect(boardRails).toContain('data-hud-rail="opp"')
     expect(boardRails).toContain('1.0')
+    expect(boardRails.match(/>Starters<\/h2>/g)?.length).toBe(2)
+    expect(boardRails).toContain('text-you">Starters</h2>')
+    expect(boardRails).toContain('text-them">Starters</h2>')
+    expect(boardRails).not.toContain('>You</h2>')
+    expect(boardRails).not.toContain('>Them</h2>')
+    expect(overlayHudRail).not.toContain('>Starters</h2>')
+    expect(overlayHudRail).not.toContain('>You</h2>')
+    expect(overlayHudRail).not.toContain('>Them</h2>')
   })
 
   it('labels SCOREBOARD chance-to-win from the provider win% field, not score-share', () => {
