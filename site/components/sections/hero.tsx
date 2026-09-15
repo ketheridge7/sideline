@@ -1,6 +1,4 @@
-import { CompanionLaptop } from "@/components/mockups/companion-board";
-import { FieldCanvas } from "@/components/mockups/field-canvas";
-import { HeroHudRail, TvBezel } from "@/components/mockups/hero-hud";
+import { ProductStill } from "@/components/product-still";
 import { CtaLink } from "@/components/ui";
 import { DOWNLOAD_URL } from "@/lib/constants";
 
@@ -12,7 +10,7 @@ export function Hero() {
         <div className="absolute right-[18%] top-[22%] h-72 w-72 rounded-full bg-lime/8 blur-[90px]" />
       </div>
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-10 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.15fr)] lg:gap-6 lg:pb-24 lg:pt-6">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-10 sm:px-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-8 lg:pb-20 lg:pt-6">
         <div className="rise relative z-10 max-w-xl">
           <h1 className="text-[2.35rem] font-medium leading-[1.05] tracking-tight text-text sm:text-5xl lg:text-[3.4rem]">
             Your fantasy tape.
@@ -36,22 +34,13 @@ export function Hero() {
           </p>
         </div>
 
-        <div className="relative fade min-h-[280px] sm:min-h-[420px] lg:min-h-[520px]">
-          <TvBezel className="ml-auto w-[92%] max-w-[640px]">
-            <FieldCanvas className="h-full w-full">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/20" />
-            </FieldCanvas>
-          </TvBezel>
-
-          <HeroHudRail className="absolute left-0 top-[8%] z-20 sm:left-[2%] lg:-left-2" />
-
-          <div className="absolute -bottom-2 right-0 z-20 w-[78%] max-w-[380px] sm:bottom-4 sm:right-4">
-            <CompanionLaptop />
-          </div>
-        </div>
+        <ProductStill
+          still="hero"
+          priority
+          className="fade shadow-[0_32px_80px_rgba(0,0,0,0.45)]"
+          sizes="(min-width: 1024px) 55vw, 100vw"
+        />
       </div>
-
-      <div className="relative h-16 wood-top" />
     </section>
   );
 }

@@ -60,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={`${barlow.variable} ${barlowCondensed.variable} h-full antialiased`}
     >
       <body className={`${barlow.className} min-h-full bg-bg text-text`}>

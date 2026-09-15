@@ -1,5 +1,4 @@
-import { FieldCanvas } from "@/components/mockups/field-canvas";
-import { HashmarkOverlay } from "@/components/mockups/hashmark-overlay";
+import { ProductStill } from "@/components/product-still";
 import { SectionEyebrow, SectionLead, SectionTitle } from "@/components/ui";
 
 export function HashmarkSection() {
@@ -16,16 +15,14 @@ export function HashmarkSection() {
           Always-on-top HUD for Windows. Modules sit on the sidelines so live video stays the
           product. No smoke wash, no card, no crawler — just names, scores, and starter rails.
         </SectionLead>
-      </div>
-      <div className="mx-auto mt-12 max-w-6xl px-5 sm:px-6">
-        <div className="overflow-hidden rounded-xl border border-line">
-          <FieldCanvas className="aspect-[16/9] min-h-[320px]">
-            <HashmarkOverlay />
-          </FieldCanvas>
-          <p className="border-t border-line bg-card py-3 text-center font-cond text-xs font-bold uppercase tracking-[0.2em] text-muted">
-            Sunday Tape · Frost HUD · Empty center
-          </p>
-        </div>
+        <ProductStill
+          still="overlay"
+          className="mt-12"
+          sizes="(min-width: 1152px) 1152px, 100vw"
+        />
+        <p className="mt-3 text-center font-cond text-xs font-bold uppercase tracking-[0.2em] text-muted">
+          Sunday Tape · Frost HUD · Empty center
+        </p>
       </div>
     </section>
   );

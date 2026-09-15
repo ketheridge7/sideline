@@ -22,5 +22,5 @@ Primary download CTA: [GitHub Releases latest](https://github.com/ketheridge7/si
 ## Notes
 
 - Tokens match `docs/design/hud.md` (`#07080A`, ice `#A6E6A0`, lime `#B6FF3B`, alert `#FF4D4D`).
-- Product mockups on the homepage are illustrative Sunday Tape chrome, not live scores.
+- Product stills in `public/images/` are synthetic Sunday Tape renders (not live scores, not photos of a real Sunday).
 - Do not add this app to the Electron installer; `electron-builder.yml` already excludes `site/`.
