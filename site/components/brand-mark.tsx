@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { WORDMARK_ASPECT } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 
@@ -19,14 +20,13 @@ export function BrandMark({
   const height = compact ? 28 : 36;
   const width = Math.round(height * WORDMARK_ASPECT);
   return (
-    <img
-      src="/wordmark.svg"
+    <Image
+      src="/wordmark.png"
       alt="Sideline"
       width={width}
       height={height}
       className={cn("block", className)}
-      decoding="async"
-      fetchPriority={priority ? "high" : "auto"}
+      priority={priority}
     />
   );
 }
