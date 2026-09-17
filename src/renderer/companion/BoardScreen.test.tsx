@@ -182,4 +182,23 @@ describe('BoardScreen ESPN UX', () => {
     expect(on).toContain('text-lime')
     expect(on).toContain('>Bench<')
   })
+
+  it('folds bench into column feet instead of a full-width chip rail', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.matchup = {
+      ...espnMatchup(true),
+      bench: [{ playerId: 'kittle', name: 'George Kittle', position: 'TE', nflTeam: 'SF', points: 4.2 }],
+      oppBench: [{ playerId: 'nico', name: 'Nico Collins', position: 'WR', nflTeam: 'HOU', points: 3.1 }]
+    }
+    const html = renderBoard(state)
+    expect(html).toContain('data-bench-column="mine"')
+    expect(html).toContain('data-bench-column="opp"')
+    expect(html).toContain('data-bench-foot="mine"')
+    expect(html).toContain('data-bench-open="false"')
+    expect(html).not.toContain('data-bench-popover')
+    expect(html).not.toContain('George Kittle')
+    expect(html).not.toContain('overflow-x-auto')
+  })
 })

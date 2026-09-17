@@ -2,7 +2,6 @@ import { useEffect, type JSX } from 'react'
 import { parseLeagueKey, type AppState, type ToastPayload } from '@shared/types'
 import { espnBoardUx } from '@shared/display'
 import { tapeForLeague } from '@shared/tape'
-import { HudBench } from '../shared/HudBench'
 import { HudScoreboard } from '../shared/HudScoreboard'
 import { BoardRails } from '../shared/LineupRow'
 import { ScoringTape } from './ScoringTape'
@@ -170,13 +169,13 @@ export const BoardScreen = ({
             />
             {showEditLayout ? <EditLayoutPill studioOpen={studioOpen} onStudio={onStudio} /> : null}
             {showLineups ? (
-              <>
-                <BoardRails mine={matchup.starters} opp={matchup.oppStarters ?? []} />
-                <div className="grid grid-cols-2">
-                  <HudBench players={matchup.bench} label="Bench" />
-                  <HudBench players={matchup.oppTeam ? matchup.oppBench : []} label="Bench" mirror />
-                </div>
-              </>
+              <BoardRails
+                mine={matchup.starters}
+                opp={matchup.oppStarters ?? []}
+                mineBench={matchup.bench}
+                oppBench={matchup.oppTeam ? matchup.oppBench : []}
+                oppMissing={!matchup.oppTeam}
+              />
             ) : (
               <p className="px-5 py-4 text-sm text-muted">
                 Starters stay hidden until ESPN returns a named lineup.

@@ -1,6 +1,13 @@
-import { type JSX } from 'react'
+import { useEffect, useReducer, useState, type JSX, type PointerEvent } from 'react'
 import type { Player } from '@shared/types'
 import { nflTeamLabel, visibleInjury } from '@shared/display'
+import {
+  applyBenchDismiss,
+  benchFootCopy,
+  canOpenBench,
+  type BenchSide
+} from './benchPopover'
+import { BenchFootStack, dismissBenchPointer, useColumnBodyHeight } from './BenchFoot'
 import { overlayName } from './format'
 import { HUD_FROST } from './HudChrome'
 import { LastTickMark, ScoreTick } from './ScoreTick'
@@ -15,24 +22,131 @@ export const HudRail = ({
   <StarterColumn players={players} you={you} hud compact />
 )
 
+export const BoardRosterColumn = ({
+  you,
+  starters,
+  bench,
+  rows,
+  open,
+  missing,
+  onOpenChange,
+  onFocus
+}: {
+  you?: boolean
+  starters: Player[]
+  bench: Player[]
+  rows: number
+  open: boolean
+  missing?: boolean
+  onOpenChange: (open: boolean) => void
+  onFocus: () => void
+}): JSX.Element => {
+  const { ref, height } = useColumnBodyHeight()
+  const copy = benchFootCopy(bench.length, missing)
+  const side: BenchSide = you ? 'mine' : 'opp'
+  const headerClass = you
+    ? 'mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime'
+    : 'mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them'
+
+  const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>): void => {
+    onFocus()
+    if (dismissBenchPointer(event, open)) onOpenChange(false)
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3"
+      data-bench-column={side}
+      onFocusCapture={onFocus}
+      onPointerDownCapture={onPointerDownCapture}
+    >
+      <h2 className={headerClass}>Starters</h2>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <StarterColumn players={starters} you={you} rows={rows} />
+      </div>
+      <BenchFootStack
+        you={you}
+        open={open}
+        copy={copy}
+        columnBodyHeight={height}
+        onToggle={() => onOpenChange(!open)}
+        onFocus={onFocus}
+      >
+        {bench.map((player) => (
+          <LineupRow key={player.playerId} player={player} you={you} fixed />
+        ))}
+      </BenchFootStack>
+    </div>
+  )
+}
+
 export const BoardRails = ({
   mine,
-  opp
+  opp,
+  mineBench = [],
+  oppBench = [],
+  oppMissing = false
 }: {
   mine: Player[]
   opp: Player[]
+  mineBench?: Player[]
+  oppBench?: Player[]
+  oppMissing?: boolean
 }): JSX.Element => {
   const rows = Math.max(mine.length, opp.length, 1)
+  const [open, dispatch] = useReducer(applyBenchDismiss, { mine: false, opp: false })
+  const [lastFocused, setLastFocused] = useState<BenchSide>('mine')
+  const mineCopy = benchFootCopy(mineBench.length)
+  const oppCopy = benchFootCopy(oppBench.length, oppMissing)
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      ) {
+        return
+      }
+      if (!open.mine && !open.opp) return
+      event.stopPropagation()
+      dispatch({ type: 'esc', lastFocused })
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [lastFocused, open.mine, open.opp])
+
   return (
     <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-        <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime">Starters</h2>
-        <StarterColumn players={mine} you rows={rows} />
-      </div>
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-        <h2 className="mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them">Starters</h2>
-        <StarterColumn players={opp} rows={rows} />
-      </div>
+      <BoardRosterColumn
+        you
+        starters={mine}
+        bench={mineBench}
+        rows={rows}
+        open={open.mine}
+        onOpenChange={(next) => {
+          if (next === open.mine) return
+          if (next) dispatch({ type: 'toggle', side: 'mine', allowed: canOpenBench(mineCopy) })
+          else dispatch({ type: 'outside', side: 'mine' })
+        }}
+        onFocus={() => setLastFocused('mine')}
+      />
+      <BoardRosterColumn
+        starters={opp}
+        bench={oppBench}
+        rows={rows}
+        open={open.opp}
+        missing={oppMissing}
+        onOpenChange={(next) => {
+          if (next === open.opp) return
+          if (next) dispatch({ type: 'toggle', side: 'opp', allowed: canOpenBench(oppCopy) })
+          else dispatch({ type: 'outside', side: 'opp' })
+        }}
+        onFocus={() => setLastFocused('opp')}
+      />
     </section>
   )
 }
@@ -74,17 +188,19 @@ export const LineupRow = ({
   compact,
   tv,
   you,
-  hud
+  hud,
+  fixed
 }: {
   player?: Player
   compact?: boolean
   tv?: boolean
   you?: boolean
   hud?: boolean
+  fixed?: boolean
 }): JSX.Element => {
   const rowClass = hud
     ? 'lineup-row hud-rail-row'
-    : `lineup-row ${compact ? (tv ? 'h-8' : 'h-[22px]') : 'min-h-11 flex-1'}`
+    : `lineup-row ${compact ? (tv ? 'h-8' : 'h-[22px]') : fixed ? 'h-11' : 'min-h-11 flex-1'}`
   if (!player) {
     return <div className={rowClass} data-lineup-row="empty" />
   }
