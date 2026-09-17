@@ -51,6 +51,44 @@ describe('BoardsScreen', () => {
     expect(html).toContain('border-l border-line')
   })
 
+  it('keeps Sleeper waivers on the all-leagues tape and hides ESPN adds', () => {
+    const html = renderBoards({
+      tape: [
+        {
+          id: 'espn-waiver',
+          at: 3,
+          kind: 'add',
+          player: 'Downs IND',
+          detail: 'add',
+          leagueKey: 'espn:543268341',
+          leagueName: 'Dawg Pound'
+        },
+        {
+          id: 'sleeper-waiver',
+          at: 2,
+          kind: 'add',
+          player: 'Puka Nacua',
+          detail: 'add',
+          leagueKey: 'sleeper:1',
+          leagueName: 'Friday Night Gridiron'
+        },
+        {
+          id: 'espn-score',
+          at: 1,
+          kind: 'score',
+          player: 'Mahomes KC',
+          detail: 'QB',
+          delta: 2.4,
+          leagueKey: 'espn:543268341',
+          leagueName: 'Dawg Pound'
+        }
+      ]
+    })
+    expect(html).toContain('Puka')
+    expect(html).toContain('Mahomes')
+    expect(html).not.toContain('Downs')
+  })
+
   it('paints my team name lime and leaves the opponent muted', () => {
     const html = renderBoards()
     expect(html).toContain('text-lime')

@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { Pin, Users } from 'lucide-react'
 import { parseLeagueKey, type AppState, type MatchupBoard } from '@shared/types'
 import { boardChanceToWin, matchupWinPctSource } from '@shared/display'
+import { scoringTapeEvents } from '@shared/tape'
 import { formatScore, overlayName } from '../shared/format'
 import { LeadBar } from '../shared/LeadBar'
 import { ProviderBadge } from '../shared/ProviderBadge'
@@ -173,7 +174,7 @@ export const BoardsScreen = ({
         </div>
       </div>
       </div>
-      <LiveScoringRail events={state.tape} onOpenBoard={onOpenBoard} />
+      <LiveScoringRail events={scoringTapeEvents(state.tape)} onOpenBoard={onOpenBoard} />
     </div>
   )
 }

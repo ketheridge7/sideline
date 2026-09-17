@@ -37,6 +37,15 @@ const mixedTape: TapeEvent[] = [
     delta: 2.4,
     leagueKey: 'espn:543268341',
     leagueName: 'Dawg Pound'
+  },
+  {
+    id: 'espn-waiver',
+    at: 3,
+    kind: 'add',
+    player: 'Downs IND',
+    detail: 'add',
+    leagueKey: 'espn:543268341',
+    leagueName: 'Dawg Pound'
   }
 ]
 
@@ -132,6 +141,18 @@ describe('BoardScreen ESPN UX', () => {
     })
     expect(sleeper).toContain('Dowdle DAL')
     expect(sleeper).not.toContain('Mahomes KC')
+  })
+
+  it('does not paint ESPN adds, drops, or waivers on Scoring tape', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.matchup = espnMatchup(true)
+    state.tape = mixedTape
+    const html = renderBoard(state)
+    expect(html).toContain('Mahomes KC')
+    expect(html).not.toContain('Downs IND')
+    expect(html).not.toContain('>Waiver<')
   })
 
   it('puts Edit layout under the scoreboard only when HUD is on', () => {

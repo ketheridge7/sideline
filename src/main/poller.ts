@@ -3,7 +3,7 @@ import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, toOverla
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
 import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
-import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from '@shared/tape'
+import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionsToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { settingsHotkeys } from '@shared/settings'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
@@ -3270,7 +3270,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           const { league, rows } = row.value
           if (league.provider === 'espn' && rows.length > 0) espnTxHit = true
           emitNewTransactions(league, rows)
-          for (const event of rows) snapshotTape.push(transactionToTape(league, event))
+          snapshotTape.push(...transactionsToTape(league, rows))
         }
         liveTape = mergeSessionTape(liveTape, snapshotTape)
         return publish(mergeSessionTape(liveTape, replay ? replaySeedTape() : []))

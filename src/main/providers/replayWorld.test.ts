@@ -7,6 +7,7 @@ import {
   replayScoreBeats,
   replaySeedTape,
   replayTickerGames,
+  replayTransactionsFor,
   replayWorldLeagues
 } from './replayWorld'
 
@@ -63,13 +64,16 @@ describe('replayWorld', () => {
     expect(down?.oppPoints).toBeLessThan(131.2)
   })
 
-  it('seeds a mixed tape with +pts, -pts, INJ, and a waiver, plus a scripted NFL ticker', () => {
+  it('seeds a mixed tape with +pts, -pts, INJ, and a Sleeper waiver, plus a scripted NFL ticker', () => {
     const tape = replaySeedTape()
     expect(tape[0]?.id).toBe('seed-gibbs-td')
     expect(tape.some((row) => row.kind === 'score' && (row.delta ?? 0) > 0)).toBe(true)
     expect(tape.some((row) => row.kind === 'score' && (row.delta ?? 0) < 0)).toBe(true)
     expect(tape.some((row) => row.kind === 'injury')).toBe(true)
     expect(tape.some((row) => row.kind === 'add' && /waiver/i.test(row.detail))).toBe(true)
+    expect(
+      tape.some((row) => row.kind === 'add' && row.leagueKey?.startsWith('espn:'))
+    ).toBe(false)
     const extra = replayBoardExtra(featured!, 0)
     expect(extra.lastScorers.length).toBe(3)
     expect(extra.lastScorers.some((chip) => (chip.delta ?? 0) < 0)).toBe(true)
@@ -97,5 +101,13 @@ describe('replayWorld', () => {
     expect(espn?.starterIds[0]).toBeTruthy()
     expect(sleeper?.starterIds[0]).not.toBe(espn?.starterIds[0])
     expect(sleeper?.starterIds.some((id) => espn?.starterIds.includes(id))).toBe(false)
+  })
+
+  it('replays waiver transactions for Sleeper only, not ESPN', () => {
+    const sleeper = weekLeagues.find((row) => row.id === 'fourth-drunken')
+    const espn = weekLeagues.find((row) => row.provider === 'espn')
+    expect(replayTransactionsFor(sleeper!, 1)).toHaveLength(1)
+    expect(replayTransactionsFor(sleeper!, 1)[0]?.type).toBe('add')
+    expect(replayTransactionsFor(espn!, 1)).toEqual([])
   })
 })
