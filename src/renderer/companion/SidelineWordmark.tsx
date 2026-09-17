@@ -6,7 +6,7 @@ import markUrl from '../assets/broadcast-s.svg?url'
  * Swap `src/renderer/assets/broadcast-s.svg` (and `broadcast-wordmark.svg`) when Designer drops a polish pass.
  */
 export const SidelineWordmark = (): JSX.Element => (
-  <span className="flex items-center gap-6" data-wordmark="sideline" data-mark="broadcast-s">
+  <span className="flex items-center gap-2" data-wordmark="sideline" data-mark="broadcast-s">
     <img
       src={markUrl}
       alt=""

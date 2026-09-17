@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { emptyAppState, toOverlayHud, type Matchup, type Player } from '@shared/types'
 import { OverlayWidgetView } from '../overlay/Widgets'
+import { HudBench } from './HudBench'
 import { HudScoreboard } from './HudScoreboard'
 import { BoardRails, HudRail } from './LineupRow'
 
@@ -79,8 +80,9 @@ describe('HudChrome parity', () => {
     expect(boardRails).toContain('data-hud-rail="opp"')
     expect(boardRails).toContain('1.0')
     expect(boardRails.match(/>Starters<\/h2>/g)?.length).toBe(2)
-    expect(boardRails).toContain('text-you">Starters</h2>')
+    expect(boardRails).toContain('text-lime">Starters</h2>')
     expect(boardRails).toContain('text-them">Starters</h2>')
+    expect(boardRails).not.toContain('text-you">Starters</h2>')
     expect(boardRails).not.toContain('>You</h2>')
     expect(boardRails).not.toContain('>Them</h2>')
     expect(overlayHudRail).not.toContain('>Starters</h2>')
@@ -102,6 +104,14 @@ describe('HudChrome parity', () => {
     expect(html).toContain('99% Win')
     expect(html).toContain('1% Win')
     expect(html).not.toContain('Win% pending')
+    expect(html).toContain('text-lime">Chance to win')
+    expect(html).toContain('data-hud-win-pct-fill="mine"')
+    expect(html).toContain('bg-lime')
+    expect(html).toContain('data-hud-win-pct-fill="opp"')
+    expect(html).toContain('bg-them/50')
+    expect(html).toMatch(/data-hud-side="mine"[^>]*text-lime|text-lime"[^>]*data-hud-side="mine"/)
+    expect(html).toMatch(/data-hud-side="opp"[^>]*text-muted|text-muted"[^>]*data-hud-side="opp"/)
+    expect(html).not.toMatch(/data-hud="lead-chip"[^>]*text-lime/)
     const pending = renderToStaticMarkup(<HudScoreboard matchup={matchup} />)
     expect(pending).toContain('Win% pending')
     expect(pending).toContain('data-hud-win-pct="pending"')
@@ -126,6 +136,7 @@ describe('HudChrome parity', () => {
       />
     )
     expect(estimated).toContain('Est. win%')
+    expect(estimated).toContain('text-lime">Est. win%')
     expect(estimated).toContain('Est.')
     expect(estimated).not.toContain('Chance to win')
     expect(estimated).not.toContain('Win% pending')
@@ -133,6 +144,42 @@ describe('HudChrome parity', () => {
       <HudScoreboard matchup={{ ...matchup, winPctSource: 'estimated' }} />
     )
     expect(estPending).toContain('Est. win% pending')
+    expect(estPending).toContain('text-lime">Est. win%')
     expect(estPending).not.toContain('Chance to win')
+  })
+
+  it('paints you-side Bench lime and leaves opponent Bench silver', () => {
+    const mine = renderToStaticMarkup(
+      <HudBench
+        label="Bench"
+        players={[player({ playerId: 'bn', name: 'George Kittle', position: 'TE', points: 4.2 })]}
+      />
+    )
+    const opp = renderToStaticMarkup(
+      <HudBench
+        label="Bench"
+        mirror
+        players={[player({ playerId: 'obn', name: 'Nico Collins', position: 'WR', points: 3.1 })]}
+      />
+    )
+    const emptyMine = renderToStaticMarkup(<HudBench label="Bench" players={[]} />)
+    const emptyOpp = renderToStaticMarkup(<HudBench label="Bench" players={[]} mirror />)
+    expect(mine).toContain('text-lime')
+    expect(mine).toContain('Bench')
+    expect(mine).not.toContain('text-you')
+    expect(opp).toContain('text-them')
+    expect(opp).toContain('Bench')
+    expect(opp).not.toContain('text-lime')
+    expect(emptyMine).toContain('text-lime')
+    expect(emptyOpp).toContain('text-them')
+    expect(emptyOpp).not.toContain('text-lime')
+  })
+
+  it('keeps the lead chip on ice --you, not lime', () => {
+    const board = renderToStaticMarkup(<HudScoreboard matchup={matchup} />)
+    expect(board).toContain('data-hud="lead-chip"')
+    expect(board).toContain('+11.6')
+    expect(board).toMatch(/text-you[^"]*"[^>]*data-hud="lead-chip"|data-hud="lead-chip"[^>]*text-you/)
+    expect(board).not.toMatch(/data-hud="lead-chip"[^>]*text-lime/)
   })
 })
