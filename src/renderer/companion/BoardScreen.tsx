@@ -8,6 +8,7 @@ import { BoardRails } from '../shared/LineupRow'
 import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
 import { NflTicker } from './NflTicker'
+import { chromeFillPillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -43,7 +44,7 @@ const EspnRecoverBanner = ({
       <button
         type="button"
         onClick={onSignIn}
-        className="cursor-pointer bg-espn px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white"
+        className={chromeFillPillClass('espn', 'compact')}
       >
         Sign in
       </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 import { updateStatusCopy, type UpdateSnapshot } from '@shared/updater'
+import { chromeFillPillClass, chromePillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -34,7 +35,7 @@ export const UpdateSettings = (): JSX.Element => {
           type="button"
           onClick={() => void api().checkForUpdates()}
           disabled={busy}
-          className="cursor-pointer border border-line px-4 py-2 text-sm disabled:opacity-40"
+          className={`${chromePillClass(false, 'control')} disabled:opacity-40`}
         >
           Check for updates
         </button>
@@ -42,7 +43,7 @@ export const UpdateSettings = (): JSX.Element => {
           <button
             type="button"
             onClick={() => void api().installUpdate()}
-            className="cursor-pointer bg-you px-4 py-2 text-sm font-medium text-bg"
+            className={chromeFillPillClass('you')}
           >
             Restart to install
           </button>

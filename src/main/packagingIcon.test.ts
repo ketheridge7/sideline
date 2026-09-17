@@ -3,17 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { bindEmptyNativeTitle, NATIVE_WINDOW_TITLE, packagingWindowIconPath } from './packagingIcon'
 
 describe('packagingWindowIconPath', () => {
-  it('uses the Windows ICO packaging mark on win32', () => {
-    const icon = packagingWindowIconPath('win32')
-    expect(icon.endsWith('icon.ico')).toBe(true)
+  it('uses the broadcast S PNG for the running window', () => {
+    const icon = packagingWindowIconPath()
+    expect(icon.endsWith('broadcast-s.png')).toBe(true)
     expect(existsSync(icon)).toBe(true)
-  })
-
-  it('uses the PNG packaging mark on non-Windows', () => {
-    const icon = packagingWindowIconPath('linux')
-    expect(icon.endsWith('icon.png')).toBe(true)
-    expect(existsSync(icon)).toBe(true)
-    expect(packagingWindowIconPath('darwin').endsWith('icon.png')).toBe(true)
   })
 })
 

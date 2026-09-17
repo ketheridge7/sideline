@@ -24,6 +24,15 @@ describe('ConnectScreen updates', () => {
     expect(html).toContain('Check for updates')
     expect(html).toContain('data-update-state="idle"')
   })
+
+  it('uses soft-pill actions on Connect instead of hard-rect buttons', () => {
+    const html = htmlOf({ sleeperConnected: true, espnConnected: true })
+    expect(html).toContain('rounded-full')
+    expect(html).toContain('Disconnect')
+    expect(html).toContain('Add league')
+    expect(html).not.toContain('cursor-pointer border border-line px-4 py-2')
+    expect(html).not.toContain('cursor-pointer rounded-sm border border-line px-3 py-2')
+  })
 })
 
 describe('ConnectScreen shortcuts', () => {
@@ -43,7 +52,7 @@ describe('ConnectScreen shortcuts', () => {
 })
 
 describe('ConnectScreen first-run help', () => {
-  it('puts a Getting started blurb above the provider cards', () => {
+  it('covers the real connect and overlay paths without APK install steps', () => {
     const html = htmlOf()
     expect(html).toContain('Getting started')
     expect(html).toContain('companion for live fantasy')

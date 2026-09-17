@@ -9,6 +9,7 @@ import {
   shortcutMapFromSettings,
   type ShortcutAction
 } from '@shared/shortcuts'
+import { chromePillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -84,7 +85,7 @@ export const ShortcutSettings = ({ state }: { state: AppState }): JSX.Element =>
                 void api().setShortcutCapture(true)
                 setListening(action)
               }}
-              className="cursor-pointer border border-line px-2 py-1 text-xs uppercase tracking-wide text-muted hover:text-text"
+              className={chromePillClass(false, 'compact')}
             >
               Change
             </button>
@@ -92,7 +93,7 @@ export const ShortcutSettings = ({ state }: { state: AppState }): JSX.Element =>
               type="button"
               onClick={() => handleReset(action)}
               disabled={shortcuts[action] === DEFAULT_SHORTCUTS[action]}
-              className="cursor-pointer border border-line px-2 py-1 text-xs uppercase tracking-wide text-muted hover:text-text disabled:opacity-40"
+              className={`${chromePillClass(false, 'compact')} disabled:opacity-40`}
             >
               Reset
             </button>

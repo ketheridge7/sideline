@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { NATIVE_WINDOW_TITLE, packagingWindowIconPath } from '../packagingIcon'
+import { COMPANION_TITLEBAR_OVERLAY, NATIVE_WINDOW_TITLE, packagingWindowIconPath } from '../packagingIcon'
 
 type FakeWindow = {
   opts: Record<string, unknown>
@@ -71,10 +71,13 @@ afterEach(() => {
 })
 
 describe('createCompanionWindow', () => {
-  it('uses the packaging mark and no Sideline native title', () => {
+  it('uses the broadcast mark, hidden native title, and overlay caption', () => {
     const win = createCompanionWindow() as unknown as FakeWindow
     expect(win.opts.title).toBe(NATIVE_WINDOW_TITLE)
     expect(win.opts.icon).toBe(packagingWindowIconPath())
+    expect(String(win.opts.icon)).toMatch(/broadcast-s\.png$/)
+    expect(win.opts.titleBarStyle).toBe('hidden')
+    expect(win.opts.titleBarOverlay).toEqual({ ...COMPANION_TITLEBAR_OVERLAY })
     expect(String(win.opts.title)).not.toMatch(/sideline/i)
     expect(win.setTitle).toHaveBeenCalledWith(NATIVE_WINDOW_TITLE)
     expect(loadRenderer).toHaveBeenCalledWith(win, 'companion')

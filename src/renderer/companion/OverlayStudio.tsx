@@ -20,6 +20,7 @@ import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
 import { OverlayWidgetView } from '../overlay/Widgets'
+import { chromePillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -110,7 +111,7 @@ export const OverlayStudio = ({
     <aside className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden border-l border-line bg-card">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <h2 className="font-cond text-sm font-bold uppercase tracking-[0.16em]">Overlay Studio</h2>
-        <button type="button" onClick={onClose} className="cursor-pointer text-xs text-muted hover:text-text">
+        <button type="button" onClick={onClose} className={chromePillClass(false, 'compact')}>
           Close
         </button>
       </div>
