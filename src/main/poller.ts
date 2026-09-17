@@ -200,6 +200,7 @@ const sleeperMatchupsHold = new Map<
 >()
 let sleeperLeaguesHydrated = false
 let matchupsHydrated = false
+let matchupsDiskWeek: number | null = null
 let espnCookieCache: { at: number; cookies: EspnCookies | null } | null = null
 let espnDiscoveryInFlight: Promise<League[]> | null = null
 let espnDiscoveryGen = 0
@@ -863,7 +864,12 @@ const hydrateMatchupsFromDisk = (week: number): void => {
   if (matchupsHydrated) return
   matchupsHydrated = true
   const disk = readMatchupsDisk()
-  if (!disk || disk.week !== week) return
+  if (!disk) {
+    matchupsDiskWeek = null
+    return
+  }
+  matchupsDiskWeek = disk.week
+  if (disk.week !== week) return
   const now = Date.now()
   for (const [key, matchup] of Object.entries(disk.byKey)) {
     if (matchupCache.has(key)) continue
@@ -3537,7 +3543,7 @@ export const warmupPollerCaches = (): void => {
       nfl,
       sleeperLeagues: sleeperLeaguesCache?.leagues ?? [],
       espnLeagues: espnLeaguesCache?.leagues ?? [],
-      espnLeagueIds: settings.espnLeagueIds
+      espnLeagueIds: espnLeagueIdsToDiscover(settings.espnLeagueIds, settings.selectedLeagueKey)
     })
     const lastHud = peekLastHud()
     if (
@@ -3555,7 +3561,8 @@ export const warmupPollerCaches = (): void => {
       selectedKey,
       displayWeek: nfl.displayWeek,
       lastHud,
-      matchupsByKey
+      matchupsByKey,
+      matchupsWeek: matchupsDiskWeek ?? undefined
     })
     lastState = {
       ...emptyAppState(),
@@ -3645,6 +3652,7 @@ export const resetPollerForTests = (): void => {
   sleeperRostersHydrated = false
   sleeperLeaguesHydrated = false
   matchupsHydrated = false
+  matchupsDiskWeek = null
   liveTape = []
   espnNeedsRelogin = false
   resetSleeperProjectionsCache()

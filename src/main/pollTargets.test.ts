@@ -2113,6 +2113,30 @@ describe('warmupMatchupFromDisk', () => {
       })?.myPoints
     ).toBe(20)
   })
+
+  it('discards last HUD and board points when displayWeek has advanced', () => {
+    expect(
+      warmupMatchupFromDisk({
+        selectedKey: 'espn:899513',
+        displayWeek: 2,
+        lastHud: { displayWeek: 1, selectedKey: 'espn:899513', matchup },
+        matchupsByKey: { 'espn:899513': matchup },
+        matchupsWeek: 1
+      })
+    ).toBeNull()
+  })
+
+  it('does not fall back to another week of board points when last HUD is for another league', () => {
+    expect(
+      warmupMatchupFromDisk({
+        selectedKey: 'sleeper:11',
+        displayWeek: 2,
+        lastHud: { displayWeek: 1, selectedKey: 'espn:899513', matchup },
+        matchupsByKey: { 'sleeper:11': { ...matchup, myPoints: 20 } },
+        matchupsWeek: 1
+      })
+    ).toBeNull()
+  })
 })
 
 describe('stubLeagueFromKey', () => {
