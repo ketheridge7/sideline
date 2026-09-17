@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import type { AppState } from '@shared/types'
+import { chromeFillPillClass, chromePillClass } from './chrome'
 import { ShortcutSettings } from './ShortcutSettings'
 import { UpdateSettings } from './UpdateSettings'
 
@@ -95,7 +96,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
           <button
             type="button"
             onClick={() => void handleSleeper()}
-            className="cursor-pointer bg-you px-4 py-2 text-sm font-medium text-bg"
+            className={chromeFillPillClass('you')}
           >
             Connect
           </button>
@@ -103,7 +104,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
             <button
               type="button"
               onClick={() => void api().disconnectSleeper()}
-              className="cursor-pointer rounded-sm border border-line px-3 py-2 text-sm text-muted"
+              className={chromePillClass(false, 'control')}
             >
               Disconnect
             </button>
@@ -141,7 +142,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
           <button
             type="button"
             onClick={() => void handleEspn()}
-            className="cursor-pointer bg-espn px-4 py-2 text-sm font-medium text-white"
+            className={chromeFillPillClass('espn')}
           >
             Sign in with ESPN
           </button>
@@ -149,7 +150,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
             <button
               type="button"
               onClick={() => void api().disconnectEspn()}
-              className="cursor-pointer rounded-sm border border-line px-3 py-2 text-sm text-muted"
+              className={chromePillClass(false, 'control')}
             >
               Disconnect
             </button>
@@ -179,7 +180,7 @@ export const ConnectScreen = ({ state }: { state: AppState }): JSX.Element => {
           <button
             type="button"
             onClick={() => void handlePaste()}
-            className="cursor-pointer border border-line px-4 py-2 text-sm"
+            className={chromePillClass(false, 'control')}
           >
             Add league
           </button>

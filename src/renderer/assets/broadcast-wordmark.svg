@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 128" role="img" aria-label="SIDELINE">
+  <defs>
+    <linearGradient id="broadcastLime" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#D6F34A"/>
+      <stop offset="50%" stop-color="#B6FF3B"/>
+      <stop offset="100%" stop-color="#7DFFB0"/>
+    </linearGradient>
+  </defs>
+  <!-- Mark -->
+  <g transform="translate(8 8)">
+    <rect x="14" y="10" width="72" height="28" rx="14" ry="14"
+          fill="url(#broadcastLime)"
+          transform="rotate(-32 50 24)"/>
+    <rect x="26" y="74" width="72" height="28" rx="14" ry="14"
+          fill="url(#broadcastLime)"
+          transform="rotate(-32 62 88)"/>
+  </g>
+  <!-- Wordmark: 16px gap after 112px mark column -->
+  <text x="136" y="82"
+        fill="#F4F7F2"
+        font-family="Inter, Segoe UI, Arial, Helvetica, sans-serif"
+        font-size="56"
+        font-weight="800"
+        letter-spacing="6"
+        >SIDELINE</text>
+</svg>

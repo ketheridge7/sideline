@@ -1,6 +1,11 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
-import { bindEmptyNativeTitle, NATIVE_WINDOW_TITLE, packagingWindowIconPath } from '../packagingIcon'
+import {
+  bindEmptyNativeTitle,
+  COMPANION_TITLEBAR_OVERLAY,
+  NATIVE_WINDOW_TITLE,
+  packagingWindowIconPath
+} from '../packagingIcon'
 import { runtime } from '../runtime'
 import { loadRenderer } from './load'
 
@@ -21,6 +26,8 @@ export const createCompanionWindow = (): BrowserWindow => {
     icon: packagingWindowIconPath(),
     backgroundColor: '#07080A',
     autoHideMenuBar: true,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    titleBarOverlay: { ...COMPANION_TITLEBAR_OVERLAY },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

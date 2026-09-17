@@ -143,7 +143,7 @@ export const App = (): JSX.Element => {
       </div>
       {statusToast ? (
         <div
-          className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 border border-line bg-card px-3 py-2 text-xs text-muted"
+          className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-line bg-card px-3 py-2 text-xs text-muted"
           role="status"
         >
           {statusToast.body}
