@@ -3,7 +3,7 @@ import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, toOverla
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
 import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
-import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from '@shared/tape'
+import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { settingsHotkeys } from '@shared/settings'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
@@ -928,6 +928,15 @@ const rememberEspnScorePayload = (leagueId: string, week: number, payload: unkno
 
 const rememberEspnLivePayload = (leagueId: string, payload: unknown): void => {
   espnLiveCache.set(leagueId, payload)
+}
+
+/** Current-period live/period 0 on scores disk wins over leftover last-HUD / matchups points for that week. */
+const overlayEspnCachedWeekPts = (key: string, row: Matchup, week: number): Matchup => {
+  const parsed = parseLeagueKey(key)
+  if (parsed?.provider !== 'espn') return row
+  const cached = espnScoreCache.get(parsed.id)
+  if (!cached || cached.week !== week) return row
+  return overlayEspnMatchup(row, cached.payload, week) ?? row
 }
 
 const hydrateEspnTeamsFromDisk = (): void => {
@@ -3221,8 +3230,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       earlyScored.push(...scoreTapeFromDiff(selected, matchup, prevPlayerPts))
       earlyScored.push(...injuryTapeFromDiff(selected, matchup, prevInjury))
     }
-    liveTape = mergeTape(earlyScored, liveTape, 24)
-    const hudState = publish(mergeTape(liveTape, replay ? replaySeedTape() : [], 32))
+    liveTape = mergeSessionTape(earlyScored, liveTape)
+    const hudState = publish(mergeSessionTape(liveTape, replay ? replaySeedTape() : []))
     const snapshotSchedule = restSettleSchedulePlan({
       hudScheduled: hudPainted,
       nextLive: live,
@@ -3263,7 +3272,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           emitNewTransactions(league, rows)
           for (const event of rows) snapshotTape.push(transactionToTape(league, event))
         }
-        return publish(mergeTape(lastState.tape, [...(replay ? replaySeedTape() : []), ...snapshotTape], 32))
+        liveTape = mergeSessionTape(liveTape, snapshotTape)
+        return publish(mergeSessionTape(liveTape, replay ? replaySeedTape() : []))
       }
       const first = await loadTape(txCookies)
       const retryPlan = espnTxCookieRetryPlan({
@@ -3365,8 +3375,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           scored.push(...injuryTapeFromDiff(league, loaded, prevInjury))
         }
       }
-      liveTape = mergeTape(scored, liveTape, 24)
-      const published = publish(mergeTape(liveTape, replay ? replaySeedTape() : [], 32))
+      liveTape = mergeSessionTape(scored, liveTape)
+      const published = publish(mergeSessionTape(liveTape, replay ? replaySeedTape() : []))
       if (!replay) {
         const persistPlan = liveMatchupsPersistPlan(liveTick)
         switch (persistPlan) {
@@ -3545,25 +3555,39 @@ export const warmupPollerCaches = (): void => {
       espnLeagues: espnLeaguesCache?.leagues ?? [],
       espnLeagueIds: espnLeagueIdsToDiscover(settings.espnLeagueIds, settings.selectedLeagueKey)
     })
-    const lastHud = peekLastHud()
+    const lastHudRaw = peekLastHud()
     if (
-      lastHud &&
-      isLiveLeagueKey(lastHud.selectedKey) &&
-      lastHud.displayWeek === nfl.displayWeek &&
-      !matchupCache.has(lastHud.selectedKey)
+      lastHudRaw &&
+      isLiveLeagueKey(lastHudRaw.selectedKey) &&
+      lastHudRaw.displayWeek === nfl.displayWeek &&
+      !matchupCache.has(lastHudRaw.selectedKey)
     ) {
-      matchupCache.set(lastHud.selectedKey, { at: Date.now() - COLD_TTL_MS, matchup: lastHud.matchup })
+      matchupCache.set(lastHudRaw.selectedKey, { at: Date.now() - COLD_TTL_MS, matchup: lastHudRaw.matchup })
     }
+    for (const [key, row] of matchupCache) {
+      const next = overlayEspnCachedWeekPts(key, row.matchup, nfl.displayWeek)
+      if (next !== row.matchup) matchupCache.set(key, { ...row, matchup: next })
+    }
+    const lastHud = lastHudRaw
+      ? {
+          ...lastHudRaw,
+          matchup: overlayEspnCachedWeekPts(lastHudRaw.selectedKey, lastHudRaw.matchup, nfl.displayWeek)
+        }
+      : null
+    if (lastHud && lastHudRaw && lastHud.matchup !== lastHudRaw.matchup) lastHudMem = lastHud
     const matchupsByKey: Record<string, Matchup> = {}
     for (const [key, row] of matchupCache) matchupsByKey[key] = row.matchup
     const selectedKey = settings.selectedLeagueKey
-    const matchup = warmupMatchupFromDisk({
+    let matchup = warmupMatchupFromDisk({
       selectedKey,
       displayWeek: nfl.displayWeek,
       lastHud,
       matchupsByKey,
       matchupsWeek: matchupsDiskWeek ?? undefined
     })
+    if (matchup && selectedKey) {
+      matchup = overlayEspnCachedWeekPts(selectedKey, matchup, nfl.displayWeek)
+    }
     lastState = {
       ...emptyAppState(),
       sleeperConnected: Boolean(settings.sleeperUsername),

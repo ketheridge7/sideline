@@ -82,9 +82,16 @@ select {
 }
 
 .companion-titlebar {
+  --titlebar-overlay-right: 138px;
   min-height: env(titlebar-area-height, 3.25rem);
   padding-left: max(1rem, env(titlebar-area-x, 1rem));
-  padding-right: max(1rem, calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px)));
+  /* Windows titleBarOverlay caption buttons sit on the right. env() is preferred;
+     138px is the overlay cluster fallback when titlebar-area-* is missing. */
+  padding-right: max(
+    1rem,
+    var(--titlebar-overlay-right),
+    calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px))
+  );
 }
 
 @keyframes tape-crawl {

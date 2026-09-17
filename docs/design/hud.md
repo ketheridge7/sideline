@@ -25,9 +25,9 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 | `--line` | `#1E232B` | Hairline |
 | `--text` | `#F4F6F8` | Primary |
 | `--muted` | `#94A3B8` | Meta |
-| `--you` | `#A6E6A0` | Warm ice-green — your team name, lead, selected |
+| `--you` | `#A6E6A0` | Warm ice-green — lead chip, selected, ice chrome. Not my team name |
 | `--them` | `#E8E4DC` | Warm silver — opponent name. Not “loss” |
-| `--lime` | `#B6FF3B` | Just scored / HUD on |
+| `--lime` | `#B6FF3B` | Just scored / HUD on / chrome pill outlines / **my** team name |
 | `--air` | `#FF4D4D` | ON AIR, injury, waiver |
 | Sleeper / ESPN | cyan / crimson | **tiny stamps only** |
 
@@ -52,7 +52,7 @@ Visible HUD is **names, scores, and both starter rails**. Last names only (`over
 
 ### Score ticks (inline, not tape)
 
-When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`) for the full ~1.1s beat (limeT held at 1), then eases to the new total. Lime eases off over ~1.6s total back to frost white on the roster. Team names stay ice-green (you) / warm silver (them).
+When a player's points **increase**, that pts cell (and the team total if the sum moved) highlights lime `#B6FF3B`, shows the delta in the same type slot (`+6.2`) for the full ~1.1s beat (limeT held at 1), then eases to the new total. Lime eases off over ~1.6s total back to frost white on the roster. **My** team name stays lime `#B6FF3B`; opponent stays warm silver.
 
 When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
 
@@ -91,7 +91,7 @@ Watch mode: Electron `setIgnoreMouseEvents(true, { forward: true })`. Edit: mous
 
 Layout persists in `sideline-settings.json` and is pushed on the same SSE `/events` payload so OBS and Google TV update when Studio saves. Each layout JSON carries `schemaVersion` (currently **3**: you-left dual frost rails, five placements, Preset 4 same-side stack, `ticker.nfl` block). When that number is missing or behind the factory, Sideline **auto-migrates once**: live widget geometry resets to Preset 1 (far sides) and is written back. Intentionally saved preset slots 1–5 are kept. Current-version Studio overwrites still merge as before — no manual Revert.
 
-SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip` / `LineupRow` (POS | NAME | PTS). Team names stay ice-green (you) / warm silver (them); scores and rows stay frost. Overlay still last-names the rail; the board keeps full names.
+SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip` / `LineupRow` (POS | NAME | PTS). **My** team name is lime `#B6FF3B`; opponent stays warm silver; scores and rows stay frost. Overlay still last-names the rail; the board keeps full names.
 
 ---
 
@@ -102,7 +102,8 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 - Right rail: **Scoring tape**. Scoreboard = Scoring tape · This matchup. Leagues/Boards = Scoring tape · All leagues (same name, same right-hand placement). Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play. Injuries land on tape only after a baseline exists (no cold-open injury dump).
 - Leagues matchup cards: **Top scorers** chips are highest starter points, not “who just scored.”
 - Bottom ticker is **replay-only** NFL chips from the fixture. No ON AIR wordmark, no live sports-data API, no betting.
-- Top bar: broadcast S (`broadcast-s.svg`, two −32° lime bars, no square field) + **SIDELINE** (ice `#F4F7F2`, letter-spacing ~0.11em, no underline). Soft-pill SCOREBOARD / LEAGUES / CONNECT, HUD and Studio pills (lime dot when on). HUD still tracks `overlayVisible`. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
+- Top bar: broadcast S v2 (`broadcast-s.svg`, continuous blocky S, mint→lime `#D6F34A` → `#B6FF3B` → `#7DFFB0`, no square field) + **SIDELINE** (ice `#F4F7F2`, letter-spacing ~0.11em, no underline). Soft-pill SCOREBOARD / LEAGUES / CONNECT and HUD — lime `#B6FF3B` outline (inactive ~40% opacity, active fuller; near-black fill). Studio is **not** in the top bar. HUD still tracks `overlayVisible`. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
+- SCOREBOARD: when HUD is on, a left-aligned **Edit layout** soft pill sits under the scoreboard and opens Overlay Studio. Hidden when HUD is off. Companion `E` / `Esc` still toggle/close Studio only while HUD is on.
 - Overlay Studio: five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No HUD on/off control — TopBar HUD pill / hotkey owns visibility.
 
 Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).

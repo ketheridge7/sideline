@@ -40,13 +40,16 @@ const mixedTape: TapeEvent[] = [
   }
 ]
 
-const renderBoard = (state: ReturnType<typeof emptyAppState>): string =>
+const renderBoard = (
+  state: ReturnType<typeof emptyAppState>,
+  studioOpen = false
+): string =>
   renderToStaticMarkup(
     <BoardScreen
       state={state}
       toasts={[]}
       history={{}}
-      studioOpen={false}
+      studioOpen={studioOpen}
       onStudio={() => undefined}
       onBoards={() => undefined}
     />
@@ -129,5 +132,27 @@ describe('BoardScreen ESPN UX', () => {
     })
     expect(sleeper).toContain('Dowdle DAL')
     expect(sleeper).not.toContain('Mahomes KC')
+  })
+
+  it('puts Edit layout under the scoreboard only when HUD is on', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.matchup = espnMatchup(true)
+    const off = renderBoard(state)
+    expect(off).not.toContain('Edit layout')
+    expect(off).not.toContain('data-edit-layout')
+    expect(off).not.toContain('>Studio<')
+    state.overlayVisible = true
+    const on = renderBoard(state)
+    expect(on).toContain('Edit layout')
+    expect(on).toContain('data-edit-layout="hud"')
+    expect(on).toContain('aria-label="Open overlay studio"')
+    expect(on).toContain('aria-expanded="false"')
+    expect(on).not.toContain('>Studio<')
+    const open = renderBoard(state, true)
+    expect(open).toContain('aria-expanded="true"')
+    expect(open).toContain('ring-lime')
+    expect(on.indexOf('Team Etheridge')).toBeLessThan(on.indexOf('Edit layout'))
   })
 })

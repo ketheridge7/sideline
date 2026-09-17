@@ -1,22 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-label="SIDELINE">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="SIDELINE">
   <!--
-    Broadcast S mark (Kevin lock 2026-09-16 Option C):
-    Two parallel thick slanted rounded bars forming an S.
-    Lime gradient. No square field, no packaging stripe.
+    Broadcast S v2 (Kevin reference lock 2026-09-16):
+    Continuous blocky geometric S — two interlocking thick segments
+    (same letterform construction as packaging S), lime gradient,
+    slight forward slant. NO square field, NO packaging stripe,
+    NOT two disconnected parallel bars.
   -->
   <defs>
-    <linearGradient id="broadcastLime" x1="24" y1="8" x2="104" y2="120" gradientUnits="userSpaceOnUse">
+    <linearGradient id="broadcastLime" x1="20" y1="8" x2="108" y2="120" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#D6F34A"/>
-      <stop offset="50%" stop-color="#B6FF3B"/>
+      <stop offset="45%" stop-color="#B6FF3B"/>
       <stop offset="100%" stop-color="#7DFFB0"/>
     </linearGradient>
   </defs>
-  <!-- Top bar of S -->
-  <rect x="22" y="18" width="72" height="28" rx="14" ry="14"
-        fill="url(#broadcastLime)"
-        transform="rotate(-32 58 32)"/>
-  <!-- Bottom bar of S (mirrored offset) -->
-  <rect x="34" y="82" width="72" height="28" rx="14" ry="14"
-        fill="url(#broadcastLime)"
-        transform="rotate(-32 70 96)"/>
+  <!-- Centered packaging-S geometry, scaled into 128 box, lime fill, slight italic slant -->
+  <g fill="url(#broadcastLime)" transform="translate(64 64) skewX(-10) scale(0.155)">
+    <path d="
+      M -28 22
+      C -176 22 -240 -44 -240 -158
+      C -240 -262 -166 -322 -38 -322
+      L 150 -322
+      L 248 -186
+      L 64 -186
+      C 8 -186 -24 -154 -24 -102
+      C -24 22 -28 22 -28 22
+      Z
+    "/>
+    <path transform="rotate(180)" d="
+      M -28 22
+      C -176 22 -240 -44 -240 -158
+      C -240 -262 -166 -322 -38 -322
+      L 150 -322
+      L 248 -186
+      L 64 -186
+      C 8 -186 -24 -154 -24 -102
+      C -24 22 -28 22 -28 22
+      Z
+    "/>
+  </g>
 </svg>

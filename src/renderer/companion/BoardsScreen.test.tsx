@@ -50,4 +50,12 @@ describe('BoardsScreen', () => {
     expect(html.indexOf('matchups')).toBeLessThan(html.indexOf('data-scoring-tape="all-leagues"'))
     expect(html).toContain('border-l border-line')
   })
+
+  it('paints my team name lime and leaves the opponent muted', () => {
+    const html = renderBoards()
+    expect(html).toContain('text-lime')
+    expect(html).toContain('Gibbs Me Head')
+    expect(html).toContain('text-muted">The Other Guys')
+    expect(html).not.toMatch(/text-lime[^"]*">The Other Guys/)
+  })
 })

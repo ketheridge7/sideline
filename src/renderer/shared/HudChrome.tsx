@@ -8,7 +8,7 @@ export const HUD_FROST_DIM = '#E8E4DC'
 export type HudTone = 'you' | 'them'
 export type HudSurface = 'overlay' | 'board'
 
-const toneClass = (tone: HudTone): string => (tone === 'you' ? 'text-you' : 'text-them')
+const toneClass = (tone: HudTone): string => (tone === 'you' ? 'text-lime' : 'text-them')
 
 export const HudTeamName = ({
   name,
