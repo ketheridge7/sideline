@@ -33,6 +33,7 @@ describe('BenchFootButton', () => {
     expect(mine).toContain('border-lime/')
     expect(mine).toContain('▲')
     expect(mine).toContain('>6<')
+    expect(mine).toContain('h-10 w-full')
     expect(mine).not.toContain('bg-lime')
     expect(opp).toContain('data-bench-foot="opp"')
     expect(opp).toContain('text-them')
@@ -53,7 +54,7 @@ describe('BenchFootButton', () => {
 })
 
 describe('Bench social popover', () => {
-  it('opens as an inset rounded card over the foot with no caret', () => {
+  it('opens flush with the foot, stacked above it, with no caret', () => {
     const html = renderToStaticMarkup(
       <BenchFootStack
         you
@@ -67,15 +68,23 @@ describe('Bench social popover', () => {
     )
     expect(html).toContain('data-bench-popover="mine"')
     expect(html).toContain('rounded-3xl')
-    expect(html).toContain('left-3')
-    expect(html).toContain('right-3')
+    expect(html).toContain('bottom-full')
+    expect(html).toContain('left-0')
+    expect(html).toContain('right-0')
     expect(html).toContain('bg-[#12141A]')
-    expect(html).toContain('bottom:20px')
+    expect(html).toContain('shadow-[0_22px_64px_rgba(0,0,0,0.8)]')
+    expect(html).toContain('width:2px')
+    expect(html).toContain('bg-lime')
     expect(html).toContain('bench-social-popover')
     expect(html).toContain('data-state="open"')
     expect(html).toContain('George Kittle')
     expect(html).toContain('data-lineup-col="pos"')
     expect(html).toContain('▼')
+    expect(html).toContain('h-10 w-full')
+    expect(html).toContain('relative z-30')
+    expect(html).not.toContain('left-3')
+    expect(html).not.toContain('right-3')
+    expect(html).not.toContain('bottom:20px')
     expect(html).not.toContain('data-bench-caret')
     expect(html).not.toContain('clip-path')
     expect(html).not.toMatch(/data-bench-popover="mine"[^>]*bg-lime/)
@@ -177,6 +186,47 @@ describe('BoardRosterColumn open/close', () => {
     expect(html).not.toContain('data-bench-popover="opp"')
     expect(html).not.toContain('Nico Collins')
     expect(html).toContain('data-bench-open="false"')
+  })
+
+  it('drops ? placeholders and raw-id labels from the open card', () => {
+    const mystery = player({ playerId: '4034', name: '4034', position: '?', nflTeam: '' })
+    const html = renderToStaticMarkup(
+      <BoardRosterColumn
+        you
+        starters={[cmc]}
+        bench={[kittle, mystery]}
+        rows={1}
+        open
+        onOpenChange={() => undefined}
+        onFocus={() => undefined}
+      />
+    )
+    expect(html).toContain('George Kittle')
+    expect(col(html, 'pos')).toContain('TE')
+    expect(col(html, 'name')).toContain('George Kittle')
+    expect(col(html, 'pts')).toContain('4.2')
+    expect(html).toContain('>1<')
+    expect(html).not.toContain('>4034<')
+    expect(html).not.toContain('>?</')
+    expect(html).not.toContain('data-lineup-row="empty"')
+  })
+
+  it('does not open when the bench is only unresolved placeholders', () => {
+    const html = renderToStaticMarkup(
+      <BoardRosterColumn
+        you
+        starters={[cmc]}
+        bench={[player({ playerId: '4034', name: '4034', position: '?', nflTeam: '' })]}
+        rows={1}
+        open
+        onOpenChange={() => undefined}
+        onFocus={() => undefined}
+      />
+    )
+    expect(html).toContain('Empty')
+    expect(html).toContain('disabled')
+    expect(html).not.toContain('data-bench-popover')
+    expect(html).not.toContain('>4034<')
   })
 })
 

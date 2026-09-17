@@ -50,6 +50,15 @@ describe('LineupRow', () => {
     expect(col(dash, 'pos')).not.toContain('—')
   })
 
+  it('does not paint a ? placeholder in the POS column', () => {
+    const html = renderToStaticMarkup(
+      <LineupRow player={player({ playerId: '4034', name: 'George Kittle', position: '?' })} you />
+    )
+    expect(col(html, 'pos')).toContain('—')
+    expect(col(html, 'pos')).not.toContain('?')
+    expect(col(html, 'name')).toContain('George Kittle')
+  })
+
   it('keeps the same POS | NAME | PTS order on the opponent rail', () => {
     const html = renderToStaticMarkup(
       <LineupRow player={player({ playerId: 'dart', name: 'Drake Maye', position: 'QB', points: 0 })} />
