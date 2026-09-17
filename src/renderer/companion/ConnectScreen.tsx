@@ -152,14 +152,23 @@ const useLeaguePicker = (
   return { checkedIds, toggle, selectedIds: leagues.map((row) => row.id).filter((id) => checkedIds.has(id)) }
 }
 
+export const leaguesToAdd = (discovered: League[], connectedIds: readonly string[]): League[] => {
+  const connected = new Set(connectedIds)
+  return discovered.filter((row) => !connected.has(row.id))
+}
+
 const ProviderLeagues = ({
   provider,
   leagues,
+  connectedIds,
+  discoveredCount,
   loading,
   onAdded
 }: {
   provider: Provider
   leagues: League[]
+  connectedIds: readonly string[]
+  discoveredCount: number
   loading: boolean
   onAdded?: () => void
 }): JSX.Element => {
@@ -173,7 +182,7 @@ const ProviderLeagues = ({
       return
     }
     setBusy(true)
-    const result = await api().setSelectedLeagueIds(provider, picker.selectedIds)
+    const result = await api().setSelectedLeagueIds(provider, [...connectedIds, ...picker.selectedIds])
     setBusy(false)
     if (!result.ok) {
       setMessage(result.error ?? 'Could not add leagues')
@@ -186,8 +195,19 @@ const ProviderLeagues = ({
   if (loading) {
     return <p className="mt-4 text-sm text-muted">Detecting leagues…</p>
   }
+  if (discoveredCount === 0) {
+    return (
+      <p className="mt-4 text-sm text-muted" data-connect-empty="none">
+        No leagues found yet.
+      </p>
+    )
+  }
   if (leagues.length === 0) {
-    return <p className="mt-4 text-sm text-muted">No leagues found yet.</p>
+    return (
+      <p className="mt-4 text-sm text-muted" data-connect-empty="all-connected">
+        All discovered leagues are already connected.
+      </p>
+    )
   }
   return (
     <LeagueChecklist
@@ -417,9 +437,14 @@ export const ConnectScreen = ({
     }
   }, [needsDiscovery, path])
 
-  const pathLeagues = (discoverable ?? discovered).filter((row) =>
-    path === 'espn' ? row.provider === 'espn' : path === 'sleeper' ? row.provider === 'sleeper' : true
+  const pathProvider: Provider | null = path === 'espn' || path === 'sleeper' ? path : null
+  const connectedIds = pathProvider
+    ? state.leagues.filter((row) => row.provider === pathProvider).map((row) => row.id)
+    : []
+  const discoveredForPath = (discoverable ?? discovered).filter((row) =>
+    pathProvider != null && row.provider === pathProvider
   )
+  const pathLeagues = leaguesToAdd(discoveredForPath, connectedIds)
 
   const handleSleeper = async (): Promise<void> => {
     const result = await api().connectSleeper(username)
@@ -556,7 +581,9 @@ export const ConnectScreen = ({
         <ProviderLeagues
           provider="espn"
           leagues={pathLeagues}
-          loading={discovering && pathLeagues.length === 0}
+          connectedIds={connectedIds}
+          discoveredCount={discoveredForPath.length}
+          loading={discovering && discoveredForPath.length === 0}
           onAdded={onOpenBoards}
         />
       ) : null}
@@ -643,7 +670,9 @@ export const ConnectScreen = ({
         <ProviderLeagues
           provider="sleeper"
           leagues={pathLeagues}
-          loading={discovering && pathLeagues.length === 0}
+          connectedIds={connectedIds}
+          discoveredCount={discoveredForPath.length}
+          loading={discovering && discoveredForPath.length === 0}
           onAdded={onOpenBoards}
         />
       ) : null}

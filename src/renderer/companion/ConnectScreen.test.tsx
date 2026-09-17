@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { emptyAppState, type League } from '@shared/types'
-import { ConnectScreen, LeagueChecklist, type ConnectPath } from './ConnectScreen'
+import { ConnectScreen, LeagueChecklist, leaguesToAdd, type ConnectPath } from './ConnectScreen'
 
 const htmlOf = (
   overrides: Partial<ReturnType<typeof emptyAppState>> = {},
@@ -207,6 +207,43 @@ describe('ConnectScreen fantasy paths', () => {
     expect(html).toContain('Add selected')
     expect(html).toContain('data-league-check="11"')
     expect(html).not.toContain('id="espn-league-id"')
+  })
+
+  it('keeps already-connected leagues off the add checklist', () => {
+    const html = htmlOf(
+      {
+        espnConnected: true,
+        leagues: [{ id: '222', name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }]
+      },
+      { path: 'espn', discoverable: espnLeagues }
+    )
+    expect(html).toContain('data-league-check="111"')
+    expect(html).toContain('Gridiron Gurus')
+    expect(html).not.toContain('data-league-check="222"')
+    expect(html).toContain('Add selected')
+  })
+
+  it('says all discovered leagues are already connected when none are net-new', () => {
+    const html = htmlOf(
+      {
+        sleeperConnected: true,
+        sleeperUsername: 'ke',
+        leagues: sleeperLeagues
+      },
+      { path: 'sleeper', discoverable: sleeperLeagues }
+    )
+    expect(html).toContain('data-connect-empty="all-connected"')
+    expect(html).toContain('All discovered leagues are already connected.')
+    expect(html).not.toContain('data-connect-checklist="leagues"')
+    expect(html).not.toContain('data-league-check="11"')
+  })
+})
+
+describe('leaguesToAdd', () => {
+  it('drops ids already on the hub and keeps net-new rows', () => {
+    expect(leaguesToAdd(espnLeagues, ['222']).map((row) => row.id)).toEqual(['111'])
+    expect(leaguesToAdd(espnLeagues, ['111', '222'])).toEqual([])
+    expect(leaguesToAdd(espnLeagues, []).map((row) => row.id)).toEqual(['111', '222'])
   })
 })
 
