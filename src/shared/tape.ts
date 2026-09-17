@@ -1,5 +1,5 @@
 import type { League, Matchup, Player, TapeEvent, TapeKind, Transaction } from './types'
-import { leagueKey } from './types'
+import { leagueKey, parseLeagueKey } from './types'
 import { transactionKindLabel } from './transactionKind'
 import { tapePlayerLabel, visibleInjury } from './display'
 
@@ -19,6 +19,45 @@ export const transactionToTape = (league: League, row: Transaction): TapeEvent =
   leagueKey: leagueKey(league.provider, league.id),
   leagueName: league.name
 })
+
+/** Adds/drops/trades/status clutter ESPN tape; scores and injuries stay. */
+export const isEspnTransactionTapeKind = (kind: TapeKind): boolean => {
+  switch (kind) {
+    case 'score':
+    case 'injury':
+      return false
+    case 'add':
+    case 'add_drop':
+    case 'drop':
+    case 'trade':
+    case 'status':
+      return true
+    default: {
+      const _never: never = kind
+      return _never
+    }
+  }
+}
+
+export const isEspnTransactionTapeEvent = (row: TapeEvent): boolean => {
+  if (!isEspnTransactionTapeKind(row.kind)) return false
+  const parsed = row.leagueKey ? parseLeagueKey(row.leagueKey) : null
+  return parsed?.provider === 'espn'
+}
+
+/** ESPN transactions stay off the scoring rail; Sleeper waiver/trade rows still map. */
+export const transactionsToTape = (league: League, rows: Transaction[]): TapeEvent[] => {
+  switch (league.provider) {
+    case 'espn':
+      return []
+    case 'sleeper':
+      return rows.map((row) => transactionToTape(league, row))
+    default: {
+      const _never: never = league.provider
+      return _never
+    }
+  }
+}
 
 export const withTickDeltas = (
   league: Pick<League, 'provider' | 'id'>,
@@ -124,7 +163,7 @@ export const isRosterTapeEvent = (row: TapeEvent): boolean => ROSTER_TAPE_KINDS.
 export const SESSION_TAPE_LIMIT = 32
 export const ROSTER_TAPE_LIMIT = 16
 
-/** Session tape: roster add/drop/trade rows persist even when newer score ticks would cap them out. */
+/** Session tape: Sleeper roster add/drop/trade rows persist even when newer score ticks would cap them out. ESPN transaction-style rows never enter the rail. */
 export const mergeSessionTape = (
   live: TapeEvent[],
   snapshot: TapeEvent[],
@@ -136,6 +175,7 @@ export const mergeSessionTape = (
   for (const row of [...live, ...snapshot].sort((a, b) => b.at - a.at)) {
     if (seen.has(row.id)) continue
     seen.add(row.id)
+    if (isEspnTransactionTapeEvent(row)) continue
     if (isRosterTapeEvent(row)) {
       if (roster.length < ROSTER_TAPE_LIMIT) roster.push(row)
       continue
@@ -146,8 +186,13 @@ export const mergeSessionTape = (
   return [...roster, ...rest.slice(0, room)].sort((a, b) => b.at - a.at)
 }
 
+/** Drop ESPN add/drop/trade/status rows anywhere the scoring rail is painted. */
+export const scoringTapeEvents = (events: TapeEvent[]): TapeEvent[] =>
+  events.filter((row) => !isEspnTransactionTapeEvent(row))
+
 /** SCOREBOARD tape follows the selected league; rows without a key (status toasts) still pass. */
 export const tapeForLeague = (events: TapeEvent[], selectedKey: string | null | undefined): TapeEvent[] => {
-  if (!selectedKey) return events
-  return events.filter((row) => !row.leagueKey || row.leagueKey === selectedKey)
+  const visible = scoringTapeEvents(events)
+  if (!selectedKey) return visible
+  return visible.filter((row) => !row.leagueKey || row.leagueKey === selectedKey)
 }

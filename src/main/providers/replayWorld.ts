@@ -345,7 +345,7 @@ const SEED_TAPE: Omit<TapeEvent, 'at'>[] = [
   { id: 'seed-lamb', kind: 'score', player: 'Lamb DAL', detail: 'REC', delta: 3.4, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '2ND' },
   { id: 'seed-allen-sk', kind: 'score', player: 'Allen BUF', detail: 'SK', delta: -0.3, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '1ST' },
   { id: 'seed-dowdle-inj', kind: 'injury', player: 'Dowdle DAL', detail: 'LEFT GAME (ANKLE)', leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '2ND' },
-  { id: 'seed-downs-waiver', kind: 'add', player: 'Downs IND', detail: 'WAIVER CLAIM', leagueKey: 'espn:55112233', leagueName: 'The Homies', period: '1ST' },
+  { id: 'seed-downs-waiver', kind: 'add', player: 'Downs IND', detail: 'WAIVER CLAIM', leagueKey: 'sleeper:fourth-drunken', leagueName: 'Fourth & Drunken', period: '1ST' },
   { id: 'seed-bates-fg', kind: 'score', player: 'Bates ATL', detail: 'FG', delta: 3.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '1ST' },
   { id: 'seed-cmc-fum', kind: 'score', player: 'McCaffrey SF', detail: 'FUM', delta: -1.6, leagueKey: 'sleeper:fourth-drunken', leagueName: 'Fourth & Drunken', period: '1ST' },
   { id: 'seed-lamar', kind: 'score', player: 'Jackson BAL', detail: 'TD', delta: 4.6, leagueKey: 'espn:90664721', leagueName: 'Gridiron Gurus', period: '1ST' },
@@ -428,7 +428,7 @@ export const replayMatchupFor = (league: League, tick: number): Matchup | null =
 }
 
 export const replayTransactionsFor = (league: League, _tick: number): Transaction[] => {
-  if (league.provider === 'espn' && league.id === '55112233') return [WAIVER_TX]
+  if (league.provider === 'sleeper' && league.id === 'fourth-drunken') return [WAIVER_TX]
   return []
 }
 

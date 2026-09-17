@@ -1,14 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { injuryTapeFromDiff, mergeTape, mergeSessionTape, scoreTapeFromDiff, tapeForLeague, transactionToTape, withTickDeltas } from './tape'
-import type { League, Matchup, TapeEvent } from './types'
+import {
+  injuryTapeFromDiff,
+  mergeTape,
+  mergeSessionTape,
+  scoreTapeFromDiff,
+  scoringTapeEvents,
+  tapeForLeague,
+  transactionToTape,
+  transactionsToTape,
+  withTickDeltas
+} from './tape'
+import type { League, Matchup, TapeEvent, Transaction } from './types'
 
-const league: League = {
+const sleeperLeague: League = {
   id: '1',
   name: 'Homies',
   provider: 'sleeper',
   season: '2025',
   week: 1
 }
+
+const espnLeague: League = {
+  id: '543268341',
+  name: 'Dawg Pound',
+  provider: 'espn',
+  season: '2025',
+  week: 1
+}
+
+const league = sleeperLeague
 
 const matchup = (points: number, status?: string): Matchup => ({
   myTeam: { id: 'a', name: 'Mine', owner: 'Me', record: '1-0' },
@@ -19,6 +39,13 @@ const matchup = (points: number, status?: string): Matchup => ({
   bench: [],
   oppStarters: [],
   oppBench: []
+})
+
+const tx = (id: string, type: Transaction['type'], players: string[]): Transaction => ({
+  id,
+  type,
+  players,
+  timestamp: 100
 })
 
 describe('transactionToTape', () => {
@@ -33,6 +60,31 @@ describe('transactionToTape', () => {
     expect(event.player).toBe('Downs')
     expect(event.detail).toBe('add')
     expect(event.leagueName).toBe('Homies')
+  })
+})
+
+describe('transactionsToTape', () => {
+  it('maps Sleeper adds, drops, trades, and waivers onto the tape', () => {
+    const rows = transactionsToTape(sleeperLeague, [
+      tx('a', 'add', ['Downs']),
+      tx('d', 'drop', ['Dell']),
+      tx('t', 'trade', ['A', 'B']),
+      tx('w', 'add_drop', ['In', 'Out'])
+    ])
+    expect(rows.map((row) => row.kind)).toEqual(['add', 'drop', 'trade', 'add_drop'])
+    expect(rows.every((row) => row.leagueKey === 'sleeper:1')).toBe(true)
+  })
+
+  it('does not emit ESPN adds, drops, trades, waivers, or activity status', () => {
+    expect(
+      transactionsToTape(espnLeague, [
+        tx('a', 'add', ['Downs']),
+        tx('d', 'drop', ['Dell']),
+        tx('t', 'trade', ['A', 'B']),
+        tx('w', 'add_drop', ['In', 'Out']),
+        tx('s', 'status', ['Lineup lock'])
+      ])
+    ).toEqual([])
   })
 })
 
@@ -88,18 +140,18 @@ describe('mergeTape', () => {
 })
 
 describe('mergeSessionTape', () => {
-  it('keeps a roster drop after a snapshot rebuild and newer score ticks', () => {
+  it('keeps a Sleeper roster drop after a snapshot rebuild and newer score ticks', () => {
     const drop: TapeEvent = {
-      id: 'tx:espn:1:drop-1',
+      id: 'tx:sleeper:1:drop-1',
       at: 10,
       kind: 'drop',
       player: 'Dell',
       detail: 'drop',
-      leagueKey: 'espn:1',
-      leagueName: 'Dawg Pound'
+      leagueKey: 'sleeper:1',
+      leagueName: 'Homies'
     }
     const afterSnapshot = mergeSessionTape([], [drop])
-    expect(afterSnapshot.map((row) => row.id)).toEqual(['tx:espn:1:drop-1'])
+    expect(afterSnapshot.map((row) => row.id)).toEqual(['tx:sleeper:1:drop-1'])
     const scores: TapeEvent[] = Array.from({ length: 40 }, (_, index) => ({
       id: `score:${index}`,
       at: 100 + index,
@@ -109,21 +161,82 @@ describe('mergeSessionTape', () => {
       delta: 0.1
     }))
     const afterScores = mergeSessionTape(scores, afterSnapshot)
-    expect(afterScores.some((row) => row.id === 'tx:espn:1:drop-1')).toBe(true)
+    expect(afterScores.some((row) => row.id === 'tx:sleeper:1:drop-1')).toBe(true)
     expect(afterScores.find((row) => row.kind === 'drop')?.player).toBe('Dell')
   })
 
-  it('pins add / add_drop / trade the same way so a refresh cannot blink them off', () => {
+  it('pins Sleeper add / add_drop / trade the same way so a refresh cannot blink them off', () => {
     const roster: TapeEvent[] = [
-      { id: 'tx:add', at: 1, kind: 'add', player: 'Downs', detail: 'add' },
-      { id: 'tx:swap', at: 2, kind: 'add_drop', player: 'A, B', detail: 'add / drop' },
-      { id: 'tx:trade', at: 3, kind: 'trade', player: 'X, Y', detail: 'trade' }
+      { id: 'tx:add', at: 1, kind: 'add', player: 'Downs', detail: 'add', leagueKey: 'sleeper:1' },
+      { id: 'tx:swap', at: 2, kind: 'add_drop', player: 'A, B', detail: 'add / drop', leagueKey: 'sleeper:1' },
+      { id: 'tx:trade', at: 3, kind: 'trade', player: 'X, Y', detail: 'trade', leagueKey: 'sleeper:1' }
     ]
     const rebuilt = mergeSessionTape(
       [{ id: 'score:new', at: 99, kind: 'score', player: 'Hurts', detail: 'QB', delta: 1 }],
       roster
     )
     expect(rebuilt.map((row) => row.id).sort()).toEqual(['score:new', 'tx:add', 'tx:swap', 'tx:trade'])
+  })
+
+  it('drops ESPN add/drop/trade/status while keeping ESPN score and injury rows', () => {
+    const espn: TapeEvent[] = [
+      {
+        id: 'tx:espn:1:add',
+        at: 5,
+        kind: 'add',
+        player: 'Downs',
+        detail: 'add',
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'tx:espn:1:drop',
+        at: 4,
+        kind: 'drop',
+        player: 'Dell',
+        detail: 'drop',
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'tx:espn:1:trade',
+        at: 3,
+        kind: 'trade',
+        player: 'A, B',
+        detail: 'trade',
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'tx:espn:1:status',
+        at: 2,
+        kind: 'status',
+        player: 'Lineup',
+        detail: 'update',
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'espn-score',
+        at: 6,
+        kind: 'score',
+        player: 'Mahomes KC',
+        detail: 'QB',
+        delta: 2.4,
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'espn-inj',
+        at: 1,
+        kind: 'injury',
+        player: 'Kelce KC',
+        detail: 'OUT',
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      }
+    ]
+    expect(mergeSessionTape([], espn).map((row) => row.id)).toEqual(['espn-score', 'espn-inj'])
   })
 })
 
@@ -157,6 +270,42 @@ describe('tapeForLeague', () => {
       'toast'
     ])
     expect(tapeForLeague(mixed, null)).toHaveLength(3)
+  })
+
+  it('hides ESPN waiver rows even when that ESPN league is selected', () => {
+    const mixed: TapeEvent[] = [
+      {
+        id: 'espn-waiver',
+        at: 3,
+        kind: 'add',
+        player: 'Downs IND',
+        detail: 'add',
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'espn-score',
+        at: 1,
+        kind: 'score',
+        player: 'Mahomes KC',
+        detail: 'QB',
+        delta: 2.4,
+        leagueKey: 'espn:543268341',
+        leagueName: 'Dawg Pound'
+      },
+      {
+        id: 'sleeper-add',
+        at: 2,
+        kind: 'add',
+        player: 'Downs IND',
+        detail: 'add',
+        leagueKey: 'sleeper:1',
+        leagueName: 'Homies'
+      }
+    ]
+    expect(tapeForLeague(mixed, 'espn:543268341').map((row) => row.id)).toEqual(['espn-score'])
+    expect(tapeForLeague(mixed, 'sleeper:1').map((row) => row.id)).toEqual(['sleeper-add'])
+    expect(scoringTapeEvents(mixed).map((row) => row.id)).toEqual(['espn-score', 'sleeper-add'])
   })
 })
 
