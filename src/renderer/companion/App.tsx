@@ -104,15 +104,18 @@ export const App = (): JSX.Element => {
     state.overlayEditMode
   ])
 
+  useEffect(() => {
+    if (!state.overlayVisible) setStudioOpen(false)
+  }, [state.overlayVisible])
+
+  const handleStudio = (open: boolean): void => {
+    if (open && !state.overlayVisible) return
+    setStudioOpen(open)
+  }
+
   return (
     <div className="relative flex h-full flex-col bg-bg text-text">
-      <TopBar
-        state={state}
-        screen={ready ? screen : 'connect'}
-        studioOpen={studioOpen}
-        onScreen={(next) => setScreen(next)}
-        onStudio={setStudioOpen}
-      />
+      <TopBar state={state} screen={ready ? screen : 'connect'} onScreen={(next) => setScreen(next)} />
       {state.error ? (
         <div className="border-b border-air/40 bg-air/10 px-5 py-2 text-sm text-air">{state.error}</div>
       ) : null}
@@ -132,13 +135,13 @@ export const App = (): JSX.Element => {
               toasts={tapeToasts}
               history={history}
               studioOpen={studioOpen}
-              onStudio={setStudioOpen}
+              onStudio={handleStudio}
               onBoards={() => setScreen('boards')}
             />
           ) : null}
         </main>
-        {studioOpen ? (
-          <OverlayStudio state={state} onClose={() => setStudioOpen(false)} />
+        {studioOpen && state.overlayVisible ? (
+          <OverlayStudio state={state} onClose={() => handleStudio(false)} />
         ) : null}
       </div>
       {statusToast ? (

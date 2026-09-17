@@ -1,4 +1,4 @@
-import type { League, Matchup, Player, TapeEvent, Transaction } from './types'
+import type { League, Matchup, Player, TapeEvent, TapeKind, Transaction } from './types'
 import { leagueKey } from './types'
 import { transactionKindLabel } from './transactionKind'
 import { tapePlayerLabel, visibleInjury } from './display'
@@ -115,6 +115,35 @@ export const mergeTape = (live: TapeEvent[], snapshot: TapeEvent[], limit = 24):
     if (out.length >= limit) break
   }
   return out
+}
+
+const ROSTER_TAPE_KINDS: ReadonlySet<TapeKind> = new Set(['add', 'drop', 'add_drop', 'trade'])
+
+export const isRosterTapeEvent = (row: TapeEvent): boolean => ROSTER_TAPE_KINDS.has(row.kind)
+
+export const SESSION_TAPE_LIMIT = 32
+export const ROSTER_TAPE_LIMIT = 16
+
+/** Session tape: roster add/drop/trade rows persist even when newer score ticks would cap them out. */
+export const mergeSessionTape = (
+  live: TapeEvent[],
+  snapshot: TapeEvent[],
+  limit = SESSION_TAPE_LIMIT
+): TapeEvent[] => {
+  const seen = new Set<string>()
+  const roster: TapeEvent[] = []
+  const rest: TapeEvent[] = []
+  for (const row of [...live, ...snapshot].sort((a, b) => b.at - a.at)) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    if (isRosterTapeEvent(row)) {
+      if (roster.length < ROSTER_TAPE_LIMIT) roster.push(row)
+      continue
+    }
+    rest.push(row)
+  }
+  const room = Math.max(0, limit - roster.length)
+  return [...roster, ...rest.slice(0, room)].sort((a, b) => b.at - a.at)
 }
 
 /** SCOREBOARD tape follows the selected league; rows without a key (status toasts) still pass. */

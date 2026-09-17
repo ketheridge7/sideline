@@ -56,7 +56,7 @@ const BoardCard = ({
       <button type="button" onClick={onOpen} className="cursor-pointer text-left">
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <div className="text-center">
-            <div className="truncate text-[12px] font-medium">{board.myName}</div>
+            <div className="truncate text-[12px] font-medium text-lime">{board.myName}</div>
             <div className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${leadMine ? 'text-you' : 'text-them'}`}>
               {formatScore(board.myPoints)}
             </div>

@@ -22,7 +22,7 @@ export const chromePillClass = (active = false, size: ChromePillSize = 'nav'): s
   `${PILL_BASE} ${sizeClass(size)} ${
     active
       ? 'bg-lime/10 text-lime shadow-[0_0_18px_rgba(182,255,59,0.28)] ring-1 ring-lime'
-      : 'bg-white/[0.06] text-muted hover:text-text hover:bg-white/[0.09]'
+      : 'bg-white/[0.06] text-muted hover:text-text hover:bg-white/[0.09] ring-1 ring-lime/40'
   }`
 
 export type ChromeFillTone = 'you' | 'espn'

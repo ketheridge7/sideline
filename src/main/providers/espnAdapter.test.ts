@@ -1850,6 +1850,7 @@ describe('toEspnMatchup', () => {
           home: {
             teamId: 1,
             totalPointsLive: 0,
+            totalPoints: 117.86,
             totalProjectedPointsLive: 121.4,
             pointsByScoringPeriod: { '2': 0 },
             rosterForCurrentScoringPeriod: {
@@ -1873,6 +1874,7 @@ describe('toEspnMatchup', () => {
           away: {
             teamId: 2,
             totalPointsLive: 0,
+            totalPoints: 122.22,
             totalProjectedPointsLive: 120.1,
             pointsByScoringPeriod: { '2': 0 },
             rosterForCurrentScoringPeriod: {
@@ -2621,7 +2623,7 @@ describe('overlayEspnMatchup', () => {
     expect(next?.oppStarters[0]?.points).toBe(12)
   })
 
-  it('trusts week-2 live zeros over leftover week-1 finals and does not paint projections as live', () => {
+  it('trusts week-2 live zeros over leftover week-1 finals whether preferLive is true or false', () => {
     const week1Finals = {
       ...prev,
       myPoints: 117.86,
@@ -2695,6 +2697,11 @@ describe('overlayEspnMatchup', () => {
     expect(next?.myProjectedPoints).toBe(121.4)
     expect(next?.oppProjectedPoints).toBe(120.1)
     expect(next?.scoresFinal).toBe(false)
+    const fromMaxPrev = overlayEspnMatchup(week1Finals, live, 2, false)
+    expect(fromMaxPrev?.myPoints).toBe(0)
+    expect(fromMaxPrev?.oppPoints).toBe(0)
+    expect(fromMaxPrev?.starters[0]?.points).toBe(0)
+    expect(fromMaxPrev?.oppStarters[0]?.points).toBe(0)
   })
 
   it('still overlays live positive chips after a week-2 zero start', () => {

@@ -997,13 +997,14 @@ const starterActualSum = (side: Record<string, unknown>, scoringPeriodId?: numbe
 
 const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number): number => {
   const live = liveTeamPts(side)
-  if (live != null && live > 0) return live
-  if (live === 0) return 0
   const liveStarters = starterLiveSum(side)
-  if (liveStarters > 0) return liveStarters
   const starters = starterActualSum(side, scoringPeriodId)
   const period = periodActual(side, scoringPeriodId)
-  // Current scoring period (including pre-kickoff 0) beats leftover totalPoints from last week.
+  // Pre-kickoff current period 0 beats leftover totalPoints / last-week live totals.
+  if (period === 0 && liveStarters === 0 && starters === 0) return 0
+  if (live != null && live > 0) return live
+  if (live === 0) return 0
+  if (liveStarters > 0) return liveStarters
   if (period != null) return Math.max(period, starters)
   const final = num(side.totalPoints)
   return Math.max(final ?? 0, starters)
@@ -1380,12 +1381,16 @@ export const overlayEspnMatchup = (
   const myById = livePointsByPlayerId(mySide, displayWeek)
   const oppById = oppSide ? livePointsByPlayerId(oppSide, displayWeek) : new Map<string, number>()
   if (!overlayStartersBelong(prev.starters, myById.keys())) return null
-  const trustMine = preferLive && hasEspnLivePts(mySide, myById, displayWeek)
-  const trustOpp = Boolean(preferLive && oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
-  const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>
-    trust ? livePts : Math.max(prevPts, livePts)
   const myLiveTotal = sideTotal(mySide, displayWeek)
   const oppLiveTotal = oppSide ? sideTotal(oppSide, displayWeek) : 0
+  const mineHasLive = hasEspnLivePts(mySide, myById, displayWeek)
+  const oppHasLive = Boolean(oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
+  // Current-period 0 (pre-kickoff) always wins, even on max-prev deferred boxscore.
+  // Compact stubs still fail hasEspnLivePts, so last HUD is not wiped.
+  const trustMine = mineHasLive && (preferLive || myLiveTotal === 0)
+  const trustOpp = oppHasLive && (preferLive || oppLiveTotal === 0)
+  const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>
+    trust ? livePts : Math.max(prevPts, livePts)
   const mySlots = lineupSlotByPlayerId(mySide)
   const oppSlots = oppSide ? lineupSlotByPlayerId(oppSide) : new Map<string, number>()
   return withEspnProjected(
@@ -1545,7 +1550,7 @@ export const toEspnTransactions = (payload: unknown): Transaction[] => {
       const adds = items.filter((item) => (str(item.type) ?? '').toUpperCase() === 'ADD').length
       const drops = items.filter((item) => (str(item.type) ?? '').toUpperCase() === 'DROP').length
       return {
-        id: String(row.id ?? row.proposedDate ?? Math.random()),
+        id: String(row.id ?? row.proposedDate ?? `${players.join('|')}:${num(row.processDate) ?? 0}`),
         type: mapTransactionKind(rawType, adds, drops),
         players,
         timestamp: num(row.proposedDate) ?? num(row.processDate) ?? 0

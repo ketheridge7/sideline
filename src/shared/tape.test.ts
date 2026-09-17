@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { injuryTapeFromDiff, mergeTape, scoreTapeFromDiff, tapeForLeague, transactionToTape, withTickDeltas } from './tape'
+import { injuryTapeFromDiff, mergeTape, mergeSessionTape, scoreTapeFromDiff, tapeForLeague, transactionToTape, withTickDeltas } from './tape'
 import type { League, Matchup, TapeEvent } from './types'
 
 const league: League = {
@@ -84,6 +84,46 @@ describe('mergeTape', () => {
       { id: 'b', at: 1, kind: 'add', player: 'B', detail: 'add' }
     ]
     expect(mergeTape(live, snap, 2).map((row) => row.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('mergeSessionTape', () => {
+  it('keeps a roster drop after a snapshot rebuild and newer score ticks', () => {
+    const drop: TapeEvent = {
+      id: 'tx:espn:1:drop-1',
+      at: 10,
+      kind: 'drop',
+      player: 'Dell',
+      detail: 'drop',
+      leagueKey: 'espn:1',
+      leagueName: 'Dawg Pound'
+    }
+    const afterSnapshot = mergeSessionTape([], [drop])
+    expect(afterSnapshot.map((row) => row.id)).toEqual(['tx:espn:1:drop-1'])
+    const scores: TapeEvent[] = Array.from({ length: 40 }, (_, index) => ({
+      id: `score:${index}`,
+      at: 100 + index,
+      kind: 'score' as const,
+      player: 'Hurts',
+      detail: 'QB',
+      delta: 0.1
+    }))
+    const afterScores = mergeSessionTape(scores, afterSnapshot)
+    expect(afterScores.some((row) => row.id === 'tx:espn:1:drop-1')).toBe(true)
+    expect(afterScores.find((row) => row.kind === 'drop')?.player).toBe('Dell')
+  })
+
+  it('pins add / add_drop / trade the same way so a refresh cannot blink them off', () => {
+    const roster: TapeEvent[] = [
+      { id: 'tx:add', at: 1, kind: 'add', player: 'Downs', detail: 'add' },
+      { id: 'tx:swap', at: 2, kind: 'add_drop', player: 'A, B', detail: 'add / drop' },
+      { id: 'tx:trade', at: 3, kind: 'trade', player: 'X, Y', detail: 'trade' }
+    ]
+    const rebuilt = mergeSessionTape(
+      [{ id: 'score:new', at: 99, kind: 'score', player: 'Hurts', detail: 'QB', delta: 1 }],
+      roster
+    )
+    expect(rebuilt.map((row) => row.id).sort()).toEqual(['score:new', 'tx:add', 'tx:swap', 'tx:trade'])
   })
 })
 

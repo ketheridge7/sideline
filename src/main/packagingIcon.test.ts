@@ -1,12 +1,23 @@
 import { existsSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
-import { bindEmptyNativeTitle, NATIVE_WINDOW_TITLE, packagingWindowIconPath } from './packagingIcon'
+import {
+  bindEmptyNativeTitle,
+  COMPANION_TITLEBAR_OVERLAY_RIGHT_PX,
+  NATIVE_WINDOW_TITLE,
+  packagingWindowIconPath
+} from './packagingIcon'
 
 describe('packagingWindowIconPath', () => {
   it('uses the broadcast S PNG for the running window', () => {
     const icon = packagingWindowIconPath()
     expect(icon.endsWith('broadcast-s.png')).toBe(true)
     expect(existsSync(icon)).toBe(true)
+  })
+})
+
+describe('COMPANION_TITLEBAR_OVERLAY_RIGHT_PX', () => {
+  it('matches the Windows overlay caption cluster used as the TopBar safe inset', () => {
+    expect(COMPANION_TITLEBAR_OVERLAY_RIGHT_PX).toBe(138)
   })
 })
 

@@ -8,7 +8,9 @@ import { BoardRails } from '../shared/LineupRow'
 import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
 import { NflTicker } from './NflTicker'
-import { chromeFillPillClass } from './chrome'
+import { chromeDotClass, chromeFillPillClass, chromePillClass } from './chrome'
+
+export const studioControlsVisible = (overlayVisible: boolean): boolean => overlayVisible
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -52,6 +54,28 @@ const EspnRecoverBanner = ({
   )
 }
 
+const EditLayoutPill = ({
+  studioOpen,
+  onStudio
+}: {
+  studioOpen: boolean
+  onStudio: (open: boolean) => void
+}): JSX.Element => (
+  <div className="flex items-center px-6 pb-3" data-edit-layout="hud">
+    <button
+      type="button"
+      onClick={() => onStudio(!studioOpen)}
+      className={chromePillClass(studioOpen, 'compact')}
+      data-chrome="pill"
+      aria-label="Open overlay studio"
+      aria-expanded={studioOpen}
+    >
+      Edit layout
+      {studioOpen ? <span className={chromeDotClass} aria-hidden="true" /> : null}
+    </button>
+  </div>
+)
+
 export const BoardScreen = ({
   state,
   toasts,
@@ -77,6 +101,7 @@ export const BoardScreen = ({
   })
   const showReplay = boardUx === 'healthy-lineup' && state.replay
   const showLineups = boardUx === 'healthy-lineup'
+  const showEditLayout = studioControlsVisible(state.overlayVisible)
   const tape = tapeForLeague(
     state.tape.length > 0
       ? state.tape
@@ -97,6 +122,7 @@ export const BoardScreen = ({
         return
       }
       if (event.key === 'e' || event.key === 'E') {
+        if (!showEditLayout) return
         onStudio(!studioOpen)
         return
       }
@@ -112,7 +138,7 @@ export const BoardScreen = ({
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onStudio, state.overlayEditMode, studioOpen])
+  }, [onStudio, showEditLayout, state.overlayEditMode, studioOpen])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -123,11 +149,14 @@ export const BoardScreen = ({
           <EspnRecoverBanner ux={boardUx} onSignIn={() => void api().signInEspn()} />
         ) : null}
         {!matchup ? (
-          <div className="p-8 text-sm text-muted">
-            {boardUx === 'auth-fail'
-              ? 'Sign in with ESPN to load this league. Sideline cannot see a private ESPN matchup without cookies.'
-              : 'Pin a Sunday board, then open it. Sideline shows one matchup at a time.'}
-          </div>
+          <>
+            {showEditLayout ? <EditLayoutPill studioOpen={studioOpen} onStudio={onStudio} /> : null}
+            <div className="p-8 text-sm text-muted">
+              {boardUx === 'auth-fail'
+                ? 'Sign in with ESPN to load this league. Sideline cannot see a private ESPN matchup without cookies.'
+                : 'Pin a Sunday board, then open it. Sideline shows one matchup at a time.'}
+            </div>
+          </>
         ) : (
           <>
             {showReplay ? (
@@ -139,6 +168,7 @@ export const BoardScreen = ({
               matchup={matchup}
               needsSignIn={boardUx === 'auth-fail'}
             />
+            {showEditLayout ? <EditLayoutPill studioOpen={studioOpen} onStudio={onStudio} /> : null}
             {showLineups ? (
               <>
                 <BoardRails mine={matchup.starters} opp={matchup.oppStarters ?? []} />

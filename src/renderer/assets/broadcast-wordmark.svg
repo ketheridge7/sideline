@@ -1,26 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 128" role="img" aria-label="SIDELINE">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 128" role="img" aria-label="SIDELINE">
+  <!-- Mark + SIDELINE: tight gap, wordmark height matched to mark -->
   <defs>
-    <linearGradient id="broadcastLime" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+    <linearGradient id="broadcastLime" x1="8" y1="8" x2="100" y2="120" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#D6F34A"/>
-      <stop offset="50%" stop-color="#B6FF3B"/>
+      <stop offset="45%" stop-color="#B6FF3B"/>
       <stop offset="100%" stop-color="#7DFFB0"/>
     </linearGradient>
   </defs>
-  <!-- Mark -->
-  <g transform="translate(8 8)">
-    <rect x="14" y="10" width="72" height="28" rx="14" ry="14"
-          fill="url(#broadcastLime)"
-          transform="rotate(-32 50 24)"/>
-    <rect x="26" y="74" width="72" height="28" rx="14" ry="14"
-          fill="url(#broadcastLime)"
-          transform="rotate(-32 62 88)"/>
+  <g fill="url(#broadcastLime)" transform="translate(52 64) skewX(-10) scale(0.155)">
+    <path d="
+      M -28 22
+      C -176 22 -240 -44 -240 -158
+      C -240 -262 -166 -322 -38 -322
+      L 150 -322
+      L 248 -186
+      L 64 -186
+      C 8 -186 -24 -154 -24 -102
+      C -24 22 -28 22 -28 22
+      Z
+    "/>
+    <path transform="rotate(180)" d="
+      M -28 22
+      C -176 22 -240 -44 -240 -158
+      C -240 -262 -166 -322 -38 -322
+      L 150 -322
+      L 248 -186
+      L 64 -186
+      C 8 -186 -24 -154 -24 -102
+      C -24 22 -28 22 -28 22
+      Z
+    "/>
   </g>
-  <!-- Wordmark: 16px gap after 112px mark column -->
-  <text x="136" y="82"
+  <!-- Tight gap (~12px from mark edge ~96) -->
+  <text x="108" y="86"
         fill="#F4F7F2"
         font-family="Inter, Segoe UI, Arial, Helvetica, sans-serif"
-        font-size="56"
+        font-size="58"
         font-weight="800"
-        letter-spacing="6"
+        letter-spacing="4"
         >SIDELINE</text>
 </svg>

@@ -13,15 +13,11 @@ const api = (): NonNullable<Window['sideline']> => {
 export const TopBar = ({
   state,
   screen,
-  studioOpen,
-  onScreen,
-  onStudio
+  onScreen
 }: {
   state: AppState
   screen: Screen
-  studioOpen: boolean
   onScreen: (screen: Screen) => void
-  onStudio: (open: boolean) => void
 }): JSX.Element => {
   const handleOverlay = (): void => {
     void api().toggleOverlay()
@@ -74,17 +70,6 @@ export const TopBar = ({
           >
             HUD
             {state.overlayVisible ? <span className={chromeDotClass} aria-hidden="true" /> : null}
-          </button>
-          <button
-            type="button"
-            onClick={() => onStudio(!studioOpen)}
-            className={chromePillClass(studioOpen, 'compact')}
-            data-chrome="pill"
-            aria-label="Open overlay studio"
-            aria-expanded={studioOpen}
-          >
-            Studio
-            {studioOpen ? <span className={chromeDotClass} aria-hidden="true" /> : null}
           </button>
         </div>
       </nav>

@@ -329,6 +329,7 @@ export const espnHudFromScorePlan = (opts: {
   return 'parse-payload'
 }
 
+/** Compact overlay trusts live (including current-period 0). Deferred boxscore still maxes positives; overlayEspnMatchup zeros current-period even on max-prev. */
 export const espnOverlayPtsPlan = (overlayFromMatchup: boolean): 'trust-live' | 'max-prev' =>
   overlayFromMatchup ? 'trust-live' : 'max-prev'
 

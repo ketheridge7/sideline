@@ -675,6 +675,101 @@ describe('poller live tick order', () => {
     expect(urls[0]).not.toContain('view=mTeam')
   })
 
+  it('does not resurrect week-1 last-HUD points for week 2 when scores disk is 0-0', () => {
+    const dir = app.getPath('userData')
+    const leagueId = '543268341'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: {
+          week: 2,
+          displayWeek: 2,
+          season: '2026',
+          leagueSeason: '2026',
+          seasonType: 'regular'
+        }
+      })
+    )
+    const stale = {
+      ...hudMatchup,
+      myPoints: 115.4,
+      oppPoints: 122.2,
+      starters: [{ ...hudMatchup.starters[0], points: 24.1 }],
+      oppStarters: [{ ...hudMatchup.oppStarters[0], points: 28.4 }],
+      scoresFinal: false
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({
+        at: Date.now(),
+        displayWeek: 2,
+        selectedKey,
+        matchup: stale
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-matchups.json'),
+      JSON.stringify({
+        at: Date.now(),
+        week: 2,
+        byKey: { [selectedKey]: stale }
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-scores.json'),
+      JSON.stringify({
+        at: Date.now(),
+        byId: {
+          [leagueId]: {
+            week: 2,
+            payload: {
+              scoringPeriodId: 2,
+              schedule: [
+                {
+                  matchupPeriodId: 2,
+                  winner: 'UNDECIDED',
+                  home: {
+                    teamId: 1,
+                    totalPointsLive: 0,
+                    totalPoints: 117.86,
+                    pointsByScoringPeriod: { '2': 0 },
+                    rosterForCurrentScoringPeriod: {
+                      entries: [{ lineupSlotId: 0, playerId: 1 }]
+                    }
+                  },
+                  away: {
+                    teamId: 2,
+                    totalPointsLive: 0,
+                    totalPoints: 122.22,
+                    pointsByScoringPeriod: { '2': 0 },
+                    rosterForCurrentScoringPeriod: {
+                      entries: [{ lineupSlotId: 0, playerId: 3 }]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().nfl?.displayWeek).toBe(2)
+    expect(currentState().matchup?.myPoints).toBe(0)
+    expect(currentState().matchup?.oppPoints).toBe(0)
+    expect(currentState().matchup?.starters[0]?.points).toBe(0)
+    expect(currentState().matchup?.oppStarters[0]?.points).toBe(0)
+    expect(currentState().matchup?.scoresFinal).toBe(false)
+  })
+
   it('does not hold inFlight on last HUD while /matchups is still in flight', async () => {
     const dir = app.getPath('userData')
     const leagueId = '123456789'
