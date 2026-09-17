@@ -2,19 +2,12 @@
   <!--
     Broadcast S v2 (Kevin reference lock 2026-09-16):
     Continuous blocky geometric S — two interlocking thick segments
-    (same letterform construction as packaging S), lime gradient,
+    (same letterform construction as packaging S), solid lime #B6FF3B,
     slight forward slant. NO square field, NO packaging stripe,
     NOT two disconnected parallel bars.
   -->
-  <defs>
-    <linearGradient id="broadcastLime" x1="20" y1="8" x2="108" y2="120" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#D6F34A"/>
-      <stop offset="45%" stop-color="#B6FF3B"/>
-      <stop offset="100%" stop-color="#7DFFB0"/>
-    </linearGradient>
-  </defs>
   <!-- Centered packaging-S geometry, scaled into 128 box, lime fill, slight italic slant -->
-  <g fill="url(#broadcastLime)" transform="translate(64 64) skewX(-10) scale(0.155)">
+  <g fill="#B6FF3B" transform="translate(64 64) skewX(-10) scale(0.155)">
     <path d="
       M -28 22
       C -176 22 -240 -44 -240 -158
