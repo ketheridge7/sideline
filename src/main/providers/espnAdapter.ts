@@ -1003,8 +1003,10 @@ const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number): num
   if (liveStarters > 0) return liveStarters
   const starters = starterActualSum(side, scoringPeriodId)
   const period = periodActual(side, scoringPeriodId)
+  // Current scoring period (including pre-kickoff 0) beats leftover totalPoints from last week.
+  if (period != null) return Math.max(period, starters)
   const final = num(side.totalPoints)
-  return Math.max(period ?? 0, final ?? 0, starters)
+  return Math.max(final ?? 0, starters)
 }
 
 const PROJECTED_TOTAL_KEYS = [
@@ -1304,7 +1306,8 @@ const livePointsByPlayerId = (
 const overlayEspnPlayers = (
   players: Player[],
   byId: Map<string, number>,
-  preferLive: boolean
+  preferLive: boolean,
+  resetLiveZero = false
 ): Player[] => {
   let hasPositiveChip = false
   for (const pts of byId.values()) {
@@ -1316,15 +1319,17 @@ const overlayEspnPlayers = (
   return players.map((player) => {
     const coerced = num(player.playerId)
     const pts = byId.get(player.playerId) ?? (coerced != null ? byId.get(String(coerced)) : undefined)
-    if (pts == null) return player
     if (preferLive) {
-      if (pts > 0 || hasPositiveChip) return { ...player, points: pts }
+      if (pts != null && (pts > 0 || hasPositiveChip)) return { ...player, points: pts }
+      if (resetLiveZero) return { ...player, points: pts ?? 0 }
       return player
     }
+    if (pts == null) return player
     return { ...player, points: Math.max(pts, player.points ?? 0) }
   })
 }
 
+/** Compact `{ teamId, totalPointsLive: 0 }` stubs are not live. Current-period 0 (pre-kickoff) is. */
 const hasEspnLivePts = (
   side: Record<string, unknown> | null,
   byId: Map<string, number>,
@@ -1334,6 +1339,9 @@ const hasEspnLivePts = (
   for (const pts of byId.values()) {
     if (pts > 0) return true
   }
+  if (!side) return false
+  if (liveTeamPts(side) === 0) return true
+  if (periodActual(side, displayWeek) != null) return true
   return false
 }
 
@@ -1376,19 +1384,29 @@ export const overlayEspnMatchup = (
   const trustOpp = Boolean(preferLive && oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
   const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>
     trust ? livePts : Math.max(prevPts, livePts)
+  const myLiveTotal = sideTotal(mySide, displayWeek)
+  const oppLiveTotal = oppSide ? sideTotal(oppSide, displayWeek) : 0
   const mySlots = lineupSlotByPlayerId(mySide)
   const oppSlots = oppSide ? lineupSlotByPlayerId(oppSide) : new Map<string, number>()
   return withEspnProjected(
     {
       ...prev,
-      myPoints: overlayTotal(prev.myPoints, sideTotal(mySide, displayWeek), trustMine),
-      oppPoints: oppSide ? overlayTotal(prev.oppPoints, sideTotal(oppSide, displayWeek), trustOpp) : prev.oppPoints,
-      starters: orderEspnStarters(overlayEspnPlayers(prev.starters, myById, trustMine), mySlots),
-      bench: overlayEspnPlayers(prev.bench, myById, trustMine),
+      myPoints: overlayTotal(prev.myPoints, myLiveTotal, trustMine),
+      oppPoints: oppSide ? overlayTotal(prev.oppPoints, oppLiveTotal, trustOpp) : prev.oppPoints,
+      starters: orderEspnStarters(
+        overlayEspnPlayers(prev.starters, myById, trustMine, trustMine && myLiveTotal === 0),
+        mySlots
+      ),
+      bench: overlayEspnPlayers(prev.bench, myById, trustMine, trustMine && myLiveTotal === 0),
       oppStarters: oppSide
-        ? orderEspnStarters(overlayEspnPlayers(prev.oppStarters, oppById, trustOpp), oppSlots)
+        ? orderEspnStarters(
+            overlayEspnPlayers(prev.oppStarters, oppById, trustOpp, trustOpp && oppLiveTotal === 0),
+            oppSlots
+          )
         : prev.oppStarters,
-      oppBench: oppSide ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp) : prev.oppBench,
+      oppBench: oppSide
+        ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp, trustOpp && oppLiveTotal === 0)
+        : prev.oppBench,
       scoresFinal: espnGameIsFinal(game)
     },
     mySide,

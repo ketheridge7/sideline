@@ -1369,6 +1369,7 @@ export const warmupMatchupFromDisk = (opts: {
   displayWeek: number
   lastHud: LastHudSnapshot | null
   matchupsByKey: Record<string, Matchup>
+  matchupsWeek?: number
 }): Matchup | null => {
   if (!opts.selectedKey || !isLiveLeagueKey(opts.selectedKey)) return null
   if (
@@ -1378,6 +1379,7 @@ export const warmupMatchupFromDisk = (opts: {
   ) {
     return opts.lastHud.matchup
   }
+  if (opts.matchupsWeek != null && opts.matchupsWeek !== opts.displayWeek) return null
   return opts.matchupsByKey[opts.selectedKey] ?? null
 }
 

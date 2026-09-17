@@ -1826,6 +1826,87 @@ describe('toEspnMatchup', () => {
     expect(matchup?.oppPoints).toBe(31.1)
   })
 
+  it('does not treat week-2 projection-only stats as live matchup points', () => {
+    const payload = {
+      scoringPeriodId: 2,
+      teams: [
+        {
+          id: 1,
+          location: 'Sideline',
+          nickname: 'Squad',
+          primaryOwner: '{11111111-1111-1111-1111-111111111111}'
+        },
+        {
+          id: 2,
+          location: 'Rival',
+          nickname: 'Club',
+          primaryOwner: '{22222222-2222-2222-2222-222222222222}'
+        }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 2,
+          winner: 'UNDECIDED',
+          home: {
+            teamId: 1,
+            totalPointsLive: 0,
+            totalProjectedPointsLive: 121.4,
+            pointsByScoringPeriod: { '2': 0 },
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 100,
+                  playerPoolEntry: {
+                    player: {
+                      fullName: 'Hurts',
+                      defaultPositionId: 1,
+                      stats: [
+                        { statSourceId: 1, statSplitTypeId: 1, scoringPeriodId: 2, appliedTotal: 18.2 }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 2,
+            totalPointsLive: 0,
+            totalProjectedPointsLive: 120.1,
+            pointsByScoringPeriod: { '2': 0 },
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 200,
+                  playerPoolEntry: {
+                    player: {
+                      fullName: 'Mahomes',
+                      defaultPositionId: 1,
+                      stats: [
+                        { statSourceId: 1, statSplitTypeId: 1, scoringPeriodId: 2, appliedTotal: 20.1 }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' },
+      displayWeek: 2
+    })
+    expect(matchup?.myPoints).toBe(0)
+    expect(matchup?.oppPoints).toBe(0)
+    expect(matchup?.starters[0]?.points).toBeUndefined()
+    expect(matchup?.myProjectedPoints).toBe(121.4)
+  })
+
   it('merges cached owners onto an mScoreboard payload that omitted primaryOwner', () => {
     const live = {
       scoringPeriodId: 1,
@@ -2538,6 +2619,105 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppPoints).toBe(12)
     expect(next?.oppStarters[0]?.points).toBe(12)
+  })
+
+  it('trusts week-2 live zeros over leftover week-1 finals and does not paint projections as live', () => {
+    const week1Finals = {
+      ...prev,
+      myPoints: 117.86,
+      oppPoints: 122.22,
+      starters: [{ ...prev.starters[0], points: 24.1 }],
+      oppStarters: [{ ...prev.oppStarters[0], points: 28.4 }],
+      scoresFinal: false
+    }
+    const live = {
+      scoringPeriodId: 2,
+      schedule: [
+        {
+          matchupPeriodId: 2,
+          winner: 'UNDECIDED',
+          home: {
+            teamId: 1,
+            totalPointsLive: 0,
+            totalPoints: 117.86,
+            totalProjectedPointsLive: 121.4,
+            pointsByScoringPeriod: { '2': 0 },
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 100,
+                  playerPoolEntry: {
+                    player: {
+                      fullName: 'Hurts',
+                      defaultPositionId: 1,
+                      stats: [
+                        { statSourceId: 1, statSplitTypeId: 1, scoringPeriodId: 2, appliedTotal: 18.2 }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 2,
+            totalPointsLive: 0,
+            totalPoints: 122.22,
+            totalProjectedPointsLive: 120.1,
+            pointsByScoringPeriod: { '2': 0 },
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 200,
+                  playerPoolEntry: {
+                    player: {
+                      fullName: 'Mahomes',
+                      defaultPositionId: 1,
+                      stats: [
+                        { statSourceId: 1, statSplitTypeId: 1, scoringPeriodId: 2, appliedTotal: 20.1 }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    const next = overlayEspnMatchup(week1Finals, live, 2, true)
+    expect(next?.myPoints).toBe(0)
+    expect(next?.oppPoints).toBe(0)
+    expect(next?.starters[0]?.points).toBe(0)
+    expect(next?.oppStarters[0]?.points).toBe(0)
+    expect(next?.myProjectedPoints).toBe(121.4)
+    expect(next?.oppProjectedPoints).toBe(120.1)
+    expect(next?.scoresFinal).toBe(false)
+  })
+
+  it('still overlays live positive chips after a week-2 zero start', () => {
+    const preKickoff = {
+      ...prev,
+      myPoints: 0,
+      oppPoints: 0,
+      starters: [{ ...prev.starters[0], points: 0 }],
+      oppStarters: [{ ...prev.oppStarters[0], points: 0 }]
+    }
+    const live = {
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 22.4, players: [{ playerId: 100, totalPointsLive: 22.4 }] },
+          { teamId: 2, totalPointsLive: 15.1, players: [{ playerId: 200, totalPointsLive: 15.1 }] }
+        ]
+      }
+    }
+    const next = overlayEspnMatchup(preKickoff, live, 2, true)
+    expect(next?.myPoints).toBe(22.4)
+    expect(next?.oppPoints).toBe(15.1)
+    expect(next?.starters[0]?.points).toBe(22.4)
+    expect(next?.oppStarters[0]?.points).toBe(15.1)
   })
 
   it('keeps last starter chips when compact live has a side total but zeroed players', () => {
