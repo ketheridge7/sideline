@@ -202,9 +202,10 @@ describe('BoardRosterColumn open/close', () => {
       />
     )
     expect(html).toContain('George Kittle')
-    expect(col(html, 'pos')).toContain('TE')
-    expect(col(html, 'name')).toContain('George Kittle')
-    expect(col(html, 'pts')).toContain('4.2')
+    const popover = html.match(/data-bench-popover="mine"[\s\S]*?data-bench-foot="mine"/)?.[0] ?? html
+    expect(col(popover, 'pos')).toContain('TE')
+    expect(col(popover, 'name')).toContain('George Kittle')
+    expect(col(popover, 'pts')).toContain('4.2')
     expect(html).toContain('>1<')
     expect(html).not.toContain('>4034<')
     expect(html).not.toContain('>?</')
