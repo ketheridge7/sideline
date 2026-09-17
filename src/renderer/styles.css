@@ -84,11 +84,7 @@ select {
 .companion-titlebar {
   min-height: env(titlebar-area-height, 3.25rem);
   padding-left: max(1rem, env(titlebar-area-x, 1rem));
-  padding-right: max(
-    1rem,
-    calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px))
-  );
-}
+  padding-right: max(1rem, calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px)));
 }
 
 @keyframes tape-crawl {
