@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { emptyAppState, overlayHudUnchanged, toOverlayHud } from './types'
+import { emptyAppState, overlayHudUnchanged, parseProvider, toOverlayHud } from './types'
 import { layoutFromPreset } from './overlayLayout'
 import { mapTransactionKind } from './transactionKind'
+
+describe('parseProvider', () => {
+  it('accepts espn and sleeper and rejects junk', () => {
+    expect(parseProvider('espn')).toBe('espn')
+    expect(parseProvider('sleeper')).toBe('sleeper')
+    expect(parseProvider('tv')).toBeNull()
+    expect(parseProvider(1)).toBeNull()
+  })
+})
 
 describe('toOverlayHud', () => {
   it('carries bench, week, live, toast, and layout', () => {

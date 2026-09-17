@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { OVERLAY_LAYOUT_SCHEMA_VERSION } from './overlayLayout'
-import { defaultSettings, hydrateSettings } from './settings'
+import { defaultSettings, hydrateSettings, sanitizeLeagueIds } from './settings'
+
+describe('sanitizeLeagueIds', () => {
+  it('keeps unique numeric ids and drops junk', () => {
+    expect(sanitizeLeagueIds(['11', '11', 'abc', 22, null])).toEqual(['11', '22'])
+    expect(sanitizeLeagueIds(undefined)).toEqual([])
+  })
+})
 
 describe('hydrateSettings', () => {
   it('keeps a persisted Sleeper user id and drops junk', () => {
     expect(hydrateSettings({ sleeperUsername: 'bob', sleeperUserId: '12345' }).sleeperUserId).toBe('12345')
     expect(hydrateSettings({ sleeperUserId: '' }).sleeperUserId).toBeNull()
     expect(defaultSettings().sleeperUserId).toBeNull()
+  })
+
+  it('treats missing Sleeper league ids as legacy-all and hydrates an allowlist', () => {
+    expect(defaultSettings().sleeperLeagueIds).toBeNull()
+    expect(hydrateSettings({ sleeperUsername: 'bob' }).sleeperLeagueIds).toBeNull()
+    expect(hydrateSettings({ sleeperLeagueIds: ['11', '11', 'nope', 22 as never] }).sleeperLeagueIds).toEqual([
+      '11',
+      '22'
+    ])
+    expect(hydrateSettings({ sleeperLeagueIds: [] }).sleeperLeagueIds).toEqual([])
   })
 
   it('auto-heals a stale overlay layout to Preset 1 and keeps slots 1–5', () => {
