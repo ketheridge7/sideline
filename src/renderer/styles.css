@@ -240,9 +240,9 @@ select {
 
 .studio-presets button[aria-pressed="true"],
 .studio-preset-active {
-  border-color: #a6e6a0;
-  background: rgba(166, 230, 160, 0.16);
-  color: #a6e6a0;
+  border-color: #b6ff3b;
+  background: rgba(182, 255, 59, 0.16);
+  color: #b6ff3b;
 }
 
 .studio-block-idle:hover {

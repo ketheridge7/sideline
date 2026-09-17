@@ -52,7 +52,7 @@ export const LeadBar = ({
   return (
     <div className={`flex flex-col justify-end ${compact ? 'gap-1' : 'gap-1.5'}`}>
       {!compact ? (
-        <div className="text-center font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+        <div className="text-center font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-lime">
           {copy.header}
         </div>
       ) : null}
@@ -63,8 +63,8 @@ export const LeadBar = ({
           data-hud="win-pct-bar"
           data-hud-win-pct-source={source}
         >
-          <div className="h-full bg-you" style={{ width: mineWidth }} />
-          <div className="h-full bg-them/50" style={{ width: oppWidth }} />
+          <div className="h-full bg-lime" data-hud-win-pct-fill="mine" style={{ width: mineWidth }} />
+          <div className="h-full bg-them/50" data-hud-win-pct-fill="opp" style={{ width: oppWidth }} />
         </div>
       ) : (
         <div
@@ -76,18 +76,33 @@ export const LeadBar = ({
         />
       )}
       {!compact ? (
-        <div className="flex justify-between font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+        <div className="flex justify-between font-cond text-[10px] font-bold uppercase tracking-[0.14em]">
           {percents ? (
             <>
-              <span data-hud="win-pct" data-hud-side="mine" data-hud-win-pct-source={source}>
+              <span
+                className="text-lime"
+                data-hud="win-pct"
+                data-hud-side="mine"
+                data-hud-win-pct-source={source}
+              >
                 {copy.mine}
               </span>
-              <span data-hud="win-pct" data-hud-side="opp" data-hud-win-pct-source={source}>
+              <span
+                className="text-muted"
+                data-hud="win-pct"
+                data-hud-side="opp"
+                data-hud-win-pct-source={source}
+              >
                 {copy.opp}
               </span>
             </>
           ) : (
-            <span className="w-full text-center" data-hud="win-pct" data-hud-win-pct="pending" data-hud-win-pct-source={source}>
+            <span
+              className="w-full text-center text-muted"
+              data-hud="win-pct"
+              data-hud-win-pct="pending"
+              data-hud-win-pct-source={source}
+            >
               {copy.pending}
             </span>
           )}

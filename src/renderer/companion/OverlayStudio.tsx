@@ -110,7 +110,7 @@ export const OverlayStudio = ({
   return (
     <aside className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden border-l border-line bg-card">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <h2 className="font-cond text-sm font-bold uppercase tracking-[0.16em]">Overlay Studio</h2>
+        <h2 className="font-cond text-sm font-bold uppercase tracking-[0.16em] text-lime">Overlay Studio</h2>
         <button type="button" onClick={onClose} className={chromePillClass(false, 'compact')}>
           Close
         </button>
@@ -129,7 +129,7 @@ export const OverlayStudio = ({
                   data-preset={id}
                   onClick={() => handlePreset(id)}
                   className={`cursor-pointer border px-1 py-1.5 font-cond text-sm font-bold ${
-                    active ? 'studio-preset-active border-you bg-you/15 text-you' : 'border-line text-muted'
+                    active ? 'studio-preset-active border-lime bg-lime/15 text-lime' : 'border-line text-muted'
                   }`}
                   aria-pressed={active}
                   aria-label={`${PRESET_LABELS[id]}, ${PRESET_PLACEMENTS[id]}`}

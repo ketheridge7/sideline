@@ -27,7 +27,7 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 | `--muted` | `#94A3B8` | Meta |
 | `--you` | `#A6E6A0` | Warm ice-green — lead chip, selected, ice chrome. Not my team name |
 | `--them` | `#E8E4DC` | Warm silver — opponent name. Not “loss” |
-| `--lime` | `#B6FF3B` | Just scored / HUD on / chrome pill outlines / **my** team name |
+| `--lime` | `#B6FF3B` | Just scored / HUD on / chrome pill outlines / **my** team name / you-side Starters·Bench·win% / Overlay Studio |
 | `--air` | `#FF4D4D` | ON AIR, injury, waiver |
 | Sleeper / ESPN | cyan / crimson | **tiny stamps only** |
 
@@ -102,9 +102,9 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 - Right rail: **Scoring tape**. Scoreboard = Scoring tape · This matchup. Leagues/Boards = Scoring tape · All leagues (same name, same right-hand placement). Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play. Injuries land on tape only after a baseline exists (no cold-open injury dump).
 - Leagues matchup cards: **Top scorers** chips are highest starter points, not “who just scored.”
 - Bottom ticker is **replay-only** NFL chips from the fixture. No ON AIR wordmark, no live sports-data API, no betting.
-- Top bar: broadcast S v2 (`broadcast-s.svg`, continuous blocky S, mint→lime `#D6F34A` → `#B6FF3B` → `#7DFFB0`, no square field) + **SIDELINE** (ice `#F4F7F2`, letter-spacing ~0.11em, no underline). Soft-pill SCOREBOARD / LEAGUES / CONNECT and HUD — lime `#B6FF3B` outline (inactive ~40% opacity, active fuller; near-black fill). Studio is **not** in the top bar. HUD still tracks `overlayVisible`. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
-- SCOREBOARD: when HUD is on, a left-aligned **Edit layout** soft pill sits under the scoreboard and opens Overlay Studio. Hidden when HUD is off. Companion `E` / `Esc` still toggle/close Studio only while HUD is on.
-- Overlay Studio: five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No HUD on/off control — TopBar HUD pill / hotkey owns visibility.
+- Top bar: broadcast S v2 (`broadcast-s.svg`, continuous blocky S, mint→lime `#D6F34A` → `#B6FF3B` → `#7DFFB0`, no square field) + **SIDELINE** (ice `#F4F7F2`, letter-spacing ~0.11em, `gap-2` lockup, no underline). Soft-pill SCOREBOARD / LEAGUES / CONNECT and HUD — lime `#B6FF3B` outline (inactive ~40% opacity, active fuller; near-black fill). Studio is **not** in the top bar. HUD still tracks `overlayVisible`. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
+- SCOREBOARD: you-side Starters / Bench headers, Chance to win · Est. win% header + you fill/label, and **Edit layout** use solid lime `#B6FF3B`; opponent chrome stays warm silver. Lead chip stays ice `--you`. When HUD is on, a left-aligned **Edit layout** soft pill sits under the scoreboard and opens Overlay Studio. Hidden when HUD is off. Companion `E` / `Esc` still toggle/close Studio only while HUD is on.
+- Overlay Studio: lime title + active preset box (same family as TopBar pills / my name). Five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No HUD on/off control — TopBar HUD pill / hotkey owns visibility.
 
 Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).
 

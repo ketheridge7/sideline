@@ -51,6 +51,8 @@ describe('TopBar', () => {
     expect(html).toContain('data-mark="broadcast-s"')
     expect(html).toContain('SIDELINE')
     expect(html).toContain('text-ice')
+    expect(html).toContain('gap-2')
+    expect(html).not.toContain('gap-6')
     expect(html).toContain('tracking-[0.11em]')
     expect(html).not.toContain('data-wordmark="underline"')
     expect(html).not.toMatch(/class="[^"]*\bitalic\b/)

@@ -22,5 +22,8 @@ describe('chrome pills', () => {
     expect(css).toContain('--color-you: #a6e6a0')
     expect(css).toContain('--color-lime: #b6ff3b')
     expect(css).toContain('--color-air: #ff4d4d')
+    expect(css).toContain('.studio-preset-active')
+    expect(css).toMatch(/\.studio-preset-active \{[\s\S]*?#b6ff3b/)
+    expect(css).not.toMatch(/\.studio-preset-active \{[\s\S]*?#a6e6a0/)
   })
 })

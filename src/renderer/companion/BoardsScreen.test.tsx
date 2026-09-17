@@ -12,6 +12,8 @@ const board: MatchupBoard = {
   oppName: 'The Other Guys',
   myPoints: 142.8,
   oppPoints: 131.2,
+  myWinPct: 0.62,
+  oppWinPct: 0.38,
   lastScorers: [
     { playerId: '1', name: 'Jahmyr Gibbs', position: 'RB', points: 24.6 },
     { playerId: '2', name: 'Josh Allen', position: 'QB', points: 18.2, delta: 6.4 }
@@ -57,5 +59,9 @@ describe('BoardsScreen', () => {
     expect(html).toContain('Gibbs Me Head')
     expect(html).toContain('text-muted">The Other Guys')
     expect(html).not.toMatch(/text-lime[^"]*">The Other Guys/)
+    expect(html).toContain('bg-lime')
+    expect(html).toContain('data-hud-win-pct-fill="mine"')
+    expect(html).toContain('data-hud-win-pct-fill="opp"')
+    expect(html).toContain('bg-them/50')
   })
 })

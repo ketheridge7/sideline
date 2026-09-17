@@ -26,7 +26,7 @@ export const BoardRails = ({
   return (
     <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
       <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">
-        <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-you">Starters</h2>
+        <h2 className="mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime">Starters</h2>
         <StarterColumn players={mine} you rows={rows} />
       </div>
       <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3">

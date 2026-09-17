@@ -13,21 +13,18 @@ export const HudBench = ({
   label: string
   mirror?: boolean
 }): JSX.Element => {
+  const headerClass = mirror ? 'text-them' : 'text-lime'
   if (players.length === 0) {
     return (
       <div className={`border-t border-white/5 px-4 py-2 ${mirror ? 'text-right' : ''}`}>
-        <span className="font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</span>
+        <span className={`font-cond text-[10px] font-bold uppercase tracking-[0.2em] ${headerClass}`}>{label}</span>
         <span className="ml-2 text-xs text-muted">Empty</span>
       </div>
     )
   }
   return (
     <div className={`border-t border-white/5 px-4 py-2 ${mirror ? 'text-right' : ''}`}>
-      <div
-        className={`mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted ${
-          mirror ? 'text-them' : 'text-you'
-        }`}
-      >
+      <div className={`mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] ${headerClass}`}>
         {label}
       </div>
       <div className={`flex gap-1.5 overflow-x-auto ${mirror ? 'flex-row-reverse' : ''}`}>
