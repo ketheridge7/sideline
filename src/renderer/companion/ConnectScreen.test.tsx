@@ -1,10 +1,19 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { emptyAppState } from '@shared/types'
-import { ConnectScreen } from './ConnectScreen'
+import { emptyAppState, type League } from '@shared/types'
+import { ConnectScreen, LeagueChecklist, type ConnectPath } from './ConnectScreen'
 
-const htmlOf = (overrides: Partial<ReturnType<typeof emptyAppState>> = {}): string =>
-  renderToStaticMarkup(<ConnectScreen state={{ ...emptyAppState(), ...overrides }} />)
+const htmlOf = (
+  overrides: Partial<ReturnType<typeof emptyAppState>> = {},
+  opts: { path?: ConnectPath; discoverable?: League[] } = {}
+): string =>
+  renderToStaticMarkup(
+    <ConnectScreen
+      state={{ ...emptyAppState(), ...overrides }}
+      initialPath={opts.path}
+      discoverable={opts.discoverable}
+    />
+  )
 
 const howtoTag = (html: string, id: string): string => {
   const match = html.match(new RegExp(`<details[^>]*data-howto="${id}"[^>]*>`))
@@ -18,20 +27,71 @@ const howtoDefault = (html: string, id: string): string | null => {
 
 const howtoIsOpen = (html: string, id: string): boolean => /\sopen(?:=""|>|\s)/.test(howtoTag(html, id))
 
-describe('ConnectScreen updates', () => {
-  it('puts Check for updates on Connect next to other settings', () => {
+const espnLeagues: League[] = [
+  { id: '111', name: 'Gridiron Gurus', provider: 'espn', season: '2026', week: 1 },
+  { id: '222', name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }
+]
+
+const sleeperLeagues: League[] = [
+  { id: '11', name: 'Friday Night', provider: 'sleeper', season: '2026', week: 1 },
+  { id: '22', name: 'Fourth & Drunken', provider: 'sleeper', season: '2026', week: 1 }
+]
+
+describe('ConnectScreen hub', () => {
+  it('puts Check for updates and shortcuts on a quiet hub footer', () => {
     const html = htmlOf()
+    expect(html).toContain('data-connect-path="hub"')
     expect(html).toContain('Check for updates')
     expect(html).toContain('data-update-state="idle"')
+    expect(html).toContain('data-connect-footer="settings"')
+    expect(html.indexOf('data-connect-footer="settings"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
   })
 
   it('uses soft-pill actions on Connect instead of hard-rect buttons', () => {
-    const html = htmlOf({ sleeperConnected: true, espnConnected: true })
+    const html = htmlOf({
+      sleeperConnected: true,
+      espnConnected: true,
+      leagues: [
+        { id: '111', name: 'Gridiron Gurus', provider: 'espn', season: '2026', week: 1 },
+        { id: '11', name: 'Friday Night', provider: 'sleeper', season: '2026', week: 1 }
+      ]
+    })
     expect(html).toContain('rounded-full')
-    expect(html).toContain('Disconnect')
-    expect(html).toContain('Add league')
+    expect(html).toContain('Sign out')
+    expect(html).toContain('Remove')
     expect(html).not.toContain('cursor-pointer border border-line px-4 py-2')
     expect(html).not.toContain('cursor-pointer rounded-sm border border-line px-3 py-2')
+  })
+
+  it('shows ESPN, Sleeper, and TV as peer hub cards with status', () => {
+    const html = htmlOf()
+    expect(html).toContain('data-connect-card="espn"')
+    expect(html).toContain('data-connect-card="sleeper"')
+    expect(html).toContain('data-connect-card="tv"')
+    expect(html.indexOf('data-connect-card="espn"')).toBeLessThan(html.indexOf('data-connect-card="sleeper"'))
+    expect(html.indexOf('data-connect-card="sleeper"')).toBeLessThan(html.indexOf('data-connect-card="tv"'))
+    expect(html).toContain('Not connected')
+    expect(html).not.toContain('id="sleeper-username"')
+    expect(html).not.toContain('id="espn-league-id"')
+  })
+
+  it('reports connected league counts and needs re-login on hub cards', () => {
+    const connected = htmlOf({
+      sleeperConnected: true,
+      sleeperUsername: 'ke',
+      espnConnected: true,
+      leagues: [
+        { id: '111', name: 'Gridiron Gurus', provider: 'espn', season: '2026', week: 1 },
+        { id: '222', name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 },
+        { id: '11', name: 'Friday Night', provider: 'sleeper', season: '2026', week: 1 }
+      ]
+    })
+    expect(connected).toContain('Connected · 2 leagues')
+    expect(connected).toContain('Connected · 1 league')
+    expect(connected).toContain('Add leagues')
+
+    const relogin = htmlOf({ espnConnected: true, espnNeedsRelogin: true })
+    expect(relogin).toContain('Needs re-login')
   })
 })
 
@@ -52,72 +112,119 @@ describe('ConnectScreen shortcuts', () => {
 })
 
 describe('ConnectScreen first-run help', () => {
-  it('covers the real connect and overlay paths without APK install steps', () => {
+  it('keeps Getting started collapsed on the hub instead of blocking the cards', () => {
     const html = htmlOf()
     expect(html).toContain('Getting started')
     expect(html).toContain('companion for live fantasy')
-    expect(html.indexOf('Getting started')).toBeLessThan(html.indexOf('>Sleeper<'))
-    expect(html.indexOf('Getting started')).toBeLessThan(html.indexOf('>ESPN<'))
-    expect(html.indexOf('Getting started')).toBeLessThan(html.indexOf('>TV overlay<'))
+    expect(howtoDefault(html, 'getting-started')).toBe('closed')
+    expect(html.indexOf('Getting started')).toBeLessThan(html.indexOf('data-connect-card="espn"'))
+    expect(html).not.toContain('data-howto="sleeper"')
+    expect(html).not.toContain('data-howto="espn"')
+    expect(html).not.toContain('data-howto="overlay"')
   })
 
-  it('adds How to disclosures under Sleeper, ESPN, and TV overlay', () => {
-    const html = htmlOf()
-    expect(html).toContain('data-howto="sleeper"')
-    expect(html).toContain('data-howto="espn"')
-    expect(html).toContain('data-howto="overlay"')
-    expect(html.match(/How to/g)?.length).toBeGreaterThanOrEqual(3)
-    expect(html.indexOf('data-howto="sleeper"')).toBeGreaterThan(html.indexOf('>Sleeper<'))
-    expect(html.indexOf('data-howto="espn"')).toBeGreaterThan(html.indexOf('>ESPN<'))
-    expect(html.indexOf('data-howto="overlay"')).toBeGreaterThan(html.indexOf('>TV overlay<'))
-    expect(html.indexOf('Keyboard shortcuts')).toBeGreaterThan(html.indexOf('data-howto="overlay"'))
+  it('adds How to disclosures on ESPN, Sleeper, and TV paths', () => {
+    const sleeper = htmlOf({}, { path: 'sleeper' })
+    const espn = htmlOf({}, { path: 'espn' })
+    const tv = htmlOf({}, { path: 'tv' })
+    expect(sleeper).toContain('data-howto="sleeper"')
+    expect(espn).toContain('data-howto="espn"')
+    expect(tv).toContain('data-howto="overlay"')
+    expect(sleeper).toContain('data-connect-back="hub"')
+    expect(espn).toContain('data-connect-back="hub"')
+    expect(tv).toContain('data-connect-back="hub"')
+    expect(htmlOf().indexOf('Keyboard shortcuts')).toBeGreaterThan(htmlOf().indexOf('data-connect-card="tv"'))
   })
 
   it('defaults How to open for first-time connect, closed once connected or LAN is on', () => {
-    const fresh = htmlOf()
-    expect(howtoDefault(fresh, 'sleeper')).toBe('open')
-    expect(howtoDefault(fresh, 'espn')).toBe('open')
-    expect(howtoDefault(fresh, 'overlay')).toBe('open')
-    expect(howtoIsOpen(fresh, 'sleeper')).toBe(true)
-    expect(howtoIsOpen(fresh, 'espn')).toBe(true)
-    expect(howtoIsOpen(fresh, 'overlay')).toBe(true)
+    expect(howtoDefault(htmlOf({}, { path: 'sleeper' }), 'sleeper')).toBe('open')
+    expect(howtoDefault(htmlOf({}, { path: 'espn' }), 'espn')).toBe('open')
+    expect(howtoDefault(htmlOf({}, { path: 'tv' }), 'overlay')).toBe('open')
+    expect(howtoIsOpen(htmlOf({}, { path: 'sleeper' }), 'sleeper')).toBe(true)
+    expect(howtoIsOpen(htmlOf({}, { path: 'espn' }), 'espn')).toBe(true)
+    expect(howtoIsOpen(htmlOf({}, { path: 'tv' }), 'overlay')).toBe(true)
 
-    const connected = htmlOf({
-      sleeperConnected: true,
-      sleeperUsername: 'ke',
-      espnConnected: true,
-      lanOverlayEnabled: true
-    })
-    expect(howtoDefault(connected, 'sleeper')).toBe('closed')
-    expect(howtoDefault(connected, 'espn')).toBe('closed')
-    expect(howtoDefault(connected, 'overlay')).toBe('closed')
-    expect(connected).toContain('data-howto="sleeper"')
-    expect(connected).toContain('How to')
-    expect(howtoIsOpen(connected, 'sleeper')).toBe(false)
-    expect(howtoIsOpen(connected, 'espn')).toBe(false)
-    expect(howtoIsOpen(connected, 'overlay')).toBe(false)
+    const sleeper = htmlOf({ sleeperConnected: true, sleeperUsername: 'ke' }, { path: 'sleeper' })
+    const espn = htmlOf({ espnConnected: true }, { path: 'espn' })
+    const tv = htmlOf({ lanOverlayEnabled: true }, { path: 'tv' })
+    expect(howtoDefault(sleeper, 'sleeper')).toBe('closed')
+    expect(howtoDefault(espn, 'espn')).toBe('closed')
+    expect(howtoDefault(tv, 'overlay')).toBe('closed')
+    expect(howtoIsOpen(sleeper, 'sleeper')).toBe(false)
+    expect(howtoIsOpen(espn, 'espn')).toBe(false)
+    expect(howtoIsOpen(tv, 'overlay')).toBe(false)
   })
 
   it('reopens ESPN How to when cookies expired so sign-in steps stay visible', () => {
-    const html = htmlOf({ espnConnected: true, espnNeedsRelogin: true })
+    const html = htmlOf({ espnConnected: true, espnNeedsRelogin: true }, { path: 'espn' })
     expect(howtoDefault(html, 'espn')).toBe('open')
     expect(howtoIsOpen(html, 'espn')).toBe(true)
   })
 
   it('covers the real connect and overlay paths without APK install steps', () => {
-    const html = htmlOf()
-    expect(html).toContain('Boards → My leagues')
-    expect(html).toContain('public API')
-    expect(html).toContain('Sign in with ESPN')
-    expect(html).toContain('leagueId=')
-    expect(html).toContain('This PC')
-    expect(html).toContain('Phone / browser URL')
-    expect(html).toContain('127.0.0.1')
-    expect(html).toContain('6-digit pairing code')
-    expect(html).toContain('derived scores')
-    expect(html).not.toContain('Wireless debugging')
-    expect(html).not.toContain('sideload')
-    expect(html).not.toContain('adb ')
-    expect(html).not.toContain('APK')
+    const sleeper = htmlOf({}, { path: 'sleeper' })
+    const espn = htmlOf({}, { path: 'espn' })
+    const tv = htmlOf({}, { path: 'tv' })
+    expect(sleeper).toContain('Add selected')
+    expect(sleeper).toContain('public API')
+    expect(espn).toContain('Sign in with ESPN')
+    expect(espn).toContain('leagueId=')
+    expect(espn).toContain('data-connect-advanced="espn"')
+    expect(espn).toContain('Advanced')
+    expect(tv).toContain('This PC')
+    expect(tv).toContain('Phone / browser URL')
+    expect(tv).toContain('127.0.0.1')
+    expect(tv).toContain('6-digit pairing code')
+    expect(tv).toContain('derived scores')
+    expect(sleeper).not.toContain('Wireless debugging')
+    expect(tv).not.toContain('sideload')
+    expect(tv).not.toContain('adb ')
+    expect(tv).not.toContain('APK')
+  })
+})
+
+describe('ConnectScreen fantasy paths', () => {
+  it('lists ESPN leagues all checked by default and keeps paste behind Advanced', () => {
+    const html = htmlOf({ espnConnected: true }, { path: 'espn', discoverable: espnLeagues })
+    expect(html).toContain('data-connect-checklist="leagues"')
+    expect(html).toContain('Gridiron Gurus')
+    expect(html).toContain('Dawg Pound')
+    expect(html).toContain('Add selected')
+    expect(html).toContain('data-league-check="111"')
+    expect(html).toContain('checked=""')
+    expect(html.indexOf('data-connect-advanced="espn"')).toBeGreaterThan(html.indexOf('Add selected'))
+    expect(html).toContain('id="espn-league-id"')
+  })
+
+  it('lists Sleeper leagues as the same all-on checklist after connect', () => {
+    const html = htmlOf(
+      { sleeperConnected: true, sleeperUsername: 'ke' },
+      { path: 'sleeper', discoverable: sleeperLeagues }
+    )
+    expect(html).toContain('data-connect-checklist="leagues"')
+    expect(html).toContain('Friday Night')
+    expect(html).toContain('Fourth &amp; Drunken')
+    expect(html).toContain('Add selected')
+    expect(html).toContain('data-league-check="11"')
+    expect(html).not.toContain('id="espn-league-id"')
+  })
+})
+
+describe('LeagueChecklist', () => {
+  it('renders every league checked so the user unchecks unwanted rows', () => {
+    const html = renderToStaticMarkup(
+      <LeagueChecklist
+        leagues={sleeperLeagues}
+        checkedIds={new Set(['11', '22'])}
+        onToggle={() => undefined}
+        onAdd={() => undefined}
+        busy={false}
+        message={null}
+      />
+    )
+    expect(html).toContain('data-league-check="11"')
+    expect(html).toContain('data-league-check="22"')
+    expect(html.match(/checked=""/g)?.length).toBe(2)
+    expect(html).toContain('Add selected')
   })
 })

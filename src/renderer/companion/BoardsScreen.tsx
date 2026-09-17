@@ -162,12 +162,24 @@ export const BoardsScreen = ({
               }}
               onPin={() => handlePin(board.key)}
               onRemove={
-                board.provider === 'espn' && !state.replay
-                  ? () => {
+                state.replay
+                  ? undefined
+                  : () => {
                       const parsed = parseLeagueKey(board.key)
-                      if (parsed) void api().removeEspnLeague(parsed.id)
+                      if (!parsed) return
+                      switch (parsed.provider) {
+                        case 'espn':
+                          void api().removeEspnLeague(parsed.id)
+                          return
+                        case 'sleeper':
+                          void api().removeSleeperLeague(parsed.id)
+                          return
+                        default: {
+                          const _never: never = parsed.provider
+                          return _never
+                        }
+                      }
                     }
-                  : undefined
               }
             />
           ))}

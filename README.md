@@ -31,19 +31,25 @@ Replay is fixture-only. It does not call a sports-data API and does not capture 
 
 ## Connect
 
+Connect is a hub with three peer cards: **ESPN**, **Sleeper**, and **TV**. Shortcuts and update settings sit in a quiet footer on the hub. How-to copy is on each path.
+
 ### Sleeper
 
-Type your Sleeper **username** (not email, not password). Sideline calls `GET /v1/user/{username}`, then lists your NFL leagues for the current `league_season` from `GET /v1/state/nfl`.
+Open the Sleeper card and type your **username** (not email, not password). Sideline calls `GET /v1/user/{username}`, then lists your NFL leagues for the current `league_season`. Every league is checked; uncheck any you do not want, then **Add selected**. Sideline opens Boards after that first add. Remove a league from the hub, or **Sign out** of Sleeper.
 
 ### ESPN
 
-Click **Sign in with ESPN**. Sideline clears the previous in-app ESPN session, then an in-app window opens ESPN's own login (2FA/OTP included). Sideline never sees or stores your password. After you sign in, it reads `espn_s2` and `SWID` from the `persist:espn` session partition on this machine and attaches them to later GETs.
+Open the ESPN card and **Sign in with ESPN**. Sideline clears the previous in-app ESPN session, then an in-app window opens ESPN's own login (2FA/OTP included). Sideline never sees or stores your password. After you sign in, it reads `espn_s2` and `SWID` from the `persist:espn` session partition on this machine and attaches them to later GETs.
 
-Those cookies expire (often after a few weeks). When they do, sign in again the same way — leftover cookie names from a dead session cannot skip the login window.
+Those cookies expire (often after a few weeks). When they do, sign in again the same way — leftover cookie names from a dead session cannot skip the login window. The hub card shows **Needs re-login**.
 
-League discovery is best-effort and unofficial. If your leagues don't appear, **paste the numeric league ID** from the ESPN fantasy URL (`.../football/league?leagueId=XXXX`).
+League discovery is best-effort and unofficial. The path shows a checklist (all on). Uncheck unwanted leagues, then **Add selected**. If a league is missing, open **Advanced** and **paste the numeric league ID** from the ESPN fantasy URL (`.../football/league?leagueId=XXXX`).
 
-Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + `SWID`.
+Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + `SWID`. Remove a league from the hub, or **Sign out** of ESPN.
+
+### TV
+
+Open the TV card. **Allow devices on this Wi-Fi to load the overlay** binds the overlay server on all interfaces, shows a **6-digit pairing code**, and requires a session token (`?k=`). On the Google TV app (`tv/`), type that code — you do not enter the IP or hex token.
 
 ## Overlay
 

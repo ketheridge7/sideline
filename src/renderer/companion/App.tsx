@@ -125,7 +125,9 @@ export const App = (): JSX.Element => {
             ready && (screen === 'board' || screen === 'boards') ? 'overflow-hidden' : 'overflow-auto'
           }`}
         >
-          {!ready || screen === 'connect' ? <ConnectScreen state={state} /> : null}
+          {!ready || screen === 'connect' ? (
+            <ConnectScreen state={state} onOpenBoards={() => setScreen('boards')} />
+          ) : null}
           {ready && screen === 'boards' ? (
             <BoardsScreen state={state} onOpenBoard={() => setScreen('board')} />
           ) : null}
