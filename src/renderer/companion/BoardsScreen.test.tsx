@@ -12,6 +12,8 @@ const board: MatchupBoard = {
   oppName: 'The Other Guys',
   myPoints: 142.8,
   oppPoints: 131.2,
+  myWinPct: 0.62,
+  oppWinPct: 0.38,
   lastScorers: [
     { playerId: '1', name: 'Jahmyr Gibbs', position: 'RB', points: 24.6 },
     { playerId: '2', name: 'Josh Allen', position: 'QB', points: 18.2, delta: 6.4 }
