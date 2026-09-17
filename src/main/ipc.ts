@@ -1,9 +1,10 @@
 import { ipcMain } from 'electron'
-import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, markEspnRelogin, primeEspnCookies, refresh, removeEspnLeagueId, setOverlayVisible } from './poller'
+import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, listDiscoverableLeagues, markEspnRelogin, primeEspnCookies, refresh, removeEspnLeagueId, removeSleeperLeagueId, setOverlayVisible, setSelectedLeagueIds } from './poller'
 import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
-import { saveSettings } from './store'
+import { parseLeagueKey, parseProvider } from '@shared/types'
+import { loadSettings, saveSettings } from './store'
 import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
 import { clearEspnCookies, openEspnLogin } from './windows/espnLogin'
@@ -31,12 +32,28 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:disconnectEspn', async () => {
     await clearEspnCookies()
     invalidateEspnSession()
-    saveSettings({ espnLeagueIds: [] })
+    const selected = loadSettings().selectedLeagueKey
+    const parsed = selected ? parseLeagueKey(selected) : null
+    saveSettings({
+      espnLeagueIds: [],
+      selectedLeagueKey: parsed?.provider === 'espn' ? null : selected
+    })
     markEspnRelogin(false)
     await refresh({ waitForBoards: true })
   })
   ipcMain.handle('sideline:addEspnLeague', (_event, leagueId: string) => addEspnLeagueId(leagueId))
   ipcMain.handle('sideline:removeEspnLeague', (_event, leagueId: string) => removeEspnLeagueId(leagueId))
+  ipcMain.handle('sideline:removeSleeperLeague', (_event, leagueId: string) => removeSleeperLeagueId(leagueId))
+  ipcMain.handle('sideline:listDiscoverableLeagues', (_event, provider: unknown) => {
+    const parsed = parseProvider(provider)
+    if (!parsed) return { ok: false, leagues: [], selectedIds: [], error: 'Unknown provider' }
+    return listDiscoverableLeagues(parsed)
+  })
+  ipcMain.handle('sideline:setSelectedLeagueIds', (_event, provider: unknown, ids: unknown) => {
+    const parsed = parseProvider(provider)
+    if (!parsed) return { ok: false, error: 'Unknown provider' }
+    return setSelectedLeagueIds(parsed, Array.isArray(ids) ? ids : [])
+  })
   ipcMain.handle('sideline:setPinned', async (_event, keys: string[]) => {
     saveSettings({ pinnedLeagueKeys: keys })
     await refresh({ waitForBoards: true })

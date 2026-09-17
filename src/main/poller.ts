@@ -1,5 +1,6 @@
-import type { AppState, League, Matchup, NflState, OverlayHudState, TapeEvent, ToastPayload, Transaction } from '@shared/types'
+import type { AppState, DiscoverableLeaguesResult, League, Matchup, NflState, OverlayHudState, Provider, SetSelectedLeaguesResult, TapeEvent, ToastPayload, Transaction } from '@shared/types'
 import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, toOverlayHud } from '@shared/types'
+import { sanitizeLeagueIds } from '@shared/settings'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
 import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
@@ -77,7 +78,7 @@ import { runtime } from './runtime'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
-import { cacheFresh, espnDiscoverySwrPlan, espnFanExtraIds, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
+import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
 
 let timer: NodeJS.Timeout | null = null
@@ -685,9 +686,10 @@ const kickSleeperLeaguesSwr = (nfl: NflState, gen: number): void => {
     .catch(() => cached?.leagues ?? [])
     .then((leagues) => {
       if (gen !== pollGen) return leagues
+      const selected = isReplayMode() ? leagues : leaguesForBoards(leagues, loadSettings().sleeperLeagueIds)
       broadcast({
         ...lastState,
-        leagues: mergeProviderLeagues(lastState.leagues, 'sleeper', leagues),
+        leagues: mergeProviderLeagues(lastState.leagues, 'sleeper', selected),
         lastUpdated: Date.now()
       })
       return leagues
@@ -1101,32 +1103,20 @@ const loadEspnLeaguesFresh = async (
         .catch(() => [] as League[])
     : Promise.resolve([] as League[])
   const knownPromise = Promise.all(knownIds.map((id) => loadEspnLeague(id, nfl, cookies)))
-  const extraPromise = fanPromise.then((probed) => {
-    const extraIds = espnFanExtraIds(
-      probed.map((league) => league.id),
-      knownIds
-    )
-    if (extraIds.length === 0) return [] as (League | null)[]
-    return Promise.all(extraIds.map((id) => loadEspnLeague(id, nfl, cookies)))
-  })
-  const [probed, knownLeagues, extraLeagues] = await Promise.all([fanPromise, knownPromise, extraPromise])
+  const [probed, knownLeagues] = await Promise.all([fanPromise, knownPromise])
   const byId = new Map<string, League>()
-  for (const league of [...knownLeagues, ...extraLeagues]) {
+  for (const league of probed) {
+    if (isLiveLeagueId(league.id)) byId.set(league.id, league)
+  }
+  for (const league of knownLeagues) {
     if (league) byId.set(league.id, league)
   }
   const found = [...byId.values()]
   if (gen !== espnDiscoveryGen) return found
-  const ids = [...knownIds]
-  for (const league of probed) {
-    if (!ids.includes(league.id)) ids.push(league.id)
-  }
-  if (ids.join(',') !== loadSettings().espnLeagueIds.join(',')) {
-    saveSettings({ espnLeagueIds: ids })
-  }
   espnLeaguesCache = {
     at: Date.now(),
     cookieKey,
-    ids: loadSettings().espnLeagueIds.join(','),
+    ids: found.map((league) => league.id).sort().join(','),
     season: nfl.leagueSeason,
     leagues: found
   }
@@ -1160,7 +1150,9 @@ const espnLeaguesLookupPlan = (
   cookies: EspnCookies | null,
   nfl: NflState
 ): { cookieKey: string; plan: ReturnType<typeof espnLeaguesCachePlan> } => {
-  const ids = espnLeagueIdsToDiscover(loadSettings().espnLeagueIds, loadSettings().selectedLeagueKey)
+  const ids =
+    espnLeaguesCache?.ids ??
+    espnLeagueIdsToDiscover(loadSettings().espnLeagueIds, loadSettings().selectedLeagueKey).join(',')
   const cookieKey = cookies ? `${cookies.SWID}:${cookies.espn_s2.slice(0, 12)}` : 'none'
   return {
     cookieKey,
@@ -1170,7 +1162,7 @@ const espnLeaguesLookupPlan = (
       cacheCookieKey: espnLeaguesCache?.cookieKey,
       cacheAt: espnLeaguesCache?.at,
       season: nfl.leagueSeason,
-      ids: ids.join(','),
+      ids,
       cookieKey,
       now: Date.now(),
       ttlMs: LEAGUE_TTL_MS
@@ -1198,9 +1190,10 @@ const kickEspnDiscoverySwr = (cookies: EspnCookies | null, nfl: NflState, gen: n
   void startEspnDiscovery(cookies, nfl, cookieKey)
     .then((leagues) => {
       if (gen !== pollGen) return
+      const selected = isReplayMode() ? leagues : leaguesForBoards(leagues, loadSettings().espnLeagueIds)
       broadcast({
         ...lastState,
-        leagues: mergeProviderLeagues(lastState.leagues, 'espn', leagues),
+        leagues: mergeProviderLeagues(lastState.leagues, 'espn', selected),
         lastUpdated: Date.now()
       })
     })
@@ -2960,8 +2953,18 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     }
     switch (listHud) {
       case 'kick-on-list':
-        void sleeperLeaguesPromise.then(kickFirstListHud).catch(() => undefined)
-        void espnLeaguesPromise.then(kickFirstListHud).catch(() => undefined)
+        void sleeperLeaguesPromise
+          .then((rows) =>
+            kickFirstListHud(
+              replay ? rows : leaguesForBoards(rows, loadSettings().sleeperLeagueIds)
+            )
+          )
+          .catch(() => undefined)
+        void espnLeaguesPromise
+          .then((rows) =>
+            kickFirstListHud(replay ? rows : leaguesForBoards(rows, loadSettings().espnLeagueIds))
+          )
+          .catch(() => undefined)
         break
       case 'skip':
         break
@@ -3019,7 +3022,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       cookies = resolved
     })
     if (gen !== pollGen) return lastState
-    leagues = [...sleeperLeagues, ...espnLeagues]
+    leagues = replay
+      ? [...sleeperLeagues, ...espnLeagues]
+      : [
+          ...leaguesForBoards(sleeperLeagues, loadSettings().sleeperLeagueIds),
+          ...leaguesForBoards(espnLeagues, loadSettings().espnLeagueIds)
+        ]
 
     const pinnedKeys = replay
       ? leagues.map((league) => leagueKey(league.provider, league.id))
@@ -3497,12 +3505,14 @@ export const warmupPollerCaches = (): void => {
     if (
       stripped.selectedLeagueKey !== settings.selectedLeagueKey ||
       stripped.pinnedLeagueKeys.join('\0') !== settings.pinnedLeagueKeys.join('\0') ||
-      stripped.espnLeagueIds.join('\0') !== settings.espnLeagueIds.join('\0')
+      stripped.espnLeagueIds.join('\0') !== settings.espnLeagueIds.join('\0') ||
+      JSON.stringify(stripped.sleeperLeagueIds) !== JSON.stringify(settings.sleeperLeagueIds)
     ) {
       saveSettings({
         selectedLeagueKey: stripped.selectedLeagueKey,
         pinnedLeagueKeys: stripped.pinnedLeagueKeys,
-        espnLeagueIds: stripped.espnLeagueIds
+        espnLeagueIds: stripped.espnLeagueIds,
+        sleeperLeagueIds: stripped.sleeperLeagueIds
       })
     }
   }
@@ -3553,7 +3563,8 @@ export const warmupPollerCaches = (): void => {
       nfl,
       sleeperLeagues: sleeperLeaguesCache?.leagues ?? [],
       espnLeagues: espnLeaguesCache?.leagues ?? [],
-      espnLeagueIds: espnLeagueIdsToDiscover(settings.espnLeagueIds, settings.selectedLeagueKey)
+      espnLeagueIds: espnLeagueIdsToDiscover(settings.espnLeagueIds, settings.selectedLeagueKey),
+      sleeperLeagueIds: settings.sleeperLeagueIds
     })
     const lastHudRaw = peekLastHud()
     if (
@@ -3699,8 +3710,16 @@ export const connectSleeper = async (username: string): Promise<{ ok: boolean; e
       cacheBust: sleeperCdnBustToken(Date.now(), SLEEPER_USER_CDN_MS)
     })
     if (!user?.user_id) return { ok: false, error: 'Sleeper user not found' }
+    const previous = loadSettings()
+    const sleeperLeagueIds = nextSleeperLeagueIdsOnConnect({
+      previousUsername: previous.sleeperUsername,
+      previousUserId: previous.sleeperUserId,
+      previousLeagueIds: previous.sleeperLeagueIds,
+      nextUsername: username.trim(),
+      nextUserId: user.user_id
+    })
     rememberSleeperUser(user, username.trim())
-    saveSettings({ sleeperUsername: username.trim(), sleeperUserId: user.user_id })
+    saveSettings({ sleeperUsername: username.trim(), sleeperUserId: user.user_id, sleeperLeagueIds })
     await refresh({ waitForBoards: true })
     return { ok: true }
   } catch (error) {
@@ -3723,7 +3742,7 @@ export const disconnectSleeper = async (): Promise<void> => {
   writeSleeperRostersDisk({})
   dropCachedMatchups('sleeper')
   txCache.clear()
-  saveSettings({ sleeperUsername: null, sleeperUserId: null })
+  saveSettings({ sleeperUsername: null, sleeperUserId: null, sleeperLeagueIds: null })
   await refresh({ waitForBoards: true })
 }
 
@@ -3758,4 +3777,84 @@ export const removeEspnLeagueId = async (leagueId: string): Promise<void> => {
     saveSettings({ selectedLeagueKey: null })
   }
   await refresh({ waitForBoards: true })
+}
+
+export const removeSleeperLeagueId = async (leagueId: string): Promise<void> => {
+  const current = loadSettings().sleeperLeagueIds
+  if (current == null) {
+    const remaining = (sleeperLeaguesCache?.leagues ?? lastState.leagues.filter((row) => row.provider === 'sleeper'))
+      .map((row) => row.id)
+      .filter((id) => id !== leagueId)
+    saveSettings({ sleeperLeagueIds: remaining })
+  } else {
+    saveSettings({ sleeperLeagueIds: current.filter((id) => id !== leagueId) })
+  }
+  const selected = loadSettings().selectedLeagueKey
+  const parsed = selected ? parseLeagueKey(selected) : null
+  if (parsed?.provider === 'sleeper' && parsed.id === leagueId) {
+    saveSettings({ selectedLeagueKey: null })
+  }
+  await refresh({ waitForBoards: true })
+}
+
+const clearSelectedIfDropped = (provider: Provider, ids: string[]): void => {
+  const selected = loadSettings().selectedLeagueKey
+  const parsed = selected ? parseLeagueKey(selected) : null
+  if (parsed?.provider === provider && !ids.includes(parsed.id)) {
+    saveSettings({ selectedLeagueKey: null })
+  }
+}
+
+export const setSelectedLeagueIds = async (
+  provider: Provider,
+  ids: string[]
+): Promise<SetSelectedLeaguesResult> => {
+  const unique = sanitizeLeagueIds(ids)
+  switch (provider) {
+    case 'espn':
+      saveSettings({ espnLeagueIds: unique })
+      clearSelectedIfDropped('espn', unique)
+      await refresh({ waitForBoards: true })
+      return { ok: true }
+    case 'sleeper':
+      saveSettings({ sleeperLeagueIds: unique })
+      clearSelectedIfDropped('sleeper', unique)
+      await refresh({ waitForBoards: true })
+      return { ok: true }
+    default: {
+      const _never: never = provider
+      return _never
+    }
+  }
+}
+
+export const listDiscoverableLeagues = async (provider: Provider): Promise<DiscoverableLeaguesResult> => {
+  switch (provider) {
+    case 'sleeper': {
+      if (!loadSettings().sleeperUsername && !isReplayMode()) {
+        return { ok: true, leagues: [], selectedIds: [] }
+      }
+      await refresh({ waitForBoards: true })
+      const leagues = isReplayMode()
+        ? currentState().leagues.filter((row) => row.provider === 'sleeper')
+        : (sleeperLeaguesCache?.leagues ?? [])
+      const selected = loadSettings().sleeperLeagueIds
+      return {
+        ok: true,
+        leagues,
+        selectedIds: selected ?? leagues.map((row) => row.id)
+      }
+    }
+    case 'espn': {
+      await refresh({ waitForBoards: true })
+      const leagues = isReplayMode()
+        ? currentState().leagues.filter((row) => row.provider === 'espn')
+        : (espnLeaguesCache?.leagues ?? [])
+      return { ok: true, leagues, selectedIds: loadSettings().espnLeagueIds }
+    }
+    default: {
+      const _never: never = provider
+      return _never
+    }
+  }
 }
