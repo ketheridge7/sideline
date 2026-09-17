@@ -1,13 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 128" role="img" aria-label="SIDELINE">
   <!-- Mark + SIDELINE: tight gap, wordmark height matched to mark -->
-  <defs>
-    <linearGradient id="broadcastLime" x1="8" y1="8" x2="100" y2="120" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#D6F34A"/>
-      <stop offset="45%" stop-color="#B6FF3B"/>
-      <stop offset="100%" stop-color="#7DFFB0"/>
-    </linearGradient>
-  </defs>
-  <g fill="url(#broadcastLime)" transform="translate(52 64) skewX(-10) scale(0.155)">
+  <g fill="#B6FF3B" transform="translate(52 64) skewX(-10) scale(0.155)">
     <path d="
       M -28 22
       C -176 22 -240 -44 -240 -158
