@@ -1,6 +1,16 @@
 import type { OverlayLayout } from '@shared/overlayLayout'
 import type { ShortcutAction } from '@shared/shortcuts'
-import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import type {
+  AppState,
+  CompanionBoardsPatch,
+  CompanionHudPatch,
+  CompanionTick,
+  DiscoverableLeaguesResult,
+  OverlayHudState,
+  Provider,
+  SetSelectedLeaguesResult,
+  ToastPayload
+} from '@shared/types'
 import type { UpdateSnapshot } from '@shared/updater'
 
 export type SidelineApi = {
@@ -17,6 +27,9 @@ export type SidelineApi = {
   disconnectEspn: () => Promise<void>
   addEspnLeague: (leagueId: string) => Promise<{ ok: boolean; error?: string }>
   removeEspnLeague: (leagueId: string) => Promise<void>
+  removeSleeperLeague: (leagueId: string) => Promise<void>
+  listDiscoverableLeagues: (provider: Provider) => Promise<DiscoverableLeaguesResult>
+  setSelectedLeagueIds: (provider: Provider, ids: string[]) => Promise<SetSelectedLeaguesResult>
   setPinned: (keys: string[]) => Promise<void>
   selectLeague: (key: string | null) => Promise<void>
   toggleOverlay: () => Promise<void>

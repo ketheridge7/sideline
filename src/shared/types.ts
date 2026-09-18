@@ -50,6 +50,23 @@ export type MatchupBoard = {
 
 export type Provider = 'sleeper' | 'espn'
 
+export const parseProvider = (value: unknown): Provider | null => {
+  if (value === 'sleeper' || value === 'espn') return value
+  return null
+}
+
+export type DiscoverableLeaguesResult = {
+  ok: boolean
+  leagues: League[]
+  selectedIds: string[]
+  error?: string
+}
+
+export type SetSelectedLeaguesResult = {
+  ok: boolean
+  error?: string
+}
+
 export type League = {
   id: string
   name: string

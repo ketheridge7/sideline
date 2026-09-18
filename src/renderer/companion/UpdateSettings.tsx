@@ -9,7 +9,7 @@ const api = (): NonNullable<Window['sideline']> => {
 
 const idleSnapshot = (): UpdateSnapshot => ({ state: 'idle', currentVersion: '' })
 
-export const UpdateSettings = (): JSX.Element => {
+export const UpdateSettings = ({ framed = true }: { framed?: boolean }): JSX.Element => {
   const [snapshot, setSnapshot] = useState<UpdateSnapshot>(idleSnapshot)
 
   useEffect(() => {
@@ -21,10 +21,10 @@ export const UpdateSettings = (): JSX.Element => {
   const copy = updateStatusCopy(snapshot, snapshot.currentVersion)
   const busy = snapshot.state === 'checking' || snapshot.state === 'downloading'
 
-  return (
-    <section className="rounded-sm border border-line bg-card p-5">
-      <h2 className="text-base font-semibold">Updates</h2>
-      <p className="mt-1 text-sm text-muted">
+  const body = (
+    <>
+      {framed ? <h2 className="text-base font-semibold">Updates</h2> : null}
+      <p className={`${framed ? 'mt-1' : ''} text-sm text-muted`}>
         Installed Windows builds check public GitHub Releases. <code className="text-xs">npm start</code> does not.
       </p>
       <p className="mt-3 text-sm text-muted" data-update-state={snapshot.state}>
@@ -49,6 +49,9 @@ export const UpdateSettings = (): JSX.Element => {
           </button>
         ) : null}
       </div>
-    </section>
+    </>
   )
+
+  if (!framed) return <div>{body}</div>
+  return <section className="rounded-sm border border-line bg-card p-5">{body}</section>
 }

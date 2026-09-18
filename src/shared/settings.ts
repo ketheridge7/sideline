@@ -9,6 +9,8 @@ import {
 export type Settings = {
   sleeperUsername: string | null
   sleeperUserId: string | null
+  /** Null means legacy “all discovered”; [] means none selected. */
+  sleeperLeagueIds: string[] | null
   espnLeagueIds: string[]
   pinnedLeagueKeys: string[]
   selectedLeagueKey: string | null
@@ -27,9 +29,24 @@ export type SettingsHotkeys = Pick<
   'overlayHotkey' | 'overlayEditHotkey' | 'overlayDisplayHotkey' | 'nextLeagueHotkey' | 'prevLeagueHotkey'
 >
 
+export const sanitizeLeagueIds = (ids: unknown): string[] => {
+  if (!Array.isArray(ids)) return []
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const value of ids) {
+    if (typeof value !== 'string' && typeof value !== 'number') continue
+    const id = String(value).trim()
+    if (!/^\d+$/.test(id) || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
+}
+
 export const defaultSettings = (): Settings => ({
   sleeperUsername: null,
   sleeperUserId: null,
+  sleeperLeagueIds: null,
   espnLeagueIds: [],
   pinnedLeagueKeys: [],
   selectedLeagueKey: null,
@@ -62,6 +79,10 @@ export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
     ...base,
     ...parsed,
     sleeperUserId: typeof parsed.sleeperUserId === 'string' && parsed.sleeperUserId ? parsed.sleeperUserId : null,
+    sleeperLeagueIds: Array.isArray(parsed.sleeperLeagueIds)
+      ? sanitizeLeagueIds(parsed.sleeperLeagueIds)
+      : null,
+    espnLeagueIds: Array.isArray(parsed.espnLeagueIds) ? sanitizeLeagueIds(parsed.espnLeagueIds) : base.espnLeagueIds,
     overlayLayout: parseOverlayLayout(parsed.overlayLayout ?? base.overlayLayout),
     overlayDisplayId: typeof parsed.overlayDisplayId === 'number' ? parsed.overlayDisplayId : null,
     ...shortcutSettingsPatch(shortcuts)

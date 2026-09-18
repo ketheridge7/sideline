@@ -16,7 +16,13 @@ const api = (): NonNullable<Window['sideline']> => {
   return window.sideline
 }
 
-export const ShortcutSettings = ({ state }: { state: AppState }): JSX.Element => {
+export const ShortcutSettings = ({
+  state,
+  framed = true
+}: {
+  state: AppState
+  framed?: boolean
+}): JSX.Element => {
   const shortcuts = shortcutMapFromSettings(state)
   const [listening, setListening] = useState<ShortcutAction | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -60,10 +66,10 @@ export const ShortcutSettings = ({ state }: { state: AppState }): JSX.Element =>
       })
   }
 
-  return (
-    <section className="rounded-sm border border-line bg-card p-5">
-      <h2 className="text-base font-semibold">Keyboard shortcuts</h2>
-      <p className="mt-1 text-sm text-muted">
+  const body = (
+    <>
+      {framed ? <h2 className="text-base font-semibold">Keyboard shortcuts</h2> : null}
+      <p className={`${framed ? 'mt-1' : ''} text-sm text-muted`}>
         Chorded shortcuts (Ctrl+Shift+…) work globally, including while a game is focused. Single keys like [ and ]
         work in the companion when you are not typing in a field. Change captures the next key; Esc cancels.
       </p>
@@ -101,6 +107,9 @@ export const ShortcutSettings = ({ state }: { state: AppState }): JSX.Element =>
         ))}
       </ul>
       {error ? <p className="mt-3 text-sm text-air">{error}</p> : null}
-    </section>
+    </>
   )
+
+  if (!framed) return <div>{body}</div>
+  return <section className="rounded-sm border border-line bg-card p-5">{body}</section>
 }

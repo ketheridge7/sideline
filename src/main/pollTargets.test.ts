@@ -25,6 +25,8 @@ import {
   espnLeaguesCachePlan,
   espnDiscoverySwrPlan,
   mergeProviderLeagues,
+  leaguesForBoards,
+  nextSleeperLeagueIdsOnConnect,
   holdForSelectedLive,
   matchupsFromDiskPayload,
   isLiveLeagueId,
@@ -1710,6 +1712,58 @@ describe('espnDiscoverySwrPlan', () => {
   })
 })
 
+describe('leaguesForBoards', () => {
+  it('keeps every league when the allowlist is legacy-null and filters to selected ids', () => {
+    const rows = [league('sleeper', '11'), league('sleeper', '22'), league('espn', '33')]
+    expect(leaguesForBoards(rows, null).map((row) => row.id)).toEqual(['11', '22', '33'])
+    expect(leaguesForBoards(rows, []).map((row) => row.id)).toEqual([])
+    expect(leaguesForBoards(rows, ['22', '99']).map((row) => `${row.provider}:${row.id}`)).toEqual([
+      'sleeper:22'
+    ])
+  })
+})
+
+describe('nextSleeperLeagueIdsOnConnect', () => {
+  it('starts a new username on an empty picker and keeps a same-user allowlist or legacy-all', () => {
+    expect(
+      nextSleeperLeagueIdsOnConnect({
+        previousUsername: null,
+        previousUserId: null,
+        previousLeagueIds: null,
+        nextUsername: 'bob',
+        nextUserId: '1'
+      })
+    ).toEqual([])
+    expect(
+      nextSleeperLeagueIdsOnConnect({
+        previousUsername: 'bob',
+        previousUserId: '1',
+        previousLeagueIds: ['11'],
+        nextUsername: 'bob',
+        nextUserId: '1'
+      })
+    ).toEqual(['11'])
+    expect(
+      nextSleeperLeagueIdsOnConnect({
+        previousUsername: 'bob',
+        previousUserId: '1',
+        previousLeagueIds: null,
+        nextUsername: 'bob',
+        nextUserId: '1'
+      })
+    ).toBeNull()
+    expect(
+      nextSleeperLeagueIdsOnConnect({
+        previousUsername: 'bob',
+        previousUserId: '1',
+        previousLeagueIds: ['11'],
+        nextUsername: 'other',
+        nextUserId: '2'
+      })
+    ).toEqual([])
+  })
+})
+
 describe('mergeProviderLeagues', () => {
   it('replaces one provider slice and keeps sleeper before ESPN', () => {
     const sleeper = league('sleeper', '11')
@@ -2078,6 +2132,20 @@ describe('warmupLeaguesFromDisk', () => {
     ])
     expect(leagues[0]?.week).toBe(1)
   })
+
+  it('keeps unselected discovered ESPN and Sleeper leagues off the warmup board list', () => {
+    const leagues = warmupLeaguesFromDisk({
+      nfl,
+      sleeperLeagues: [league('sleeper', '11'), league('sleeper', '22')],
+      espnLeagues: [
+        { ...league('espn', '899513'), name: 'Public' },
+        { ...league('espn', '1001'), name: 'Skipped' }
+      ],
+      espnLeagueIds: ['899513'],
+      sleeperLeagueIds: ['11']
+    })
+    expect(leagues.map((row) => `${row.provider}:${row.id}`)).toEqual(['sleeper:11', 'espn:899513'])
+  })
 })
 
 describe('warmupMatchupFromDisk', () => {
@@ -2442,10 +2510,12 @@ describe('stripReplayLeagueKeys', () => {
     const stripped = stripReplayLeagueKeys({
       ...defaultSettings(),
       espnLeagueIds: ['gridiron-gurus', '899513'],
+      sleeperLeagueIds: ['fourth-drunken', '123456'],
       pinnedLeagueKeys: ['sleeper:fourth-drunken', 'espn:899513'],
       selectedLeagueKey: 'sleeper:fourth-drunken'
     })
     expect(stripped.espnLeagueIds).toEqual(['899513'])
+    expect(stripped.sleeperLeagueIds).toEqual(['123456'])
     expect(stripped.pinnedLeagueKeys).toEqual(['espn:899513'])
     expect(stripped.selectedLeagueKey).toBeNull()
   })

@@ -37,12 +37,36 @@ const diskPts = (value: unknown): number | undefined => {
 export const stripReplayLeagueKeys = (settings: Settings): Settings => ({
   ...settings,
   espnLeagueIds: settings.espnLeagueIds.filter(isLiveLeagueId),
+  sleeperLeagueIds:
+    settings.sleeperLeagueIds == null ? null : settings.sleeperLeagueIds.filter(isLiveLeagueId),
   pinnedLeagueKeys: settings.pinnedLeagueKeys.filter(isLiveLeagueKey),
   selectedLeagueKey:
     settings.selectedLeagueKey && isLiveLeagueKey(settings.selectedLeagueKey)
       ? settings.selectedLeagueKey
       : null
 })
+
+/** Null selectedIds means legacy “all discovered” (do not filter). */
+export const leaguesForBoards = (leagues: League[], selectedIds: string[] | null): League[] => {
+  if (selectedIds == null) return leagues
+  const allow = new Set(selectedIds)
+  return leagues.filter((league) => allow.has(league.id))
+}
+
+export const nextSleeperLeagueIdsOnConnect = (opts: {
+  previousUsername: string | null
+  previousUserId: string | null
+  previousLeagueIds: string[] | null
+  nextUsername: string
+  nextUserId: string
+}): string[] | null => {
+  const nextName = opts.nextUsername.trim().toLowerCase()
+  const sameUser =
+    (opts.previousUserId != null && opts.previousUserId === opts.nextUserId) ||
+    (opts.previousUsername != null && opts.previousUsername.trim().toLowerCase() === nextName)
+  if (sameUser) return opts.previousLeagueIds
+  return []
+}
 
 export const espnFanExtraIds = (probedIds: string[], knownIds: string[]): string[] =>
   probedIds.filter((id) => isLiveLeagueId(id) && !knownIds.includes(id))
@@ -1342,6 +1366,7 @@ export const warmupLeaguesFromDisk = (opts: {
   sleeperLeagues: League[]
   espnLeagues?: League[]
   espnLeagueIds: string[]
+  sleeperLeagueIds?: string[] | null
 }): League[] => {
   const seen = new Set<string>()
   const out: League[] = []
@@ -1356,8 +1381,8 @@ export const warmupLeaguesFromDisk = (opts: {
       season: league.season || opts.nfl.leagueSeason
     })
   }
-  for (const league of opts.sleeperLeagues) push(league)
-  for (const league of opts.espnLeagues ?? []) push(league)
+  for (const league of leaguesForBoards(opts.sleeperLeagues, opts.sleeperLeagueIds ?? null)) push(league)
+  for (const league of leaguesForBoards(opts.espnLeagues ?? [], opts.espnLeagueIds)) push(league)
   for (const id of opts.espnLeagueIds) {
     const stub = stubLeagueFromKey(`espn:${id}`, opts.nfl.leagueSeason, opts.nfl.displayWeek)
     if (stub) push(stub)
