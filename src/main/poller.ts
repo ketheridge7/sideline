@@ -159,7 +159,7 @@ const sleeperRosterCache = new Map<
 >()
 const matchupCache = new Map<string, { at: number; matchup: Matchup }>()
 const txCache = new Map<string, { at: number; rows: Transaction[] }>()
-let nflStateCache: { at: number; nfl: NflState } | null = null
+let nflStateCache: { at: number; nfl: NflState; trusted: boolean } | null = null
 let nflStateInFlight: Promise<NflState> | null = null
 let espnLeaguesCache: {
   at: number
@@ -362,7 +362,7 @@ const loadNflFresh = async (liveTick = false): Promise<NflState> => {
       cacheBust: sleeperCdnBustToken(Date.now(), NFL_TTL_MS)
     })
   )
-  nflStateCache = { at: Date.now(), nfl }
+  nflStateCache = { at: Date.now(), nfl, trusted: true }
   writeNflDisk(nfl)
   return nfl
 }
@@ -370,13 +370,18 @@ const loadNflFresh = async (liveTick = false): Promise<NflState> => {
 const loadNfl = (): NflState => {
   if (isReplayMode()) return replayNfl()
   if (nflStateCache) return nflStateCache.nfl
-  const disk = readNflDisk() ?? readNflDiskStale()
+  const disk = readNflDisk()
   if (disk) {
-    nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: disk }
+    nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: disk, trusted: true }
     return disk
   }
+  const stale = readNflDiskStale()
+  if (stale) {
+    nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: stale, trusted: false }
+    return stale
+  }
   const seed = nflCalendarSeed(new Date(), peekLastHud()?.displayWeek)
-  nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: seed }
+  nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: seed, trusted: false }
   return seed
 }
 
@@ -386,7 +391,8 @@ const kickNflStateSwr = (onFresh: (nfl: NflState) => void, liveTick = false): vo
     fresh: Boolean(nflStateCache && cacheFresh(nflStateCache.at, Date.now(), NFL_TTL_MS)),
     liveTick,
     cachedWeek: nflStateCache?.nfl.displayWeek,
-    calendarWeek: calendarNflFallback(new Date()).displayWeek
+    calendarWeek: calendarNflFallback(new Date()).displayWeek,
+    trusted: Boolean(nflStateCache?.trusted)
   })
   switch (plan) {
     case 'return':
@@ -3525,14 +3531,15 @@ export const warmupPollerCaches = (): void => {
   switch (nflPlan) {
     case 'disk':
       if (nflDisk && !nflStateCache) {
-        nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: nflDisk }
+        nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: nflDisk, trusted: true }
       }
       break
     case 'calendar':
       if (!nflStateCache) {
         nflStateCache = {
           at: Date.now() - NFL_TTL_MS,
-          nfl: nflCalendarSeed(new Date(), peekLastHud()?.displayWeek)
+          nfl: nflCalendarSeed(new Date(), peekLastHud()?.displayWeek),
+          trusted: false
         }
       }
       break

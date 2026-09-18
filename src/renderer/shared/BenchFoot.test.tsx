@@ -125,6 +125,32 @@ describe('Bench social popover', () => {
 })
 
 describe('BoardRosterColumn open/close', () => {
+  it('renders every displayable bench player in the open card', () => {
+    const bench = [kittle, nico, cmc].concat(
+      ['A', 'B', 'C', 'D', 'E'].map((name, index) =>
+        player({ playerId: `bn${index}`, name: `Bench ${name}`, position: 'WR', points: index })
+      )
+    )
+    const html = renderToStaticMarkup(
+      <BoardRosterColumn
+        you
+        starters={[cmc]}
+        bench={bench}
+        rows={1}
+        open
+        onOpenChange={() => undefined}
+        onFocus={() => undefined}
+      />
+    )
+    expect(bench).toHaveLength(8)
+    expect(html).toContain('overflow-y-auto')
+    expect(html).toContain('George Kittle')
+    expect(html).toContain('Nico Collins')
+    expect(html).toContain('Bench A')
+    expect(html).toContain('Bench E')
+    expect(html).toContain('>8<')
+  })
+
   it('hides bench players until the column is open', () => {
     const closed = renderToStaticMarkup(
       <BoardRosterColumn

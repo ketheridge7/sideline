@@ -132,6 +132,7 @@ import {
   NFL_DISK_STALE_MS,
   calendarNflFallback,
   nflCalendarSeed,
+  nflWeek1ThursdayDay,
   espnTeamIdFromMatchup,
   espnTeamIdOf,
   espnTeamFetchKey,
@@ -152,6 +153,7 @@ import {
 
 describe('calendarNflFallback', () => {
   it('uses the prior calendar year in January and the current year after March', () => {
+    expect(nflWeek1ThursdayDay(2026)).toBe(10)
     expect(calendarNflFallback(new Date('2026-08-31T12:00:00-05:00'))).toEqual({
       week: 1,
       displayWeek: 1,
@@ -159,19 +161,33 @@ describe('calendarNflFallback', () => {
       leagueSeason: '2026',
       seasonType: 'pre'
     })
-    expect(calendarNflFallback(new Date('2027-01-15T12:00:00-05:00'))).toEqual({
+    expect(calendarNflFallback(new Date('2026-09-09T12:00:00-04:00'))).toEqual({
+      week: 1,
+      displayWeek: 1,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'pre'
+    })
+    expect(calendarNflFallback(new Date('2026-09-11T12:00:00-04:00'))).toEqual({
       week: 1,
       displayWeek: 1,
       season: '2026',
       leagueSeason: '2026',
       seasonType: 'regular'
     })
-    expect(calendarNflFallback(new Date('2026-09-14T12:00:00-05:00'))).toEqual({
-      week: 1,
-      displayWeek: 1,
+    expect(calendarNflFallback(new Date('2026-09-18T12:00:00-04:00'))).toEqual({
+      week: 2,
+      displayWeek: 2,
       season: '2026',
       leagueSeason: '2026',
       seasonType: 'regular'
+    })
+    expect(calendarNflFallback(new Date('2027-01-15T12:00:00-05:00'))).toEqual({
+      week: 19,
+      displayWeek: 19,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'post'
     })
   })
 
@@ -775,15 +791,45 @@ describe('nflStateSwrPlan', () => {
     expect(nflStateSwrPlan({ fresh: false })).toBe('swr')
   })
 
-  it('skips /state/nfl on live ticks when the cached week already matches the calendar', () => {
+  it('skips /state/nfl on live ticks only when a trusted week already matches the calendar', () => {
     expect(
-      nflStateSwrPlan({ fresh: false, liveTick: true, cachedWeek: 1, calendarWeek: 1 })
+      nflStateSwrPlan({
+        fresh: false,
+        liveTick: true,
+        cachedWeek: 2,
+        calendarWeek: 2,
+        trusted: true
+      })
     ).toBe('return')
     expect(
-      nflStateSwrPlan({ fresh: false, liveTick: true, cachedWeek: 18, calendarWeek: 1 })
+      nflStateSwrPlan({
+        fresh: false,
+        liveTick: true,
+        cachedWeek: 1,
+        calendarWeek: 1,
+        trusted: false
+      })
     ).toBe('swr')
     expect(
-      nflStateSwrPlan({ fresh: false, liveTick: false, cachedWeek: 1, calendarWeek: 1 })
+      nflStateSwrPlan({ fresh: false, liveTick: true, cachedWeek: 1, calendarWeek: 1 })
+    ).toBe('swr')
+    expect(
+      nflStateSwrPlan({
+        fresh: false,
+        liveTick: true,
+        cachedWeek: 1,
+        calendarWeek: 2,
+        trusted: true
+      })
+    ).toBe('swr')
+    expect(
+      nflStateSwrPlan({
+        fresh: false,
+        liveTick: false,
+        cachedWeek: 2,
+        calendarWeek: 2,
+        trusted: true
+      })
     ).toBe('swr')
   })
 })
