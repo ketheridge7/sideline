@@ -1,18 +1,27 @@
 import { describe, expect, it } from 'vitest'
+import type { Player } from '@shared/types'
 import {
   applyBenchDismiss,
   BENCH_CLOSE_MS,
   BENCH_FOOT_HEIGHT_PX,
-  BENCH_FOOT_OVERLAP_PX,
+  BENCH_HAIRLINE_PX,
   BENCH_OPEN_MS,
   BENCH_ROW_HEIGHT_PX,
   BENCH_VISIBLE_ROW_CAP,
   benchFootCopy,
   benchPopoverMaxHeightPx,
-  canOpenBench
+  canOpenBench,
+  displayableBenchPlayers,
+  isDisplayableBenchPlayer,
+  lineupPositionLabel
 } from './benchPopover'
 
 const closed = { mine: false, opp: false }
+
+const player = (row: Partial<Player> & Pick<Player, 'playerId' | 'name' | 'position'>): Player => ({
+  nflTeam: 'SF',
+  ...row
+})
 
 describe('benchFootCopy', () => {
   it('labels count, empty, and missing opponent benches', () => {
@@ -81,11 +90,29 @@ describe('applyBenchDismiss', () => {
   })
 })
 
-describe('overlap geometry', () => {
-  it('overlaps the 40px foot by 50% (16–24px spec band)', () => {
+describe('open-unit geometry', () => {
+  it('keeps the 40px foot and stacks the card above it with a 2px hairline', () => {
     expect(BENCH_FOOT_HEIGHT_PX).toBe(40)
-    expect(BENCH_FOOT_OVERLAP_PX).toBe(BENCH_FOOT_HEIGHT_PX / 2)
+    expect(BENCH_HAIRLINE_PX).toBe(2)
     expect(BENCH_OPEN_MS).toBe(200)
     expect(BENCH_CLOSE_MS).toBe(160)
+  })
+})
+
+describe('displayable bench rows', () => {
+  it('keeps named POS|NAME|PTS rows and drops ? placeholders and raw ids', () => {
+    const kittle = player({ playerId: 'bn', name: 'George Kittle', position: 'TE', points: 4.2 })
+    const question = player({ playerId: '4034', name: '4034', position: '?', nflTeam: '' })
+    const idName = player({ playerId: '8137', name: '8137', position: 'WR', nflTeam: 'KC' })
+    const sameId = player({ playerId: 'abc', name: 'abc', position: '?', nflTeam: '' })
+    expect(isDisplayableBenchPlayer(kittle)).toBe(true)
+    expect(isDisplayableBenchPlayer(question)).toBe(false)
+    expect(isDisplayableBenchPlayer(idName)).toBe(false)
+    expect(isDisplayableBenchPlayer(sameId)).toBe(false)
+    expect(displayableBenchPlayers([kittle, question, idName, sameId])).toEqual([kittle])
+    expect(lineupPositionLabel('TE')).toBe('TE')
+    expect(lineupPositionLabel('?')).toBe('—')
+    expect(lineupPositionLabel('')).toBe('—')
+    expect(lineupPositionLabel(undefined)).toBe('—')
   })
 })

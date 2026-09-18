@@ -5,6 +5,8 @@ import {
   applyBenchDismiss,
   benchFootCopy,
   canOpenBench,
+  displayableBenchPlayers,
+  lineupPositionLabel,
   type BenchSide
 } from './benchPopover'
 import { BenchFootStack, dismissBenchPointer, useColumnBodyHeight } from './BenchFoot'
@@ -42,7 +44,8 @@ export const BoardRosterColumn = ({
   onFocus: () => void
 }): JSX.Element => {
   const { ref, height } = useColumnBodyHeight()
-  const copy = benchFootCopy(bench.length, missing)
+  const visibleBench = displayableBenchPlayers(bench)
+  const copy = benchFootCopy(visibleBench.length, missing)
   const side: BenchSide = you ? 'mine' : 'opp'
   const headerClass = you
     ? 'mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime'
@@ -73,7 +76,7 @@ export const BoardRosterColumn = ({
         onToggle={() => onOpenChange(!open)}
         onFocus={onFocus}
       >
-        {bench.map((player) => (
+        {visibleBench.map((player) => (
           <LineupRow key={player.playerId} player={player} you={you} fixed />
         ))}
       </BenchFootStack>
@@ -97,8 +100,8 @@ export const BoardRails = ({
   const rows = Math.max(mine.length, opp.length, 1)
   const [open, dispatch] = useReducer(applyBenchDismiss, { mine: false, opp: false })
   const [lastFocused, setLastFocused] = useState<BenchSide>('mine')
-  const mineCopy = benchFootCopy(mineBench.length)
-  const oppCopy = benchFootCopy(oppBench.length, oppMissing)
+  const mineCopy = benchFootCopy(displayableBenchPlayers(mineBench).length)
+  const oppCopy = benchFootCopy(displayableBenchPlayers(oppBench).length, oppMissing)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -223,7 +226,7 @@ export const LineupRow = ({
   return (
     <div className={rowClass} data-lineup-row={you ? 'mine' : 'opp'}>
       <span className={`lineup-row-pos ${posClass}`} data-lineup-col="pos">
-        {player.position || '—'}
+        {lineupPositionLabel(player.position)}
       </span>
       <span className={`lineup-row-name ${nameClass}`} data-lineup-col="name">
         {name}

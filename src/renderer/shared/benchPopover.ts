@@ -1,8 +1,10 @@
+import type { Player } from '@shared/types'
+
 export const BENCH_ROW_HEIGHT_PX = 44
 export const BENCH_VISIBLE_ROW_CAP = 5
 export const BENCH_COLUMN_BODY_FRACTION = 0.48
 export const BENCH_FOOT_HEIGHT_PX = 40
-export const BENCH_FOOT_OVERLAP_PX = 20
+export const BENCH_HAIRLINE_PX = 2
 export const BENCH_OPEN_MS = 200
 export const BENCH_CLOSE_MS = 160
 
@@ -27,6 +29,25 @@ export const benchFootCopy = (count: number, missing = false): BenchFootCopy => 
 }
 
 export const canOpenBench = (copy: BenchFootCopy): boolean => copy.kind === 'count' && copy.count > 0
+
+const hasLetter = /[A-Za-z]/
+
+export const isDisplayableBenchPlayer = (player: Player): boolean => {
+  const name = player.name.trim()
+  if (!name || !hasLetter.test(name)) return false
+  if (name === player.playerId) return false
+  if (/^\d+$/.test(name)) return false
+  return true
+}
+
+export const displayableBenchPlayers = (players: Player[]): Player[] =>
+  players.filter(isDisplayableBenchPlayer)
+
+export const lineupPositionLabel = (position: string | undefined): string => {
+  const pos = position?.trim() ?? ''
+  if (!pos || pos === '?') return '—'
+  return pos
+}
 
 export const benchPopoverMaxHeightPx = (columnBodyHeightPx: number): number => {
   const rowCap = BENCH_ROW_HEIGHT_PX * BENCH_VISIBLE_ROW_CAP

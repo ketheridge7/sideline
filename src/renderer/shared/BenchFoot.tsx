@@ -9,7 +9,7 @@ import {
 } from 'react'
 import {
   BENCH_CLOSE_MS,
-  BENCH_FOOT_OVERLAP_PX,
+  BENCH_HAIRLINE_PX,
   benchPopoverMaxHeightPx,
   canOpenBench,
   prefersBenchReducedMotion,
@@ -115,7 +115,7 @@ export const BenchFootButton = ({
         if (!allowed) return
         onToggle()
       }}
-      className={`relative z-10 flex h-10 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border bg-white/[0.03] font-cond text-[11px] font-bold uppercase tracking-[0.18em] ${tone} ${border} hover:brightness-110 disabled:cursor-default disabled:opacity-70`}
+      className={`relative z-30 flex h-10 w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border bg-white/[0.03] font-cond text-[11px] font-bold uppercase tracking-[0.18em] ${tone} ${border} hover:brightness-110 disabled:cursor-default disabled:opacity-70`}
     >
       <span>Bench</span>
       <span aria-hidden="true">·</span>
@@ -139,8 +139,7 @@ export const BenchSocialCard = ({
   const side: BenchSide = you ? 'mine' : 'opp'
   return (
     <div
-      className="bench-social-popover absolute left-3 right-3 z-20 rounded-3xl border border-ice/10 bg-[#12141A] shadow-[0_16px_48px_rgba(0,0,0,0.65)]"
-      style={{ bottom: BENCH_FOOT_OVERLAP_PX }}
+      className="bench-social-popover absolute bottom-full left-0 right-0 z-20 rounded-3xl border border-ice/10 bg-[#12141A] shadow-[0_22px_64px_rgba(0,0,0,0.8)]"
       data-bench-popover={side}
       data-state={state}
       role="region"
@@ -148,7 +147,8 @@ export const BenchSocialCard = ({
     >
       <div className="relative overflow-hidden rounded-3xl" style={{ maxHeight }}>
         <div
-          className={`pointer-events-none absolute bottom-3 left-0 top-3 w-0.5 ${you ? 'bg-lime' : 'bg-them'}`}
+          className={`pointer-events-none absolute bottom-3 left-0 top-3 ${you ? 'bg-lime' : 'bg-them'}`}
+          style={{ width: BENCH_HAIRLINE_PX }}
           aria-hidden="true"
         />
         <div className="max-h-full overflow-y-auto overscroll-contain py-1 pl-1.5 pr-1">{children}</div>
