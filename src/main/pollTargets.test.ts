@@ -110,6 +110,8 @@ import {
   leagueListSettlePlan,
   nflStateSwrPlan,
   nflTickStartPlan,
+  confirmNflWeekSourcePlan,
+  nflFromEspnScoringPeriod,
   espnCookieSwrPlan,
   restTxKickPlan,
   tapeFetchPriority,
@@ -836,8 +838,42 @@ describe('nflStateSwrPlan', () => {
 })
 
 describe('nflTickStartPlan', () => {
-  it('peeks cached NFL week synchronously so scoring GETs are not gated on an await', () => {
+  it('awaits live NFL week on launch, then peeks so later HUD ticks are not gated', () => {
+    expect(nflTickStartPlan({ launchConfirm: true })).toBe('await')
     expect(nflTickStartPlan()).toBe('peek')
+    expect(nflTickStartPlan({ launchConfirm: false })).toBe('peek')
+  })
+})
+
+describe('confirmNflWeekSourcePlan', () => {
+  it('prefers Sleeper /state/nfl, then ESPN scoring period, then last-good / calendar', () => {
+    expect(confirmNflWeekSourcePlan({ sleeperOk: true, espnPeriod: 2 })).toBe('sleeper')
+    expect(confirmNflWeekSourcePlan({ sleeperOk: false, espnPeriod: 2 })).toBe('espn')
+    expect(confirmNflWeekSourcePlan({ sleeperOk: false, espnPeriod: 0 })).toBe('fallback')
+    expect(confirmNflWeekSourcePlan({ sleeperOk: false })).toBe('fallback')
+  })
+})
+
+describe('nflFromEspnScoringPeriod', () => {
+  it('copies the ESPN scoring period onto displayWeek without inventing a season', () => {
+    expect(
+      nflFromEspnScoringPeriod(
+        {
+          week: 1,
+          displayWeek: 1,
+          season: '2026',
+          leagueSeason: '2026',
+          seasonType: 'regular'
+        },
+        2
+      )
+    ).toEqual({
+      week: 2,
+      displayWeek: 2,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular'
+    })
   })
 })
 
@@ -2066,6 +2102,11 @@ describe('restPrefetchColdPlan', () => {
   it('keeps cold boards off the live prefetch and settleBoards wave so they cannot starve the HUD', () => {
     expect(restPrefetchColdPlan(true)).toBe('hot-only')
     expect(restPrefetchColdPlan(false)).toBe('hot-and-cold')
+  })
+
+  it('still refreshes unpinned connected leagues on launch after the week is confirmed', () => {
+    expect(restPrefetchColdPlan(true, true)).toBe('hot-and-cold')
+    expect(restPrefetchColdPlan(false, true)).toBe('hot-and-cold')
   })
 })
 

@@ -46,6 +46,8 @@ export type MatchupBoard = {
   lastScorers: ScorerChip[]
   leadSpark?: number[]
   size?: number
+  /** Launch / week-confirm resync is in flight for this board. */
+  refreshing?: boolean
 }
 
 export type Provider = 'sleeper' | 'espn'

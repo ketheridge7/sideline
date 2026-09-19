@@ -128,6 +128,8 @@ describe('toMatchupBoard', () => {
     ])
     expect(board.lastScorers.every((row) => row.delta == null)).toBe(true)
     expect(liveScorers(null)).toEqual([])
+    expect(toMatchupBoard(league, matchup, { refreshing: true }).refreshing).toBe(true)
+    expect(toMatchupBoard(league, matchup).refreshing).toBeUndefined()
   })
 
   it('copies provider win% onto the LEAGUES card for the shared LeadBar', () => {

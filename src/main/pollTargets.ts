@@ -453,8 +453,25 @@ export const nflStateSwrPlan = (opts: {
   return 'swr'
 }
 
-/** Week is already in memory, disk, or a calendar seed — do not await `/state/nfl` before scoring GETs. */
-export const nflTickStartPlan = (): 'peek' => 'peek'
+/** Cold launch awaits live `/state/nfl` (ESPN scoring period / calendar only if that GET fails). Later ticks still peek so HUD scoring is not gated. */
+export const nflTickStartPlan = (opts?: { launchConfirm?: boolean }): 'peek' | 'await' =>
+  opts?.launchConfirm ? 'await' : 'peek'
+
+/** Sleeper `/state/nfl` is canonical. ESPN `latestScoringPeriod` is a launch fallback only — it can lag at kickoff. */
+export const confirmNflWeekSourcePlan = (opts: {
+  sleeperOk: boolean
+  espnPeriod?: number
+}): 'sleeper' | 'espn' | 'fallback' => {
+  if (opts.sleeperOk) return 'sleeper'
+  if (opts.espnPeriod != null && opts.espnPeriod > 0) return 'espn'
+  return 'fallback'
+}
+
+export const nflFromEspnScoringPeriod = (peeked: NflState, scoringPeriodId: number): NflState => ({
+  ...peeked,
+  week: scoringPeriodId,
+  displayWeek: scoringPeriodId
+})
 
 /** Idle refreshes Electron cookies every 60s. Live ticks skip that IPC when espn_s2 is already cached so session.read cannot hitch HUD; a public (no-cookie) cache still SWR so in-app login can land. */
 export const espnCookieSwrPlan = (opts: {
@@ -1364,9 +1381,14 @@ export const restMatchupFlightKey = (
   week: number
 ): string => `${provider}:${id}:${season}:${week}`
 
-/** Live ticks fetch selected + pinned only. Unpinned boards keep last scores until idle so they cannot occupy the rest pool beside HUD. */
-export const restPrefetchColdPlan = (pollingLive: boolean): 'hot-only' | 'hot-and-cold' =>
-  pollingLive ? 'hot-only' : 'hot-and-cold'
+/** Live ticks fetch selected + pinned only. Unpinned boards keep last scores until idle so they cannot occupy the rest pool beside HUD. Launch sync still refreshes every connected league for the confirmed week. */
+export const restPrefetchColdPlan = (
+  pollingLive: boolean,
+  launchSync = false
+): 'hot-only' | 'hot-and-cold' => {
+  if (launchSync) return 'hot-and-cold'
+  return pollingLive ? 'hot-only' : 'hot-and-cold'
+}
 
 /** Live ticks publish the HUD snapshot without waiting on pinned rest GETs. Overlay already painted; each pin still upserts as it returns. Connect / waitForBoards still awaits that prefetch. */
 export const restPrefetchAwaitPlan = (opts: {

@@ -109,6 +109,34 @@ describe('BoardScreen ESPN UX', () => {
     expect(html).not.toContain('without starters')
   })
 
+  it('shows a refreshing banner on the scoreboard while launch sync is in flight', () => {
+    const state = emptyAppState()
+    state.selectedLeagueKey = 'espn:543268341'
+    state.espnConnected = true
+    state.matchup = espnMatchup(true)
+    state.boards = [
+      {
+        key: 'espn:543268341',
+        leagueName: 'Dawg Pound',
+        provider: 'espn',
+        week: 2,
+        myName: 'Team Etheridge',
+        oppName: "Django Achane'd",
+        myPoints: 12,
+        oppPoints: 9,
+        lastScorers: [],
+        refreshing: true
+      }
+    ]
+    const html = renderBoard(state)
+    expect(html).toContain('data-league-sync="refreshing"')
+    expect(html).toContain('Refreshing')
+    expect(html).toContain('Updating this week')
+    expect(renderBoard({ ...state, boards: [{ ...state.boards[0], refreshing: undefined }] })).not.toContain(
+      'data-league-sync="refreshing"'
+    )
+  })
+
   it('titles the right rail Scoring tape for this matchup', () => {
     const state = emptyAppState()
     state.selectedLeagueKey = 'espn:543268341'
