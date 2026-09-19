@@ -16,7 +16,7 @@ export const COMPANION_TITLEBAR_OVERLAY = {
 /** Windows caption-button cluster width used as the TopBar overlay safe right inset. */
 export const COMPANION_TITLEBAR_OVERLAY_RIGHT_PX = 138
 
-/** Running window / tray mark. Installer ICO remains packaging stripe until regen. */
+/** Running window / tray mark. Installer ICO/ICNS are the same solid lime broadcast S on black. */
 export const packagingWindowIconPath = (): string => broadcastPng
 
 export const bindEmptyNativeTitle = (win: BrowserWindow): void => {

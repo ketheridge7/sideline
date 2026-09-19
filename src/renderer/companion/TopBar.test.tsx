@@ -87,7 +87,13 @@ describe('TopBar', () => {
     expect(wordmark).not.toContain('#D6F34A')
     expect(wordmark).not.toContain('#7DFFB0')
     expect(packaging).not.toBe(renderer)
-    expect(packaging).toContain('#12141A')
+    expect(packaging).toContain('#B6FF3B')
+    expect(packaging).toContain('#000000')
+    expect(packaging).not.toContain('linearGradient')
+    expect(packaging).not.toContain('#7DFFB0')
+    expect(packaging).not.toContain('#D6F34A')
+    expect(packaging).not.toContain('#FFFFFF')
+    expect(packaging).not.toContain('#12141A')
   })
 
   it('uses D soft-pill nav and HUD with lime outlines instead of hard-rect buttons', () => {
