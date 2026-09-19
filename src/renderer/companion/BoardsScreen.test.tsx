@@ -40,6 +40,15 @@ describe('BoardsScreen', () => {
     expect(html).not.toContain('+6.4')
   })
 
+  it('marks a league card Syncing while launch refresh is in flight', () => {
+    const html = renderBoards({
+      boards: [{ ...board, refreshing: true }]
+    })
+    expect(html).toContain('data-league-sync="refreshing"')
+    expect(html).toContain('Syncing')
+    expect(renderBoards()).not.toContain('data-league-sync="refreshing"')
+  })
+
   it('puts Scoring tape on the right for all leagues', () => {
     const html = renderBoards()
     expect(html).toContain('data-scoring-tape="all-leagues"')
