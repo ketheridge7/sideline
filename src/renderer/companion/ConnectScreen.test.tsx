@@ -75,6 +75,28 @@ describe('ConnectScreen hub', () => {
     expect(html).not.toContain('id="espn-league-id"')
   })
 
+  it('paints ESPN, Sleeper, and TV hub actions with the ESPN red fill', () => {
+    const html = htmlOf({
+      espnConnected: true,
+      sleeperConnected: true,
+      lanOverlayEnabled: true
+    })
+    const card = (id: string): string => {
+      const marker = `data-connect-card="${id}"`
+      const start = html.indexOf(marker)
+      const articleStart = html.lastIndexOf('<article', start)
+      const end = html.indexOf('</article>', start)
+      return html.slice(articleStart, end)
+    }
+    expect(card('espn')).toContain('bg-espn')
+    expect(card('sleeper')).toContain('bg-espn')
+    expect(card('sleeper')).toContain('Add leagues')
+    expect(card('sleeper')).not.toContain('bg-you')
+    expect(card('tv')).toContain('bg-espn')
+    expect(card('tv')).toContain('Manage')
+    expect(card('tv')).not.toContain('bg-you')
+  })
+
   it('reports connected league counts and needs re-login on hub cards', () => {
     const connected = htmlOf({
       sleeperConnected: true,

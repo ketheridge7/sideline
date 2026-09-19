@@ -432,16 +432,18 @@ export const leagueListSettlePlan = (opts: {
   return 'await'
 }
 
-/** Week is already in memory, disk, or a calendar seed — do not await `/state/nfl` before scoring GETs. Live ticks also skip the 60s SWR when that cached week already matches the calendar, so `/state/nfl` cannot occupy the rest pool beside the next 3s HUD. Idle still refreshes. A cached week that disagrees with the calendar still SWR-corrects even while live. */
+/** Week is already in memory, disk, or a calendar seed — do not await `/state/nfl` before scoring GETs. Live ticks skip the 60s SWR only when a trusted API/disk week already matches the calendar estimate, so `/state/nfl` cannot occupy the rest pool beside the next 3s HUD. Calendar-only seeds are not trusted: matching week 1 forever would skip the fetch that corrects to the real week. Idle still refreshes. A cached week that disagrees with the calendar still SWR-corrects even while live. */
 export const nflStateSwrPlan = (opts: {
   fresh: boolean
   liveTick?: boolean
   cachedWeek?: number
   calendarWeek?: number
+  trusted?: boolean
 }): 'return' | 'swr' => {
   if (opts.fresh) return 'return'
   if (
     opts.liveTick &&
+    opts.trusted &&
     opts.cachedWeek != null &&
     opts.calendarWeek != null &&
     opts.cachedWeek === opts.calendarWeek
@@ -738,6 +740,12 @@ export const espnHudLikelyPrivate = (opts: {
 export const espnUncachedDiscoveryPlan = (firstCount: number): 'use-first' | 'await-cookies' =>
   firstCount > 0 ? 'use-first' : 'await-cookies'
 
+/** A public probe that found nothing is not a league list — do not cache it or cookie login cannot correct discovery. */
+export const espnLeaguesRememberPlan = (opts: {
+  foundCount: number
+  hasCookies: boolean
+}): 'store' | 'skip' => (opts.foundCount === 0 && !opts.hasCookies ? 'skip' : 'store')
+
 export const espnCookieRetryAfterScorePlan = (opts: {
   compactHit: boolean
   parsedHasLineup?: boolean
@@ -895,17 +903,96 @@ export const weekShiftKickOrder = (hasSelected: boolean): 'hud-then-rest' | 'res
 
 export const NFL_DISK_TRUST_MS = 12 * 60 * 60 * 1000
 export const NFL_DISK_STALE_MS = 8 * 24 * 60 * 60 * 1000
+const NFL_REGULAR_WEEKS = 18
+const NFL_DISPLAY_WEEK_MAX = 22
+
+const etYmd = (now: Date): { year: number; month: number; day: number } => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  }).formatToParts(now)
+  const num = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value)
+  return { year: num('year'), month: num('month'), day: num('day') }
+}
+
+const etWeekdaySun0 = (now: Date): number => {
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short'
+  })
+    .formatToParts(now)
+    .find((part) => part.type === 'weekday')?.value
+  switch (weekday) {
+    case 'Sun':
+      return 0
+    case 'Mon':
+      return 1
+    case 'Tue':
+      return 2
+    case 'Wed':
+      return 3
+    case 'Thu':
+      return 4
+    case 'Fri':
+      return 5
+    case 'Sat':
+      return 6
+    default:
+      return 0
+  }
+}
+
+/** Labor Day is the first Monday in September. Week 1 typically kicks off the Thursday after. */
+export const nflWeek1ThursdayDay = (year: number): number => {
+  for (let day = 1; day <= 7; day++) {
+    // 16:00 UTC is noon EDT, so the ET calendar date matches `year-09-day`.
+    const noonEdt = new Date(Date.UTC(year, 8, day, 16))
+    if (etWeekdaySun0(noonEdt) === 1) return day + 3
+  }
+  return 11
+}
+
+const utcNoonMs = (year: number, month: number, day: number): number =>
+  Date.UTC(year, month - 1, day, 12, 0, 0)
 
 export const calendarNflFallback = (now: Date): NflState => {
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
-  const leagueSeason = month <= 2 ? String(year - 1) : String(year)
+  const { year, month, day } = etYmd(now)
+  const leagueSeasonYear = month <= 2 ? year - 1 : year
+  const leagueSeason = String(leagueSeasonYear)
+  const week1Day = nflWeek1ThursdayDay(leagueSeasonYear)
+  const nowMs = utcNoonMs(year, month, day)
+  const week1Ms = utcNoonMs(leagueSeasonYear, 9, week1Day)
+  if (month >= 3 && month <= 8) {
+    return {
+      week: 1,
+      displayWeek: 1,
+      season: leagueSeason,
+      leagueSeason,
+      seasonType: 'pre'
+    }
+  }
+  if (nowMs < week1Ms) {
+    return {
+      week: 1,
+      displayWeek: 1,
+      season: leagueSeason,
+      leagueSeason,
+      seasonType: 'pre'
+    }
+  }
+  const week = Math.min(
+    NFL_DISPLAY_WEEK_MAX,
+    Math.floor((nowMs - week1Ms) / (7 * 24 * 60 * 60 * 1000)) + 1
+  )
   return {
-    week: 1,
-    displayWeek: 1,
+    week,
+    displayWeek: week,
     season: leagueSeason,
     leagueSeason,
-    seasonType: month >= 9 || month <= 2 ? 'regular' : 'pre'
+    seasonType: week <= NFL_REGULAR_WEEKS ? 'regular' : 'post'
   }
 }
 

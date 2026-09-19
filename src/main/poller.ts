@@ -78,7 +78,7 @@ import { runtime } from './runtime'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
-import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
+import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
 
 let timer: NodeJS.Timeout | null = null
@@ -159,7 +159,7 @@ const sleeperRosterCache = new Map<
 >()
 const matchupCache = new Map<string, { at: number; matchup: Matchup }>()
 const txCache = new Map<string, { at: number; rows: Transaction[] }>()
-let nflStateCache: { at: number; nfl: NflState } | null = null
+let nflStateCache: { at: number; nfl: NflState; trusted: boolean } | null = null
 let nflStateInFlight: Promise<NflState> | null = null
 let espnLeaguesCache: {
   at: number
@@ -362,7 +362,7 @@ const loadNflFresh = async (liveTick = false): Promise<NflState> => {
       cacheBust: sleeperCdnBustToken(Date.now(), NFL_TTL_MS)
     })
   )
-  nflStateCache = { at: Date.now(), nfl }
+  nflStateCache = { at: Date.now(), nfl, trusted: true }
   writeNflDisk(nfl)
   return nfl
 }
@@ -370,13 +370,18 @@ const loadNflFresh = async (liveTick = false): Promise<NflState> => {
 const loadNfl = (): NflState => {
   if (isReplayMode()) return replayNfl()
   if (nflStateCache) return nflStateCache.nfl
-  const disk = readNflDisk() ?? readNflDiskStale()
+  const disk = readNflDisk()
   if (disk) {
-    nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: disk }
+    nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: disk, trusted: true }
     return disk
   }
+  const stale = readNflDiskStale()
+  if (stale) {
+    nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: stale, trusted: false }
+    return stale
+  }
   const seed = nflCalendarSeed(new Date(), peekLastHud()?.displayWeek)
-  nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: seed }
+  nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: seed, trusted: false }
   return seed
 }
 
@@ -386,7 +391,8 @@ const kickNflStateSwr = (onFresh: (nfl: NflState) => void, liveTick = false): vo
     fresh: Boolean(nflStateCache && cacheFresh(nflStateCache.at, Date.now(), NFL_TTL_MS)),
     liveTick,
     cachedWeek: nflStateCache?.nfl.displayWeek,
-    calendarWeek: calendarNflFallback(new Date()).displayWeek
+    calendarWeek: calendarNflFallback(new Date()).displayWeek,
+    trusted: Boolean(nflStateCache?.trusted)
   })
   switch (plan) {
     case 'return':
@@ -1113,6 +1119,21 @@ const loadEspnLeaguesFresh = async (
   }
   const found = [...byId.values()]
   if (gen !== espnDiscoveryGen) return found
+  const remember = espnLeaguesRememberPlan({
+    foundCount: found.length,
+    hasCookies: Boolean(cookies)
+  })
+  switch (remember) {
+    case 'skip':
+      return found
+    case 'store':
+      break
+    default: {
+      const _never: never = remember
+      void _never
+      return found
+    }
+  }
   espnLeaguesCache = {
     at: Date.now(),
     cookieKey,
@@ -3525,14 +3546,15 @@ export const warmupPollerCaches = (): void => {
   switch (nflPlan) {
     case 'disk':
       if (nflDisk && !nflStateCache) {
-        nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: nflDisk }
+        nflStateCache = { at: Date.now() - NFL_TTL_MS, nfl: nflDisk, trusted: true }
       }
       break
     case 'calendar':
       if (!nflStateCache) {
         nflStateCache = {
           at: Date.now() - NFL_TTL_MS,
-          nfl: nflCalendarSeed(new Date(), peekLastHud()?.displayWeek)
+          nfl: nflCalendarSeed(new Date(), peekLastHud()?.displayWeek),
+          trusted: false
         }
       }
       break

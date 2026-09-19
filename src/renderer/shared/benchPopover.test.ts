@@ -6,8 +6,9 @@ import {
   BENCH_FOOT_HEIGHT_PX,
   BENCH_HAIRLINE_PX,
   BENCH_OPEN_MS,
+  BENCH_COLUMN_BODY_FRACTION,
   BENCH_ROW_HEIGHT_PX,
-  BENCH_VISIBLE_ROW_CAP,
+  BENCH_UNMEASURED_MAX_HEIGHT_PX,
   benchFootCopy,
   benchPopoverMaxHeightPx,
   canOpenBench,
@@ -35,12 +36,12 @@ describe('benchFootCopy', () => {
 })
 
 describe('benchPopoverMaxHeightPx', () => {
-  it('caps at five rows, then 48% of the column body', () => {
-    const fiveRows = BENCH_ROW_HEIGHT_PX * BENCH_VISIBLE_ROW_CAP
-    expect(fiveRows).toBe(220)
-    expect(benchPopoverMaxHeightPx(0)).toBe(fiveRows)
-    expect(benchPopoverMaxHeightPx(1000)).toBe(fiveRows)
+  it('uses 48% of the column body so a tall board can scroll the full bench', () => {
+    expect(BENCH_UNMEASURED_MAX_HEIGHT_PX).toBe(220)
+    expect(benchPopoverMaxHeightPx(0)).toBe(BENCH_UNMEASURED_MAX_HEIGHT_PX)
+    expect(benchPopoverMaxHeightPx(1000)).toBe(1000 * BENCH_COLUMN_BODY_FRACTION)
     expect(benchPopoverMaxHeightPx(400)).toBe(192)
+    expect(benchPopoverMaxHeightPx(1000)).toBeGreaterThan(BENCH_ROW_HEIGHT_PX * 5)
   })
 })
 

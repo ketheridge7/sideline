@@ -106,7 +106,7 @@ The setup exe lands at `dist/sideline-1.0.0-setup.exe`. It is a per-user install
 
 Because the build is unsigned, Windows SmartScreen will likely show **Windows protected your PC**. Choose **More info** → **Run anyway**. Expected for a personal unsigned `.exe`. Authenticode signing is an optional follow-up so that warning goes away; it is not required for private use and is not part of this updater work.
 
-Companion chrome uses the locked **broadcast S** (`src/renderer/assets/broadcast-s.svg`, window/tray `build/broadcast-s.png`). Installer assets in `build/` (`icon.png` / `icon.svg` / `icon.ico` / `icon.icns`) still use the packaging lime-stripe square until an ICO regen. `scripts/generate-app-icon.py` only derives `.ico` / `.icns` from `build/icon.png`.
+Companion chrome uses the locked **broadcast S** (`src/renderer/assets/broadcast-s.svg`, window/tray `build/broadcast-s.png`). Windows taskbar/shortcut and Mac packaging (`build/icon.png` / `icon.svg` / `icon.ico` / `icon.icns`) are that same solid lime `#B6FF3B` S on black. `scripts/generate-app-icon.py` derives those from `build/broadcast-s.svg`. After `npm run build:win` (or a reinstall), Windows icon cache can keep the old taskbar/shortcut ICO until it refreshes.
 
 `npm run build:mac` is wired and uses `build/icon.icns`, with notarization off. Run that on a Mac when you want a `.dmg`; it is not the current goal. macOS auto-update is out of scope until the app is signed/notarized.
 

@@ -257,7 +257,7 @@ const HubCard = ({
         <button
           type="button"
           onClick={onOpen}
-          className={id === 'espn' ? chromeFillPillClass('espn') : chromeFillPillClass('you')}
+          className={chromeFillPillClass('espn')}
         >
           {openLabel}
         </button>
