@@ -93,6 +93,7 @@ import {
   espnHudCookiePlan,
   espnHudLikelyPrivate,
   espnUncachedDiscoveryPlan,
+  espnLeaguesRememberPlan,
   espnCookieRetryAfterScorePlan,
   sleeperLeaguesLoadPlan,
   sleeperLeaguesSwrPlan,
@@ -1369,6 +1370,9 @@ describe('espnUncachedDiscoveryPlan', () => {
   it('uses public known-id leagues without waiting on cookie IPC', () => {
     expect(espnUncachedDiscoveryPlan(2)).toBe('use-first')
     expect(espnUncachedDiscoveryPlan(0)).toBe('await-cookies')
+    expect(espnLeaguesRememberPlan({ foundCount: 0, hasCookies: false })).toBe('skip')
+    expect(espnLeaguesRememberPlan({ foundCount: 0, hasCookies: true })).toBe('store')
+    expect(espnLeaguesRememberPlan({ foundCount: 2, hasCookies: false })).toBe('store')
   })
 
   it('is the same plan for HUD, rest boards, and a week-shift re-kick', () => {

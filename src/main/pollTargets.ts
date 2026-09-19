@@ -740,6 +740,12 @@ export const espnHudLikelyPrivate = (opts: {
 export const espnUncachedDiscoveryPlan = (firstCount: number): 'use-first' | 'await-cookies' =>
   firstCount > 0 ? 'use-first' : 'await-cookies'
 
+/** A public probe that found nothing is not a league list — do not cache it or cookie login cannot correct discovery. */
+export const espnLeaguesRememberPlan = (opts: {
+  foundCount: number
+  hasCookies: boolean
+}): 'store' | 'skip' => (opts.foundCount === 0 && !opts.hasCookies ? 'skip' : 'store')
+
 export const espnCookieRetryAfterScorePlan = (opts: {
   compactHit: boolean
   parsedHasLineup?: boolean
