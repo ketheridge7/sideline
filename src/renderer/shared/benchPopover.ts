@@ -1,9 +1,5 @@
 import type { Player } from '@shared/types'
 
-export const BENCH_ROW_HEIGHT_PX = 44
-export const BENCH_COLUMN_BODY_FRACTION = 0.48
-/** ResizeObserver has not measured the column yet — compact until height is known. */
-export const BENCH_UNMEASURED_MAX_HEIGHT_PX = BENCH_ROW_HEIGHT_PX * 5
 export const BENCH_FOOT_HEIGHT_PX = 40
 export const BENCH_HAIRLINE_PX = 2
 export const BENCH_OPEN_MS = 200
@@ -55,11 +51,6 @@ export const lineupPositionLabel = (position: string | undefined): string => {
   const pos = position?.trim() ?? ''
   if (!pos || pos === '?') return '—'
   return pos
-}
-
-export const benchPopoverMaxHeightPx = (columnBodyHeightPx: number): number => {
-  if (columnBodyHeightPx <= 0) return BENCH_UNMEASURED_MAX_HEIGHT_PX
-  return columnBodyHeightPx * BENCH_COLUMN_BODY_FRACTION
 }
 
 export const applyBenchDismiss = (state: BenchOpenState, action: BenchDismissAction): BenchOpenState => {
