@@ -4,12 +4,14 @@ import { nflTeamLabel, visibleInjury } from '@shared/display'
 import {
   applyBenchDismiss,
   benchFootCopy,
+  BOARD_ROSTER_PAD_X,
+  BOARD_ROSTER_PAD_Y,
   canOpenBench,
   displayableBenchPlayers,
   lineupPositionLabel,
   type BenchSide
 } from './benchPopover'
-import { BenchFootStack, dismissBenchPointer, useColumnBodyHeight } from './BenchFoot'
+import { BenchFootStack, dismissBenchPointer } from './BenchFoot'
 import { overlayName } from './format'
 import { HUD_FROST } from './HudChrome'
 import { LastTickMark, ScoreTick } from './ScoreTick'
@@ -43,7 +45,6 @@ export const BoardRosterColumn = ({
   onOpenChange: (open: boolean) => void
   onFocus: () => void
 }): JSX.Element => {
-  const { ref, height } = useColumnBodyHeight()
   const visibleBench = displayableBenchPlayers(bench)
   const copy = benchFootCopy(visibleBench.length, missing)
   const side: BenchSide = you ? 'mine' : 'opp'
@@ -58,28 +59,31 @@ export const BoardRosterColumn = ({
 
   return (
     <div
-      ref={ref}
-      className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-5 py-3"
+      className="relative h-full min-h-0 min-w-0 overflow-hidden"
       data-bench-column={side}
       onFocusCapture={onFocus}
       onPointerDownCapture={onPointerDownCapture}
     >
-      <h2 className={headerClass}>Starters</h2>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <StarterColumn players={starters} you={you} rows={rows} />
-      </div>
-      <BenchFootStack
-        you={you}
-        open={open}
-        copy={copy}
-        columnBodyHeight={height}
-        onToggle={() => onOpenChange(!open)}
-        onFocus={onFocus}
+      <div
+        className={`flex h-full min-h-0 flex-col ${BOARD_ROSTER_PAD_X} ${BOARD_ROSTER_PAD_Y}`}
+        data-bench-body=""
       >
-        {visibleBench.map((player) => (
-          <LineupRow key={player.playerId} player={player} you={you} fixed />
-        ))}
-      </BenchFootStack>
+        <h2 className={headerClass}>Starters</h2>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <StarterColumn players={starters} you={you} rows={rows} />
+        </div>
+        <BenchFootStack
+          you={you}
+          open={open}
+          copy={copy}
+          onToggle={() => onOpenChange(!open)}
+          onFocus={onFocus}
+        >
+          {visibleBench.map((player) => (
+            <LineupRow key={player.playerId} player={player} you={you} fixed />
+          ))}
+        </BenchFootStack>
+      </div>
     </div>
   )
 }

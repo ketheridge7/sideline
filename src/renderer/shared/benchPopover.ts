@@ -1,13 +1,16 @@
 import type { Player } from '@shared/types'
 
-export const BENCH_ROW_HEIGHT_PX = 44
-export const BENCH_COLUMN_BODY_FRACTION = 0.48
-/** ResizeObserver has not measured the column yet — compact until height is known. */
-export const BENCH_UNMEASURED_MAX_HEIGHT_PX = BENCH_ROW_HEIGHT_PX * 5
 export const BENCH_FOOT_HEIGHT_PX = 40
 export const BENCH_HAIRLINE_PX = 2
 export const BENCH_OPEN_MS = 200
 export const BENCH_CLOSE_MS = 160
+/** Same gutters as starter lineup rows (`BoardRosterColumn`). */
+export const BOARD_ROSTER_PAD_X = 'px-5'
+export const BOARD_ROSTER_PAD_Y = 'py-3'
+/** Opaque companion card fill — `--color-card`, never a translucent wash. */
+export const BENCH_CARD_FILL = '#101216'
+/** Opaque page fill behind the rounded card so column corners cannot leak starters. */
+export const BENCH_PAGE_FILL = '#07080a'
 
 export type BenchSide = 'mine' | 'opp'
 
@@ -48,11 +51,6 @@ export const lineupPositionLabel = (position: string | undefined): string => {
   const pos = position?.trim() ?? ''
   if (!pos || pos === '?') return '—'
   return pos
-}
-
-export const benchPopoverMaxHeightPx = (columnBodyHeightPx: number): number => {
-  if (columnBodyHeightPx <= 0) return BENCH_UNMEASURED_MAX_HEIGHT_PX
-  return columnBodyHeightPx * BENCH_COLUMN_BODY_FRACTION
 }
 
 export const applyBenchDismiss = (state: BenchOpenState, action: BenchDismissAction): BenchOpenState => {

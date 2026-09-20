@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { Player } from '@shared/types'
 import {
   applyBenchDismiss,
+  BENCH_CARD_FILL,
+  BENCH_PAGE_FILL,
   BENCH_CLOSE_MS,
   BENCH_FOOT_HEIGHT_PX,
   BENCH_HAIRLINE_PX,
   BENCH_OPEN_MS,
-  BENCH_COLUMN_BODY_FRACTION,
-  BENCH_ROW_HEIGHT_PX,
-  BENCH_UNMEASURED_MAX_HEIGHT_PX,
+  BOARD_ROSTER_PAD_X,
+  BOARD_ROSTER_PAD_Y,
   benchFootCopy,
-  benchPopoverMaxHeightPx,
   canOpenBench,
   displayableBenchPlayers,
   isDisplayableBenchPlayer,
@@ -32,16 +32,6 @@ describe('benchFootCopy', () => {
     expect(canOpenBench(benchFootCopy(6))).toBe(true)
     expect(canOpenBench(benchFootCopy(0))).toBe(false)
     expect(canOpenBench(benchFootCopy(3, true))).toBe(false)
-  })
-})
-
-describe('benchPopoverMaxHeightPx', () => {
-  it('uses 48% of the column body so a tall board can scroll the full bench', () => {
-    expect(BENCH_UNMEASURED_MAX_HEIGHT_PX).toBe(220)
-    expect(benchPopoverMaxHeightPx(0)).toBe(BENCH_UNMEASURED_MAX_HEIGHT_PX)
-    expect(benchPopoverMaxHeightPx(1000)).toBe(1000 * BENCH_COLUMN_BODY_FRACTION)
-    expect(benchPopoverMaxHeightPx(400)).toBe(192)
-    expect(benchPopoverMaxHeightPx(1000)).toBeGreaterThan(BENCH_ROW_HEIGHT_PX * 5)
   })
 })
 
@@ -97,6 +87,10 @@ describe('open-unit geometry', () => {
     expect(BENCH_HAIRLINE_PX).toBe(2)
     expect(BENCH_OPEN_MS).toBe(200)
     expect(BENCH_CLOSE_MS).toBe(160)
+    expect(BOARD_ROSTER_PAD_X).toBe('px-5')
+    expect(BOARD_ROSTER_PAD_Y).toBe('py-3')
+    expect(BENCH_CARD_FILL).toBe('#101216')
+    expect(BENCH_PAGE_FILL).toBe('#07080a')
   })
 })
 
