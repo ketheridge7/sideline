@@ -331,11 +331,14 @@ export const espnLiveOverlayCachePlan = (opts: {
   return 'matchup'
 }
 
+/** Last HUD is not a substitute for scores disk — compact overlay onto poisoned week-1 finals is the 115/122 bug. */
 export const espnLiveDiskHydratePlan = (opts: {
   cachedAtKick: boolean
   hasPrevMatchup?: boolean
-}): 'skip' | 'after-live' =>
-  opts.cachedAtKick || Boolean(opts.hasPrevMatchup) ? 'skip' : 'after-live'
+}): 'skip' | 'after-live' => {
+  void opts.hasPrevMatchup
+  return opts.cachedAtKick ? 'skip' : 'after-live'
+}
 
 export const espnTeamsHydrateAfterScorePlan = (opts: {
   overlayFromMatchup: boolean

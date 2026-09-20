@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   commitScore,
   emptyScoreMemory,
+  liveTotalsTrustPlan,
   SCORE_STABILITY_CONFIRM_POLLS,
   scoreCommitPlan,
   stabilizeMatchup
@@ -136,6 +137,47 @@ describe('stabilizeMatchup', () => {
     const week2 = stabilizeMatchup(null, matchup(0, 0), memory, { week: 2 })
     expect(week2.myPoints).toBe(0)
     expect(memory.week).toBe(2)
+  })
+
+  it('does not seed header totals from a leftover last-HUD prev on first live apply', () => {
+    const memory = emptyScoreMemory()
+    const leftover = matchup(
+      115.26,
+      122.22,
+      [player('106', 17.2), player('100', 0)],
+      [player('201', 3), player('200', 0)]
+    )
+    const live = matchup(
+      17.2,
+      3,
+      [player('106', 17.2), player('100', 0)],
+      [player('201', 3), player('200', 0)]
+    )
+    const shown = stabilizeMatchup(leftover, live, memory, { week: 2 })
+    expect(shown.myPoints).toBe(17.2)
+    expect(shown.oppPoints).toBe(3)
+    expect(shown.starters.find((row) => row.playerId === '106')?.points).toBe(17.2)
+  })
+
+  it('commits current-period live totals over leftover headers even after a poisoned seed', () => {
+    const memory = emptyScoreMemory()
+    const leftover = matchup(
+      115.26,
+      122.22,
+      [player('106', 17.2), player('100', 0)],
+      [player('201', 3), player('200', 0)]
+    )
+    const live = matchup(
+      17.2,
+      3,
+      [player('106', 17.2), player('100', 0)],
+      [player('201', 3), player('200', 0)]
+    )
+    stabilizeMatchup(null, leftover, memory, { week: 2 })
+    const shown = stabilizeMatchup(leftover, live, memory, { week: 2 })
+    expect(shown.myPoints).toBe(17.2)
+    expect(shown.oppPoints).toBe(3)
+    expect(liveTotalsTrustPlan({ prev: leftover, incoming: live })).toBe('trust-live')
   })
 
   it('passes projected finals through without the live-point watermark', () => {

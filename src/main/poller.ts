@@ -1081,9 +1081,9 @@ const persistEspnScores = (): void => {
 
 const hydrateEspnScoresFromDisk = (): void => {
   if (espnScoresHydrated) return
-  espnScoresHydrated = true
   const byId = readEspnScoresDisk()
   if (!byId) return
+  espnScoresHydrated = true
   const now = Date.now()
   for (const [id, row] of Object.entries(byId)) {
     if (espnScoreCache.has(id)) continue
@@ -1107,7 +1107,15 @@ const overlayEspnCachedWeekPts = (key: string, row: Matchup, week: number): Matc
   if (parsed?.provider !== 'espn') return row
   const cached = espnScoreCache.get(parsed.id)
   if (!cached || cached.week !== week) return row
-  return overlayEspnMatchup(row, cached.payload, week, true) ?? row
+  const next = overlayEspnMatchup(row, cached.payload, week, true) ?? row
+  if (next.myPoints !== row.myPoints || next.oppPoints !== row.oppPoints) {
+    const memory = scoreDisplayByKey.get(key)
+    if (memory) {
+      memory.mine = { committed: next.myPoints }
+      memory.opp = { committed: next.oppPoints }
+    }
+  }
+  return next
 }
 
 const hydrateEspnTeamsFromDisk = (): void => {
@@ -1781,8 +1789,7 @@ const fetchEspnScorePayload = async (
     const compactHit = !failed && !stub
     const liveFailed = failed || stub
     const diskPlan = espnLiveDiskHydratePlan({
-      cachedAtKick: overlayCache != null,
-      hasPrevMatchup
+      cachedAtKick: overlayCache != null
     })
     switch (diskPlan) {
       case 'skip':
@@ -1930,7 +1937,7 @@ const espnMatchup = async (
   if (isReplayMode()) return replayMatchup(league)
   if (!isLiveLeagueId(league.id)) return null
   const key = leagueKey(league.provider, league.id)
-  const prev = sleeperPrevMatchup({
+  const prevRaw = sleeperPrevMatchup({
     leagueKey: key,
     selectedKey: lastState.selectedLeagueKey,
     hud: lastState.matchup,
@@ -1938,6 +1945,10 @@ const espnMatchup = async (
     week: nfl.displayWeek,
     cached: matchupCache.get(key)?.matchup ?? null
   })
+  const prev = prevRaw ? overlayEspnCachedWeekPts(key, prevRaw, nfl.displayWeek) : null
+  if (prev && prevRaw && prev !== prevRaw) {
+    matchupCache.set(key, { at: Date.now() - COLD_TTL_MS, matchup: prev })
+  }
   const fetchGen = (espnScoreFetchGen.get(league.id) ?? 0) + 1
   espnScoreFetchGen.set(league.id, fetchGen)
   espnCompactLiveHit.set(league.id, false)
@@ -2565,7 +2576,9 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       case 'skip':
         break
       case 'paint':
-        if (diskHud) publishEarlyHud(diskHud.matchup)
+        if (diskHud) {
+          publishEarlyHud(overlayEspnCachedWeekPts(diskHud.selectedKey, diskHud.matchup, nflState.displayWeek))
+        }
         break
       default: {
         const _never: never = paintPlan
@@ -3825,7 +3838,16 @@ export const warmupPollerCaches = (): void => {
           matchup: overlayEspnCachedWeekPts(lastHudRaw.selectedKey, lastHudRaw.matchup, nfl.displayWeek)
         }
       : null
-    if (lastHud && lastHudRaw && lastHud.matchup !== lastHudRaw.matchup) lastHudMem = lastHud
+    if (lastHud) lastHudMem = lastHud
+    if (
+      lastHud &&
+      lastHudRaw &&
+      (lastHud.matchup.myPoints !== lastHudRaw.matchup.myPoints ||
+        lastHud.matchup.oppPoints !== lastHudRaw.matchup.oppPoints)
+    ) {
+      writeLastHud(lastHud)
+      persistMatchups(nfl.displayWeek)
+    }
     const matchupsByKey: Record<string, Matchup> = {}
     for (const [key, row] of matchupCache) matchupsByKey[key] = row.matchup
     const selectedKey = settings.selectedLeagueKey
