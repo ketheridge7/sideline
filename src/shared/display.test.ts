@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCompanionHudPatch, boardChanceToWin, espnBoardUx, espnIndicatorHealthy, lastName, liveScorers, matchupChanceToWin, matchupHasLineup, matchupWinPctSource, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury } from './display'
+import { applyCompanionHudPatch, boardChanceToWin, espnBoardUx, espnIndicatorHealthy, lastName, liveScorers, matchupChanceToWin, matchupHasLineup, matchupWinPctSource, nflTeamLabel, overlayStartersBelong, sparklinePoints, toMatchupBoard, upsertMatchupBoard, visibleInjury, weekShiftClearedBoard, weekShiftClearedMatchup } from './display'
 import { emptyAppState, type League, type Matchup } from './types'
 
 const league: League = {
@@ -130,6 +130,26 @@ describe('toMatchupBoard', () => {
     expect(liveScorers(null)).toEqual([])
     expect(toMatchupBoard(league, matchup, { refreshing: true }).refreshing).toBe(true)
     expect(toMatchupBoard(league, matchup).refreshing).toBeUndefined()
+  })
+
+  it('drops prior-week points and chips when the display week advances', () => {
+    const board = toMatchupBoard(league, matchup, { refreshing: true, size: 12 })
+    expect(weekShiftClearedBoard(board, 2, { refreshing: true, size: 12 })).toEqual({
+      key: 'sleeper:1',
+      leagueName: 'Friday Night Gridiron',
+      provider: 'sleeper',
+      week: 2,
+      myName: 'Gibbs Me Head',
+      oppName: 'The Other Guys',
+      myPoints: 0,
+      oppPoints: 0,
+      lastScorers: [],
+      size: 12,
+      refreshing: true
+    })
+    expect(weekShiftClearedMatchup(matchup).myPoints).toBe(0)
+    expect(weekShiftClearedMatchup(matchup).starters[0]?.points).toBe(0)
+    expect(weekShiftClearedMatchup(matchup).myTeam.name).toBe('Gibbs Me Head')
   })
 
   it('copies provider win% onto the LEAGUES card for the shared LeadBar', () => {

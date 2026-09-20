@@ -3,7 +3,7 @@ import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, toOverla
 import { sanitizeLeagueIds } from '@shared/settings'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
-import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, type MatchupBoardExtra } from '@shared/display'
+import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, weekShiftClearedBoard, weekShiftClearedMatchup, type MatchupBoardExtra } from '@shared/display'
 import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionsToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { settingsHotkeys } from '@shared/settings'
@@ -408,11 +408,39 @@ const pruneEspnScoresForWeek = (week: number): void => {
   }
 }
 
+const dropStaleWeekScores = (week: number): void => {
+  scoreDisplayByKey.clear()
+  pruneEspnScoresForWeek(week)
+  for (const [key, row] of matchupCache) {
+    matchupCache.set(key, { at: 0, matchup: weekShiftClearedMatchup(row.matchup) })
+  }
+  const lastHud = peekLastHud()
+  if (lastHud) {
+    lastHudMem = {
+      displayWeek: week,
+      selectedKey: lastHud.selectedKey,
+      matchup: weekShiftClearedMatchup(lastHud.matchup)
+    }
+    lastHudSig = ''
+    writeLastHud(lastHudMem)
+  } else {
+    lastHudMem = null
+    lastHudSig = ''
+    clearLastHud()
+  }
+  lastMatchupsSig = ''
+  const byKey: Record<string, Matchup> = {}
+  for (const [key, row] of matchupCache) {
+    if (!isLiveLeagueKey(key)) continue
+    byKey[key] = row.matchup
+  }
+  matchupsDiskWeek = week
+  writeMatchupsDisk({ week, byKey })
+}
+
 const applyConfirmedNflWeek = (peeked: NflState, confirmed: NflState): void => {
   if (!nflWeekShifted(peeked, confirmed)) return
-  matchupCache.clear()
-  scoreDisplayByKey.clear()
-  pruneEspnScoresForWeek(confirmed.displayWeek)
+  dropStaleWeekScores(confirmed.displayWeek)
   const leagues = lastState.leagues.map((league) => ({
     ...league,
     week: confirmed.displayWeek,
@@ -444,12 +472,14 @@ const applyConfirmedNflWeek = (peeked: NflState, confirmed: NflState): void => {
     ...lastState,
     nfl: confirmed,
     leagues,
-    matchup: null,
-    boards: lastState.boards.map((board) => ({
-      ...dropRefreshFlag(board),
-      week: confirmed.displayWeek,
-      ...(refreshingLeagueKeys.has(board.key) ? { refreshing: true } : {})
-    })),
+    matchup:
+      lastHudMem && lastHudMem.selectedKey === lastState.selectedLeagueKey ? lastHudMem.matchup : null,
+    boards: lastState.boards.map((board) =>
+      weekShiftClearedBoard(board, confirmed.displayWeek, {
+        refreshing: refreshingLeagueKeys.has(board.key),
+        size: board.size
+      })
+    ),
     lastUpdated: Date.now()
   }
   broadcast(lastState)
@@ -1077,7 +1107,7 @@ const overlayEspnCachedWeekPts = (key: string, row: Matchup, week: number): Matc
   if (parsed?.provider !== 'espn') return row
   const cached = espnScoreCache.get(parsed.id)
   if (!cached || cached.week !== week) return row
-  return overlayEspnMatchup(row, cached.payload, week) ?? row
+  return overlayEspnMatchup(row, cached.payload, week, true) ?? row
 }
 
 const hydrateEspnTeamsFromDisk = (): void => {
@@ -2726,11 +2756,9 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const resyncIfNflWeekShifted = (fresh: NflState): void => {
       if (gen !== pollGen) return
       if (!nflWeekShifted(nflState, fresh)) return
+      applyConfirmedNflWeek(nflState, fresh)
       nfl = fresh
       liveNfl = fresh
-      matchupCache.clear()
-      scoreDisplayByKey.clear()
-      pruneEspnScoresForWeek(fresh.displayWeek)
       beginLeagueRefresh(leagueRefreshKeys(lastState.leagues))
       const nextHintKey = hudHintKey(hintArgs)
       const nextHint =
