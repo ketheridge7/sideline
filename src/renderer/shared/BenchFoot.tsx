@@ -1,38 +1,21 @@
 import {
   useEffect,
-  useRef,
   useState,
   type JSX,
   type PointerEvent,
-  type ReactNode,
-  type RefObject
+  type ReactNode
 } from 'react'
 import {
+  BENCH_CARD_FILL,
   BENCH_CLOSE_MS,
   BENCH_HAIRLINE_PX,
-  benchPopoverMaxHeightPx,
+  BENCH_PAGE_FILL,
+  BOARD_ROSTER_PAD_X,
   canOpenBench,
   prefersBenchReducedMotion,
   type BenchFootCopy,
   type BenchSide
 } from './benchPopover'
-
-export const useColumnBodyHeight = (): { ref: RefObject<HTMLDivElement | null>; height: number } => {
-  const ref = useRef<HTMLDivElement>(null)
-  const [height, setHeight] = useState(0)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const update = (): void => setHeight(el.getBoundingClientRect().height)
-    const observer = new ResizeObserver(update)
-    observer.observe(el)
-    update()
-    return () => observer.disconnect()
-  }, [])
-
-  return { ref, height }
-}
 
 export const useBenchPresence = (open: boolean): 'open' | 'closing' | null => {
   const [phase, setPhase] = useState<'open' | 'closing' | null>(open ? 'open' : null)
@@ -93,7 +76,7 @@ export const BenchFootButton = ({
       ? 'border border-lime/45 hover:border-lime/70'
       : 'border border-them/35 hover:border-them/55'
   const shape = joined
-    ? 'rounded-none bg-transparent'
+    ? 'rounded-none bg-card'
     : 'rounded-full bg-white/[0.03]'
   let suffix: string
   switch (copy.kind) {
@@ -137,13 +120,11 @@ export const BenchFootButton = ({
 
 export const BenchSocialCard = ({
   you,
-  maxHeight,
   state,
   foot,
   children
 }: {
   you?: boolean
-  maxHeight: number
   state: 'open' | 'closing'
   foot?: ReactNode
   children: ReactNode
@@ -151,22 +132,40 @@ export const BenchSocialCard = ({
   const side: BenchSide = you ? 'mine' : 'opp'
   return (
     <div
-      className="bench-social-popover absolute bottom-0 left-0 right-0 z-20 overflow-hidden rounded-3xl border border-ice/10 bg-[#12141A] shadow-[0_22px_64px_rgba(0,0,0,0.8)]"
+      className="bench-social-popover absolute inset-0 z-20 bg-bg"
+      style={{ backgroundColor: BENCH_PAGE_FILL }}
       data-bench-popover={side}
       data-bench-card="joined"
+      data-bench-fill="opaque"
+      data-bench-align="starters"
       data-state={state}
       role="region"
       aria-label="Bench"
     >
-      <div className="relative overflow-hidden" style={{ maxHeight }}>
+      <div
+        className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl border border-line bg-card"
+        style={{ backgroundColor: BENCH_CARD_FILL }}
+      >
         <div
-          className={`pointer-events-none absolute bottom-3 left-0 top-3 ${you ? 'bg-lime' : 'bg-them'}`}
-          style={{ width: BENCH_HAIRLINE_PX }}
+          className="pointer-events-none absolute inset-0 bg-card"
+          style={{ backgroundColor: BENCH_CARD_FILL }}
           aria-hidden="true"
+          data-bench-occluder=""
         />
-        <div className="max-h-full overflow-y-auto overscroll-contain py-1 pl-1.5 pr-1">{children}</div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div
+            className={`pointer-events-none absolute bottom-3 left-0 top-3 ${you ? 'bg-lime' : 'bg-them'}`}
+            style={{ width: BENCH_HAIRLINE_PX }}
+            aria-hidden="true"
+          />
+          <div
+            className={`max-h-full overflow-y-auto overscroll-contain py-1 ${BOARD_ROSTER_PAD_X}`}
+          >
+            {children}
+          </div>
+        </div>
+        {foot}
       </div>
-      {foot}
     </div>
   )
 }
@@ -175,7 +174,6 @@ export const BenchFootStack = ({
   you,
   open,
   copy,
-  columnBodyHeight,
   onToggle,
   onFocus,
   children
@@ -183,14 +181,12 @@ export const BenchFootStack = ({
   you?: boolean
   open: boolean
   copy: BenchFootCopy
-  columnBodyHeight: number
   onToggle: () => void
   onFocus?: () => void
   children: ReactNode
 }): JSX.Element => {
   const allowed = canOpenBench(copy)
   const phase = useBenchPresence(open && allowed)
-  const maxHeight = benchPopoverMaxHeightPx(columnBodyHeight)
   const foot = (
     <BenchFootButton
       you={you}
@@ -202,9 +198,9 @@ export const BenchFootStack = ({
     />
   )
   return (
-    <div className="relative z-20 mt-auto shrink-0" data-bench-stack={you ? 'mine' : 'opp'}>
+    <div className="z-20 mt-auto w-full shrink-0" data-bench-stack={you ? 'mine' : 'opp'}>
       {phase ? (
-        <BenchSocialCard you={you} maxHeight={maxHeight} state={phase} foot={foot}>
+        <BenchSocialCard you={you} state={phase} foot={foot}>
           {children}
         </BenchSocialCard>
       ) : (

@@ -8,6 +8,13 @@ export const BENCH_FOOT_HEIGHT_PX = 40
 export const BENCH_HAIRLINE_PX = 2
 export const BENCH_OPEN_MS = 200
 export const BENCH_CLOSE_MS = 160
+/** Same gutters as starter lineup rows (`BoardRosterColumn`). */
+export const BOARD_ROSTER_PAD_X = 'px-5'
+export const BOARD_ROSTER_PAD_Y = 'py-3'
+/** Opaque companion card fill — `--color-card`, never a translucent wash. */
+export const BENCH_CARD_FILL = '#101216'
+/** Opaque page fill behind the rounded card so column corners cannot leak starters. */
+export const BENCH_PAGE_FILL = '#07080a'
 
 export type BenchSide = 'mine' | 'opp'
 

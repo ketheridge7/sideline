@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Player } from '@shared/types'
 import {
   applyBenchDismiss,
+  BENCH_CARD_FILL,
+  BENCH_PAGE_FILL,
   BENCH_CLOSE_MS,
   BENCH_FOOT_HEIGHT_PX,
   BENCH_HAIRLINE_PX,
@@ -9,6 +11,8 @@ import {
   BENCH_COLUMN_BODY_FRACTION,
   BENCH_ROW_HEIGHT_PX,
   BENCH_UNMEASURED_MAX_HEIGHT_PX,
+  BOARD_ROSTER_PAD_X,
+  BOARD_ROSTER_PAD_Y,
   benchFootCopy,
   benchPopoverMaxHeightPx,
   canOpenBench,
@@ -97,6 +101,10 @@ describe('open-unit geometry', () => {
     expect(BENCH_HAIRLINE_PX).toBe(2)
     expect(BENCH_OPEN_MS).toBe(200)
     expect(BENCH_CLOSE_MS).toBe(160)
+    expect(BOARD_ROSTER_PAD_X).toBe('px-5')
+    expect(BOARD_ROSTER_PAD_Y).toBe('py-3')
+    expect(BENCH_CARD_FILL).toBe('#101216')
+    expect(BENCH_PAGE_FILL).toBe('#07080a')
   })
 })
 

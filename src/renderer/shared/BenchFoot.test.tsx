@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Player } from '@shared/types'
+import { BENCH_CARD_FILL, BENCH_PAGE_FILL, BOARD_ROSTER_PAD_X, BOARD_ROSTER_PAD_Y } from './benchPopover'
 import { BenchFootButton, BenchFootStack, BenchSocialCard } from './BenchFoot'
 import { BoardRails, BoardRosterColumn, LineupRow } from './LineupRow'
 
@@ -58,25 +59,24 @@ describe('BenchFootButton', () => {
 describe('Bench social popover', () => {
   it('opens as one rounded card whose foot is the bottom edge', () => {
     const html = renderToStaticMarkup(
-      <BenchFootStack
-        you
-        open
-        copy={{ kind: 'count', count: 1 }}
-        columnBodyHeight={400}
-        onToggle={() => undefined}
-      >
+      <BenchFootStack you open copy={{ kind: 'count', count: 1 }} onToggle={() => undefined}>
         <LineupRow player={kittle} you fixed />
       </BenchFootStack>
     )
     expect(html).toContain('data-bench-popover="mine"')
     expect(html).toContain('data-bench-card="joined"')
+    expect(html).toContain('data-bench-fill="opaque"')
+    expect(html).toContain('data-bench-align="starters"')
+    expect(html).toContain('data-bench-occluder')
     expect(html).toContain('rounded-3xl')
-    expect(html).toContain('bottom-0')
-    expect(html).toContain('left-0')
-    expect(html).toContain('right-0')
+    expect(html).toContain('inset-0')
+    expect(html).toContain('w-full')
     expect(html).toContain('overflow-hidden')
-    expect(html).toContain('bg-[#12141A]')
-    expect(html).toContain('shadow-[0_22px_64px_rgba(0,0,0,0.8)]')
+    expect(html).toContain('bg-card')
+    expect(html).toContain('bg-bg')
+    expect(html).toContain(`background-color:${BENCH_PAGE_FILL}`)
+    expect(html).toContain(`background-color:${BENCH_CARD_FILL}`)
+    expect(html).toContain(BOARD_ROSTER_PAD_X)
     expect(html).toContain('width:2px')
     expect(html).toContain('bg-lime')
     expect(html).toContain('bench-social-popover')
@@ -90,6 +90,10 @@ describe('Bench social popover', () => {
     expect(html).not.toContain('bottom-full')
     expect(html).not.toContain('left-3')
     expect(html).not.toContain('right-3')
+    expect(html).not.toContain('pl-1.5')
+    expect(html).not.toContain('pr-1')
+    expect(html).not.toContain('bg-[#12141A]')
+    expect(html).not.toContain('bg-white/')
     expect(html).not.toContain('bottom:20px')
     expect(html).not.toContain('data-bench-caret')
     expect(html).not.toContain('clip-path')
@@ -105,13 +109,7 @@ describe('Bench social popover', () => {
 
   it('stays closed with no bubble when the bench is empty', () => {
     const html = renderToStaticMarkup(
-      <BenchFootStack
-        you
-        open
-        copy={{ kind: 'empty' }}
-        columnBodyHeight={400}
-        onToggle={() => undefined}
-      >
+      <BenchFootStack you open copy={{ kind: 'empty' }} onToggle={() => undefined}>
         <LineupRow player={kittle} you fixed />
       </BenchFootStack>
     )
@@ -123,7 +121,7 @@ describe('Bench social popover', () => {
 
   it('keeps opponent chrome silver when open', () => {
     const html = renderToStaticMarkup(
-      <BenchSocialCard you={false} maxHeight={220} state="open">
+      <BenchSocialCard you={false} state="open">
         <LineupRow player={nico} fixed />
       </BenchSocialCard>
     )
@@ -131,6 +129,8 @@ describe('Bench social popover', () => {
     expect(html).toContain('bg-them')
     expect(html).not.toContain('bg-lime')
     expect(html).toContain('Nico Collins')
+    expect(html).toContain('data-bench-fill="opaque"')
+    expect(html).toContain('bg-card')
   })
 })
 
@@ -193,6 +193,43 @@ describe('BoardRosterColumn open/close', () => {
     expect(opened).toContain('George Kittle')
     expect(opened).toContain('data-bench-popover="mine"')
     expect(opened).toContain('Christian McCaffrey')
+    expect(opened).toContain('data-bench-body')
+    expect(opened).toContain(BOARD_ROSTER_PAD_X)
+    expect(opened).toContain(BOARD_ROSTER_PAD_Y)
+    expect(opened).toContain('inset-0')
+    expect(opened).toContain('data-bench-fill="opaque"')
+    expect(opened).toContain(`background-color:${BENCH_CARD_FILL}`)
+    expect(opened).not.toContain('pl-1.5')
+    expect(opened).not.toContain('bg-white/')
+  })
+
+  it('matches starter column gutters and fully occludes the column body when open', () => {
+    const html = renderToStaticMarkup(
+      <BoardRosterColumn
+        you
+        starters={[cmc]}
+        bench={[kittle]}
+        rows={1}
+        open
+        onOpenChange={() => undefined}
+        onFocus={() => undefined}
+      />
+    )
+    expect(html).toContain(`data-bench-column="mine"`)
+    expect(html).toContain('data-bench-body')
+    expect(html).toContain('px-5')
+    expect(html).toContain('py-3')
+    expect(html).toContain('data-bench-align="starters"')
+    expect(html).toContain('absolute inset-0')
+    expect(html).toContain('data-bench-occluder')
+    expect(html).toContain('bg-card')
+    expect(html).not.toContain('bg-[#12141A]')
+    expect(html).not.toContain('bg-white/[0.03]')
+    const popover = html.match(/data-bench-popover="mine"[\s\S]*?data-bench-foot="mine"/)?.[0] ?? ''
+    expect(popover).toContain('inset-0')
+    expect(popover).toContain('w-full')
+    expect(popover).not.toContain('pl-1.5')
+    expect(popover).not.toContain('pr-1"')
   })
 
   it('opens you and them independently', () => {
@@ -306,14 +343,18 @@ describe('BoardRails companion bench', () => {
 })
 
 describe('bench motion CSS', () => {
-  it('scales from 0.94 with a bottom origin and snaps under reduced motion', () => {
+  it('slides from the foot with an opaque card fill and snaps under reduced motion', () => {
     const css = readFileSync(resolve(__dirname, '../styles.css'), 'utf8')
     expect(css).toContain('.bench-social-popover')
     expect(css).toContain('transform-origin: bottom center')
-    expect(css).toContain('scale(0.94)')
+    expect(css).toContain('background-color: #07080a')
+    expect(css).toContain('translateY(12px)')
     expect(css).toContain('bench-social-in 200ms')
     expect(css).toContain('bench-social-out 160ms')
     expect(css).toContain('prefers-reduced-motion: reduce')
+    expect(css).not.toContain('scale(0.94)')
     expect(css).not.toContain('data-bench-caret')
+    const motion = css.slice(css.indexOf('.bench-social-popover'))
+    expect(motion).not.toContain('opacity: 0')
   })
 })
