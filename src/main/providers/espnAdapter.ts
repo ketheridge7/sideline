@@ -1385,32 +1385,36 @@ export const overlayEspnMatchup = (
   const oppLiveTotal = oppSide ? sideTotal(oppSide, displayWeek) : 0
   const mineHasLive = hasEspnLivePts(mySide, myById, displayWeek)
   const oppHasLive = Boolean(oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
-  // Current-period 0 (pre-kickoff) always wins, even on max-prev deferred boxscore.
-  // Compact stubs still fail hasEspnLivePts, so last HUD is not wiped.
-  const trustMine = mineHasLive && (preferLive || myLiveTotal === 0)
-  const trustOpp = oppHasLive && (preferLive || oppLiveTotal === 0)
+  // Current-period live/final team totals (totalPointsLive in progress, including
+  // pre-kickoff 0) replace last HUD. Compact stubs still fail hasEspnLivePts, so
+  // last HUD totals and starter chips are not wiped. preferLive still overlays
+  // chips when a compact payload has live pts but no trusted side total.
+  const trustMine = mineHasLive
+  const trustOpp = oppHasLive
   const overlayTotal = (prevPts: number, livePts: number, trust: boolean): number =>
     trust ? livePts : Math.max(prevPts, livePts)
   const mySlots = lineupSlotByPlayerId(mySide)
   const oppSlots = oppSide ? lineupSlotByPlayerId(oppSide) : new Map<string, number>()
+  const trustMineChips = trustMine || preferLive
+  const trustOppChips = trustOpp || preferLive
   return withEspnProjected(
     {
       ...prev,
       myPoints: overlayTotal(prev.myPoints, myLiveTotal, trustMine),
       oppPoints: oppSide ? overlayTotal(prev.oppPoints, oppLiveTotal, trustOpp) : prev.oppPoints,
       starters: orderEspnStarters(
-        overlayEspnPlayers(prev.starters, myById, trustMine, trustMine && myLiveTotal === 0),
+        overlayEspnPlayers(prev.starters, myById, trustMineChips, trustMine && myLiveTotal === 0),
         mySlots
       ),
-      bench: overlayEspnPlayers(prev.bench, myById, trustMine, trustMine && myLiveTotal === 0),
+      bench: overlayEspnPlayers(prev.bench, myById, trustMineChips, trustMine && myLiveTotal === 0),
       oppStarters: oppSide
         ? orderEspnStarters(
-            overlayEspnPlayers(prev.oppStarters, oppById, trustOpp, trustOpp && oppLiveTotal === 0),
+            overlayEspnPlayers(prev.oppStarters, oppById, trustOppChips, trustOpp && oppLiveTotal === 0),
             oppSlots
           )
         : prev.oppStarters,
       oppBench: oppSide
-        ? overlayEspnPlayers(prev.oppBench, oppById, trustOpp, trustOpp && oppLiveTotal === 0)
+        ? overlayEspnPlayers(prev.oppBench, oppById, trustOppChips, trustOpp && oppLiveTotal === 0)
         : prev.oppBench,
       scoresFinal: espnGameIsFinal(game)
     },

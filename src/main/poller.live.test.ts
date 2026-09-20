@@ -795,6 +795,138 @@ describe('poller live tick order', () => {
     expect(currentState().matchup?.scoresFinal).toBe(false)
   })
 
+  it('uses week-2 ESPN live matchup totals instead of last-HUD week-1 finals', () => {
+    const dir = app.getPath('userData')
+    const leagueId = '543268341'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: {
+          week: 2,
+          displayWeek: 2,
+          season: '2026',
+          leagueSeason: '2026',
+          seasonType: 'regular'
+        }
+      })
+    )
+    const stale = {
+      ...hudMatchup,
+      myPoints: 115.26,
+      oppPoints: 122.22,
+      starters: [
+        { playerId: '1', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 0 },
+        { playerId: '4', name: 'LaPorta', position: 'TE', nflTeam: 'DET', points: 17.2 }
+      ],
+      oppStarters: [
+        { playerId: '3', name: 'Allen', position: 'QB', nflTeam: 'BUF', points: 0 },
+        { playerId: '5', name: 'Bates', position: 'K', nflTeam: 'CIN', points: 3 }
+      ],
+      scoresFinal: false
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({
+        at: Date.now(),
+        displayWeek: 2,
+        selectedKey,
+        matchup: stale
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-matchups.json'),
+      JSON.stringify({
+        at: Date.now(),
+        week: 2,
+        byKey: { [selectedKey]: stale }
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-scores.json'),
+      JSON.stringify({
+        at: Date.now(),
+        byId: {
+          [leagueId]: {
+            week: 2,
+            payload: {
+              scoringPeriodId: 2,
+              currentMatchupPeriod: 2,
+              latestScoringPeriod: 2,
+              schedule: [
+                {
+                  matchupPeriodId: 2,
+                  winner: 'UNDECIDED',
+                  home: {
+                    teamId: 1,
+                    totalPoints: 0,
+                    totalPointsLive: 17.2,
+                    rosterForCurrentScoringPeriod: {
+                      entries: [
+                        {
+                          lineupSlotId: 0,
+                          playerId: 1,
+                          playerPoolEntry: {
+                            player: { fullName: 'Hurts', defaultPositionId: 1, proTeamId: 21 }
+                          }
+                        },
+                        {
+                          lineupSlotId: 6,
+                          playerId: 4,
+                          playerPoolEntry: {
+                            player: { fullName: 'LaPorta', defaultPositionId: 3, proTeamId: 8 }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  away: {
+                    teamId: 2,
+                    totalPoints: 0,
+                    totalPointsLive: 3,
+                    rosterForCurrentScoringPeriod: {
+                      entries: [
+                        {
+                          lineupSlotId: 0,
+                          playerId: 3,
+                          playerPoolEntry: {
+                            player: { fullName: 'Allen', defaultPositionId: 1, proTeamId: 2 }
+                          }
+                        },
+                        {
+                          lineupSlotId: 17,
+                          playerId: 5,
+                          playerPoolEntry: {
+                            player: { fullName: 'Bates', defaultPositionId: 5, proTeamId: 7 }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().nfl?.displayWeek).toBe(2)
+    expect(currentState().matchup?.myPoints).toBe(17.2)
+    expect(currentState().matchup?.oppPoints).toBe(3)
+    expect(currentState().matchup?.starters.find((player) => player.playerId === '4')?.points).toBe(17.2)
+    expect(currentState().matchup?.oppStarters.find((player) => player.playerId === '5')?.points).toBe(3)
+    expect(currentState().boards.find((board) => board.key === selectedKey)?.myPoints).toBe(17.2)
+    expect(currentState().boards.find((board) => board.key === selectedKey)?.oppPoints).toBe(3)
+  })
+
   it('does not hold inFlight on last HUD while /matchups is still in flight', async () => {
     const dir = app.getPath('userData')
     const leagueId = '123456789'
@@ -2178,6 +2310,8 @@ describe('poller live tick order', () => {
     await expect.poll(() => currentState().nfl?.displayWeek).toBe(2)
     await expect.poll(() => currentState().matchup?.myPoints).toBe(8.4)
     await expect.poll(() => currentState().matchup?.oppPoints).toBe(3.1)
+    expect(currentState().boards[0]?.myPoints).toBe(8.4)
+    expect(currentState().boards[0]?.oppPoints).toBe(3.1)
     expect(urls[0]).toContain('/state/nfl')
     expect(urls.some((url) => url.includes('scoringPeriodId=2'))).toBe(true)
     expect(urls.some((url) => url.includes('scoringPeriodId=1'))).toBe(false)

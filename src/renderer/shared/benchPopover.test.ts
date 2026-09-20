@@ -92,7 +92,7 @@ describe('applyBenchDismiss', () => {
 })
 
 describe('open-unit geometry', () => {
-  it('keeps the 40px foot and stacks the card above it with a 2px hairline', () => {
+  it('keeps the 40px foot as the joined card base with a 2px hairline', () => {
     expect(BENCH_FOOT_HEIGHT_PX).toBe(40)
     expect(BENCH_HAIRLINE_PX).toBe(2)
     expect(BENCH_OPEN_MS).toBe(200)

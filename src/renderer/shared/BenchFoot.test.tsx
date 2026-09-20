@@ -31,10 +31,12 @@ describe('BenchFootButton', () => {
     expect(mine).toContain('data-bench-foot="mine"')
     expect(mine).toContain('text-lime')
     expect(mine).toContain('border-lime/')
+    expect(mine).toContain('rounded-full')
     expect(mine).toContain('▲')
     expect(mine).toContain('>6<')
     expect(mine).toContain('h-10 w-full')
     expect(mine).not.toContain('bg-lime')
+    expect(mine).toContain('data-bench-joined="false"')
     expect(opp).toContain('data-bench-foot="opp"')
     expect(opp).toContain('text-them')
     expect(opp).toContain('border-them/')
@@ -54,7 +56,7 @@ describe('BenchFootButton', () => {
 })
 
 describe('Bench social popover', () => {
-  it('opens flush with the foot, stacked above it, with no caret', () => {
+  it('opens as one rounded card whose foot is the bottom edge', () => {
     const html = renderToStaticMarkup(
       <BenchFootStack
         you
@@ -67,10 +69,12 @@ describe('Bench social popover', () => {
       </BenchFootStack>
     )
     expect(html).toContain('data-bench-popover="mine"')
+    expect(html).toContain('data-bench-card="joined"')
     expect(html).toContain('rounded-3xl')
-    expect(html).toContain('bottom-full')
+    expect(html).toContain('bottom-0')
     expect(html).toContain('left-0')
     expect(html).toContain('right-0')
+    expect(html).toContain('overflow-hidden')
     expect(html).toContain('bg-[#12141A]')
     expect(html).toContain('shadow-[0_22px_64px_rgba(0,0,0,0.8)]')
     expect(html).toContain('width:2px')
@@ -81,13 +85,19 @@ describe('Bench social popover', () => {
     expect(html).toContain('data-lineup-col="pos"')
     expect(html).toContain('▼')
     expect(html).toContain('h-10 w-full')
-    expect(html).toContain('relative z-30')
+    expect(html).toContain('data-bench-joined="true"')
+    expect(html).toContain('data-bench-foot-slot')
+    expect(html).not.toContain('bottom-full')
     expect(html).not.toContain('left-3')
     expect(html).not.toContain('right-3')
     expect(html).not.toContain('bottom:20px')
     expect(html).not.toContain('data-bench-caret')
     expect(html).not.toContain('clip-path')
     expect(html).not.toMatch(/data-bench-popover="mine"[^>]*bg-lime/)
+    const card = html.match(/data-bench-popover="mine"[\s\S]*?data-bench-foot="mine"/)?.[0] ?? ''
+    expect(card).toContain('George Kittle')
+    expect(card).toContain('data-bench-foot="mine"')
+    expect(card).not.toContain('rounded-full')
     expect(col(html, 'pos')).toContain('TE')
     expect(col(html, 'name')).toContain('George Kittle')
     expect(col(html, 'pts')).toContain('4.2')

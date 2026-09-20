@@ -208,6 +208,42 @@ export const toMatchupBoard = (
   }
 }
 
+/** Week rollover: keep identity/lineup, drop prior-week live/final points. */
+export const weekShiftClearedMatchup = (matchup: Matchup): Matchup => {
+  const zeroed = (players: Player[]): Player[] => players.map((player) => ({ ...player, points: 0 }))
+  return {
+    myTeam: matchup.myTeam,
+    oppTeam: matchup.oppTeam,
+    myPoints: 0,
+    oppPoints: 0,
+    starters: zeroed(matchup.starters),
+    bench: zeroed(matchup.bench),
+    oppStarters: zeroed(matchup.oppStarters),
+    oppBench: zeroed(matchup.oppBench)
+  }
+}
+
+export const weekShiftClearedBoard = (
+  board: MatchupBoard,
+  week: number,
+  extra?: Pick<MatchupBoardExtra, 'refreshing' | 'size'>
+): MatchupBoard => {
+  const size = extra?.size ?? board.size
+  return {
+    key: board.key,
+    leagueName: board.leagueName,
+    provider: board.provider,
+    week,
+    myName: board.myName,
+    oppName: board.oppName,
+    myPoints: 0,
+    oppPoints: 0,
+    lastScorers: [],
+    ...(size != null ? { size } : {}),
+    ...(extra?.refreshing ? { refreshing: true } : {})
+  }
+}
+
 export const upsertMatchupBoard = (boards: MatchupBoard[], next: MatchupBoard): MatchupBoard[] => {
   const index = boards.findIndex((row) => row.key === next.key)
   if (index < 0) return [...boards, next]
