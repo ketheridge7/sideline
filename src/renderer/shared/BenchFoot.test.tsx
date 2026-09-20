@@ -77,6 +77,7 @@ describe('Bench social popover', () => {
     expect(html).toContain(`background-color:${BENCH_PAGE_FILL}`)
     expect(html).toContain(`background-color:${BENCH_CARD_FILL}`)
     expect(html).toContain(BOARD_ROSTER_PAD_X)
+    expect(html).toContain(BOARD_ROSTER_PAD_Y)
     expect(html).toContain('width:2px')
     expect(html).toContain('bg-lime')
     expect(html).toContain('bench-social-popover')
@@ -223,11 +224,14 @@ describe('BoardRosterColumn open/close', () => {
     expect(html).toContain('absolute inset-0')
     expect(html).toContain('data-bench-occluder')
     expect(html).toContain('bg-card')
+    expect(html).toContain('bg-bg')
     expect(html).not.toContain('bg-[#12141A]')
     expect(html).not.toContain('bg-white/[0.03]')
-    const popover = html.match(/data-bench-popover="mine"[\s\S]*?data-bench-foot="mine"/)?.[0] ?? ''
+    const popover = html.match(/bench-social-popover[\s\S]*?data-bench-foot="mine"/)?.[0] ?? ''
     expect(popover).toContain('inset-0')
     expect(popover).toContain('w-full')
+    expect(popover).toContain('px-5')
+    expect(popover).toContain('py-3')
     expect(popover).not.toContain('pl-1.5')
     expect(popover).not.toContain('pr-1"')
   })

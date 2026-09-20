@@ -11,6 +11,7 @@ import {
   BENCH_HAIRLINE_PX,
   BENCH_PAGE_FILL,
   BOARD_ROSTER_PAD_X,
+  BOARD_ROSTER_PAD_Y,
   canOpenBench,
   prefersBenchReducedMotion,
   type BenchFootCopy,
@@ -132,7 +133,7 @@ export const BenchSocialCard = ({
   const side: BenchSide = you ? 'mine' : 'opp'
   return (
     <div
-      className="bench-social-popover absolute inset-0 z-20 bg-bg"
+      className={`bench-social-popover absolute inset-0 z-20 bg-bg ${BOARD_ROSTER_PAD_X} ${BOARD_ROSTER_PAD_Y}`}
       style={{ backgroundColor: BENCH_PAGE_FILL }}
       data-bench-popover={side}
       data-bench-card="joined"
@@ -158,9 +159,7 @@ export const BenchSocialCard = ({
             style={{ width: BENCH_HAIRLINE_PX }}
             aria-hidden="true"
           />
-          <div
-            className={`max-h-full overflow-y-auto overscroll-contain py-1 ${BOARD_ROSTER_PAD_X}`}
-          >
+          <div className="max-h-full overflow-y-auto overscroll-contain py-1">
             {children}
           </div>
         </div>
