@@ -146,14 +146,15 @@ describe('poller live tick order', () => {
     await expect.poll(() => currentState().matchup?.starters[0]?.points).toBe(12.5)
     await expect.poll(() => currentState().selectedLeagueKey).toBe(selectedKey)
 
+    expect(urls[0]).toContain('/state/nfl')
     const matchupsAt = urls.findIndex((url) => url.includes('/matchups/'))
     const leaguesAt = urls.findIndex((url) => url.includes('/leagues/'))
     const playersAt = urls.findIndex((url) => url.includes('/players/nfl'))
     const scoreboardAt = urls.findIndex((url) => url.includes('scoreboard'))
-    expect(matchupsAt).toBe(0)
-    expect(inits[0]?.priority).toBe('high')
-    expect(urls[0]).toContain(`/league/${leagueId}/matchups/1`)
-    expect(urls[0]).toContain('?_=')
+    expect(matchupsAt).toBeGreaterThan(0)
+    expect(inits[matchupsAt]?.priority).toBe('high')
+    expect(urls[matchupsAt]).toContain(`/league/${leagueId}/matchups/1`)
+    expect(urls[matchupsAt]).toContain('?_=')
     if (leaguesAt >= 0) expect(matchupsAt).toBeLessThan(leaguesAt)
     if (playersAt >= 0) expect(matchupsAt).toBeLessThan(playersAt)
     if (scoreboardAt >= 0) {
@@ -217,6 +218,15 @@ describe('poller live tick order', () => {
             }
           })
         }
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
         if (url.includes('scoreboard')) return jsonOk({ events: [] })
         return jsonOk({ teams: [], schedule: [] })
       })
@@ -232,11 +242,12 @@ describe('poller live tick order', () => {
     const teamAt = urls.findIndex((url) => url.includes('view=mTeam'))
     const settingsAt = urls.findIndex((url) => url.includes('view=mSettings'))
     const scoreboardAt = urls.findIndex((url) => url.includes('scoreboard'))
-    expect(liveAt).toBe(0)
-    expect(inits[0]?.priority).toBe('high')
-    expect(urls[0]).toContain('lm-api-reads.fantasy.espn.com')
-    expect(urls[0]).not.toContain('view=mTeam')
-    expect(urls[0]).not.toContain('view=mScoreboard')
+    expect(urls[0]).toContain('/state/nfl')
+    expect(liveAt).toBeGreaterThan(0)
+    expect(inits[liveAt]?.priority).toBe('high')
+    expect(urls[liveAt]).toContain('lm-api-reads.fantasy.espn.com')
+    expect(urls[liveAt]).not.toContain('view=mTeam')
+    expect(urls[liveAt]).not.toContain('view=mScoreboard')
     if (teamAt >= 0) expect(liveAt).toBeLessThan(teamAt)
     if (settingsAt >= 0) expect(liveAt).toBeLessThan(settingsAt)
     if (scoreboardAt >= 0) {
@@ -318,7 +329,8 @@ describe('poller live tick order', () => {
     const boxAt = urls.findIndex((url) => url.includes('view=mMatchupScore'))
     const scoreboardAt = urls.findIndex((url) => url.includes('scoreboard'))
     expect(urls.join('\n')).toContain('mMatchupScore')
-    expect(liveAt).toBe(0)
+    expect(urls[0]).toContain('/state/nfl')
+    expect(liveAt).toBeGreaterThan(0)
     expect(boxAt).toBeGreaterThan(liveAt)
     expect(inits[boxAt]?.priority).toBe('high')
     if (scoreboardAt >= 0) expect(boxAt).toBeLessThan(scoreboardAt)
@@ -458,8 +470,9 @@ describe('poller live tick order', () => {
     const rostersAt = urls.findIndex((url) => url.includes('/rosters'))
     const leaguesAt = urls.findIndex((url) => url.includes('/leagues/'))
     const scoreboardAt = urls.findIndex((url) => url.includes('scoreboard'))
-    expect(matchupsAt).toBe(0)
-    expect(inits[0]?.priority).toBe('high')
+    expect(matchupsAt).toBeGreaterThan(0)
+    expect(urls[0]).toContain('/state/nfl')
+    expect(inits[matchupsAt]?.priority).toBe('high')
     const usersAt = urls.findIndex((url) => url.includes('/users'))
     if (rostersAt >= 0) {
       expect(matchupsAt).toBeLessThan(rostersAt)
@@ -661,6 +674,15 @@ describe('poller live tick order', () => {
             }
           })
         }
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
         if (url.includes('scoreboard')) return jsonOk({ events: [] })
         return jsonOk({ teams: [], schedule: [] })
       })
@@ -670,9 +692,12 @@ describe('poller live tick order', () => {
     await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
     await expect.poll(() => currentState().selectedLeagueKey).toBe(selectedKey)
 
-    expect(urls[0]).toContain('view=mLiveScoring')
-    expect(urls[0]).not.toContain('view=mMatchupScore')
-    expect(urls[0]).not.toContain('view=mTeam')
+    expect(urls[0]).toContain('/state/nfl')
+    const liveAt = urls.findIndex((url) => url.includes('view=mLiveScoring'))
+    expect(liveAt).toBeGreaterThan(0)
+    expect(urls[liveAt]).toContain('view=mLiveScoring')
+    expect(urls[liveAt]).not.toContain('view=mMatchupScore')
+    expect(urls[liveAt]).not.toContain('view=mTeam')
   })
 
   it('does not resurrect week-1 last-HUD points for week 2 when scores disk is 0-0', () => {
@@ -890,7 +915,8 @@ describe('poller live tick order', () => {
     await expect.poll(() => urls.some((url) => url.includes('/matchups/'))).toBe(true)
     const matchupsAt = urls.findIndex((url) => url.includes('/matchups/'))
     const userAt = urls.findIndex((url) => url.includes('/user/tester'))
-    expect(matchupsAt).toBe(0)
+    expect(urls[0]).toContain('/state/nfl')
+    expect(matchupsAt).toBeGreaterThan(0)
     if (userAt >= 0) expect(matchupsAt).toBeLessThanOrEqual(userAt)
     releaseUser()
     await pending
@@ -1988,6 +2014,254 @@ describe('poller live tick order', () => {
     ).toBe('empty-roster')
     expect(toOverlayHud(currentState()).pollingLive).toBe(false)
     expect(toOverlayHud(currentState()).myStarters).toEqual([])
+  })
+
+  it('confirms live NFL week on cold launch before treating ESPN disk scores as current', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '543268341'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeNfl(dir)
+    const stale = {
+      ...hudMatchup,
+      myPoints: 117.86,
+      oppPoints: 122.22,
+      starters: [{ ...hudMatchup.starters[0], points: 24.1 }],
+      oppStarters: [{ ...hudMatchup.oppStarters[0], points: 28.4 }]
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({
+        at: Date.now(),
+        displayWeek: 1,
+        selectedKey,
+        matchup: stale
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: leagueId,
+        leagues: [{ id: leagueId, name: 'Dawg Pound', provider: 'espn', season: '2026', week: 1 }]
+      })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-scores.json'),
+      JSON.stringify({
+        at: Date.now(),
+        byId: {
+          [leagueId]: {
+            week: 1,
+            payload: {
+              scoringPeriodId: 1,
+              teams: [
+                { id: 1, location: 'Mine', nickname: 'Team', primaryOwner: '{11111111-1111-1111-1111-111111111111}' },
+                { id: 2, location: 'Yours', nickname: 'Club' }
+              ],
+              schedule: [
+                {
+                  matchupPeriodId: 1,
+                  home: {
+                    teamId: 1,
+                    totalPointsLive: 117.86,
+                    totalPoints: 117.86,
+                    rosterForCurrentScoringPeriod: {
+                      entries: [
+                        {
+                          lineupSlotId: 0,
+                          playerId: 1,
+                          playerPoolEntry: {
+                            player: { fullName: 'Hurts', defaultPositionId: 1, proTeamId: 21 }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  away: {
+                    teamId: 2,
+                    totalPointsLive: 122.22,
+                    totalPoints: 122.22,
+                    rosterForCurrentScoringPeriod: {
+                      entries: [
+                        {
+                          lineupSlotId: 0,
+                          playerId: 3,
+                          playerPoolEntry: {
+                            player: { fullName: 'Allen', defaultPositionId: 1, proTeamId: 2 }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().nfl?.displayWeek).toBe(1)
+    expect(currentState().matchup?.myPoints).toBe(117.86)
+    expect(currentState().boards.some((board) => board.refreshing)).toBe(true)
+
+    const urls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        urls.push(url)
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 2,
+            display_week: 2,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('scoringPeriodId=1') && url.includes('lm-api-reads')) {
+          throw new Error('must not fetch ESPN week 1 after live week 2 is confirmed')
+        }
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({
+            scoringPeriodId: 2,
+            schedule: [
+              {
+                matchupPeriodId: 2,
+                home: { teamId: 1, totalPointsLive: 8.4 },
+                away: { teamId: 2, totalPointsLive: 3.1 }
+              }
+            ],
+            liveScoring: {
+              teams: [
+                {
+                  teamId: 1,
+                  totalPointsLive: 8.4,
+                  players: [{ playerId: 1, totalPointsLive: 8.4 }]
+                },
+                {
+                  teamId: 2,
+                  totalPointsLive: 3.1,
+                  players: [{ playerId: 3, totalPointsLive: 3.1 }]
+                }
+              ]
+            }
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk({
+          scoringPeriodId: 2,
+          status: { latestScoringPeriod: 2, currentMatchupPeriod: 2 },
+          teams: [
+            { id: 1, location: 'Mine', nickname: 'Team' },
+            { id: 2, location: 'Yours', nickname: 'Club' }
+          ],
+          schedule: [
+            {
+              matchupPeriodId: 2,
+              home: { teamId: 1, totalPointsLive: 8.4 },
+              away: { teamId: 2, totalPointsLive: 3.1 }
+            }
+          ]
+        })
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().nfl?.displayWeek).toBe(2)
+    await expect.poll(() => currentState().matchup?.myPoints).toBe(8.4)
+    await expect.poll(() => currentState().matchup?.oppPoints).toBe(3.1)
+    expect(urls[0]).toContain('/state/nfl')
+    expect(urls.some((url) => url.includes('scoringPeriodId=2'))).toBe(true)
+    expect(urls.some((url) => url.includes('scoringPeriodId=1'))).toBe(false)
+    expect(currentState().boards.every((board) => !board.refreshing)).toBe(true)
+    expect(currentState().leagues[0]?.week).toBe(2)
+  })
+
+  it('falls back to ESPN scoring period on launch when Sleeper /state/nfl fails', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '543268341'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({
+        at: Date.now(),
+        displayWeek: 1,
+        selectedKey,
+        matchup: hudMatchup
+      })
+    )
+    warmupPollerCaches()
+
+    const urls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        urls.push(url)
+        if (url.includes('/state/nfl')) {
+          return { ok: false, status: 500, headers: { get: () => 'application/json' }, json: async () => ({}) }
+        }
+        if (url.includes('scoringPeriodId=1') && url.includes('lm-api-reads')) {
+          throw new Error('must not fetch ESPN week 1 after ESPN scoring period 2')
+        }
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({
+            scoringPeriodId: 2,
+            schedule: [
+              {
+                matchupPeriodId: 2,
+                home: { teamId: 1, totalPointsLive: 6.2 },
+                away: { teamId: 2, totalPointsLive: 4.1 }
+              }
+            ],
+            liveScoring: {
+              teams: [
+                { teamId: 1, totalPointsLive: 6.2, players: [{ playerId: 1, totalPointsLive: 6.2 }] },
+                { teamId: 2, totalPointsLive: 4.1, players: [{ playerId: 3, totalPointsLive: 4.1 }] }
+              ]
+            }
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk({
+          scoringPeriodId: 2,
+          status: { latestScoringPeriod: 2, currentMatchupPeriod: 2 },
+          teams: [
+            { id: 1, location: 'Mine', nickname: 'Team' },
+            { id: 2, location: 'Yours', nickname: 'Club' }
+          ],
+          schedule: [
+            {
+              matchupPeriodId: 2,
+              home: { teamId: 1, totalPointsLive: 6.2 },
+              away: { teamId: 2, totalPointsLive: 4.1 }
+            }
+          ]
+        })
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().nfl?.displayWeek).toBe(2)
+    await expect.poll(() => currentState().matchup?.myPoints).toBe(6.2)
+    expect(urls[0]).toContain('/state/nfl')
+    expect(urls.some((url) => url.includes('view=mSettings') || url.includes('view=mStatus'))).toBe(true)
+    expect(urls.some((url) => url.includes('scoringPeriodId=2'))).toBe(true)
+    expect(currentState().error).toBeNull()
   })
 })
 

@@ -7,6 +7,7 @@ import { formatScore, overlayName } from '../shared/format'
 import { LeadBar } from '../shared/LeadBar'
 import { ProviderBadge } from '../shared/ProviderBadge'
 import { LiveScoringRail } from './LiveScoringRail'
+import { LeagueSyncingMark } from './LeagueSyncing'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -38,6 +39,7 @@ const BoardCard = ({
         <span className="min-w-0 flex-1 truncate font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
           {board.leagueName}
         </span>
+        {board.refreshing ? <LeagueSyncingMark /> : null}
         {board.size ? (
           <span className="flex items-center gap-1 font-cond text-[10px] font-bold uppercase tracking-wide text-muted">
             <Users className="h-3 w-3" aria-hidden="true" />

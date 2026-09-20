@@ -7,6 +7,7 @@ import { BoardRails } from '../shared/LineupRow'
 import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
 import { NflTicker } from './NflTicker'
+import { LeagueSyncingBanner } from './LeagueSyncing'
 import { chromeDotClass, chromeFillPillClass, chromePillClass } from './chrome'
 
 export const studioControlsVisible = (overlayVisible: boolean): boolean => overlayVisible
@@ -101,6 +102,10 @@ export const BoardScreen = ({
   const showReplay = boardUx === 'healthy-lineup' && state.replay
   const showLineups = boardUx === 'healthy-lineup'
   const showEditLayout = studioControlsVisible(state.overlayVisible)
+  const selectedRefreshing = Boolean(
+    state.selectedLeagueKey &&
+      state.boards.some((board) => board.key === state.selectedLeagueKey && board.refreshing)
+  )
   const tape = tapeForLeague(
     state.tape.length > 0
       ? state.tape
@@ -147,6 +152,7 @@ export const BoardScreen = ({
         {boardUx === 'auth-fail' || boardUx === 'empty-roster' ? (
           <EspnRecoverBanner ux={boardUx} onSignIn={() => void api().signInEspn()} />
         ) : null}
+        {selectedRefreshing ? <LeagueSyncingBanner /> : null}
         {!matchup ? (
           <>
             {showEditLayout ? <EditLayoutPill studioOpen={studioOpen} onStudio={onStudio} /> : null}

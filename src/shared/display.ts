@@ -177,6 +177,7 @@ export type MatchupBoardExtra = {
   leadSpark?: number[]
   size?: number
   espnNeedsRelogin?: boolean
+  refreshing?: boolean
 }
 
 export const toMatchupBoard = (
@@ -202,7 +203,8 @@ export const toMatchupBoard = (
     ...(matchup?.scoresFinal ? { scoresFinal: true } : {}),
     lastScorers: liveScorers(matchup),
     leadSpark: extra?.leadSpark,
-    size: extra?.size
+    size: extra?.size,
+    ...(extra?.refreshing ? { refreshing: true } : {})
   }
 }
 
