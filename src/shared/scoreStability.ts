@@ -94,6 +94,32 @@ export const commitScore = (
 const playerPts = (player: Player | undefined): number | undefined =>
   typeof player?.points === 'number' && Number.isFinite(player.points) ? player.points : undefined
 
+/** Last-HUD week-1 finals vs week-2 chips (115 vs 17.2). Compact flicker stays within 1 pt of its own starters. */
+export const LEFTOVER_HEADER_PTS = 1
+
+export const starterPointsSum = (players: Player[]): number =>
+  players.reduce((sum, player) => sum + (playerPts(player) ?? 0), 0)
+
+export const headersDisagreeWithStarters = (matchup: Matchup): boolean =>
+  Math.abs(matchup.myPoints - starterPointsSum(matchup.starters)) > LEFTOVER_HEADER_PTS ||
+  Math.abs(matchup.oppPoints - starterPointsSum(matchup.oppStarters)) > LEFTOVER_HEADER_PTS
+
+export const headersAgreeWithStarters = (matchup: Matchup): boolean => !headersDisagreeWithStarters(matchup)
+
+/** Poisoned last-HUD headers (115/122) must not hold over current-period live/final totals (17.2/3). */
+export const liveTotalsTrustPlan = (opts: {
+  prev: Matchup | null
+  incoming: Matchup
+  official?: boolean
+  trustLiveTotals?: boolean
+}): 'trust-live' | 'hold' => {
+  if (opts.official || opts.incoming.scoresFinal || opts.trustLiveTotals) return 'trust-live'
+  if (opts.prev && headersDisagreeWithStarters(opts.prev) && headersAgreeWithStarters(opts.incoming)) {
+    return 'trust-live'
+  }
+  return 'hold'
+}
+
 const playerById = (players: Player[]): Map<string, Player> => {
   const byId = new Map<string, Player>()
   for (const player of players) {
@@ -137,7 +163,7 @@ export const stabilizeMatchup = (
   prev: Matchup | null,
   next: Matchup,
   memory: MatchupScoreMemory,
-  opts?: { week?: number; official?: boolean }
+  opts?: { week?: number; official?: boolean; trustLiveTotals?: boolean }
 ): Matchup => {
   if (opts?.week != null && memory.week != null && memory.week !== opts.week) {
     memory.week = opts.week
@@ -148,15 +174,22 @@ export const stabilizeMatchup = (
   }
   if (opts?.week != null) memory.week = opts.week
   const official = Boolean(opts?.official || next.scoresFinal)
+  const trustLiveTotals =
+    liveTotalsTrustPlan({
+      prev,
+      incoming: next,
+      official,
+      trustLiveTotals: opts?.trustLiveTotals
+    }) === 'trust-live'
   const mine = commitScore(
-    { committed: memory.mine.committed ?? prev?.myPoints ?? null, pending: memory.mine.pending },
+    { committed: memory.mine.committed, pending: memory.mine.pending },
     next.myPoints,
-    official
+    trustLiveTotals
   )
   const opp = commitScore(
-    { committed: memory.opp.committed ?? prev?.oppPoints ?? null, pending: memory.opp.pending },
+    { committed: memory.opp.committed, pending: memory.opp.pending },
     next.oppPoints,
-    official
+    trustLiveTotals
   )
   memory.mine = mine
   memory.opp = opp

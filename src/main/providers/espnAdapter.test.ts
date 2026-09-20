@@ -2636,6 +2636,90 @@ describe('overlayEspnMatchup', () => {
     expect(overlayEspnMatchup(week1Finals, live, 2, true)?.myPoints).toBe(17.2)
   })
 
+  it('does not let stabilizeMatchup keep leftover week-1 headers over week-2 live totals', () => {
+    const week1Finals = {
+      ...prev,
+      myPoints: 115.26,
+      oppPoints: 122.22,
+      starters: [
+        { playerId: '106', name: 'LaPorta', position: 'TE', nflTeam: 'DET', points: 17.2 },
+        { ...prev.starters[0], points: 0 }
+      ],
+      oppStarters: [
+        { playerId: '201', name: 'Bates', position: 'K', nflTeam: 'CIN', points: 3 },
+        { ...prev.oppStarters[0], points: 0 }
+      ],
+      scoresFinal: false
+    }
+    const live = {
+      scoringPeriodId: 2,
+      schedule: [
+        {
+          matchupPeriodId: 2,
+          winner: 'UNDECIDED',
+          home: {
+            teamId: 1,
+            totalPoints: 0,
+            totalPointsLive: 17.2,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 6,
+                  playerId: 106,
+                  playerPoolEntry: { player: { fullName: 'LaPorta', defaultPositionId: 3 } }
+                },
+                {
+                  lineupSlotId: 0,
+                  playerId: 100,
+                  playerPoolEntry: { player: { fullName: 'Hurts', defaultPositionId: 1 } }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 2,
+            totalPoints: 0,
+            totalPointsLive: 3,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 17,
+                  playerId: 201,
+                  playerPoolEntry: { player: { fullName: 'Bates', defaultPositionId: 5 } }
+                },
+                {
+                  lineupSlotId: 0,
+                  playerId: 200,
+                  playerPoolEntry: { player: { fullName: 'Mahomes', defaultPositionId: 1 } }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      liveScoring: {
+        teams: [
+          {
+            teamId: 1,
+            totalPointsLive: 17.2,
+            players: [{ playerId: 106, totalPointsLive: 17.2, lineupSlotId: 6 }]
+          },
+          {
+            teamId: 2,
+            totalPointsLive: 3,
+            players: [{ playerId: 201, totalPointsLive: 3, lineupSlotId: 17 }]
+          }
+        ]
+      }
+    }
+    const memory = emptyScoreMemory()
+    const candidate = overlayEspnMatchup(week1Finals, live, 2, true)
+    expect(candidate?.myPoints).toBe(17.2)
+    const shown = stabilizeMatchup(week1Finals, candidate!, memory, { week: 2 })
+    expect(shown.myPoints).toBe(17.2)
+    expect(shown.oppPoints).toBe(3)
+  })
+
   it('does not let a later lower compact payload overwrite a committed HUD total', () => {
     const highPrev = {
       ...prev,

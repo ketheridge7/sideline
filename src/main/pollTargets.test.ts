@@ -606,10 +606,10 @@ describe('espnLiveOverlayCachePlan', () => {
 })
 
 describe('espnLiveDiskHydratePlan', () => {
-  it('does not parse ESPN scores disk beside mLiveScoring, including overlay onto last HUD', () => {
+  it('hydrates scores disk on a cache miss even when last HUD already exists', () => {
     expect(espnLiveDiskHydratePlan({ cachedAtKick: true })).toBe('skip')
     expect(espnLiveDiskHydratePlan({ cachedAtKick: false })).toBe('after-live')
-    expect(espnLiveDiskHydratePlan({ cachedAtKick: false, hasPrevMatchup: true })).toBe('skip')
+    expect(espnLiveDiskHydratePlan({ cachedAtKick: false, hasPrevMatchup: true })).toBe('after-live')
   })
 })
 
