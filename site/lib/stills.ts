@@ -7,15 +7,19 @@ export const PRODUCT_STILLS = {
   },
   companion: {
     src: "/images/companion-board.jpg",
-    alt: "Sideline companion board with scoring tape, you-vs-them matchup, watchlist, and chance-to-win bar.",
+    alt: "Live Sideline companion board with scoring tape, you-vs-them matchup, watchlist, and chance-to-win bar.",
   },
   overlay: {
     src: "/images/frost-hud.jpg",
-    alt: "Frost HUD rail on the sideline with empty center so live video stays the picture.",
+    alt: "Frost HUD rails on the sideline with empty center so the live game stays the picture.",
   },
   studio: {
     src: "/images/overlay-studio.jpg",
-    alt: "Overlay Studio with layout presets, live preview, and HUD rail controls.",
+    alt: "Overlay Studio with five layout presets, live HUD preview, and rail size and position controls.",
+  },
+  connect: {
+    src: "/images/connect-hub.jpg",
+    alt: "Connect hub with ESPN, Sleeper, and TV peer cards.",
   },
 } as const;
 
