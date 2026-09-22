@@ -1,6 +1,8 @@
 import type { League, Matchup, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
 import {
   FEATURED_LEAGUE_KEY,
+  REPLAY_SEASON,
+  REPLAY_WEEK,
   replayBoardExtra,
   replayMatchupFor,
   replaySeedTape as seedTape,
@@ -27,10 +29,10 @@ export const resetReplayTick = (): void => {
 }
 
 export const replayNfl = (): NflState => ({
-  week: 1,
-  displayWeek: 1,
-  season: '2025',
-  leagueSeason: '2025',
+  week: REPLAY_WEEK,
+  displayWeek: REPLAY_WEEK,
+  season: REPLAY_SEASON,
+  leagueSeason: REPLAY_SEASON,
   seasonType: 'regular'
 })
 
