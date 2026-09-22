@@ -3,10 +3,13 @@ import { leagueKey } from '@shared/types'
 import { lastName } from '@shared/display'
 
 export const FEATURED_LEAGUE_KEY = 'sleeper:friday-night-gridiron'
+export const REPLAY_SEASON = '2026'
+export const REPLAY_WEEK = 3
 
 const round1 = (value: number): number => Math.round(value * 10) / 10
 
-const TAPE_T0 = Date.UTC(2025, 8, 7, 17, 12, 0)
+/** Sunday Week 3, 2026 — 2:22pm ET, mid-slate. */
+const TAPE_T0 = Date.UTC(2026, 8, 27, 18, 22, 0)
 
 type WorldLeague = League & { size: number; leadSpark: number[] }
 
@@ -45,6 +48,23 @@ const team = (id: string, name: string, owner: string, record: string): Team => 
   record
 })
 
+const chance = (
+  source: NonNullable<Matchup['winPctSource']>,
+  myProjected: number,
+  oppProjected: number,
+  officialWin?: number
+): Pick<
+  Matchup,
+  'myProjectedPoints' | 'oppProjectedPoints' | 'myWinPct' | 'oppWinPct' | 'winPctSource'
+> => ({
+  myProjectedPoints: myProjected,
+  oppProjectedPoints: oppProjected,
+  winPctSource: source,
+  ...(officialWin != null
+    ? { myWinPct: officialWin, oppWinPct: Math.round((1 - officialWin) * 100) / 100 }
+    : {})
+})
+
 const sumPts = (rows: Player[]): number =>
   round1(rows.reduce((total, row) => total + (row.points ?? 0), 0))
 
@@ -72,8 +92,8 @@ const WORLD_LEAGUES: WorldLeague[] = [
     id: 'friday-night-gridiron',
     name: 'Friday Night Gridiron',
     provider: 'sleeper',
-    season: '2025',
-    week: 1,
+    season: REPLAY_SEASON,
+    week: REPLAY_WEEK,
     size: 12,
     leadSpark: [6.2, 7.8, 9.4, 10.1, 11.6]
   },
@@ -81,8 +101,8 @@ const WORLD_LEAGUES: WorldLeague[] = [
     id: 'fourth-drunken',
     name: 'Fourth & Drunken',
     provider: 'sleeper',
-    season: '2025',
-    week: 1,
+    season: REPLAY_SEASON,
+    week: REPLAY_WEEK,
     size: 10,
     leadSpark: [-9.2, -11.4, -13.8, -15.1, -16.5]
   },
@@ -90,35 +110,35 @@ const WORLD_LEAGUES: WorldLeague[] = [
     id: 'sunday-lights',
     name: 'Sunday Lights',
     provider: 'sleeper',
-    season: '2025',
-    week: 1,
+    season: REPLAY_SEASON,
+    week: REPLAY_WEEK,
     size: 12,
     leadSpark: [1.2, 2.6, 3.1, 4.0, 4.2]
   },
   {
-    id: '90664721',
+    id: 'gridiron-gurus',
     name: 'Gridiron Gurus',
     provider: 'espn',
-    season: '2025',
-    week: 1,
+    season: REPLAY_SEASON,
+    week: REPLAY_WEEK,
     size: 10,
     leadSpark: [4.4, 5.8, 6.9, 7.6, 8.1]
   },
   {
-    id: '55112233',
-    name: 'The Homies',
+    id: 'basement-bowl',
+    name: 'Basement Bowl',
     provider: 'espn',
-    season: '2025',
-    week: 1,
+    season: REPLAY_SEASON,
+    week: REPLAY_WEEK,
     size: 12,
     leadSpark: [-1.1, -1.8, -2.6, -3.0, -3.4]
   },
   {
-    id: 'benchwarmers',
+    id: 'waiver-wire',
     name: 'Waiver Wire Warriors',
     provider: 'sleeper',
-    season: '2025',
-    week: 1,
+    season: REPLAY_SEASON,
+    week: REPLAY_WEEK,
     size: 10,
     leadSpark: [0.4, 0.8, 1.4, 1.8, 2.0]
   }
@@ -126,10 +146,11 @@ const WORLD_LEAGUES: WorldLeague[] = [
 
 const MATCHUPS: Record<string, Matchup> = {
   'sleeper:friday-night-gridiron': {
-    myTeam: team('fng-me', 'Gibbs Me Head', 'Kevin', '1-0'),
-    oppTeam: team('fng-opp', 'The Other Guys', 'Marcus', '0-1'),
+    myTeam: team('fng-me', 'Ice Box', 'Maya', '2-0'),
+    oppTeam: team('fng-opp', 'Hash Marks', 'Owen', '1-1'),
     myPoints: 142.8,
     oppPoints: 131.2,
+    ...chance('estimated', 171.4, 162.0),
     starters: [
       player('fng-fields', 'Justin Fields', 'QB', 'PIT', 18.4),
       player('fng-gibbs', 'Jahmyr Gibbs', 'RB', 'DET', 24.7),
@@ -159,14 +180,15 @@ const MATCHUPS: Record<string, Matchup> = {
     ],
     oppBench: [
       player('fng-pacheco', 'Isiah Pacheco', 'RB', 'KC', 6.4),
-      player('fng-dell', 'Tank Dell', 'WR', 'HOU', 2.1)
+      player('fng-worthy', 'Xavier Worthy', 'WR', 'KC', 4.1)
     ]
   },
   'sleeper:fourth-drunken': {
-    myTeam: team('fd-me', 'Drunk Tank', 'Riley', '0-1'),
-    oppTeam: team('fd-opp', 'Sober Sundays', 'Pat', '1-0'),
+    myTeam: team('fd-me', 'Last Call', 'Riley', '0-2'),
+    oppTeam: team('fd-opp', 'Sober Sundays', 'Pat', '2-0'),
     myPoints: 98.4,
     oppPoints: 114.9,
+    ...chance('estimated', 138.6, 151.2),
     starters: [
       player('fd-stroud', 'C.J. Stroud', 'QB', 'HOU', 14.2),
       player('fd-cmc', 'Christian McCaffrey', 'RB', 'SF', 12.8),
@@ -175,28 +197,32 @@ const MATCHUPS: Record<string, Matchup> = {
       player('fd-waddle', 'Jaylen Waddle', 'WR', 'MIA', 8.1),
       player('fd-hock', 'T.J. Hockenson', 'TE', 'MIN', 6.4),
       player('fd-mooney', 'Darnell Mooney', 'FLEX', 'ATL', 7.2),
-      player('fd-tucker', 'Justin Tucker', 'K', 'BAL', 11.0),
+      player('fd-mclaughlin', 'Chase McLaughlin', 'K', 'TB', 11.0),
       player('fd-cle-def', 'Browns D/ST', 'DEF', 'CLE', 10.7)
     ],
-    bench: [player('fd-allgeier', 'Tyler Allgeier', 'RB', 'ATL', 3.2)],
+    bench: [
+      player('fd-allgeier', 'Tyler Allgeier', 'RB', 'ATL', 3.2),
+      player('fd-shakir', 'Khalil Shakir', 'WR', 'BUF', 5.4)
+    ],
     oppStarters: [
       player('fd-mahomes', 'Patrick Mahomes', 'QB', 'KC', 24.8),
       player('fd-kamara', 'Alvin Kamara', 'RB', 'NO', 16.1),
       player('fd-walker', 'Kenneth Walker III', 'RB', 'SEA', 13.4),
       player('fd-hill-opp', 'Tyreek Hill', 'WR', 'MIA', 15.2),
-      player('fd-adams', 'Davante Adams', 'WR', 'NYJ', 12.0),
+      player('fd-sutton', 'Courtland Sutton', 'WR', 'DEN', 12.0),
       player('fd-andrews', 'Mark Andrews', 'TE', 'BAL', 8.8),
       player('fd-pittman', 'Michael Pittman Jr.', 'FLEX', 'IND', 9.6),
       player('fd-aubrey', 'Brandon Aubrey', 'K', 'DAL', 8.4),
       player('fd-sf-def', '49ers D/ST', 'DEF', 'SF', 6.6)
     ],
-    oppBench: []
+    oppBench: [player('fd-warren', 'Jaylen Warren', 'RB', 'PIT', 4.8)]
   },
   'sleeper:sunday-lights': {
-    myTeam: team('sl-me', 'Sunday Night Lights', 'Sideline Demo', '8-5'),
-    oppTeam: team('sl-opp', 'Gridiron Ghosts', 'Rival GM', '7-6'),
+    myTeam: team('sl-me', 'Night Shift', 'Chris', '1-1'),
+    oppTeam: team('sl-opp', 'Gridiron Ghosts', 'Jordan', '1-1'),
     myPoints: 121.0,
     oppPoints: 116.8,
+    ...chance('estimated', 158.2, 154.6),
     starters: [
       player('sl-hurts', 'Jalen Hurts', 'QB', 'PHI', 22.4),
       player('sl-gibbs', 'Jahmyr Gibbs', 'RB', 'DET', 18.1),
@@ -205,10 +231,13 @@ const MATCHUPS: Record<string, Matchup> = {
       player('sl-lamb', 'CeeDee Lamb', 'WR', 'DAL', 9.8),
       player('sl-kelce', 'Travis Kelce', 'TE', 'KC', 11.4),
       player('sl-nico', 'Nico Collins', 'FLEX', 'HOU', 8.0),
-      player('sl-tucker', 'Justin Tucker', 'K', 'BAL', 13.5),
+      player('sl-dicker', 'Cameron Dicker', 'K', 'LAC', 13.5),
       player('sl-phi-def', 'Eagles D/ST', 'DEF', 'PHI', 11.0)
     ],
-    bench: [player('sl-mattison', 'Alexander Mattison', 'RB', 'MIA', 0)],
+    bench: [
+      player('sl-warren', 'Jaylen Warren', 'RB', 'PIT', 3.6),
+      player('sl-ladd', 'Ladd McConkey', 'WR', 'LAC', 6.2)
+    ],
     oppStarters: [
       player('sl-allen', 'Josh Allen', 'QB', 'BUF', 19.2),
       player('sl-henry', 'Derrick Henry', 'RB', 'BAL', 16.4),
@@ -220,13 +249,14 @@ const MATCHUPS: Record<string, Matchup> = {
       player('sl-butker', 'Harrison Butker', 'K', 'KC', 12.8),
       player('sl-bal-def', 'Ravens D/ST', 'DEF', 'BAL', 17.6)
     ],
-    oppBench: []
+    oppBench: [player('sl-flowers', 'Zay Flowers', 'WR', 'BAL', 5.1)]
   },
-  'espn:90664721': {
-    myTeam: team('gg-me', 'Fourth & Fearless', 'Ada', '1-0'),
-    oppTeam: team('gg-opp', 'Red Zone Renegades', 'Bo', '0-1'),
+  'espn:gridiron-gurus': {
+    myTeam: team('gg-me', 'Fourth & Fearless', 'Ada', '2-0'),
+    oppTeam: team('gg-opp', 'End Zone Errands', 'Bo', '1-1'),
     myPoints: 133.4,
     oppPoints: 125.3,
+    ...chance('official', 164.8, 157.1, 0.64),
     starters: [
       player('gg-lamar', 'Lamar Jackson', 'QB', 'BAL', 26.8),
       player('gg-achane', 'De\'Von Achane', 'RB', 'MIA', 15.4),
@@ -238,7 +268,10 @@ const MATCHUPS: Record<string, Matchup> = {
       player('gg-bass', 'Tyler Bass', 'K', 'BUF', 9.1),
       player('gg-dal-def', 'Cowboys D/ST', 'DEF', 'DAL', 15.0)
     ],
-    bench: [player('gg-downs', 'Josh Downs', 'WR', 'IND', 6.2)],
+    bench: [
+      player('gg-downs', 'Josh Downs', 'WR', 'IND', 6.2),
+      player('gg-charbonnet', 'Zach Charbonnet', 'RB', 'SEA', 4.4)
+    ],
     oppStarters: [
       player('gg-burrow', 'Joe Burrow', 'QB', 'CIN', 21.4),
       player('gg-taylor', 'Jonathan Taylor', 'RB', 'IND', 17.8),
@@ -250,25 +283,29 @@ const MATCHUPS: Record<string, Matchup> = {
       player('gg-fairbairn', 'Ka\'imi Fairbairn', 'K', 'HOU', 10.2),
       player('gg-mia-def', 'Dolphins D/ST', 'DEF', 'MIA', 15.8)
     ],
-    oppBench: [player('gg-conner-bn', 'James Conner', 'RB', 'ARI', 0)]
+    oppBench: [player('gg-btj', 'Brian Thomas Jr.', 'WR', 'JAX', 5.8)]
   },
-  'espn:55112233': {
-    myTeam: team('hm-me', 'Riverdalers', 'Sam', '0-1'),
-    oppTeam: team('hm-opp', 'Show Me Your TDs', 'Chris', '1-0'),
+  'espn:basement-bowl': {
+    myTeam: team('hm-me', 'River City', 'Sam', '1-1'),
+    oppTeam: team('hm-opp', 'First Down Club', 'Nia', '2-0'),
     myPoints: 108.2,
     oppPoints: 111.6,
+    ...chance('official', 149.4, 152.8, 0.41),
     starters: [
       player('hm-dak', 'Dak Prescott', 'QB', 'DAL', 16.4),
       player('hm-pollard', 'Tony Pollard', 'RB', 'TEN', 11.2),
       player('hm-dowdle', 'Rico Dowdle', 'RB', 'DAL', 8.8),
       player('hm-pickens', 'George Pickens', 'WR', 'PIT', 14.6),
-      player('hm-diontae', 'Diontae Johnson', 'WR', 'BAL', 9.4),
+      player('hm-flowers', 'Zay Flowers', 'WR', 'BAL', 9.4),
       player('hm-kincaid', 'Dalton Kincaid', 'TE', 'BUF', 7.1),
       player('hm-shakir', 'Khalil Shakir', 'FLEX', 'BUF', 10.3),
       player('hm-sanders', 'Chris Boswell', 'K', 'PIT', 12.0),
       player('hm-nyj-def', 'Jets D/ST', 'DEF', 'NYJ', 18.4)
     ],
-    bench: [player('hm-allgeier', 'Tyler Allgeier', 'RB', 'ATL', 1.4)],
+    bench: [
+      player('hm-allgeier', 'Tyler Allgeier', 'RB', 'ATL', 1.4),
+      player('hm-ladd', 'Ladd McConkey', 'WR', 'LAC', 4.6)
+    ],
     oppStarters: [
       player('hm-love', 'Jordan Love', 'QB', 'GB', 18.8),
       player('hm-irving', 'Bucky Irving', 'RB', 'TB', 14.1),
@@ -280,13 +317,14 @@ const MATCHUPS: Record<string, Matchup> = {
       player('hm-mcpherson', 'Evan McPherson', 'K', 'CIN', 11.0),
       player('hm-gb-def', 'Packers D/ST', 'DEF', 'GB', 14.0)
     ],
-    oppBench: []
+    oppBench: [player('hm-charbonnet', 'Zach Charbonnet', 'RB', 'SEA', 3.2)]
   },
-  'sleeper:benchwarmers': {
-    myTeam: team('bw-me', 'The Benchwarmers', 'Lee', '1-0'),
-    oppTeam: team('bw-opp', 'Red Zone Renegades', 'Mo', '0-1'),
+  'sleeper:waiver-wire': {
+    myTeam: team('bw-me', 'Priority Wire', 'Lee', '1-1'),
+    oppTeam: team('bw-opp', 'Claim Jumpers', 'Mo', '1-1'),
     myPoints: 119.7,
     oppPoints: 117.7,
+    ...chance('estimated', 154.0, 151.6),
     starters: [
       player('bw-maye', 'Drake Maye', 'QB', 'NE', 17.6),
       player('bw-gibbs', 'Jahmyr Gibbs', 'RB', 'DET', 15.2),
@@ -298,7 +336,10 @@ const MATCHUPS: Record<string, Matchup> = {
       player('bw-grupe', 'Blake Grupe', 'K', 'NO', 9.4),
       player('bw-den-def', 'Broncos D/ST', 'DEF', 'DEN', 15.4)
     ],
-    bench: [player('bw-mooney', 'Darnell Mooney', 'WR', 'ATL', 4.8)],
+    bench: [
+      player('bw-mooney', 'Darnell Mooney', 'WR', 'ATL', 4.8),
+      player('bw-dowdle', 'Rico Dowdle', 'RB', 'DAL', 2.6)
+    ],
     oppStarters: [
       player('bw-daniels', 'Jayden Daniels', 'QB', 'WAS', 20.4),
       player('bw-bijan', 'Bijan Robinson', 'RB', 'ATL', 16.8),
@@ -310,7 +351,7 @@ const MATCHUPS: Record<string, Matchup> = {
       player('bw-loop', 'Jason Myers', 'K', 'SEA', 10.0),
       player('bw-was-def', 'Commanders D/ST', 'DEF', 'WAS', 14.2)
     ],
-    oppBench: []
+    oppBench: [player('bw-shakir', 'Khalil Shakir', 'WR', 'BUF', 3.9)]
   }
 }
 
@@ -319,14 +360,22 @@ const SCORE_BEATS: ScoreBeat[] = [
   { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-hill', delta: -2.0, note: 'FUM' },
   { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-lamb', delta: 3.4, note: 'REC' },
   { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-allen', delta: -0.3, note: 'SK' },
-  { kind: 'score', provider: 'espn', leagueId: '90664721', playerId: 'gg-lamar', delta: 4.6, note: 'TD' },
+  { kind: 'score', provider: 'espn', leagueId: 'gridiron-gurus', playerId: 'gg-lamar', delta: 4.6, note: 'TD' },
   { kind: 'score', provider: 'sleeper', leagueId: 'fourth-drunken', playerId: 'fd-cmc', delta: -1.6, note: 'FUM' },
   { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-fields', delta: -1.6, note: 'INT' },
   { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-bates', delta: 3.0, note: 'FG' },
-  { kind: 'score', provider: 'espn', leagueId: '55112233', playerId: 'hm-pickens', delta: 6.4, note: 'TD' },
+  { kind: 'score', provider: 'espn', leagueId: 'basement-bowl', playerId: 'hm-pickens', delta: 6.4, note: 'TD' },
   { kind: 'score', provider: 'sleeper', leagueId: 'sunday-lights', playerId: 'sl-hurts', delta: 2.4, note: 'RUSH' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'benchwarmers', playerId: 'bw-bowers', delta: 1.8, note: 'REC' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-saquon', delta: -0.2, note: 'FUM' }
+  { kind: 'score', provider: 'sleeper', leagueId: 'waiver-wire', playerId: 'bw-bowers', delta: 1.8, note: 'REC' },
+  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-saquon', delta: -0.2, note: 'FUM' },
+  { kind: 'score', provider: 'espn', leagueId: 'gridiron-gurus', playerId: 'gg-chase', delta: 5.2, note: 'TD' },
+  { kind: 'score', provider: 'sleeper', leagueId: 'fourth-drunken', playerId: 'fd-chase', delta: 3.1, note: 'REC' },
+  { kind: 'score', provider: 'sleeper', leagueId: 'sunday-lights', playerId: 'sl-henry', delta: 6.8, note: 'TD' },
+  { kind: 'score', provider: 'sleeper', leagueId: 'waiver-wire', playerId: 'bw-nabers', delta: 4.4, note: 'TD' },
+  { kind: 'score', provider: 'espn', leagueId: 'basement-bowl', playerId: 'hm-irving', delta: 2.2, note: 'RUSH' },
+  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-kelce', delta: 1.4, note: 'REC' },
+  { kind: 'score', provider: 'sleeper', leagueId: 'sunday-lights', playerId: 'sl-tyreek', delta: -0.8, note: 'FUM' },
+  { kind: 'score', provider: 'espn', leagueId: 'gridiron-gurus', playerId: 'gg-burrow', delta: -1.2, note: 'SK' }
 ]
 
 const INJURY_BEAT: InjuryBeat = {
@@ -339,17 +388,29 @@ const INJURY_BEAT: InjuryBeat = {
   note: 'LEFT GAME (ANKLE)'
 }
 
+const leagueNameByKey = Object.fromEntries(
+  WORLD_LEAGUES.map((row) => [leagueKey(row.provider, row.id), row.name])
+) as Record<string, string>
+
 const SEED_TAPE: Omit<TapeEvent, 'at'>[] = [
-  { id: 'seed-gibbs-td', kind: 'score', player: 'Gibbs DET', detail: 'TD', delta: 6.2, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '2ND' },
-  { id: 'seed-hill-fum', kind: 'score', player: 'Hill MIA', detail: 'FUM', delta: -2.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '2ND' },
-  { id: 'seed-lamb', kind: 'score', player: 'Lamb DAL', detail: 'REC', delta: 3.4, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '2ND' },
-  { id: 'seed-allen-sk', kind: 'score', player: 'Allen BUF', detail: 'SK', delta: -0.3, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '1ST' },
-  { id: 'seed-dowdle-inj', kind: 'injury', player: 'Dowdle DAL', detail: 'LEFT GAME (ANKLE)', leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '2ND' },
-  { id: 'seed-downs-waiver', kind: 'add', player: 'Downs IND', detail: 'WAIVER CLAIM', leagueKey: 'sleeper:fourth-drunken', leagueName: 'Fourth & Drunken', period: '1ST' },
-  { id: 'seed-bates-fg', kind: 'score', player: 'Bates ATL', detail: 'FG', delta: 3.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '1ST' },
-  { id: 'seed-cmc-fum', kind: 'score', player: 'McCaffrey SF', detail: 'FUM', delta: -1.6, leagueKey: 'sleeper:fourth-drunken', leagueName: 'Fourth & Drunken', period: '1ST' },
-  { id: 'seed-lamar', kind: 'score', player: 'Jackson BAL', detail: 'TD', delta: 4.6, leagueKey: 'espn:90664721', leagueName: 'Gridiron Gurus', period: '1ST' },
-  { id: 'seed-fields-int', kind: 'score', player: 'Fields PIT', detail: 'INT', delta: -1.6, leagueKey: FEATURED_LEAGUE_KEY, leagueName: 'Friday Night Gridiron', period: '1ST' }
+  { id: 'seed-gibbs-td', kind: 'score', player: 'Gibbs DET', detail: 'TD', delta: 6.2, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '3RD' },
+  { id: 'seed-hill-fum', kind: 'score', player: 'Hill MIA', detail: 'FUM', delta: -2.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '3RD' },
+  { id: 'seed-lamb', kind: 'score', player: 'Lamb DAL', detail: 'REC', delta: 3.4, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '3RD' },
+  { id: 'seed-allen-sk', kind: 'score', player: 'Allen BUF', detail: 'SK', delta: -0.3, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '2ND' },
+  { id: 'seed-dowdle-inj', kind: 'injury', player: 'Dowdle DAL', detail: 'LEFT GAME (ANKLE)', leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '2ND' },
+  { id: 'seed-downs-waiver', kind: 'add', player: 'Downs IND', detail: 'WAIVER CLAIM', leagueKey: 'sleeper:fourth-drunken', leagueName: leagueNameByKey['sleeper:fourth-drunken'], period: '1ST' },
+  { id: 'seed-bates-fg', kind: 'score', player: 'Bates ATL', detail: 'FG', delta: 3.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '2ND' },
+  { id: 'seed-cmc-fum', kind: 'score', player: 'McCaffrey SF', detail: 'FUM', delta: -1.6, leagueKey: 'sleeper:fourth-drunken', leagueName: leagueNameByKey['sleeper:fourth-drunken'], period: '2ND' },
+  { id: 'seed-lamar', kind: 'score', player: 'Jackson BAL', detail: 'TD', delta: 4.6, leagueKey: 'espn:gridiron-gurus', leagueName: leagueNameByKey['espn:gridiron-gurus'], period: '2ND' },
+  { id: 'seed-fields-int', kind: 'score', player: 'Fields PIT', detail: 'INT', delta: -1.6, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '1ST' },
+  { id: 'seed-hurts-rush', kind: 'score', player: 'Hurts PHI', detail: 'RUSH', delta: 2.4, leagueKey: 'sleeper:sunday-lights', leagueName: leagueNameByKey['sleeper:sunday-lights'], period: '3RD' },
+  { id: 'seed-pickens-td', kind: 'score', player: 'Pickens PIT', detail: 'TD', delta: 6.4, leagueKey: 'espn:basement-bowl', leagueName: leagueNameByKey['espn:basement-bowl'], period: '3RD' },
+  { id: 'seed-bowers-rec', kind: 'score', player: 'Bowers LV', detail: 'REC', delta: 1.8, leagueKey: 'sleeper:waiver-wire', leagueName: leagueNameByKey['sleeper:waiver-wire'], period: '2ND' },
+  { id: 'seed-henry-td', kind: 'score', player: 'Henry BAL', detail: 'TD', delta: 6.8, leagueKey: 'sleeper:sunday-lights', leagueName: leagueNameByKey['sleeper:sunday-lights'], period: '2ND' },
+  { id: 'seed-nabers-td', kind: 'score', player: 'Nabers NYG', detail: 'TD', delta: 4.4, leagueKey: 'sleeper:waiver-wire', leagueName: leagueNameByKey['sleeper:waiver-wire'], period: '2ND' },
+  { id: 'seed-kelce-rec', kind: 'score', player: 'Kelce KC', detail: 'REC', delta: 1.4, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '1ST' },
+  { id: 'seed-chase-td', kind: 'score', player: 'Chase CIN', detail: 'TD', delta: 5.2, leagueKey: 'espn:gridiron-gurus', leagueName: leagueNameByKey['espn:gridiron-gurus'], period: '1ST' },
+  { id: 'seed-btj-trade', kind: 'trade', player: 'Thomas Jr. JAX', detail: 'TRADE', leagueKey: 'sleeper:sunday-lights', leagueName: leagueNameByKey['sleeper:sunday-lights'], period: '1ST' }
 ]
 
 const TICKER: NflTickerGame[] = [
@@ -358,7 +419,10 @@ const TICKER: NflTickerGame[] = [
   { id: 'dal-nyg', away: 'DAL', awayScore: 28, home: 'NYG', homeScore: 14, clock: 'FINAL', final: true },
   { id: 'buf-mia', away: 'BUF', awayScore: 31, home: 'MIA', homeScore: 10, clock: '2ND 4:03' },
   { id: 'bal-pit', away: 'BAL', awayScore: 17, home: 'PIT', homeScore: 17, clock: '4TH 0:48' },
-  { id: 'sf-lar', away: 'SF', awayScore: 24, home: 'LAR', homeScore: 27, clock: 'FINAL', final: true }
+  { id: 'sf-lar', away: 'SF', awayScore: 24, home: 'LAR', homeScore: 27, clock: 'FINAL', final: true },
+  { id: 'hou-ind', away: 'HOU', awayScore: 13, home: 'IND', homeScore: 20, clock: '3RD 5:41' },
+  { id: 'gb-min', away: 'GB', awayScore: 24, home: 'MIN', homeScore: 27, clock: '4TH 6:18' },
+  { id: 'phi-tb', away: 'PHI', awayScore: 10, home: 'TB', homeScore: 7, clock: '2ND 11:02' }
 ]
 
 const WAIVER_TX: Transaction = {
@@ -456,17 +520,17 @@ const SEED_SCORERS: Record<string, ScorerChip[]> = {
     { playerId: 'sl-henry', name: 'Henry', position: 'RB', points: 16.4, delta: 15.2 },
     { playerId: 'sl-tyreek', name: 'Hill', position: 'WR', points: 10.2, delta: -0.8 }
   ],
-  'espn:90664721': [
+  'espn:gridiron-gurus': [
     { playerId: 'gg-lamar', name: 'Jackson', position: 'QB', points: 26.8, delta: 4.6 },
     { playerId: 'gg-cd', name: 'Lamb', position: 'WR', points: 18.6, delta: 3.1 },
     { playerId: 'gg-burrow', name: 'Burrow', position: 'QB', points: 21.4, delta: -1.2 }
   ],
-  'espn:55112233': [
+  'espn:basement-bowl': [
     { playerId: 'hm-pickens', name: 'Pickens', position: 'WR', points: 14.6, delta: 6.4 },
     { playerId: 'hm-irving', name: 'Irving', position: 'RB', points: 14.1, delta: 2.2 },
     { playerId: 'hm-dak', name: 'Prescott', position: 'QB', points: 16.4, delta: -0.4 }
   ],
-  'sleeper:benchwarmers': [
+  'sleeper:waiver-wire': [
     { playerId: 'bw-bowers', name: 'Bowers', position: 'TE', points: 13.6, delta: 1.8 },
     { playerId: 'bw-nabers', name: 'Nabers', position: 'WR', points: 15.0, delta: 5.2 },
     { playerId: 'bw-kyren', name: 'Williams', position: 'RB', points: 12.2, delta: -0.6 }

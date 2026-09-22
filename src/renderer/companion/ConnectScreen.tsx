@@ -721,7 +721,7 @@ export const ConnectScreen = ({
       {message ? <p className="text-sm text-muted">{message}</p> : null}
       {state.error ? <p className="text-sm text-air">{state.error}</p> : null}
       {state.replay ? (
-        <p className="text-sm text-lime">Replay mode is on — jittered 2025 fixtures, both providers loaded.</p>
+        <p className="text-sm text-lime">Replay mode is on — scripted 2026 Sunday slate, both providers loaded.</p>
       ) : null}
     </div>
   )
