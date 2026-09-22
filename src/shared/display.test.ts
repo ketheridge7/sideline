@@ -232,6 +232,24 @@ describe('upsertMatchupBoard', () => {
     expect(upsertMatchupBoard([first], updated).map((row) => row.myPoints)).toEqual([150])
     expect(upsertMatchupBoard([first], other).map((row) => row.key)).toEqual(['sleeper:1', 'sleeper:2'])
   })
+
+  it('keeps a stored ESPN league title when a live paint labels the card with the raw id', () => {
+    const espnLeague: League = { id: '543268341', name: 'Dawg Pound', provider: 'espn', season: '2026', week: 2 }
+    const named = toMatchupBoard(espnLeague, matchup)
+    const stub = toMatchupBoard({ ...espnLeague, name: '543268341' }, { ...matchup, myPoints: 150.4 })
+    const sleeper = toMatchupBoard(league, matchup)
+    const next = upsertMatchupBoard([sleeper, named], stub)
+    expect(next.find((row) => row.key === 'espn:543268341')?.leagueName).toBe('Dawg Pound')
+    expect(next.find((row) => row.key === 'espn:543268341')?.myPoints).toBe(150.4)
+    expect(next.find((row) => row.key === 'sleeper:1')?.leagueName).toBe('Friday Night Gridiron')
+  })
+
+  it('still accepts a real league rename that is not the raw id', () => {
+    const espnLeague: League = { id: '543268341', name: 'Dawg Pound', provider: 'espn', season: '2026', week: 2 }
+    const named = toMatchupBoard(espnLeague, matchup)
+    const renamed = toMatchupBoard({ ...espnLeague, name: 'Dawg Pound Dynasty' }, matchup)
+    expect(upsertMatchupBoard([named], renamed)[0]?.leagueName).toBe('Dawg Pound Dynasty')
+  })
 })
 
 describe('applyCompanionHudPatch', () => {
@@ -290,6 +308,35 @@ describe('applyCompanionHudPatch', () => {
     expect(next.boards.find((row) => row.key === 'sleeper:1')?.myPoints).toBe(150.4)
     expect(next.boards.find((row) => row.key === 'espn:543268341')?.myName).toBe('Dawg House')
     expect(next.boards.find((row) => row.key === 'espn:543268341')?.lastScorers[0]?.playerId).toBe('lamar')
+  })
+
+  it('does not replace Dawg Pound with the ESPN league id on a live HUD upsert', () => {
+    const espnLeague: League = { id: '543268341', name: '543268341', provider: 'espn', season: '2026', week: 2 }
+    const espnMatchup: Matchup = {
+      ...matchup,
+      myTeam: { id: '7', name: 'Dawg House', owner: 'Kevin', record: '1-0' },
+      bench: [{ playerId: 'kittle', name: 'George Kittle', position: 'TE', nflTeam: 'SF', points: 4.2 }],
+      oppBench: [{ playerId: 'nico', name: 'Nico Collins', position: 'WR', nflTeam: 'HOU', points: 3.1 }]
+    }
+    const current = {
+      ...emptyAppState(),
+      leagues: [espnLeague],
+      selectedLeagueKey: 'espn:543268341',
+      boards: [toMatchupBoard({ ...espnLeague, name: 'Dawg Pound' }, espnMatchup)],
+      matchup: espnMatchup
+    }
+    const next = applyCompanionHudPatch(current, {
+      matchup: { ...espnMatchup, myPoints: 150.4, oppPoints: 131.2 },
+      tape: [],
+      nflTicker: [],
+      pollingLive: true,
+      overlayEditMode: false,
+      lastUpdated: 9,
+      pollMs: 12,
+      liveCallMs: 40
+    })
+    expect(next.boards.find((row) => row.key === 'espn:543268341')?.leagueName).toBe('Dawg Pound')
+    expect(next.boards.find((row) => row.key === 'espn:543268341')?.myPoints).toBe(150.4)
   })
 })
 
