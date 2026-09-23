@@ -90,6 +90,15 @@ const lookupPlayer = (
   )
 }
 
+/** Only a real dump hit. A miss must keep the name already on the row, never paint the raw id. */
+const cachedPlayer = (players: Record<string, CachedPlayer>, playerId: string): CachedPlayer | undefined => {
+  const direct = players[playerId]
+  if (direct) return direct
+  const coerced = Number(playerId)
+  if (!Number.isFinite(coerced)) return undefined
+  return players[String(coerced)] ?? players[coerced as unknown as string]
+}
+
 const isMyRoster = (roster: SleeperRoster, userId: string): boolean => {
   const mine = String(userId)
   if (String(roster.owner_id) === mine) return true
@@ -180,7 +189,7 @@ export const applyPlayerNames = (
 ): Matchup => {
   if (!hasCachedPlayers(players)) return matchup
   const named = (player: Player): Player => {
-    const meta = lookupPlayer(players, player.playerId)
+    const meta = cachedPlayer(players, player.playerId)
     if (!meta) return player
     return {
       ...player,

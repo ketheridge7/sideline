@@ -3751,7 +3751,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           }
         }
       const applySleeperNames = (sleeperNames: Record<string, CachedPlayer>): void => {
-        if (!peekPlayerDumpReady()) return
+        if (replay || !peekPlayerDumpReady()) return
         for (const league of leagues) {
           if (league.provider !== 'sleeper') continue
           const key = leagueKey(league.provider, league.id)

@@ -3,6 +3,7 @@ import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, star
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 import { finalNflTeams } from '@shared/winPct'
+import type { Matchup } from '@shared/types'
 
 const players = {
   '1': { name: 'Hurts', position: 'QB', nflTeam: 'PHI' },
@@ -529,6 +530,21 @@ describe('applyPlayerNames', () => {
     const numericPlayers = { 1: players['1'], 2: players['2'] } as unknown as Record<string, CachedPlayer>
     const named = applyPlayerNames(unnamed, numericPlayers)
     expect(named.starters.map((row) => row.name)).toEqual(['Hurts', 'Barkley'])
+  })
+
+  it('keeps existing names when the dump misses a slug id (demo rosters on a machine with a live dump)', () => {
+    const demo: Matchup = {
+      myTeam: { id: 'cds-ice-box', name: 'Ice Box', owner: 'Maya', record: '2-0' },
+      oppTeam: null,
+      myPoints: 17.8,
+      oppPoints: 0,
+      starters: [{ playerId: 'cds-bijan-robinson', name: 'Bijan Robinson', position: 'RB', nflTeam: 'ATL', points: 17.8 }],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+    const named = applyPlayerNames(demo, players)
+    expect(named.starters[0]).toMatchObject({ name: 'Bijan Robinson', position: 'RB', nflTeam: 'ATL' })
   })
 })
 
