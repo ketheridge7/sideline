@@ -200,7 +200,9 @@ export const fetchNflScoreboard = async (liveTick = false): Promise<unknown> => 
         headers: { Accept: 'application/json' },
         timeoutMs: NFL_SCOREBOARD_TIMEOUT_MS,
         retries: 0,
-        priority: 'low'
+        priority: 'low',
+        // Two scoreboard endpoints share site.web.api; back off per endpoint so the header API stays a fallback.
+        backoffKey: url
       })
       lastGoodScoreboardUrl = url
       return payload

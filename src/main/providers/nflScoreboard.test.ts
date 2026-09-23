@@ -19,11 +19,13 @@ import {
   resetNflScoreboardCache
 } from './nflScoreboard'
 import { cacheFresh } from '../pollTargets'
+import { resetHostBackoff } from '../http'
 
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
   resetNflScoreboardCache()
+  resetHostBackoff()
 })
 
 describe('nflGamesInProgress', () => {

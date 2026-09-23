@@ -22,9 +22,11 @@ import {
   sleeperScoringKind,
   SleeperHttpError
 } from './sleeperClient'
+import { resetHostBackoff } from '../http'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  resetHostBackoff()
 })
 
 describe('sleeperClient', () => {
@@ -200,13 +202,31 @@ describe('sleeperClient', () => {
       json: async () => ({})
     })
     vi.stubGlobal('fetch', fetchMock)
-    await expect(getRosters('123', { retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
-    await expect(getLeagueUsers('123', { retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
-    await expect(getNflState({ retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
-    await expect(getUser('bob', { retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
-    await expect(getUserLeagues('u1', '2026', { retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
-    await expect(getLeague('123', { retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
+    const calls = [
+      () => getRosters('123', { retries: 0 }),
+      () => getLeagueUsers('123', { retries: 0 }),
+      () => getNflState({ retries: 0 }),
+      () => getUser('bob', { retries: 0 }),
+      () => getUserLeagues('u1', '2026', { retries: 0 }),
+      () => getLeague('123', { retries: 0 })
+    ]
+    for (const call of calls) {
+      // Isolate the retry count from the 5xx host breaker.
+      resetHostBackoff()
+      await expect(call()).rejects.toBeInstanceOf(SleeperHttpError)
+    }
     expect(fetchMock).toHaveBeenCalledTimes(6)
+  })
+
+  it('stops calling api.sleeper.app after repeated 5xx and surfaces a 429-style hold', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+    for (let i = 0; i < 5; i++) {
+      await expect(getMatchups('123', 1, { retries: 0 })).rejects.toBeInstanceOf(SleeperHttpError)
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    await expect(getRosters('123', { retries: 0 })).rejects.toMatchObject({ status: 429 })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('retries a connect /user lookup once on 5xx', async () => {

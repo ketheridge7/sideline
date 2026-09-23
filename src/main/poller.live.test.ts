@@ -2990,3 +2990,51 @@ describe('poller game-driven cadence', () => {
     await expect.poll(() => currentState().pollingLive).toBe(true)
   })
 })
+
+describe('poller provider backoff', () => {
+  it('holds the last ESPN HUD after a 429 instead of hammering lm-api-reads every tick', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '77042901'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({ sleeperUsername: null, sleeperUserId: null, selectedLeagueKey: selectedKey, espnLeagueIds: [leagueId] })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+    warmupPollerCaches()
+
+    const espnUrls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/state/nfl')) {
+          return jsonOk({ week: 1, display_week: 1, season: '2026', league_season: '2026', season_type: 'regular' })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('espn.com') && !url.includes('scoreboard')) {
+          espnUrls.push(url)
+          return {
+            ok: false,
+            status: 429,
+            headers: { get: (name: string) => (name.toLowerCase() === 'retry-after' ? '120' : null) },
+            json: async () => ({})
+          }
+        }
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().error).toBe('ESPN slow, holding last scores')
+    const afterFirst = espnUrls.length
+    expect(afterFirst).toBeGreaterThan(0)
+    await refresh({ waitForBoards: true })
+    await refresh({ waitForBoards: true })
+    expect(espnUrls.length).toBe(afterFirst)
+    expect(currentState().matchup?.myPoints).toBe(10)
+    expect(currentState().matchup?.myTeam.name).toBe('Mine')
+    expect(currentState().espnNeedsRelogin).toBe(false)
+    expect(currentState().error).toBe('ESPN slow, holding last scores')
+  })
+})

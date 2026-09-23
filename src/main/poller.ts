@@ -9,7 +9,7 @@ import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@sh
 import { settingsHotkeys } from '@shared/settings'
 import { finalNflTeams } from '@shared/winPct'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
-import { recentFetchTimings } from './http'
+import { hostsInBackoff, recentFetchTimings, resetHostBackoff } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
 import {
   getSleeperProjectionPts,
@@ -83,7 +83,7 @@ import {
   replayTransactions
 } from './providers/replay'
 import { runtime } from './runtime'
-import { startupErrorNotice, statusErrorPlan } from './notices'
+import { backoffNoticePlan, startupErrorNotice, statusErrorPlan } from './notices'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
@@ -240,7 +240,7 @@ const withStatusNotices = (refreshError: string | null): string | null =>
   statusErrorPlan({
     refreshError,
     startupError: startupErrorNotice(),
-    holdNotice: null
+    holdNotice: backoffNoticePlan(hostsInBackoff())
   })
 
 const lanFields = (): Pick<
@@ -4109,6 +4109,7 @@ export const resetPollerForTests = (): void => {
   liveTape = []
   espnNeedsRelogin = false
   resetSleeperProjectionsCache()
+  resetHostBackoff()
 }
 
 export const startPoller = (): void => {

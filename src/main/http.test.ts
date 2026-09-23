@@ -1,5 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bindAppFetch, bindEspnFetch, fetchJson, HttpError, recentFetchTimings, resetAppFetch } from './http'
+import {
+  bindAppFetch,
+  bindEspnFetch,
+  fetchJson,
+  HOST_BACKOFF_BASE_MS,
+  HOST_BACKOFF_MAX_MS,
+  HOST_RETRY_AFTER_MAX_MS,
+  HttpBackoffError,
+  HttpError,
+  hostBackoffDelayMs,
+  hostsInBackoff,
+  recentFetchTimings,
+  resetAppFetch
+} from './http'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -232,5 +245,109 @@ describe('fetchJson', () => {
       fetchJson({ url: 'https://example.test/empty', retries: 1 })
     ).rejects.toMatchObject({ name: 'HttpError', status: 200 })
     expect(badJson).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('per-host backoff', () => {
+  const status = (code: number, headers: Record<string, string> = {}) => ({
+    ok: code >= 200 && code < 300,
+    status: code,
+    headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
+    json: async () => ({ ok: code })
+  })
+
+  it('honors Retry-After on a final 429 and holds the host without touching the network', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(status(429, { 'retry-after': '30' }))
+      .mockResolvedValue(status(200, { 'content-type': 'application/json' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const url = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/2026/segments/0/leagues/1'
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 429 })
+    expect(hostsInBackoff()).toEqual(['lm-api-reads.fantasy.espn.com'])
+    vi.advanceTimersByTime(29_000)
+    await expect(fetchJson({ url: `${url}?view=mLiveScoring` })).rejects.toBeInstanceOf(HttpBackoffError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await expect(fetchJson({ url: 'https://api.sleeper.app/v1/state/nfl' })).resolves.toEqual({ ok: 200 })
+    vi.advanceTimersByTime(1_000)
+    await expect(fetchJson({ url })).resolves.toEqual({ ok: 200 })
+    expect(hostsInBackoff()).toEqual([])
+  })
+
+  it('backs off exponentially on repeated 429s without Retry-After', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const fetchMock = vi.fn().mockResolvedValue(status(429))
+    vi.stubGlobal('fetch', fetchMock)
+    const url = 'https://api.sleeper.app/v1/league/1/matchups/1'
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 429 })
+    vi.advanceTimersByTime(HOST_BACKOFF_BASE_MS - 1)
+    await expect(fetchJson({ url })).rejects.toBeInstanceOf(HttpBackoffError)
+    vi.advanceTimersByTime(1)
+    await expect(fetchJson({ url })).rejects.toMatchObject({ name: 'HttpError', status: 429 })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(HOST_BACKOFF_BASE_MS)
+    await expect(fetchJson({ url })).rejects.toBeInstanceOf(HttpBackoffError)
+    vi.advanceTimersByTime(HOST_BACKOFF_BASE_MS)
+    await expect(fetchJson({ url })).rejects.toMatchObject({ name: 'HttpError' })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('lets one or two 5xx through (same-host recover GET) and opens on the third in a row', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(status(500))
+      .mockResolvedValueOnce(status(502))
+      .mockResolvedValueOnce(status(200))
+      .mockResolvedValueOnce(status(500))
+      .mockResolvedValueOnce(status(503))
+      .mockResolvedValueOnce(status(504))
+    vi.stubGlobal('fetch', fetchMock)
+    const url = 'https://lm-api-reads.fantasy.espn.com/x'
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 500 })
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 502 })
+    await expect(fetchJson({ url })).resolves.toEqual({ ok: 200 })
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 500 })
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 503 })
+    expect(hostsInBackoff()).toEqual([])
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 504 })
+    expect(hostsInBackoff()).toEqual(['lm-api-reads.fantasy.espn.com'])
+    await expect(fetchJson({ url })).rejects.toBeInstanceOf(HttpBackoffError)
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+  })
+
+  it('opens on a 5xx that sends Retry-After', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(status(503, { 'retry-after': '20' })))
+    await expect(fetchJson({ url: 'https://api.sleeper.app/v1/x' })).rejects.toMatchObject({ status: 503 })
+    expect(hostsInBackoff()).toEqual(['api.sleeper.app'])
+  })
+
+  it('treats a JSON 403 as auth (no backoff) but an HTML 403 edge block as a hold', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(status(403, { 'content-type': 'application/json' })))
+    await expect(fetchJson({ url: 'https://lm-api-reads.fantasy.espn.com/a' })).rejects.toMatchObject({ status: 403 })
+    expect(hostsInBackoff()).toEqual([])
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(status(403, { 'content-type': 'text/html' })))
+    await expect(fetchJson({ url: 'https://lm-api-reads.fantasy.espn.com/a' })).rejects.toMatchObject({ status: 403 })
+    expect(hostsInBackoff()).toEqual(['lm-api-reads.fantasy.espn.com'])
+  })
+
+  it('scopes the breaker to backoffKey when a caller sets one', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(status(429))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      fetchJson({ url: 'https://site.web.api.espn.com/a', backoffKey: 'https://site.web.api.espn.com/a' })
+    ).rejects.toMatchObject({ status: 429 })
+    await expect(
+      fetchJson({ url: 'https://site.web.api.espn.com/b', backoffKey: 'https://site.web.api.espn.com/b' })
+    ).rejects.toMatchObject({ name: 'HttpError', status: 429 })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('caps both the exponential delay and a huge Retry-After', () => {
+    expect(hostBackoffDelayMs(1)).toBe(HOST_BACKOFF_BASE_MS)
+    expect(hostBackoffDelayMs(3)).toBe(HOST_BACKOFF_BASE_MS * 4)
+    expect(hostBackoffDelayMs(50)).toBe(HOST_BACKOFF_MAX_MS)
+    expect(hostBackoffDelayMs(1, 86_400_000)).toBe(HOST_RETRY_AFTER_MAX_MS)
+    expect(hostBackoffDelayMs(4, 0)).toBe(1_000)
   })
 })

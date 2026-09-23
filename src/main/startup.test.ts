@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resetNoticesForTests, reportStartupError, startupErrorNotice, statusErrorPlan, clearStartupError } from './notices'
+import { backoffNoticePlan, resetNoticesForTests, reportStartupError, startupErrorNotice, statusErrorPlan, clearStartupError } from './notices'
 import { OverlayListenError } from './overlayListen'
 import { runStartup, startupErrorMessage, type StartupDeps } from './startup'
 
@@ -134,5 +134,16 @@ describe('startup notices', () => {
     expect(statusErrorPlan({ refreshError: null, startupError: null, holdNotice: 'ESPN slow, holding' })).toBe(
       'ESPN slow, holding'
     )
+  })
+})
+
+describe('backoffNoticePlan', () => {
+  it('names fantasy providers in backoff and ignores NFL scoreboard endpoints', () => {
+    expect(backoffNoticePlan(['lm-api-reads.fantasy.espn.com'])).toBe('ESPN slow, holding last scores')
+    expect(backoffNoticePlan(['fan.api.espn.com', 'api.sleeper.app', 'lm-api-reads.fantasy.espn.com'])).toBe(
+      'ESPN and Sleeper slow, holding last scores'
+    )
+    expect(backoffNoticePlan(['https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'])).toBeNull()
+    expect(backoffNoticePlan([])).toBeNull()
   })
 })
