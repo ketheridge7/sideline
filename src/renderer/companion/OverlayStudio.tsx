@@ -20,6 +20,7 @@ import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
 import { OverlayWidgetView } from '../overlay/Widgets'
+import studioPlateUrl from '../assets/studio-plate.jpg'
 import { chromePillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
@@ -150,11 +151,14 @@ export const OverlayStudio = ({
           onClick={handlePreviewClick}
         >
           <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${studioPlateUrl})`, filter: 'saturate(0.8) brightness(0.72)' }}
+            data-studio-plate="game"
+            aria-hidden="true"
+          />
+          <div
             className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(ellipse at center, rgba(34,90,52,0.9) 0%, rgba(12,36,24,0.95) 52%, #07080a 100%)'
-            }}
+            style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(7,8,10,0.6) 100%)' }}
             aria-hidden="true"
           />
           <div
