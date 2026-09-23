@@ -21,13 +21,18 @@ npm install
 npm start
 ```
 
-Preseason / no live scoring yet? Replay a scripted Sunday so Board, Boards, and the overlay look like the watch mockups (mixed leagues, +/- tape, INJ/waiver, ON AIR ticker):
+### Demo Sunday
+
+Preseason, no live games, or just want to show someone? **Connect → Start demo** restarts Sideline into Demo Sunday: a scripted Week 3 slate with six fake leagues (Ice Box vs Hash Marks on Sleeper, Two-Minute Drill vs Monday Morning QBs on ESPN, plus four more), full benches, a moving scoring tape, injuries and waivers, and the NFL ticker. Scores open mid-slate (~45–90) and play out toward realistic finals; the 1:00 window goes final and the late window kicks off as it runs. A **Demo Sunday** chip stays in the top bar; **Exit demo** on Connect restarts into your real leagues.
+
+From a dev checkout:
 
 ```bash
-npm run replay
+npm run replay           # Demo Sunday with demo labels
+npm run replay:capture   # same data, no demo chrome — for marketing stills (docs/marketing/stills.md)
 ```
 
-Replay is fixture-only. It does not call a sports-data API and does not capture ESPN passwords.
+The demo is fixture-only. It never calls a sports-data API, never touches ESPN cookies or your Sleeper username (sign-in, sign-out, and league edits are refused while it runs), and its slug league ids are stripped from settings on the next live launch.
 
 ## Connect
 

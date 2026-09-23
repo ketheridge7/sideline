@@ -36,8 +36,9 @@ export function Hero() {
 
         <ProductStill
           still="hero"
-          priority
-          className="fade shadow-[0_32px_80px_rgba(0,0,0,0.45)]"
+          preload
+          className="fade"
+          frameClassName="shadow-[0_32px_80px_rgba(0,0,0,0.45)]"
           sizes="(min-width: 1024px) 55vw, 100vw"
         />
       </div>

@@ -3,7 +3,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { Kbd } from "@/components/ui";
 import { DOWNLOAD_URL } from "@/lib/constants";
-import { SHORTCUTS } from "@/lib/demo";
+import { SHORTCUTS } from "@/lib/shortcuts";
 
 export const metadata: Metadata = {
   title: "Connect & shortcuts",
@@ -33,9 +33,10 @@ export default function DocsPage() {
             </li>
             <li>Type that username on Connect and press Connect. No password. Public API.</li>
             <li>
-              Leagues appear under <strong className="font-medium text-text">Boards → My leagues</strong>.
+              Your leagues appear as a checklist, all on. Uncheck any you do not want, then{" "}
+              <strong className="font-medium text-text">Add selected</strong>. You land on Leagues.
             </li>
-            <li>Select a Sleeper league to drive the live HUD.</li>
+            <li>Click a league card to put that matchup on the Scoreboard and the HUD.</li>
           </ol>
         </section>
 
@@ -56,10 +57,28 @@ export default function DocsPage() {
               machine.
             </li>
             <li>
-              If leagues do not appear, paste the numeric league ID from the ESPN fantasy URL.
+              Sideline lists your ESPN leagues as a checklist. Keep the ones you want and press{" "}
+              <strong className="font-medium text-text">Add selected</strong>.
+            </li>
+            <li>
+              If a league is missing, open <strong className="font-medium text-text">Advanced</strong>{" "}
+              and paste the numeric league ID from the ESPN fantasy URL.
             </li>
             <li>Cookies expire (often after a few weeks). Sign in again the same way.</li>
           </ol>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">Demo Sunday</h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            Want to see Sideline on a Sunday before you connect anything? Open Connect and press{" "}
+            <strong className="font-medium text-text">Start demo</strong>. Sideline restarts into a
+            scripted Week 3 slate: six fake Sleeper and ESPN leagues, live-looking scores, a moving
+            scoring tape, and the HUD. A <strong className="font-medium text-text">Demo Sunday</strong>{" "}
+            chip sits in the top bar the whole time. Your sign-ins, leagues, and settings are not
+            touched — press <strong className="font-medium text-text">Exit demo</strong> on Connect to
+            restart back into your real leagues.
+          </p>
         </section>
 
         <section className="mt-12">
