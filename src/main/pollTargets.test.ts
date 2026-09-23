@@ -5,6 +5,9 @@ import {
   asNflState,
   cacheFresh,
   espnTeamsFromDiskPayload,
+  espnMatchupPeriodsFromDiskPayload,
+  espnMatchupPeriodsKickPlan,
+  ESPN_MATCHUP_PERIODS_DISK_TRUST_MS,
   espnScoresFromDiskPayload,
   lastHudFromDiskPayload,
   nflFromDiskPayload,
@@ -2761,5 +2764,46 @@ describe('live tick DAG', () => {
       names: false,
       leagues: false
     })
+  })
+})
+
+describe('espnMatchupPeriodsFromDiskPayload', () => {
+  const now = 1_800_000_000_000
+  it('keeps live league ids with valid matchup period maps for the season', () => {
+    expect(
+      espnMatchupPeriodsFromDiskPayload(
+        {
+          at: now - 1000,
+          season: '2026',
+          byId: {
+            '90664721': { '14': [14], '15': [15, 16] },
+            'replay-1': { '1': [1] },
+            '555': 'nope'
+          }
+        },
+        now
+      )
+    ).toEqual({ season: '2026', byId: { '90664721': { '14': [14], '15': [15, 16] } } })
+  })
+
+  it('drops stale or malformed snapshots', () => {
+    const byId = { '90664721': { '15': [15, 16] } }
+    expect(
+      espnMatchupPeriodsFromDiskPayload({ at: now - ESPN_MATCHUP_PERIODS_DISK_TRUST_MS - 1, season: '2026', byId }, now)
+    ).toBeNull()
+    expect(espnMatchupPeriodsFromDiskPayload({ at: now, byId }, now)).toBeNull()
+    expect(espnMatchupPeriodsFromDiskPayload({ at: now, season: '2026', byId: {} }, now)).toBeNull()
+    expect(espnMatchupPeriodsFromDiskPayload(null, now)).toBeNull()
+  })
+})
+
+describe('espnMatchupPeriodsKickPlan', () => {
+  it('fetches settings once when the map is missing, then waits out the retry window', () => {
+    const base = { hasPeriods: false, inFlight: false, now: 100_000, retryMs: 60_000 }
+    expect(espnMatchupPeriodsKickPlan(base)).toBe('kick')
+    expect(espnMatchupPeriodsKickPlan({ ...base, hasPeriods: true })).toBe('skip')
+    expect(espnMatchupPeriodsKickPlan({ ...base, inFlight: true })).toBe('skip')
+    expect(espnMatchupPeriodsKickPlan({ ...base, lastTryAt: 90_000 })).toBe('skip')
+    expect(espnMatchupPeriodsKickPlan({ ...base, lastTryAt: 30_000 })).toBe('kick')
   })
 })

@@ -148,16 +148,17 @@ export const SCORE_VIEWS = ['mMatchupScore', 'mScoreboard']
 
 export const LIVE_VIEWS = ['mLiveScoring']
 
-export const weekScheduleFilter = (scoringPeriodId: number): EspnFantasyFilter => ({
-  schedule: { filterMatchupPeriodIds: { value: [scoringPeriodId] } }
+/** `matchupPeriodId` is ESPN's matchup period, not the NFL week — they diverge in multi-week playoff rounds. */
+export const weekScheduleFilter = (matchupPeriodId: number): EspnFantasyFilter => ({
+  schedule: { filterMatchupPeriodIds: { value: [matchupPeriodId] } }
 })
 
 export const weekTeamScheduleFilter = (
-  scoringPeriodId: number,
+  matchupPeriodId: number,
   teamId: number
 ): EspnFantasyFilter => ({
   schedule: {
-    filterMatchupPeriodIds: { value: [scoringPeriodId] },
+    filterMatchupPeriodIds: { value: [matchupPeriodId] },
     filterTeamIds: { value: [teamId] }
   }
 })

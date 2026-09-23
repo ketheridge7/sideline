@@ -2733,3 +2733,106 @@ describe('setOverlayVisible', () => {
     sendLive.mockRestore()
   })
 })
+
+describe('poller ESPN multi-week playoff periods', () => {
+  const playoff = JSON.parse(
+    readFileSync(join(process.cwd(), 'fixtures/espn-playoff-two-week.json'), 'utf8')
+  ) as Record<string, unknown> & { settings: { scheduleSettings: { matchupPeriods: Record<string, number[]> } } }
+  const week16Nfl = { week: 16, display_week: 16, season: '2026', league_season: '2026', season_type: 'regular' }
+
+  const setupWeek16 = (leagueId: string): string => {
+    const dir = app.getPath('userData')
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: { week: 16, displayWeek: 16, season: '2026', leagueSeason: '2026', seasonType: 'regular' }
+      })
+    )
+    const hud = join(dir, 'sideline-last-hud.json')
+    if (existsSync(hud)) unlinkSync(hud)
+    espnAuth.cookies = { espn_s2: 'playoff-s2', SWID: '{11111111-1111-1111-1111-111111111111}' }
+    return dir
+  }
+
+  const periodsPath = (dir: string): string => join(dir, 'sideline-espn-matchup-periods.json')
+
+  /** Emulates ESPN's schedule filter: games only come back for the requested matchup period. */
+  const stubEspn = (filters: number[][]) =>
+    vi.fn(async (url: string, init?: { headers?: Record<string, string> }) => {
+      if (url.includes('/state/nfl')) return jsonOk(week16Nfl)
+      if (url.includes('scoreboard')) return jsonOk({ events: [] })
+      if (url.includes('fan.api')) return jsonOk({ preferences: [] })
+      if (url.includes('view=mSettings')) {
+        return jsonOk({ id: playoff.id, status: playoff.status, settings: playoff.settings, teams: playoff.teams })
+      }
+      const raw = init?.headers?.['X-Fantasy-Filter']
+      if (url.includes('lm-api-reads') && raw) {
+        const ids = (JSON.parse(raw) as { schedule?: { filterMatchupPeriodIds?: { value: number[] } } }).schedule
+          ?.filterMatchupPeriodIds?.value
+        if (ids) {
+          filters.push(ids)
+          if (!ids.includes(15)) return jsonOk({ ...playoff, schedule: [] })
+          return jsonOk(playoff)
+        }
+      }
+      if (url.includes('lm-api-reads')) return jsonOk({ teams: playoff.teams })
+      return jsonOk([])
+    })
+
+  it('filters week 16 by matchup period 15 from cached league settings and paints the championship HUD', async () => {
+    const leagueId = '77016001'
+    const dir = setupWeek16(leagueId)
+    writeFileSync(
+      periodsPath(dir),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        byId: { [leagueId]: playoff.settings.scheduleSettings.matchupPeriods }
+      })
+    )
+    warmupPollerCaches()
+    const filters: number[][] = []
+    vi.stubGlobal('fetch', stubEspn(filters))
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.myPoints).toBe(121.5)
+    expect(currentState().matchup?.oppTeam?.name).toBe('Rival Club')
+    expect(filters.length).toBeGreaterThan(0)
+    expect(filters.every((ids) => ids.length === 1 && ids[0] === 15)).toBe(true)
+    unlinkSync(periodsPath(dir))
+  })
+
+  it('learns matchup periods from league settings and persists them for the next launch', async () => {
+    const leagueId = '77016002'
+    const dir = setupWeek16(leagueId)
+    if (existsSync(periodsPath(dir))) unlinkSync(periodsPath(dir))
+    warmupPollerCaches()
+    const filters: number[][] = []
+    vi.stubGlobal('fetch', stubEspn(filters))
+
+    await refresh({ waitForBoards: true })
+    await expect
+      .poll(async () => {
+        await refresh({ waitForBoards: true })
+        return currentState().matchup?.myPoints
+      })
+      .toBe(121.5)
+    expect(filters.at(-1)).toEqual([15])
+    await expect
+      .poll(() =>
+        existsSync(periodsPath(dir))
+          ? (JSON.parse(readFileSync(periodsPath(dir), 'utf8')) as { byId: Record<string, unknown> }).byId[leagueId]
+          : null
+      )
+      .toEqual(playoff.settings.scheduleSettings.matchupPeriods)
+    unlinkSync(periodsPath(dir))
+  })
+})

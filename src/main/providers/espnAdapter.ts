@@ -995,19 +995,87 @@ const starterActualSum = (side: Record<string, unknown>, scoringPeriodId?: numbe
   return sum
 }
 
-const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number): number => {
+const priorPeriodsActual = (side: Record<string, unknown>, priorPeriodIds: number[]): number => {
+  let sum = 0
+  for (const id of priorPeriodIds) sum += periodActual(side, id) ?? 0
+  return sum
+}
+
+/**
+ * `priorPeriodIds` are earlier scoring periods of a multi-week matchup (two-week
+ * playoff round). Their `pointsByScoringPeriod` actuals are a floor under the
+ * current-week total so week 2 of a round never paints below week 1's score.
+ */
+const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number, priorPeriodIds: number[] = []): number => {
+  const prior = priorPeriodsActual(side, priorPeriodIds)
   const live = liveTeamPts(side)
   const liveStarters = starterLiveSum(side)
   const starters = starterActualSum(side, scoringPeriodId)
   const period = periodActual(side, scoringPeriodId)
   // Pre-kickoff current period 0 beats leftover totalPoints / last-week live totals.
-  if (period === 0 && liveStarters === 0 && starters === 0) return 0
-  if (live != null && live > 0) return live
-  if (live === 0) return 0
-  if (liveStarters > 0) return liveStarters
-  if (period != null) return Math.max(period, starters)
+  if (period === 0 && liveStarters === 0 && starters === 0) return prior
+  if (live != null && live > 0) return Math.max(live, prior)
+  if (live === 0) return prior
+  if (liveStarters > 0) return prior + liveStarters
+  if (period != null) return prior + Math.max(period, starters)
   const final = num(side.totalPoints)
-  return Math.max(final ?? 0, starters)
+  return Math.max(final ?? 0, prior + starters)
+}
+
+/** `settings.scheduleSettings.matchupPeriods`: matchup period id → scoring period ids (NFL weeks). */
+export type EspnMatchupPeriods = Record<string, number[]>
+
+export type EspnMatchupPeriod = {
+  matchupPeriodId: number
+  /** Every scoring period (NFL week) in this matchup, ascending. */
+  scoringPeriodIds: number[]
+}
+
+export const espnMatchupPeriodsFromPayload = (payload: unknown): EspnMatchupPeriods | null => {
+  const row = unwrapEspnPayload(payload, (next) => isRecord(next.settings))
+  const settings = row && isRecord(row.settings) ? row.settings : null
+  const schedule = settings && isRecord(settings.scheduleSettings) ? settings.scheduleSettings : null
+  const raw = schedule && isRecord(schedule.matchupPeriods) ? schedule.matchupPeriods : null
+  if (!raw) return null
+  const out: EspnMatchupPeriods = {}
+  for (const [key, value] of Object.entries(raw)) {
+    const matchupPeriodId = num(key)
+    if (matchupPeriodId == null || !Number.isInteger(matchupPeriodId) || matchupPeriodId <= 0) continue
+    const ids = asArray(value)
+      .map(num)
+      .filter((id): id is number => id != null && Number.isInteger(id) && id > 0)
+    if (ids.length > 0) out[String(matchupPeriodId)] = [...new Set(ids)].sort((a, b) => a - b)
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
+/**
+ * Matchup period containing `scoringPeriodId` (the NFL week). Without league
+ * settings, or when the week is outside every matchup, fall back to the
+ * regular-season identity (matchup period = scoring period).
+ */
+export const espnMatchupPeriodFor = (
+  periods: EspnMatchupPeriods | null | undefined,
+  scoringPeriodId: number
+): EspnMatchupPeriod => {
+  if (periods) {
+    for (const [key, ids] of Object.entries(periods)) {
+      if (ids.includes(scoringPeriodId)) return { matchupPeriodId: Number(key), scoringPeriodIds: ids }
+    }
+  }
+  return { matchupPeriodId: scoringPeriodId, scoringPeriodIds: [scoringPeriodId] }
+}
+
+const priorScoringPeriods = (period: EspnMatchupPeriod, scoringPeriodId: number): number[] =>
+  period.scoringPeriodIds.filter((id) => id < scoringPeriodId)
+
+/** Schedule rows carry `matchupPeriodId`; bare `scoringPeriodId` rows match any week of the matchup. */
+const scheduleRowInPeriod = (row: Record<string, unknown>, period: EspnMatchupPeriod): boolean => {
+  const matchupPeriodId = num(row.matchupPeriodId)
+  if (matchupPeriodId != null) return matchupPeriodId === period.matchupPeriodId
+  const scoringPeriodId = num(row.scoringPeriodId)
+  if (scoringPeriodId != null) return period.scoringPeriodIds.includes(scoringPeriodId)
+  return true
 }
 
 const PROJECTED_TOTAL_KEYS = [
@@ -1350,7 +1418,8 @@ export const overlayEspnMatchup = (
   prev: Matchup,
   livePayload: unknown,
   displayWeek: number,
-  preferLive = false
+  preferLive = false,
+  matchupPeriod: EspnMatchupPeriod = espnMatchupPeriodFor(null, displayWeek)
 ): Matchup | null => {
   const payload = unwrapEspnPayload(livePayload, hasEspnLeagueShape)
   if (!payload) return null
@@ -1358,11 +1427,11 @@ export const overlayEspnMatchup = (
   if (!matchupHasLineup(prev)) return null
   const myId = num(prev.myTeam.id)
   if (myId == null || myId <= 0) return null
+  const priorPeriods = priorScoringPeriods(matchupPeriod, displayWeek)
   const liveTeams = liveScoringTeams(payload)
   const schedule = payloadSchedule(payload)
   const game = schedule.find((row) => {
-    const matchupPeriod = num(row.matchupPeriodId) ?? num(row.scoringPeriodId)
-    if (matchupPeriod != null && matchupPeriod !== displayWeek) return false
+    if (!scheduleRowInPeriod(row, matchupPeriod)) return false
     const home = isRecord(row.home) ? row.home : null
     const away = isRecord(row.away) ? row.away : null
     return scheduleSideId(home) === myId || scheduleSideId(away) === myId
@@ -1381,8 +1450,8 @@ export const overlayEspnMatchup = (
   const myById = livePointsByPlayerId(mySide, displayWeek)
   const oppById = oppSide ? livePointsByPlayerId(oppSide, displayWeek) : new Map<string, number>()
   if (!overlayStartersBelong(prev.starters, myById.keys())) return null
-  const myLiveTotal = sideTotal(mySide, displayWeek)
-  const oppLiveTotal = oppSide ? sideTotal(oppSide, displayWeek) : 0
+  const myLiveTotal = sideTotal(mySide, displayWeek, priorPeriods)
+  const oppLiveTotal = oppSide ? sideTotal(oppSide, displayWeek, priorPeriods) : 0
   const mineHasLive = hasEspnLivePts(mySide, myById, displayWeek)
   const oppHasLive = Boolean(oppSide && hasEspnLivePts(oppSide, oppById, displayWeek))
   // Current-period live/final team totals (totalPointsLive in progress, including
@@ -1429,6 +1498,8 @@ export const toEspnMatchup = (args: {
   cookies: EspnCookies | null
   displayWeek: number
   myTeamId?: number
+  /** From league `matchupPeriods`; defaults to matchup period = scoring period. */
+  matchupPeriod?: EspnMatchupPeriod
 }): Matchup | null => {
   const payload = unwrapEspnPayload(args.payload, hasEspnLeagueShape)
   if (!payload) return null
@@ -1440,20 +1511,18 @@ export const toEspnMatchup = (args: {
   if (!myTeamRaw) return null
   const myId = num(myTeamRaw.id)
   const period = args.displayWeek > 0 ? args.displayWeek : scoringPeriodFromStatus(payload, args.displayWeek)
+  const matchupPeriod = args.matchupPeriod ?? espnMatchupPeriodFor(null, period)
+  const priorPeriods = priorScoringPeriods(matchupPeriod, period)
   const schedule = payloadSchedule(payload)
   const game = schedule.find((row) => {
-    const matchupPeriod = num(row.matchupPeriodId) ?? num(row.scoringPeriodId)
-    if (matchupPeriod != null && matchupPeriod !== period) return false
+    if (!scheduleRowInPeriod(row, matchupPeriod)) return false
     const home = isRecord(row.home) ? row.home : null
     const away = isRecord(row.away) ? row.away : null
     return scheduleSideId(home) === myId || scheduleSideId(away) === myId
   })
   const members = membersOf(payload)
   const liveTeams = liveScoringTeams(payload)
-  const periodGames = schedule.filter((row) => {
-    const matchupPeriod = num(row.matchupPeriodId) ?? num(row.scoringPeriodId)
-    return matchupPeriod == null || matchupPeriod === period
-  })
+  const periodGames = schedule.filter((row) => scheduleRowInPeriod(row, matchupPeriod))
   const scheduleHasSides = periodGames.some(scheduleGameHasSides)
   if (!game) {
     if (!scheduleHasSides && periodGames.length > 0) return null
@@ -1477,7 +1546,7 @@ export const toEspnMatchup = (args: {
       {
         myTeam: toTeam(myTeamRaw, members),
         oppTeam: null,
-        myPoints: sideTotal(liveMine, period),
+        myPoints: sideTotal(liveMine, period, priorPeriods),
         oppPoints: 0,
         starters,
         bench,
@@ -1503,8 +1572,8 @@ export const toEspnMatchup = (args: {
     {
       myTeam: toTeam(myTeamRaw, members),
       oppTeam: teamFromId(oppId, teams, members, iAmHome ? away : home),
-      myPoints: sideTotal(mySide, period),
-      oppPoints: oppSide ? sideTotal(oppSide, period) : 0,
+      myPoints: sideTotal(mySide, period, priorPeriods),
+      oppPoints: oppSide ? sideTotal(oppSide, period, priorPeriods) : 0,
       starters,
       bench,
       oppStarters: oppLineup.starters,

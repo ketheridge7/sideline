@@ -2,6 +2,7 @@ import { leagueKey, parseLeagueKey, type AppState, type League, type Matchup, ty
 import type { Settings } from '@shared/settings'
 import { matchupHasLineup } from '@shared/display'
 import { parseSleeperLeagueUser, parseSleeperRoster } from './providers/sleeperClient'
+import { espnMatchupPeriodsFromPayload, type EspnMatchupPeriods } from './providers/espnAdapter'
 
 export const isLiveLeagueId = (id: string): boolean => /^\d+$/.test(id)
 
@@ -1168,6 +1169,46 @@ export const sleeperLeaguesFromDiskPayload = (parsed: unknown, now: number): Sle
     .filter((league): league is League => league != null)
   if (leagues.length === 0) return null
   return { username, season, leagues }
+}
+
+/** League schedule settings rarely change in-season; the season key guards rollover. */
+export const ESPN_MATCHUP_PERIODS_DISK_TRUST_MS = 30 * 24 * 60 * 60 * 1000
+
+export type EspnMatchupPeriodsDiskRow = {
+  season: string
+  byId: Record<string, EspnMatchupPeriods>
+}
+
+export const espnMatchupPeriodsFromDiskPayload = (
+  parsed: unknown,
+  now: number
+): EspnMatchupPeriodsDiskRow | null => {
+  if (typeof parsed !== 'object' || parsed == null || Array.isArray(parsed)) return null
+  const row = parsed as Record<string, unknown>
+  if (typeof row.at !== 'number' || !cacheFresh(row.at, now, ESPN_MATCHUP_PERIODS_DISK_TRUST_MS)) return null
+  const season = diskStr(row.season)
+  if (!season || typeof row.byId !== 'object' || row.byId == null || Array.isArray(row.byId)) return null
+  const byId: Record<string, EspnMatchupPeriods> = {}
+  for (const [id, value] of Object.entries(row.byId as Record<string, unknown>)) {
+    if (!isLiveLeagueId(id)) continue
+    const periods = espnMatchupPeriodsFromPayload({ settings: { scheduleSettings: { matchupPeriods: value } } })
+    if (periods) byId[id] = periods
+  }
+  if (Object.keys(byId).length === 0) return null
+  return { season, byId }
+}
+
+/** Fetch league settings for the matchup-period map only when nothing is cached and the last try is stale. */
+export const espnMatchupPeriodsKickPlan = (opts: {
+  hasPeriods: boolean
+  inFlight: boolean
+  lastTryAt?: number
+  now: number
+  retryMs: number
+}): 'skip' | 'kick' => {
+  if (opts.hasPeriods || opts.inFlight) return 'skip'
+  if (opts.lastTryAt != null && cacheFresh(opts.lastTryAt, opts.now, opts.retryMs)) return 'skip'
+  return 'kick'
 }
 
 export const ESPN_LEAGUES_DISK_TRUST_MS = HUD_DISK_TRUST_MS
