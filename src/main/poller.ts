@@ -7,6 +7,7 @@ import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, weekShiftClearedB
 import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionsToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { settingsHotkeys } from '@shared/settings'
+import { finalNflTeams } from '@shared/winPct'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 import { recentFetchTimings } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
@@ -2530,7 +2531,11 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       let incoming = loaded
       switch (league.provider) {
         case 'sleeper':
-          incoming = applySleeperWinEstimate(loaded, sleeperProjectionPtsFor(league.id))
+          incoming = applySleeperWinEstimate(
+            loaded,
+            sleeperProjectionPtsFor(league.id),
+            finalNflTeams(lastState.nflTicker)
+          )
           break
         case 'espn':
           break
@@ -2978,8 +2983,9 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     let restPrefetchDone = Promise.resolve()
     const paintSleeperEstimates = (): void => {
       if (gen !== pollGen || replay) return
+      const finalTeams = finalNflTeams(lastState.nflTicker)
       const apply = (leagueId: string, loaded: Matchup): Matchup =>
-        applySleeperWinEstimate(loaded, sleeperProjectionPtsFor(leagueId))
+        applySleeperWinEstimate(loaded, sleeperProjectionPtsFor(leagueId), finalTeams)
       for (const [key, row] of matchupCache) {
         const parsed = parseLeagueKey(key)
         if (parsed?.provider !== 'sleeper') continue

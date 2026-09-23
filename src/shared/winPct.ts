@@ -13,6 +13,8 @@
  * it as official the same way as ESPN.
  */
 
+import type { NflTickerGame } from './types'
+
 export type ChanceToWin = {
   mine: number
   opp: number
@@ -72,6 +74,49 @@ export const remainingStd = (remaining: number): number => {
   return WEEKLY_TEAM_STD * Math.sqrt(remaining / TYPICAL_REMAINING)
 }
 
+const NFL_TEAM_ALIASES: Record<string, string> = {
+  WSH: 'WAS',
+  JAC: 'JAX',
+  LA: 'LAR',
+  STL: 'LAR',
+  SD: 'LAC',
+  OAK: 'LV'
+}
+
+/** One key per NFL team across ESPN scoreboard and Sleeper player-map abbreviations. */
+export const nflTeamKey = (abbr: string | undefined): string => {
+  const up = (abbr ?? '').trim().toUpperCase()
+  return NFL_TEAM_ALIASES[up] ?? up
+}
+
+export const finalNflTeams = (games: readonly NflTickerGame[]): Set<string> => {
+  const out = new Set<string>()
+  for (const game of games) {
+    if (!game.final) continue
+    out.add(nflTeamKey(game.home))
+    out.add(nflTeamKey(game.away))
+  }
+  out.delete('')
+  return out
+}
+
+/**
+ * Remaining-aware player final: the actual once that player's NFL game is
+ * final, otherwise max(actual, weekly projection). Undefined when a player
+ * still to play has no projection (keeps Est. win% pending).
+ */
+export const playerProjectedFinal = (opts: {
+  actual?: number
+  projected?: number
+  gameFinal: boolean
+}): number | undefined => {
+  const actual = finiteNumber(opts.actual) ?? 0
+  if (opts.gameFinal) return actual
+  const projected = finiteNumber(opts.projected)
+  if (projected == null) return undefined
+  return Math.max(actual, projected)
+}
+
 export const projectedFinal = (live: number, projected?: number): number => {
   const proj = finiteNumber(projected)
   if (proj == null) return live
@@ -91,9 +136,10 @@ export const hasProjectedFinals = (myProjected?: number, oppProjected?: number):
 }
 
 /**
- * Remaining-aware estimate from live scores + weekly projected team totals.
- * Projected final F = max(live, weekly projection). Null when projections
- * are missing — never score-share.
+ * Remaining-aware estimate from live scores + projected team finals.
+ * Projected final F = max(live, projected). Sleeper passes a per-player sum
+ * (`playerProjectedFinal`) so finished players contribute only what they
+ * scored. Null when projections are missing — never score-share.
  */
 export const estimatedChanceToWin = (opts: {
   myLive: number

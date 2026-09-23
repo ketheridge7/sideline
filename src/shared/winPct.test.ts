@@ -3,6 +3,9 @@ import {
   asWinProbability,
   chanceToWinPercents,
   estimatedChanceToWin,
+  finalNflTeams,
+  nflTeamKey,
+  playerProjectedFinal,
   normalCdf,
   providerChanceToWin,
   remainingStd,
@@ -103,5 +106,30 @@ describe('normalCdf / remainingStd', () => {
     expect(normalCdf(1)).toBeCloseTo(0.8413, 3)
     expect(remainingStd(0)).toBe(0)
     expect(remainingStd(120)).toBeCloseTo(WEEKLY_TEAM_STD)
+  })
+})
+
+describe('playerProjectedFinal', () => {
+  it('uses the actual once the NFL game is final, even when under projection', () => {
+    expect(playerProjectedFinal({ actual: 4.2, projected: 18, gameFinal: true })).toBe(4.2)
+    expect(playerProjectedFinal({ actual: undefined, projected: 18, gameFinal: true })).toBe(0)
+  })
+
+  it('takes max(actual, projection) while the game is still to finish', () => {
+    expect(playerProjectedFinal({ actual: 4.2, projected: 18, gameFinal: false })).toBe(18)
+    expect(playerProjectedFinal({ actual: 24, projected: 18, gameFinal: false })).toBe(24)
+    expect(playerProjectedFinal({ actual: 3, projected: undefined, gameFinal: false })).toBeUndefined()
+  })
+})
+
+describe('finalNflTeams', () => {
+  it('collects both teams of final games under one abbreviation per team', () => {
+    const teams = finalNflTeams([
+      { id: '1', away: 'WSH', awayScore: 10, home: 'PHI', homeScore: 24, clock: 'FINAL', final: true },
+      { id: '2', away: 'KC', awayScore: 7, home: 'BUF', homeScore: 3, clock: 'Q2 4:12' }
+    ])
+    expect([...teams].sort()).toEqual(['PHI', 'WAS'])
+    expect(nflTeamKey('jac')).toBe('JAX')
+    expect(nflTeamKey(undefined)).toBe('')
   })
 })
