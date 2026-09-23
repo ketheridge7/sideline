@@ -16,7 +16,8 @@ export function StudioSection() {
         </div>
         <ProductStill
           still="studio"
-          className="mt-12 shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
+          className="mt-12"
+          frameClassName="shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
           sizes="(min-width: 1152px) 1152px, 100vw"
         />
         <ol className="mt-10 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-5">

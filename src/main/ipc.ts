@@ -1,10 +1,12 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, listDiscoverableLeagues, markEspnRelogin, primeEspnCookies, refresh, removeEspnLeagueId, removeSleeperLeagueId, setOverlayVisible, setSelectedLeagueIds } from './poller'
 import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { parseLeagueKey, parseProvider } from '@shared/types'
 import { collectBugReportRuntime, openExternalUrl } from './bugReport'
+import { DEMO_LOCKED_MESSAGE, demoDevHint, demoRelaunchArgs, demoSwitchPlan } from './demoMode'
+import { isReplayMode } from './providers/replay'
 import { clearStartupError, reportStartupError } from './notices'
 import { startupErrorMessage } from './startup'
 import { loadSettings, saveSettings } from './store'
@@ -14,11 +16,44 @@ import { clearEspnCookies, openEspnLogin } from './windows/espnLogin'
 import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
 import { setOverlayDisplayId, setOverlayEditMode, toggleOverlay } from './windows/overlay'
 
+const demoLocked = (): { ok: false; error: string } => ({ ok: false, error: DEMO_LOCKED_MESSAGE })
+
+const setReplayArmed = (enabled: boolean): { ok: boolean; error?: string } => {
+  const plan = demoSwitchPlan({
+    enabled,
+    active: isReplayMode(),
+    devServer: Boolean(process.env.ELECTRON_RENDERER_URL)
+  })
+  switch (plan) {
+    case 'noop':
+      return { ok: true }
+    case 'dev-hint':
+      return { ok: false, error: demoDevHint(enabled) }
+    case 'relaunch':
+      if (!enabled) delete process.env.SIDELINE_REPLAY
+      app.relaunch({ args: demoRelaunchArgs(process.argv, enabled) })
+      runtime.setQuitting(true)
+      app.exit(0)
+      return { ok: true }
+    default: {
+      const _never: never = plan
+      return _never
+    }
+  }
+}
+
 export const registerIpc = (): void => {
   ipcMain.handle('sideline:getState', () => currentState())
-  ipcMain.handle('sideline:connectSleeper', (_event, username: string) => connectSleeper(username))
-  ipcMain.handle('sideline:disconnectSleeper', () => disconnectSleeper())
+  ipcMain.handle('sideline:setReplayArmed', (_event, enabled: unknown) => setReplayArmed(Boolean(enabled)))
+  ipcMain.handle('sideline:connectSleeper', (_event, username: string) =>
+    isReplayMode() ? demoLocked() : connectSleeper(username)
+  )
+  ipcMain.handle('sideline:disconnectSleeper', async () => {
+    if (isReplayMode()) return
+    await disconnectSleeper()
+  })
   ipcMain.handle('sideline:signInEspn', async () => {
+    if (isReplayMode()) return demoLocked()
     const result = await openEspnLogin()
     // Login always clears persist:espn first, so drop the in-memory session
     // whether the window finished or the user closed it.
@@ -33,6 +68,7 @@ export const registerIpc = (): void => {
     return result
   })
   ipcMain.handle('sideline:disconnectEspn', async () => {
+    if (isReplayMode()) return
     await clearEspnCookies()
     invalidateEspnSession()
     const selected = loadSettings().selectedLeagueKey
@@ -44,9 +80,17 @@ export const registerIpc = (): void => {
     markEspnRelogin(false)
     await refresh({ waitForBoards: true })
   })
-  ipcMain.handle('sideline:addEspnLeague', (_event, leagueId: string) => addEspnLeagueId(leagueId))
-  ipcMain.handle('sideline:removeEspnLeague', (_event, leagueId: string) => removeEspnLeagueId(leagueId))
-  ipcMain.handle('sideline:removeSleeperLeague', (_event, leagueId: string) => removeSleeperLeagueId(leagueId))
+  ipcMain.handle('sideline:addEspnLeague', (_event, leagueId: string) =>
+    isReplayMode() ? demoLocked() : addEspnLeagueId(leagueId)
+  )
+  ipcMain.handle('sideline:removeEspnLeague', async (_event, leagueId: string) => {
+    if (isReplayMode()) return
+    await removeEspnLeagueId(leagueId)
+  })
+  ipcMain.handle('sideline:removeSleeperLeague', async (_event, leagueId: string) => {
+    if (isReplayMode()) return
+    await removeSleeperLeagueId(leagueId)
+  })
   ipcMain.handle('sideline:listDiscoverableLeagues', (_event, provider: unknown) => {
     const parsed = parseProvider(provider)
     if (!parsed) return { ok: false, leagues: [], selectedIds: [], error: 'Unknown provider' }
@@ -55,6 +99,7 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:setSelectedLeagueIds', (_event, provider: unknown, ids: unknown) => {
     const parsed = parseProvider(provider)
     if (!parsed) return { ok: false, error: 'Unknown provider' }
+    if (isReplayMode()) return demoLocked()
     return setSelectedLeagueIds(parsed, Array.isArray(ids) ? ids : [])
   })
   ipcMain.handle('sideline:setPinned', async (_event, keys: string[]) => {

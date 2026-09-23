@@ -306,6 +306,45 @@ describe('ConnectScreen fantasy paths', () => {
   })
 })
 
+describe('Connect Replay arming', () => {
+  const replayLeagues: League[] = [
+    { id: 'friday-night-gridiron', name: 'Friday Night Gridiron', provider: 'sleeper', season: '2026', week: 3 },
+    { id: 'gridiron-gurus', name: 'Gridiron Gurus', provider: 'espn', season: '2026', week: 3 }
+  ]
+  const armed = { replay: true, sleeperConnected: true, espnConnected: true, sleeperUsername: 'sideline-demo', leagues: replayLeagues }
+
+  it('offers Arm Replay on the live hub, below the ESPN / Sleeper / TV cards and above settings', () => {
+    const html = htmlOf()
+    expect(html).toContain('data-connect-replay="off"')
+    expect(html).toContain('Scripted Sunday slate for screenshots &amp; demos — fake leagues only')
+    expect(html).toContain('data-replay-toggle="arm"')
+    expect(html).toContain('Arm Replay')
+    expect(html).not.toContain('data-replay-toggle="disarm"')
+    expect(html.indexOf('data-connect-replay="off"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
+    expect(html.indexOf('data-connect-replay="off"')).toBeLessThan(html.indexOf('data-connect-footer="settings"'))
+  })
+
+  it('leads the armed hub with an honest Replay status and Disarm, and labels cards as fake leagues', () => {
+    const html = htmlOf(armed)
+    expect(html).toContain('data-connect-replay="armed"')
+    expect(html).toContain('Replay mode is on — scripted Week 3 Sunday')
+    expect(html).toContain('Disarm Replay')
+    expect(html).not.toContain('Arm Replay<')
+    expect(html.indexOf('data-connect-replay="armed"')).toBeLessThan(html.indexOf('data-connect-card="espn"'))
+    expect(html).toContain('Replay · 1 fake league')
+    expect(html).toContain('Ready to pair')
+  })
+
+  it('never offers Sign out, Add leagues, or Remove on real accounts while Replay is armed', () => {
+    const html = htmlOf(armed)
+    expect(html).not.toContain('Sign out')
+    expect(html).not.toContain('Add leagues')
+    expect(html).not.toContain('>Remove<')
+    expect(html).toContain('Friday Night Gridiron')
+    expect(html).toContain('Gridiron Gurus')
+  })
+})
+
 describe('leaguesToAdd', () => {
   it('drops ids already on the hub and keeps net-new rows', () => {
     expect(leaguesToAdd(espnLeagues, ['222']).map((row) => row.id)).toEqual(['111'])

@@ -12,17 +12,15 @@ export function HashmarkSection() {
           Empty center for the game.
         </SectionTitle>
         <SectionLead>
-          Always-on-top HUD for Windows. Modules sit on the sidelines so live video stays the
-          product. No smoke wash, no card, no crawler — just names, scores, and starter rails.
+          Always-on-top HUD on the broadcast PC, or on the TV through the Google TV app. Modules
+          sit on the sidelines so live video stays the product — team names, scores, starter
+          rails, and an optional NFL ticker. No smoke wash, no card.
         </SectionLead>
         <ProductStill
           still="overlay"
           className="mt-12"
           sizes="(min-width: 1152px) 1152px, 100vw"
         />
-        <p className="mt-3 text-center font-cond text-xs font-bold uppercase tracking-[0.2em] text-muted">
-          Sunday Tape · Frost HUD · Empty center
-        </p>
       </div>
     </section>
   );

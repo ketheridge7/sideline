@@ -102,6 +102,8 @@ describe('OverlayStudio block selection', () => {
     expect(html).toContain('Overlay Studio')
     expect(html).toContain('text-lime">Overlay Studio</h2>')
     expect(html).toContain('data-studio-preview="hud"')
+    expect(html).toContain('data-studio-plate="game"')
+    expect(html).toContain('studio-plate.jpg')
     expect(html).toContain('border-lime')
     expect(html).toContain('bg-lime/15')
     expect(html).not.toContain('border-you bg-you/15 text-you')

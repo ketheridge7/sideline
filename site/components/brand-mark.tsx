@@ -11,11 +11,11 @@ import { cn } from "@/lib/cn";
 export function BrandMark({
   compact = false,
   className,
-  priority = false,
+  preload = false,
 }: {
   compact?: boolean;
   className?: string;
-  priority?: boolean;
+  preload?: boolean;
 }) {
   const height = compact ? 28 : 36;
   const width = Math.round(height * WORDMARK_ASPECT);
@@ -26,7 +26,7 @@ export function BrandMark({
       width={width}
       height={height}
       className={cn("block", className)}
-      priority={priority}
+      preload={preload}
     />
   );
 }

@@ -1,3 +1,4 @@
+import { ProductStill } from "@/components/product-still";
 import { SectionEyebrow, SectionLead, SectionTitle } from "@/components/ui";
 
 export function ConnectSection() {
@@ -35,6 +36,25 @@ export function ConnectSection() {
               cookies expire, sign in again the same way.
             </p>
           </article>
+        </div>
+        <div className="mt-14 grid items-center gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <ProductStill
+            still="connect"
+            frameClassName="shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
+            sizes="(min-width: 1152px) 640px, 100vw"
+          />
+          <div>
+            <p className="font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-lime">Replay</p>
+            <h3 className="mt-2 font-cond text-2xl font-bold uppercase tracking-[0.06em]">
+              A scripted Sunday, on demand
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              Connect has a <strong className="font-medium text-text">Replay</strong> block. Arm it and
+              Sideline restarts into a scripted Week 3 slate — six fake leagues, a moving scoring tape,
+              and the HUD — for screenshots, demos, or a Tuesday night. Your accounts stay untouched;
+              disarm from the same place.
+            </p>
+          </div>
         </div>
       </div>
     </section>

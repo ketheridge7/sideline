@@ -1,464 +1,794 @@
-import type { League, Matchup, NflTickerGame, Player, ScorerChip, TapeEvent, Team, Transaction } from '@shared/types'
+import type { League, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
 import { leagueKey } from '@shared/types'
-import { lastName } from '@shared/display'
+import { tapePlayerLabel } from '@shared/display'
+import { estimatedChanceToWin } from '@shared/winPct'
 
-export const FEATURED_LEAGUE_KEY = 'sleeper:friday-night-gridiron'
 export const REPLAY_SEASON = '2026'
 export const REPLAY_WEEK = 3
 
 const round1 = (value: number): number => Math.round(value * 10) / 10
+const round2 = (value: number): number => Math.round(value * 100) / 100
 
-/** Sunday Week 3, 2026 — 2:22pm ET, mid-slate. */
-const TAPE_T0 = Date.UTC(2026, 8, 27, 18, 22, 0)
+/**
+ * Replay "Sunday-real" slate (Designer spec, MARKETING_REPLAY_SPEC §1). Tick 0 is the
+ * pinned marketing frame: Friday Night Gridiron, Ice Box 98.4 vs Hash Marks 91.2,
+ * Est. win% ~62/38, several games in Q2–early Q3, one FINAL on the ticker. As ticks
+ * pass, halftime ends, early games go final, and the late window kicks off.
+ */
+type GameStatus = 'final' | 'live' | 'half' | 'pre'
 
-type WorldLeague = League & { size: number; leadSpark: number[] }
+type GamePhase = { from: number; status: GameStatus; clock: string }
 
-type ScoreBeat = {
-  kind: 'score'
-  leagueId: string
-  provider: League['provider']
-  playerId: string
-  delta: number
-  note: string
+type SlateGame = {
+  id: string
+  away: string
+  home: string
+  awayScore: number
+  homeScore: number
+  /** Share of regulation already played at tick 0 (0–1). Seeds default remaining projections. */
+  progress: number
+  phases: GamePhase[]
+}
+
+const live = (clock: string, finalAt: number): GamePhase[] => [
+  { from: 0, status: 'live', clock },
+  { from: finalAt, status: 'final', clock: 'FINAL' }
+]
+
+/** ~3s per replay tick: the late window kicks off about 16 minutes in. */
+const LATE_KICKOFF_STEP = 320
+
+const late = (kickoff: string, liveClock: string, offset = 0): GamePhase[] => [
+  { from: 0, status: 'pre', clock: kickoff },
+  { from: LATE_KICKOFF_STEP + offset, status: 'live', clock: liveClock }
+]
+
+const game = (
+  id: string,
+  away: string,
+  awayScore: number,
+  home: string,
+  homeScore: number,
+  progress: number,
+  phases: GamePhase[]
+): SlateGame => ({ id, away, home, awayScore, homeScore, progress, phases })
+
+/** Ticker order leads with the spec §1.4 strip. */
+const SLATE: SlateGame[] = [
+  game('det-kc', 'DET', 21, 'KC', 20, 0.61, live('3RD 8:14', 300)),
+  game('dal-nyg', 'DAL', 28, 'NYG', 14, 1, [{ from: 0, status: 'final', clock: 'FINAL' }]),
+  game('buf-mia', 'BUF', 24, 'MIA', 17, 0.43, live('2ND 4:03', 450)),
+  game('phi-atl', 'PHI', 14, 'ATL', 10, 0.21, live('1ST 2:11', 600)),
+  game('pit-lac', 'PIT', 17, 'LAC', 14, 0.5, [
+    { from: 0, status: 'half', clock: 'HALFTIME' },
+    { from: 30, status: 'live', clock: '3RD 14:10' },
+    { from: 360, status: 'final', clock: 'FINAL' }
+  ]),
+  game('hou-ind', 'HOU', 10, 'IND', 13, 0.47, live('2ND 1:47', 450)),
+  game('sf-lar', 'SF', 7, 'LAR', 3, 0.35, live('2ND 9:30', 500)),
+  game('ari-sea', 'ARI', 13, 'SEA', 10, 0.55, live('3RD 12:05', 320)),
+  game('cin-bal', 'CIN', 3, 'BAL', 17, 0.39, live('2ND 6:30', 480)),
+  game('no-tb', 'NO', 0, 'TB', 0, 0, late('4:05 PM', '1ST 11:52')),
+  game('ne-nyj', 'NE', 0, 'NYJ', 0, 0, late('4:05 PM', '1ST 12:20')),
+  game('car-jax', 'CAR', 0, 'JAX', 0, 0, late('4:25 PM', '1ST 13:40', 40)),
+  game('den-lv', 'DEN', 0, 'LV', 0, 0, late('4:25 PM', '1ST 13:05', 40)),
+  game('min-cle', 'MIN', 0, 'CLE', 0, 0, late('4:25 PM', '1ST 12:48', 40)),
+  game('gb-chi', 'GB', 0, 'CHI', 0, 0, [{ from: 0, status: 'pre', clock: '8:20 PM' }]),
+  game('was-ten', 'WAS', 0, 'TEN', 0, 0, [{ from: 0, status: 'pre', clock: 'MON 8:15 PM' }])
+]
+
+const phaseAt = (slateGame: SlateGame, step: number): GamePhase => {
+  let current = slateGame.phases[0]
+  for (const phase of slateGame.phases) {
+    if (phase.from <= step) current = phase
+  }
+  return current
+}
+
+const GAME_BY_TEAM = new Map<string, SlateGame>(
+  SLATE.flatMap((row) => [
+    [row.away, row],
+    [row.home, row]
+  ])
+)
+
+type PoolPlayer = {
+  name: string
+  position: string
+  nflTeam: string
+  /** Fantasy points on the pinned frame (tick 0). */
+  points: number
+  /** Points still expected this week. Defaults from the position and game clock. */
+  remaining?: number
+  status?: string
+  note?: string
+}
+
+const slug = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+const p = (name: string, position: string, nflTeam: string, points: number, remaining?: number): PoolPlayer => ({
+  name,
+  position,
+  nflTeam,
+  points,
+  ...(remaining != null ? { remaining } : {})
+})
+
+/**
+ * Display names are what the product prints: full name on the companion LineupRow,
+ * LAST on HUD rails, LAST NFL on the tape. D/ST rows use the nickname (STEELERS).
+ * Pool keys are internal only and never reach the UI.
+ */
+const POOL_ROWS: PoolPlayer[] = [
+  // Friday Night Gridiron — Ice Box (Maya). Starters sum 98.4, 30.0 still to come.
+  p('Justin Fields', 'QB', 'PIT', 18.4, 7),
+  p('Jahmyr Gibbs', 'RB', 'DET', 16.2, 4),
+  p('David Montgomery', 'RB', 'DET', 9.1, 3),
+  p('Amon-Ra St. Brown', 'WR', 'DET', 14.6, 4),
+  p('Tyreek Hill', 'WR', 'MIA', 8.3, 3.5),
+  p('Travis Kelce', 'TE', 'KC', 7.4, 3),
+  p('Nico Collins', 'WR', 'HOU', 11.8, 4),
+  p('Brandon Aubrey', 'K', 'DAL', 6),
+  p('Steelers', 'DEF', 'PIT', 6.6, 1.5),
+  { ...p('Rico Dowdle', 'RB', 'DAL', 3.1), status: 'OUT', note: 'LEFT GAME (ANKLE)' },
+  p('Najee Harris', 'RB', 'PIT', 4.6),
+  p('Jerry Jeudy', 'WR', 'CLE', 0),
+  p('Keon Coleman', 'WR', 'BUF', 3.7),
+  p('Tyjae Spears', 'RB', 'TEN', 0),
+  p('Drake Maye', 'QB', 'NE', 0),
+  // Friday Night Gridiron — Hash Marks (Owen). Starters sum 91.2, 31.9 still to come.
+  p('Josh Allen', 'QB', 'BUF', 21.1, 7),
+  p('Saquon Barkley', 'RB', 'PHI', 15.4, 4.5),
+  p('James Conner', 'RB', 'ARI', 5.8, 3),
+  p('A.J. Brown', 'WR', 'PHI', 14.2, 4),
+  p('Drake London', 'WR', 'ATL', 6.9, 3.5),
+  p('George Kittle', 'TE', 'SF', 4.2, 3),
+  p('Jaylen Waddle', 'WR', 'MIA', 8.1, 2.5),
+  p('Tyler Bass', 'K', 'BUF', 5, 2.9),
+  p('Ravens', 'DEF', 'BAL', 10.5, 1.5),
+  p('Brian Robinson Jr.', 'RB', 'WAS', 0),
+  p('Jordan Addison', 'WR', 'MIN', 0),
+  p('Tank Bigsby', 'RB', 'JAX', 0),
+  p('Pat Freiermuth', 'TE', 'PIT', 2.4),
+  p('Justin Herbert', 'QB', 'LAC', 11.9),
+  p('Romeo Doubs', 'WR', 'GB', 0),
+  // Fourth & Drunken — Last Call 84.1 vs Sober Sundays 102.6.
+  p('C.J. Stroud', 'QB', 'HOU', 12.3),
+  p('Christian McCaffrey', 'RB', 'SF', 14.1),
+  p('Jonathan Taylor', 'RB', 'IND', 13),
+  p("Ja'Marr Chase", 'WR', 'CIN', 9.4),
+  p('Puka Nacua', 'WR', 'LAR', 12.2),
+  p('Trey McBride', 'TE', 'ARI', 6.8),
+  p('Jaxon Smith-Njigba', 'WR', 'SEA', 9.1),
+  p('Cameron Dicker', 'K', 'LAC', 5),
+  p('Chiefs', 'DEF', 'KC', 2.2),
+  p('Tony Pollard', 'RB', 'TEN', 0),
+  p('Chris Godwin', 'WR', 'TB', 0),
+  p('Dallas Goedert', 'TE', 'PHI', 3.3),
+  p('Baker Mayfield', 'QB', 'TB', 0),
+  p('Lamar Jackson', 'QB', 'BAL', 22.6),
+  p('Bijan Robinson', 'RB', 'ATL', 9.8),
+  p('Kyren Williams', 'RB', 'LAR', 11.4),
+  p('Justin Jefferson', 'WR', 'MIN', 0),
+  p('CeeDee Lamb', 'WR', 'DAL', 24.3),
+  p('Mark Andrews', 'TE', 'BAL', 8.1),
+  p('Malik Nabers', 'WR', 'NYG', 17.2),
+  p('Harrison Butker', 'K', 'KC', 6),
+  p('Chargers', 'DEF', 'LAC', 3.2),
+  p('Travis Etienne Jr.', 'RB', 'JAX', 0),
+  p('DeAndre Hopkins', 'WR', 'BAL', 2.9),
+  p('Kyle Pitts', 'TE', 'ATL', 1.8),
+  p('Caleb Williams', 'QB', 'CHI', 0),
+  // Sunday Lights — Night Shift 71.0 vs Gridiron Ghosts 68.4.
+  p('Jalen Hurts', 'QB', 'PHI', 11.6),
+  p("De'Von Achane", 'RB', 'MIA', 10.2),
+  p('Breece Hall', 'RB', 'NYJ', 0),
+  p('Tee Higgins', 'WR', 'CIN', 7.3),
+  p('Zay Flowers', 'WR', 'BAL', 9.9),
+  p('Sam LaPorta', 'TE', 'DET', 6.4),
+  p('James Cook', 'RB', 'BUF', 12.1),
+  p('Jake Bates', 'K', 'DET', 7),
+  p('Texans', 'DEF', 'HOU', 6.5),
+  p('Chuba Hubbard', 'RB', 'CAR', 0),
+  p('Terry McLaurin', 'WR', 'WAS', 0),
+  p('Cooper Kupp', 'WR', 'SEA', 4.4),
+  p('Bryce Young', 'QB', 'CAR', 0),
+  p('Joe Burrow', 'QB', 'CIN', 9.8),
+  p('Kenneth Walker III', 'RB', 'SEA', 8.7),
+  p('Garrett Wilson', 'WR', 'NYJ', 0),
+  p('DK Metcalf', 'WR', 'PIT', 7.4),
+  p('Dalton Kincaid', 'TE', 'BUF', 5.5),
+  p('Rashee Rice', 'WR', 'KC', 9.3),
+  p('Chris Boswell', 'K', 'PIT', 4),
+  p('49ers', 'DEF', 'SF', 7.5),
+  p('Rhamondre Stevenson', 'RB', 'NE', 0),
+  p('Jayden Reed', 'WR', 'GB', 0),
+  p('Calvin Ridley', 'WR', 'TEN', 0),
+  p('Darnell Mooney', 'WR', 'ATL', 1.4),
+  // Waiver Wire Warriors — Priority Wire 55.2 vs Claim Jumpers 49.8.
+  p('Jordan Love', 'QB', 'GB', 0),
+  p('Josh Jacobs', 'RB', 'GB', 0),
+  p('Joe Mixon', 'RB', 'HOU', 8.8),
+  p('Davante Adams', 'WR', 'LAR', 10.3),
+  p('Jameson Williams', 'WR', 'DET', 11.2),
+  p('Jake Ferguson', 'TE', 'DAL', 9.4),
+  p('Jaylen Warren', 'RB', 'PIT', 5.9),
+  p('Jason Myers', 'K', 'SEA', 6),
+  p('Seahawks', 'DEF', 'SEA', 3.6),
+  p('Courtland Sutton', 'WR', 'DEN', 0),
+  p("D'Andre Swift", 'RB', 'CHI', 0),
+  p('Brock Purdy', 'QB', 'SF', 8.1),
+  p('Jerome Ford', 'RB', 'CLE', 0),
+  p('Kyler Murray', 'QB', 'ARI', 13.2),
+  p('Isiah Pacheco', 'RB', 'KC', 6.1),
+  p('Jonathon Brooks', 'RB', 'CAR', 0),
+  p('Ladd McConkey', 'WR', 'LAC', 8.8),
+  p('Khalil Shakir', 'WR', 'BUF', 5.2),
+  p('David Njoku', 'TE', 'CLE', 0),
+  p('Jauan Jennings', 'WR', 'SF', 4.7),
+  p('Tyler Loop', 'K', 'BAL', 8),
+  p('Dolphins', 'DEF', 'MIA', 3.8),
+  p('Rachaad White', 'RB', 'TB', 0),
+  p('Elijah Moore', 'WR', 'CLE', 0),
+  p('Tucker Kraft', 'TE', 'GB', 0),
+  p('Sam Darnold', 'QB', 'SEA', 7.6),
+  // Gridiron Gurus (ESPN) — Fourth & Fearless 112.3 vs End Zone Errands 88.0. The late stack is mostly spent.
+  p('Patrick Mahomes', 'QB', 'KC', 21.4, 3),
+  p('Derrick Henry', 'RB', 'BAL', 19.6, 3),
+  p('Tyrone Tracy Jr.', 'RB', 'NYG', 13.4),
+  p('George Pickens', 'WR', 'PIT', 14.8, 3),
+  p('DeVonta Smith', 'WR', 'PHI', 9.3, 5),
+  p('Brock Bowers', 'TE', 'LV', 0),
+  p('Marvin Harrison Jr.', 'WR', 'ARI', 16.1, 3),
+  p("Ka'imi Fairbairn", 'K', 'HOU', 9.7, 2),
+  p('Lions', 'DEF', 'DET', 8, 1),
+  p('Bucky Irving', 'RB', 'TB', 0),
+  p('Mike Evans', 'WR', 'TB', 0),
+  p('Rome Odunze', 'WR', 'CHI', 0),
+  p('Travis Hunter', 'WR', 'JAX', 0),
+  p('Geno Smith', 'QB', 'LV', 0),
+  p('Dak Prescott', 'QB', 'DAL', 18.8),
+  p('Javonte Williams', 'RB', 'DAL', 15.2),
+  p('Chase Brown', 'RB', 'CIN', 10.4),
+  p('Josh Downs', 'WR', 'IND', 8.4),
+  p("Wan'Dale Robinson", 'WR', 'NYG', 11.6),
+  p('Tyler Warren', 'TE', 'IND', 7.7),
+  p('Quentin Johnston', 'WR', 'LAC', 9.9),
+  p('Jake Elliott', 'K', 'PHI', 5),
+  p('Giants', 'DEF', 'NYG', 1),
+  p('Brian Thomas Jr.', 'WR', 'JAX', 0),
+  p('Jordan Mason', 'RB', 'MIN', 0),
+  p('Stefon Diggs', 'WR', 'NE', 0),
+  p('Jalen Tolbert', 'WR', 'DAL', 3.9),
+  // Basement Bowl (ESPN) — River City 40.1 vs First Down Club 61.7.
+  p('Matthew Stafford', 'QB', 'LAR', 14.3),
+  p('Alvin Kamara', 'RB', 'NO', 0),
+  p('Kaleb Johnson', 'RB', 'PIT', 3.2),
+  p('Chris Olave', 'WR', 'NO', 0),
+  p('Keenan Allen', 'WR', 'LAC', 6.8),
+  p('Hunter Henry', 'TE', 'NE', 0),
+  p('Xavier Worthy', 'WR', 'KC', 12.4),
+  p('Younghoe Koo', 'K', 'ATL', 3.4),
+  p('Patriots', 'DEF', 'NE', 0),
+  p('Aaron Jones', 'RB', 'MIN', 0),
+  p('Jakobi Meyers', 'WR', 'LV', 0),
+  p('Christian Watson', 'WR', 'GB', 0),
+  p('Jaylen Wright', 'RB', 'MIA', 2.2),
+  p('Jared Goff', 'QB', 'DET', 15.6),
+  p('Kenneth Gainwell', 'RB', 'PIT', 4.4),
+  p('Zach Charbonnet', 'RB', 'SEA', 7.1),
+  p('Christian Kirk', 'WR', 'HOU', 8.5),
+  p('Ricky Pearsall', 'WR', 'SF', 5.9),
+  p('Evan Engram', 'TE', 'DEN', 0),
+  p('Hollywood Brown', 'WR', 'KC', 7.2),
+  p('Chad Ryland', 'K', 'ARI', 7),
+  p('Eagles', 'DEF', 'PHI', 6),
+  p('Tetairoa McMillan', 'WR', 'CAR', 0),
+  p('Emeka Egbuka', 'WR', 'TB', 0),
+  p('Colston Loveland', 'TE', 'CHI', 0),
+  p('Bo Nix', 'QB', 'DEN', 0)
+]
+
+const POOL = new Map<string, PoolPlayer>(POOL_ROWS.map((row) => [slug(row.name), row]))
+
+const poolRow = (id: string): PoolPlayer => {
+  const row = POOL.get(id)
+  if (!row) throw new Error(`replay pool missing ${id}`)
+  return row
+}
+
+const STARTER_SLOTS = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DEF'] as const
+
+type Roster = {
+  team: Team
+  starters: string[]
+  bench: string[]
+}
+
+type WorldLeague = League & {
+  short: string
+  size: number
+  featured: boolean
+  my: Roster
+  opp: Roster
+}
+
+const ids = (...names: string[]): string[] => names.map(slug)
+
+const roster = (team: Team, starters: string[], bench: string[]): Roster => ({
+  team,
+  starters: ids(...starters),
+  bench: ids(...bench)
+})
+
+const league = (
+  row: Omit<WorldLeague, 'season' | 'week' | 'featured'> & { featured?: boolean }
+): WorldLeague => ({ season: REPLAY_SEASON, week: REPLAY_WEEK, featured: false, ...row })
+
+/** MY LEAGUES order from spec §1.1: four Sleeper, then two ESPN. */
+const WORLD_LEAGUES: WorldLeague[] = [
+  league({
+    id: 'friday-night-gridiron',
+    short: 'fri',
+    name: 'Friday Night Gridiron',
+    provider: 'sleeper',
+    size: 12,
+    featured: true,
+    my: roster(
+      { id: 'fri-ice-box', name: 'Ice Box', owner: 'Maya', record: '2-0' },
+      ['Justin Fields', 'Jahmyr Gibbs', 'David Montgomery', 'Amon-Ra St. Brown', 'Tyreek Hill', 'Travis Kelce', 'Nico Collins', 'Brandon Aubrey', 'Steelers'],
+      ['Rico Dowdle', 'Najee Harris', 'Jerry Jeudy', 'Keon Coleman', 'Tyjae Spears', 'Drake Maye']
+    ),
+    opp: roster(
+      { id: 'fri-hash-marks', name: 'Hash Marks', owner: 'Owen', record: '1-1' },
+      ['Josh Allen', 'Saquon Barkley', 'James Conner', 'A.J. Brown', 'Drake London', 'George Kittle', 'Jaylen Waddle', 'Tyler Bass', 'Ravens'],
+      ['Brian Robinson Jr.', 'Jordan Addison', 'Tank Bigsby', 'Pat Freiermuth', 'Justin Herbert', 'Romeo Doubs']
+    )
+  }),
+  league({
+    id: 'fourth-drunken',
+    short: 'fdr',
+    name: 'Fourth & Drunken',
+    provider: 'sleeper',
+    size: 10,
+    my: roster(
+      { id: 'fdr-last-call', name: 'Last Call', owner: 'Riley', record: '0-2' },
+      ['C.J. Stroud', 'Christian McCaffrey', 'Jonathan Taylor', "Ja'Marr Chase", 'Puka Nacua', 'Trey McBride', 'Jaxon Smith-Njigba', 'Cameron Dicker', 'Chiefs'],
+      ['Tony Pollard', 'Chris Godwin', 'Dallas Goedert', 'Baker Mayfield']
+    ),
+    opp: roster(
+      { id: 'fdr-sober-sundays', name: 'Sober Sundays', owner: 'Pat', record: '2-0' },
+      ['Lamar Jackson', 'Bijan Robinson', 'Kyren Williams', 'Justin Jefferson', 'CeeDee Lamb', 'Mark Andrews', 'Malik Nabers', 'Harrison Butker', 'Chargers'],
+      ['Travis Etienne Jr.', 'DeAndre Hopkins', 'Kyle Pitts', 'Caleb Williams']
+    )
+  }),
+  league({
+    id: 'sunday-lights',
+    short: 'sul',
+    name: 'Sunday Lights',
+    provider: 'sleeper',
+    size: 12,
+    my: roster(
+      { id: 'sul-night-shift', name: 'Night Shift', owner: 'Chris', record: '1-1' },
+      ['Jalen Hurts', "De'Von Achane", 'Breece Hall', 'Tee Higgins', 'Zay Flowers', 'Sam LaPorta', 'James Cook', 'Jake Bates', 'Texans'],
+      ['Chuba Hubbard', 'Terry McLaurin', 'Cooper Kupp', 'Bryce Young']
+    ),
+    opp: roster(
+      { id: 'sul-gridiron-ghosts', name: 'Gridiron Ghosts', owner: 'Jordan', record: '1-1' },
+      ['Joe Burrow', 'Kenneth Walker III', 'Jahmyr Gibbs', 'Garrett Wilson', 'DK Metcalf', 'Dalton Kincaid', 'Rashee Rice', 'Chris Boswell', '49ers'],
+      ['Rhamondre Stevenson', 'Jayden Reed', 'Calvin Ridley', 'Darnell Mooney']
+    )
+  }),
+  league({
+    id: 'waiver-wire',
+    short: 'www',
+    name: 'Waiver Wire Warriors',
+    provider: 'sleeper',
+    size: 10,
+    my: roster(
+      { id: 'www-priority-wire', name: 'Priority Wire', owner: 'Lee', record: '1-1' },
+      ['Jordan Love', 'Josh Jacobs', 'Joe Mixon', 'Davante Adams', 'Jameson Williams', 'Jake Ferguson', 'Jaylen Warren', 'Jason Myers', 'Seahawks'],
+      ['Courtland Sutton', "D'Andre Swift", 'Brock Purdy', 'Jerome Ford']
+    ),
+    opp: roster(
+      { id: 'www-claim-jumpers', name: 'Claim Jumpers', owner: 'Mo', record: '1-1' },
+      ['Kyler Murray', 'Isiah Pacheco', 'Jonathon Brooks', 'Ladd McConkey', 'Khalil Shakir', 'David Njoku', 'Jauan Jennings', 'Tyler Loop', 'Dolphins'],
+      ['Rachaad White', 'Elijah Moore', 'Tucker Kraft', 'Sam Darnold']
+    )
+  }),
+  league({
+    id: 'gridiron-gurus',
+    short: 'ggu',
+    name: 'Gridiron Gurus',
+    provider: 'espn',
+    size: 10,
+    my: roster(
+      { id: 'ggu-fourth-fearless', name: 'Fourth & Fearless', owner: 'Ada', record: '2-0' },
+      ['Patrick Mahomes', 'Derrick Henry', 'Tyrone Tracy Jr.', 'George Pickens', 'DeVonta Smith', 'Brock Bowers', 'Marvin Harrison Jr.', "Ka'imi Fairbairn", 'Lions'],
+      ['Bucky Irving', 'Mike Evans', 'Rome Odunze', 'Travis Hunter', 'Geno Smith']
+    ),
+    opp: roster(
+      { id: 'ggu-end-zone-errands', name: 'End Zone Errands', owner: 'Bo', record: '1-1' },
+      ['Dak Prescott', 'Javonte Williams', 'Chase Brown', 'Josh Downs', "Wan'Dale Robinson", 'Tyler Warren', 'Quentin Johnston', 'Jake Elliott', 'Giants'],
+      ['Brian Thomas Jr.', 'Jordan Mason', 'Stefon Diggs', 'Jalen Tolbert']
+    )
+  }),
+  league({
+    id: 'basement-bowl',
+    short: 'bbl',
+    name: 'Basement Bowl',
+    provider: 'espn',
+    size: 12,
+    my: roster(
+      { id: 'bbl-river-city', name: 'River City', owner: 'Sam', record: '1-1' },
+      ['Matthew Stafford', 'Alvin Kamara', 'Kaleb Johnson', 'Chris Olave', 'Keenan Allen', 'Hunter Henry', 'Xavier Worthy', 'Younghoe Koo', 'Patriots'],
+      ['Aaron Jones', 'Jakobi Meyers', 'Christian Watson', 'Jaylen Wright']
+    ),
+    opp: roster(
+      { id: 'bbl-first-down-club', name: 'First Down Club', owner: 'Nia', record: '2-0' },
+      ['Jared Goff', 'Kenneth Gainwell', 'Zach Charbonnet', 'Christian Kirk', 'Ricky Pearsall', 'Evan Engram', 'Hollywood Brown', 'Chad Ryland', 'Eagles'],
+      ['Tetairoa McMillan', 'Emeka Egbuka', 'Colston Loveland', 'Bo Nix']
+    )
+  })
+]
+
+export const FEATURED_LEAGUE_KEY = leagueKey(WORLD_LEAGUES[0].provider, WORLD_LEAGUES[0].id)
+
+export const REPLAY_FEATURED_KEYS: string[] = WORLD_LEAGUES.filter((row) => row.featured).map((row) =>
+  leagueKey(row.provider, row.id)
+)
+
+const worldKey = (row: WorldLeague): string => leagueKey(row.provider, row.id)
+
+const rosterIds = (row: Roster): string[] => [...row.starters, ...row.bench]
+
+const leaguesRostering = (poolId: string): WorldLeague[] =>
+  WORLD_LEAGUES.filter((row) => rosterIds(row.my).includes(poolId) || rosterIds(row.opp).includes(poolId))
+
+const ROSTERED = new Set<string>(WORLD_LEAGUES.flatMap((row) => [...rosterIds(row.my), ...rosterIds(row.opp)]))
+
+/** Featured starters move most often so both HUD boards tick while you watch. */
+const playWeight = (poolId: string): number => {
+  let weight = 1
+  for (const row of WORLD_LEAGUES) {
+    if (!row.featured) continue
+    if (row.my.starters.includes(poolId) || row.opp.starters.includes(poolId)) weight = Math.max(weight, 2.5)
+    else if (row.my.bench.includes(poolId) || row.opp.bench.includes(poolId)) weight = Math.max(weight, 1.5)
+  }
+  return weight
+}
+
+type Credit = { player: string; delta: number; note: string }
+
+type PlayBeat = {
+  kind: 'play'
+  credits: Credit[]
+  /** NFL points this play puts on the ticker for the scoring team. */
+  nflPoints?: number
 }
 
 type InjuryBeat = {
   kind: 'injury'
-  at: number
-  leagueId: string
-  provider: League['provider']
-  playerId: string
+  player: string
   status: string
   note: string
 }
 
-const player = (
-  playerId: string,
-  name: string,
-  position: string,
-  nflTeam: string,
-  points: number,
-  extra?: Partial<Player>
-): Player => ({ playerId, name, position, nflTeam, points, ...extra })
+export type ReplayBeat = PlayBeat | InjuryBeat
 
-const team = (id: string, name: string, owner: string, record: string): Team => ({
-  id,
-  name,
-  owner,
-  record
+const play = (player: string, delta: number, note: string, nflPoints?: number): PlayBeat => ({
+  kind: 'play',
+  credits: [{ player: slug(player), delta, note }],
+  ...(nflPoints ? { nflPoints } : {})
 })
 
-const chance = (
-  source: NonNullable<Matchup['winPctSource']>,
-  myProjected: number,
-  oppProjected: number,
-  officialWin?: number
-): Pick<
-  Matchup,
-  'myProjectedPoints' | 'oppProjectedPoints' | 'myWinPct' | 'oppWinPct' | 'winPctSource'
-> => ({
-  myProjectedPoints: myProjected,
-  oppProjectedPoints: oppProjected,
-  winPctSource: source,
-  ...(officialWin != null
-    ? { myWinPct: officialWin, oppWinPct: Math.round((1 - officialWin) * 100) / 100 }
-    : {})
+const passTd = (qb: string, qbDelta: number, target: string, targetDelta: number): PlayBeat => ({
+  kind: 'play',
+  credits: [
+    { player: slug(qb), delta: qbDelta, note: 'PASS TD' },
+    { player: slug(target), delta: targetDelta, note: 'REC TD' }
+  ],
+  nflPoints: 7
 })
 
-const sumPts = (rows: Player[]): number =>
-  round1(rows.reduce((total, row) => total + (row.points ?? 0), 0))
-
-const clonePlayers = (rows: Player[]): Player[] => rows.map((row) => ({ ...row }))
-
-const cloneMatchup = (row: Matchup): Matchup => ({
-  myTeam: { ...row.myTeam },
-  oppTeam: row.oppTeam ? { ...row.oppTeam } : null,
-  myPoints: row.myPoints,
-  oppPoints: row.oppPoints,
-  ...(row.myProjectedPoints != null ? { myProjectedPoints: row.myProjectedPoints } : {}),
-  ...(row.oppProjectedPoints != null ? { oppProjectedPoints: row.oppProjectedPoints } : {}),
-  ...(row.myWinPct != null ? { myWinPct: row.myWinPct } : {}),
-  ...(row.oppWinPct != null ? { oppWinPct: row.oppWinPct } : {}),
-  ...(row.winPctSource ? { winPctSource: row.winPctSource } : {}),
-  starters: clonePlayers(row.starters),
-  bench: clonePlayers(row.bench),
-  oppStarters: clonePlayers(row.oppStarters),
-  oppBench: clonePlayers(row.oppBench),
-  ...(row.scoresFinal ? { scoresFinal: true } : {})
-})
-
-const WORLD_LEAGUES: WorldLeague[] = [
-  {
-    id: 'friday-night-gridiron',
-    name: 'Friday Night Gridiron',
-    provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 12,
-    leadSpark: [6.2, 7.8, 9.4, 10.1, 11.6]
-  },
-  {
-    id: 'fourth-drunken',
-    name: 'Fourth & Drunken',
-    provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 10,
-    leadSpark: [-9.2, -11.4, -13.8, -15.1, -16.5]
-  },
-  {
-    id: 'sunday-lights',
-    name: 'Sunday Lights',
-    provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 12,
-    leadSpark: [1.2, 2.6, 3.1, 4.0, 4.2]
-  },
-  {
-    id: 'gridiron-gurus',
-    name: 'Gridiron Gurus',
-    provider: 'espn',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 10,
-    leadSpark: [4.4, 5.8, 6.9, 7.6, 8.1]
-  },
-  {
-    id: 'basement-bowl',
-    name: 'Basement Bowl',
-    provider: 'espn',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 12,
-    leadSpark: [-1.1, -1.8, -2.6, -3.0, -3.4]
-  },
-  {
-    id: 'waiver-wire',
-    name: 'Waiver Wire Warriors',
-    provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 10,
-    leadSpark: [0.4, 0.8, 1.4, 1.8, 2.0]
-  }
+/** Opening minute: Ice Box and Hash Marks trade blows before the generated slate takes over. */
+const SCRIPT: ReplayBeat[] = [
+  play('Jahmyr Gibbs', 1.1, 'RUSH'),
+  play('Ravens', 1, 'SACK'),
+  play('Tyreek Hill', 2.3, 'REC'),
+  play('Josh Allen', 1.2, 'PASS'),
+  play('Nico Collins', 1.9, 'REC'),
+  play('Saquon Barkley', 1.4, 'RUSH'),
+  passTd('Patrick Mahomes', 4.3, 'Rashee Rice', 8.2),
+  play('Travis Kelce', 1.7, 'REC'),
+  passTd('Jalen Hurts', 4.4, 'A.J. Brown', 7.9),
+  passTd('Jared Goff', 4, 'Amon-Ra St. Brown', 8.4),
+  play('James Conner', 0.9, 'RUSH'),
+  play('Tyler Bass', 3, 'FG', 3),
+  play('David Montgomery', 1.2, 'RUSH'),
+  play('Jaylen Waddle', 2.6, 'REC'),
+  play('C.J. Stroud', 1.6, 'PASS'),
+  play('George Kittle', 2.1, 'REC'),
+  play("De'Von Achane", 2.4, 'REC'),
+  play('Kyler Murray', 2.2, 'RUSH'),
+  play('Drake London', 1.8, 'REC'),
+  play('Jahmyr Gibbs', 2.2, 'REC')
 ]
 
-const MATCHUPS: Record<string, Matchup> = {
-  'sleeper:friday-night-gridiron': {
-    myTeam: team('fng-me', 'Ice Box', 'Maya', '2-0'),
-    oppTeam: team('fng-opp', 'Hash Marks', 'Owen', '1-1'),
-    myPoints: 142.8,
-    oppPoints: 131.2,
-    ...chance('estimated', 171.4, 162.0),
-    starters: [
-      player('fng-fields', 'Justin Fields', 'QB', 'PIT', 18.4),
-      player('fng-gibbs', 'Jahmyr Gibbs', 'RB', 'DET', 24.7),
-      player('fng-henry', 'Derrick Henry', 'RB', 'BAL', 16.2),
-      player('fng-lamb', 'CeeDee Lamb', 'WR', 'DAL', 23.1),
-      player('fng-sun-god', 'Amon-Ra St. Brown', 'WR', 'DET', 14.8),
-      player('fng-kelce', 'Travis Kelce', 'TE', 'KC', 11.4),
-      player('fng-collins', 'Nico Collins', 'FLEX', 'HOU', 12.6),
-      player('fng-bates', 'Jake Bates', 'K', 'ATL', 13.1),
-      player('fng-pit-def', 'Steelers D/ST', 'DEF', 'PIT', 8.5)
-    ],
-    bench: [
-      player('fng-nacua', 'Puka Nacua', 'WR', 'LAR', 10.1),
-      player('fng-dowdle', 'Rico Dowdle', 'RB', 'DAL', 4.2),
-      player('fng-jamo', 'Jameson Williams', 'WR', 'DET', 3.8)
-    ],
-    oppStarters: [
-      player('fng-allen', 'Josh Allen', 'QB', 'BUF', 22.1),
-      player('fng-saquon', 'Saquon Barkley', 'RB', 'PHI', 18.4),
-      player('fng-hall', 'Breece Hall', 'RB', 'NYJ', 11.0),
-      player('fng-jj', 'Justin Jefferson', 'WR', 'MIN', 19.2),
-      player('fng-hill', 'Tyreek Hill', 'WR', 'MIA', 10.2),
-      player('fng-kittle', 'George Kittle', 'TE', 'SF', 9.1),
-      player('fng-ajb', 'A.J. Brown', 'FLEX', 'PHI', 14.6),
-      player('fng-butker', 'Harrison Butker', 'K', 'KC', 12.8),
-      player('fng-bal-def', 'Ravens D/ST', 'DEF', 'BAL', 13.8)
-    ],
-    oppBench: [
-      player('fng-pacheco', 'Isiah Pacheco', 'RB', 'KC', 6.4),
-      player('fng-worthy', 'Xavier Worthy', 'WR', 'KC', 4.1)
-    ]
-  },
-  'sleeper:fourth-drunken': {
-    myTeam: team('fd-me', 'Last Call', 'Riley', '0-2'),
-    oppTeam: team('fd-opp', 'Sober Sundays', 'Pat', '2-0'),
-    myPoints: 98.4,
-    oppPoints: 114.9,
-    ...chance('estimated', 138.6, 151.2),
-    starters: [
-      player('fd-stroud', 'C.J. Stroud', 'QB', 'HOU', 14.2),
-      player('fd-cmc', 'Christian McCaffrey', 'RB', 'SF', 12.8),
-      player('fd-mixon', 'Joe Mixon', 'RB', 'HOU', 9.4),
-      player('fd-chase', 'Ja\'Marr Chase', 'WR', 'CIN', 18.6),
-      player('fd-waddle', 'Jaylen Waddle', 'WR', 'MIA', 8.1),
-      player('fd-hock', 'T.J. Hockenson', 'TE', 'MIN', 6.4),
-      player('fd-mooney', 'Darnell Mooney', 'FLEX', 'ATL', 7.2),
-      player('fd-mclaughlin', 'Chase McLaughlin', 'K', 'TB', 11.0),
-      player('fd-cle-def', 'Browns D/ST', 'DEF', 'CLE', 10.7)
-    ],
-    bench: [
-      player('fd-allgeier', 'Tyler Allgeier', 'RB', 'ATL', 3.2),
-      player('fd-shakir', 'Khalil Shakir', 'WR', 'BUF', 5.4)
-    ],
-    oppStarters: [
-      player('fd-mahomes', 'Patrick Mahomes', 'QB', 'KC', 24.8),
-      player('fd-kamara', 'Alvin Kamara', 'RB', 'NO', 16.1),
-      player('fd-walker', 'Kenneth Walker III', 'RB', 'SEA', 13.4),
-      player('fd-hill-opp', 'Tyreek Hill', 'WR', 'MIA', 15.2),
-      player('fd-sutton', 'Courtland Sutton', 'WR', 'DEN', 12.0),
-      player('fd-andrews', 'Mark Andrews', 'TE', 'BAL', 8.8),
-      player('fd-pittman', 'Michael Pittman Jr.', 'FLEX', 'IND', 9.6),
-      player('fd-aubrey', 'Brandon Aubrey', 'K', 'DAL', 8.4),
-      player('fd-sf-def', '49ers D/ST', 'DEF', 'SF', 6.6)
-    ],
-    oppBench: [player('fd-warren', 'Jaylen Warren', 'RB', 'PIT', 4.8)]
-  },
-  'sleeper:sunday-lights': {
-    myTeam: team('sl-me', 'Night Shift', 'Chris', '1-1'),
-    oppTeam: team('sl-opp', 'Gridiron Ghosts', 'Jordan', '1-1'),
-    myPoints: 121.0,
-    oppPoints: 116.8,
-    ...chance('estimated', 158.2, 154.6),
-    starters: [
-      player('sl-hurts', 'Jalen Hurts', 'QB', 'PHI', 22.4),
-      player('sl-gibbs', 'Jahmyr Gibbs', 'RB', 'DET', 18.1),
-      player('sl-barkley', 'Saquon Barkley', 'RB', 'PHI', 14.6),
-      player('sl-arsb', 'Amon-Ra St. Brown', 'WR', 'DET', 12.2),
-      player('sl-lamb', 'CeeDee Lamb', 'WR', 'DAL', 9.8),
-      player('sl-kelce', 'Travis Kelce', 'TE', 'KC', 11.4),
-      player('sl-nico', 'Nico Collins', 'FLEX', 'HOU', 8.0),
-      player('sl-dicker', 'Cameron Dicker', 'K', 'LAC', 13.5),
-      player('sl-phi-def', 'Eagles D/ST', 'DEF', 'PHI', 11.0)
-    ],
-    bench: [
-      player('sl-warren', 'Jaylen Warren', 'RB', 'PIT', 3.6),
-      player('sl-ladd', 'Ladd McConkey', 'WR', 'LAC', 6.2)
-    ],
-    oppStarters: [
-      player('sl-allen', 'Josh Allen', 'QB', 'BUF', 19.2),
-      player('sl-henry', 'Derrick Henry', 'RB', 'BAL', 16.4),
-      player('sl-hall', 'Breece Hall', 'RB', 'NYJ', 13.1),
-      player('sl-jj', 'Justin Jefferson', 'WR', 'MIN', 11.0),
-      player('sl-tyreek', 'Tyreek Hill', 'WR', 'MIA', 10.2),
-      player('sl-kittle', 'George Kittle', 'TE', 'SF', 9.1),
-      player('sl-ajb', 'A.J. Brown', 'FLEX', 'PHI', 7.4),
-      player('sl-butker', 'Harrison Butker', 'K', 'KC', 12.8),
-      player('sl-bal-def', 'Ravens D/ST', 'DEF', 'BAL', 17.6)
-    ],
-    oppBench: [player('sl-flowers', 'Zay Flowers', 'WR', 'BAL', 5.1)]
-  },
-  'espn:gridiron-gurus': {
-    myTeam: team('gg-me', 'Fourth & Fearless', 'Ada', '2-0'),
-    oppTeam: team('gg-opp', 'End Zone Errands', 'Bo', '1-1'),
-    myPoints: 133.4,
-    oppPoints: 125.3,
-    ...chance('official', 164.8, 157.1, 0.64),
-    starters: [
-      player('gg-lamar', 'Lamar Jackson', 'QB', 'BAL', 26.8),
-      player('gg-achane', 'De\'Von Achane', 'RB', 'MIA', 15.4),
-      player('gg-cook', 'James Cook', 'RB', 'BUF', 12.1),
-      player('gg-cd', 'CeeDee Lamb', 'WR', 'DAL', 18.6),
-      player('gg-evans', 'Mike Evans', 'WR', 'TB', 14.2),
-      player('gg-mcbride', 'Trey McBride', 'TE', 'ARI', 10.8),
-      player('gg-rice', 'Rashee Rice', 'FLEX', 'KC', 11.4),
-      player('gg-bass', 'Tyler Bass', 'K', 'BUF', 9.1),
-      player('gg-dal-def', 'Cowboys D/ST', 'DEF', 'DAL', 15.0)
-    ],
-    bench: [
-      player('gg-downs', 'Josh Downs', 'WR', 'IND', 6.2),
-      player('gg-charbonnet', 'Zach Charbonnet', 'RB', 'SEA', 4.4)
-    ],
-    oppStarters: [
-      player('gg-burrow', 'Joe Burrow', 'QB', 'CIN', 21.4),
-      player('gg-taylor', 'Jonathan Taylor', 'RB', 'IND', 17.8),
-      player('gg-conner', 'James Conner', 'RB', 'ARI', 13.2),
-      player('gg-chase', 'Ja\'Marr Chase', 'WR', 'CIN', 16.6),
-      player('gg-nash', 'Nico Collins', 'WR', 'HOU', 12.0),
-      player('gg-la-porta', 'Sam LaPorta', 'TE', 'DET', 8.4),
-      player('gg-mooney', 'Darnell Mooney', 'FLEX', 'ATL', 9.9),
-      player('gg-fairbairn', 'Ka\'imi Fairbairn', 'K', 'HOU', 10.2),
-      player('gg-mia-def', 'Dolphins D/ST', 'DEF', 'MIA', 15.8)
-    ],
-    oppBench: [player('gg-btj', 'Brian Thomas Jr.', 'WR', 'JAX', 5.8)]
-  },
-  'espn:basement-bowl': {
-    myTeam: team('hm-me', 'River City', 'Sam', '1-1'),
-    oppTeam: team('hm-opp', 'First Down Club', 'Nia', '2-0'),
-    myPoints: 108.2,
-    oppPoints: 111.6,
-    ...chance('official', 149.4, 152.8, 0.41),
-    starters: [
-      player('hm-dak', 'Dak Prescott', 'QB', 'DAL', 16.4),
-      player('hm-pollard', 'Tony Pollard', 'RB', 'TEN', 11.2),
-      player('hm-dowdle', 'Rico Dowdle', 'RB', 'DAL', 8.8),
-      player('hm-pickens', 'George Pickens', 'WR', 'PIT', 14.6),
-      player('hm-flowers', 'Zay Flowers', 'WR', 'BAL', 9.4),
-      player('hm-kincaid', 'Dalton Kincaid', 'TE', 'BUF', 7.1),
-      player('hm-shakir', 'Khalil Shakir', 'FLEX', 'BUF', 10.3),
-      player('hm-sanders', 'Chris Boswell', 'K', 'PIT', 12.0),
-      player('hm-nyj-def', 'Jets D/ST', 'DEF', 'NYJ', 18.4)
-    ],
-    bench: [
-      player('hm-allgeier', 'Tyler Allgeier', 'RB', 'ATL', 1.4),
-      player('hm-ladd', 'Ladd McConkey', 'WR', 'LAC', 4.6)
-    ],
-    oppStarters: [
-      player('hm-love', 'Jordan Love', 'QB', 'GB', 18.8),
-      player('hm-irving', 'Bucky Irving', 'RB', 'TB', 14.1),
-      player('hm-swift', 'D\'Andre Swift', 'RB', 'CHI', 10.6),
-      player('hm-olave', 'Chris Olave', 'WR', 'NO', 13.2),
-      player('hm-godwin', 'Chris Godwin', 'WR', 'TB', 11.8),
-      player('hm-engram', 'Evan Engram', 'TE', 'JAX', 8.4),
-      player('hm-jamo', 'Jameson Williams', 'FLEX', 'DET', 9.7),
-      player('hm-mcpherson', 'Evan McPherson', 'K', 'CIN', 11.0),
-      player('hm-gb-def', 'Packers D/ST', 'DEF', 'GB', 14.0)
-    ],
-    oppBench: [player('hm-charbonnet', 'Zach Charbonnet', 'RB', 'SEA', 3.2)]
-  },
-  'sleeper:waiver-wire': {
-    myTeam: team('bw-me', 'Priority Wire', 'Lee', '1-1'),
-    oppTeam: team('bw-opp', 'Claim Jumpers', 'Mo', '1-1'),
-    myPoints: 119.7,
-    oppPoints: 117.7,
-    ...chance('estimated', 154.0, 151.6),
-    starters: [
-      player('bw-maye', 'Drake Maye', 'QB', 'NE', 17.6),
-      player('bw-gibbs', 'Jahmyr Gibbs', 'RB', 'DET', 15.2),
-      player('bw-walker', 'Kenneth Walker III', 'RB', 'SEA', 12.8),
-      player('bw-pittman', 'Michael Pittman Jr.', 'WR', 'IND', 14.4),
-      player('bw-waddle', 'Jaylen Waddle', 'WR', 'MIA', 11.1),
-      player('bw-bowers', 'Brock Bowers', 'TE', 'LV', 13.6),
-      player('bw-conner', 'James Conner', 'FLEX', 'ARI', 10.2),
-      player('bw-grupe', 'Blake Grupe', 'K', 'NO', 9.4),
-      player('bw-den-def', 'Broncos D/ST', 'DEF', 'DEN', 15.4)
-    ],
-    bench: [
-      player('bw-mooney', 'Darnell Mooney', 'WR', 'ATL', 4.8),
-      player('bw-dowdle', 'Rico Dowdle', 'RB', 'DAL', 2.6)
-    ],
-    oppStarters: [
-      player('bw-daniels', 'Jayden Daniels', 'QB', 'WAS', 20.4),
-      player('bw-bijan', 'Bijan Robinson', 'RB', 'ATL', 16.8),
-      player('bw-kyren', 'Kyren Williams', 'RB', 'LAR', 12.2),
-      player('bw-nabers', 'Malik Nabers', 'WR', 'NYG', 15.0),
-      player('bw-btj', 'Brian Thomas Jr.', 'WR', 'JAX', 11.6),
-      player('bw-njoku', 'David Njoku', 'TE', 'CLE', 8.1),
-      player('bw-conner-opp', 'James Conner', 'FLEX', 'ARI', 9.4),
-      player('bw-loop', 'Jason Myers', 'K', 'SEA', 10.0),
-      player('bw-was-def', 'Commanders D/ST', 'DEF', 'WAS', 14.2)
-    ],
-    oppBench: [player('bw-shakir', 'Khalil Shakir', 'WR', 'BUF', 3.9)]
+type PlayOption = { delta: number; note: string; weight: number; nflPoints?: number; passTd?: boolean }
+
+const PLAY_MENU: Record<string, PlayOption[]> = {
+  QB: [
+    { delta: 1.6, note: 'PASS', weight: 5 },
+    { delta: 0.9, note: 'PASS', weight: 4 },
+    { delta: 2.2, note: 'RUSH', weight: 2 },
+    { delta: 4.4, note: 'PASS TD', weight: 1.5, nflPoints: 7 },
+    { delta: -1, note: 'INT', weight: 0.8 }
+  ],
+  RB: [
+    { delta: 1.3, note: 'RUSH', weight: 5 },
+    { delta: 0.7, note: 'RUSH', weight: 3 },
+    { delta: 2.4, note: 'REC', weight: 3 },
+    { delta: 6.8, note: 'RUSH TD', weight: 1.2, nflPoints: 7 },
+    { delta: -2, note: 'FUM', weight: 0.4 }
+  ],
+  WR: [
+    { delta: 2.3, note: 'REC', weight: 5 },
+    { delta: 1.6, note: 'REC', weight: 4 },
+    { delta: 3.4, note: 'REC', weight: 2 },
+    { delta: 8.2, note: 'REC TD', weight: 1, nflPoints: 7, passTd: true }
+  ],
+  TE: [
+    { delta: 1.9, note: 'REC', weight: 5 },
+    { delta: 2.8, note: 'REC', weight: 3 },
+    { delta: 7.6, note: 'REC TD', weight: 0.8, nflPoints: 7, passTd: true }
+  ],
+  K: [
+    { delta: 3, note: 'FG', weight: 4, nflPoints: 3 },
+    { delta: 4, note: 'FG', weight: 2, nflPoints: 3 },
+    { delta: 1, note: 'XP', weight: 3 }
+  ],
+  DEF: [
+    { delta: 1, note: 'SACK', weight: 5 },
+    { delta: 2, note: 'INT', weight: 2 },
+    { delta: 2, note: 'FUM REC', weight: 1 },
+    { delta: -1, note: 'PTS ALLOWED', weight: 1 }
+  ]
+}
+
+/** Share of generated steps that land a play; the rest are quiet polls like a real Sunday. */
+const PLAY_RATE = 0.35
+
+const mulberry32 = (seed: number): (() => number) => {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
 
-const SCORE_BEATS: ScoreBeat[] = [
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-gibbs', delta: 6.2, note: 'TD' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-hill', delta: -2.0, note: 'FUM' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-lamb', delta: 3.4, note: 'REC' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-allen', delta: -0.3, note: 'SK' },
-  { kind: 'score', provider: 'espn', leagueId: 'gridiron-gurus', playerId: 'gg-lamar', delta: 4.6, note: 'TD' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'fourth-drunken', playerId: 'fd-cmc', delta: -1.6, note: 'FUM' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-fields', delta: -1.6, note: 'INT' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-bates', delta: 3.0, note: 'FG' },
-  { kind: 'score', provider: 'espn', leagueId: 'basement-bowl', playerId: 'hm-pickens', delta: 6.4, note: 'TD' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'sunday-lights', playerId: 'sl-hurts', delta: 2.4, note: 'RUSH' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'waiver-wire', playerId: 'bw-bowers', delta: 1.8, note: 'REC' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-saquon', delta: -0.2, note: 'FUM' },
-  { kind: 'score', provider: 'espn', leagueId: 'gridiron-gurus', playerId: 'gg-chase', delta: 5.2, note: 'TD' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'fourth-drunken', playerId: 'fd-chase', delta: 3.1, note: 'REC' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'sunday-lights', playerId: 'sl-henry', delta: 6.8, note: 'TD' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'waiver-wire', playerId: 'bw-nabers', delta: 4.4, note: 'TD' },
-  { kind: 'score', provider: 'espn', leagueId: 'basement-bowl', playerId: 'hm-irving', delta: 2.2, note: 'RUSH' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'friday-night-gridiron', playerId: 'fng-kelce', delta: 1.4, note: 'REC' },
-  { kind: 'score', provider: 'sleeper', leagueId: 'sunday-lights', playerId: 'sl-tyreek', delta: -0.8, note: 'FUM' },
-  { kind: 'score', provider: 'espn', leagueId: 'gridiron-gurus', playerId: 'gg-burrow', delta: -1.2, note: 'SK' }
-]
-
-const INJURY_BEAT: InjuryBeat = {
-  kind: 'injury',
-  at: 3,
-  provider: 'sleeper',
-  leagueId: 'friday-night-gridiron',
-  playerId: 'fng-dowdle',
-  status: 'OUT',
-  note: 'LEFT GAME (ANKLE)'
+const pickWeighted = <T,>(rows: T[], weightOf: (row: T) => number, roll: number): T | undefined => {
+  const total = rows.reduce((sum, row) => sum + weightOf(row), 0)
+  if (!(total > 0)) return undefined
+  let cursor = roll * total
+  for (const row of rows) {
+    cursor -= weightOf(row)
+    if (cursor <= 0) return row
+  }
+  return rows[rows.length - 1]
 }
 
-const leagueNameByKey = Object.fromEntries(
-  WORLD_LEAGUES.map((row) => [leagueKey(row.provider, row.id), row.name])
-) as Record<string, string>
-
-const SEED_TAPE: Omit<TapeEvent, 'at'>[] = [
-  { id: 'seed-gibbs-td', kind: 'score', player: 'Gibbs DET', detail: 'TD', delta: 6.2, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '3RD' },
-  { id: 'seed-hill-fum', kind: 'score', player: 'Hill MIA', detail: 'FUM', delta: -2.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '3RD' },
-  { id: 'seed-lamb', kind: 'score', player: 'Lamb DAL', detail: 'REC', delta: 3.4, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '3RD' },
-  { id: 'seed-allen-sk', kind: 'score', player: 'Allen BUF', detail: 'SK', delta: -0.3, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '2ND' },
-  { id: 'seed-dowdle-inj', kind: 'injury', player: 'Dowdle DAL', detail: 'LEFT GAME (ANKLE)', leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '2ND' },
-  { id: 'seed-downs-waiver', kind: 'add', player: 'Downs IND', detail: 'WAIVER CLAIM', leagueKey: 'sleeper:fourth-drunken', leagueName: leagueNameByKey['sleeper:fourth-drunken'], period: '1ST' },
-  { id: 'seed-bates-fg', kind: 'score', player: 'Bates ATL', detail: 'FG', delta: 3.0, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '2ND' },
-  { id: 'seed-cmc-fum', kind: 'score', player: 'McCaffrey SF', detail: 'FUM', delta: -1.6, leagueKey: 'sleeper:fourth-drunken', leagueName: leagueNameByKey['sleeper:fourth-drunken'], period: '2ND' },
-  { id: 'seed-lamar', kind: 'score', player: 'Jackson BAL', detail: 'TD', delta: 4.6, leagueKey: 'espn:gridiron-gurus', leagueName: leagueNameByKey['espn:gridiron-gurus'], period: '2ND' },
-  { id: 'seed-fields-int', kind: 'score', player: 'Fields PIT', detail: 'INT', delta: -1.6, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '1ST' },
-  { id: 'seed-hurts-rush', kind: 'score', player: 'Hurts PHI', detail: 'RUSH', delta: 2.4, leagueKey: 'sleeper:sunday-lights', leagueName: leagueNameByKey['sleeper:sunday-lights'], period: '3RD' },
-  { id: 'seed-pickens-td', kind: 'score', player: 'Pickens PIT', detail: 'TD', delta: 6.4, leagueKey: 'espn:basement-bowl', leagueName: leagueNameByKey['espn:basement-bowl'], period: '3RD' },
-  { id: 'seed-bowers-rec', kind: 'score', player: 'Bowers LV', detail: 'REC', delta: 1.8, leagueKey: 'sleeper:waiver-wire', leagueName: leagueNameByKey['sleeper:waiver-wire'], period: '2ND' },
-  { id: 'seed-henry-td', kind: 'score', player: 'Henry BAL', detail: 'TD', delta: 6.8, leagueKey: 'sleeper:sunday-lights', leagueName: leagueNameByKey['sleeper:sunday-lights'], period: '2ND' },
-  { id: 'seed-nabers-td', kind: 'score', player: 'Nabers NYG', detail: 'TD', delta: 4.4, leagueKey: 'sleeper:waiver-wire', leagueName: leagueNameByKey['sleeper:waiver-wire'], period: '2ND' },
-  { id: 'seed-kelce-rec', kind: 'score', player: 'Kelce KC', detail: 'REC', delta: 1.4, leagueKey: FEATURED_LEAGUE_KEY, leagueName: leagueNameByKey[FEATURED_LEAGUE_KEY], period: '1ST' },
-  { id: 'seed-chase-td', kind: 'score', player: 'Chase CIN', detail: 'TD', delta: 5.2, leagueKey: 'espn:gridiron-gurus', leagueName: leagueNameByKey['espn:gridiron-gurus'], period: '1ST' },
-  { id: 'seed-btj-trade', kind: 'trade', player: 'Thomas Jr. JAX', detail: 'TRADE', leagueKey: 'sleeper:sunday-lights', leagueName: leagueNameByKey['sleeper:sunday-lights'], period: '1ST' }
-]
-
-const TICKER: NflTickerGame[] = [
-  { id: 'cle-cin', away: 'CLE', awayScore: 17, home: 'CIN', homeScore: 24, clock: '4TH 1:52' },
-  { id: 'det-kc', away: 'DET', awayScore: 21, home: 'KC', homeScore: 20, clock: '3RD 8:14' },
-  { id: 'dal-nyg', away: 'DAL', awayScore: 28, home: 'NYG', homeScore: 14, clock: 'FINAL', final: true },
-  { id: 'buf-mia', away: 'BUF', awayScore: 31, home: 'MIA', homeScore: 10, clock: '2ND 4:03' },
-  { id: 'bal-pit', away: 'BAL', awayScore: 17, home: 'PIT', homeScore: 17, clock: '4TH 0:48' },
-  { id: 'sf-lar', away: 'SF', awayScore: 24, home: 'LAR', homeScore: 27, clock: 'FINAL', final: true },
-  { id: 'hou-ind', away: 'HOU', awayScore: 13, home: 'IND', homeScore: 20, clock: '3RD 5:41' },
-  { id: 'gb-min', away: 'GB', awayScore: 24, home: 'MIN', homeScore: 27, clock: '4TH 6:18' },
-  { id: 'phi-tb', away: 'PHI', awayScore: 10, home: 'TB', homeScore: 7, clock: '2ND 11:02' }
-]
-
-const WAIVER_TX: Transaction = {
-  id: 'replay-waiver-downs',
-  type: 'add',
-  players: ['Josh Downs'],
-  timestamp: TAPE_T0 - 12 * 60_000
+type PlayerState = {
+  points: number
+  remaining: number
+  status?: string
+  lastPlay?: string
+  lastStep?: number
+  lastDelta?: number
 }
 
-const allPlayers = (matchup: Matchup): Player[] => [
-  ...matchup.starters,
-  ...matchup.bench,
-  ...matchup.oppStarters,
-  ...matchup.oppBench
-]
-
-const findPlayer = (matchup: Matchup, playerId: string): Player | undefined =>
-  allPlayers(matchup).find((row) => row.playerId === playerId)
-
-const leagueKeyOf = (beat: { provider: League['provider']; leagueId: string }): string =>
-  leagueKey(beat.provider, beat.leagueId)
-
-const applyBeat = (matchup: Matchup, beat: ScoreBeat, thisTick: boolean): void => {
-  const row = findPlayer(matchup, beat.playerId)
-  if (!row || typeof row.points !== 'number') return
-  row.points = round1(row.points + beat.delta)
-  row.lastPlay = beat.note
-  if (thisTick) row.tickDelta = beat.delta
+export type WorldState = {
+  step: number
+  players: Map<string, PlayerState>
+  scores: Map<string, { away: number; home: number }>
+  leads: Map<string, number[]>
 }
 
-const recomputeTotals = (matchup: Matchup): void => {
-  matchup.myPoints = sumPts(matchup.starters)
-  matchup.oppPoints = sumPts(matchup.oppStarters)
+/** Typical full-game output; a live player is expected to add the unplayed share of it. */
+const POSITION_PROJECTION: Record<string, number> = { QB: 19, RB: 13, WR: 13, TE: 9, K: 8, DEF: 7 }
+
+const initialRemaining = (row: PoolPlayer): number => {
+  if (row.status === 'OUT') return 0
+  const slateGame = GAME_BY_TEAM.get(row.nflTeam)
+  if (!slateGame) return 0
+  const status = phaseAt(slateGame, 0).status
+  if (status === 'final') return 0
+  if (row.remaining != null) return row.remaining
+  const projected = POSITION_PROJECTION[row.position] ?? 10
+  switch (status) {
+    case 'pre':
+      return projected
+    case 'live':
+    case 'half':
+      return round1(projected * (1 - slateGame.progress))
+    default: {
+      const _never: never = status
+      return _never
+    }
+  }
 }
 
-const worldLeague = (league: League): WorldLeague | undefined =>
+const initialState = (): WorldState => {
+  const players = new Map<string, PlayerState>()
+  for (const [id, row] of POOL) {
+    players.set(id, {
+      points: row.points,
+      remaining: initialRemaining(row),
+      ...(row.status ? { status: row.status } : {}),
+      ...(row.note ? { lastPlay: row.note } : {})
+    })
+  }
+  const scores = new Map(SLATE.map((game) => [game.id, { away: game.awayScore, home: game.homeScore }]))
+  return { step: 0, players, scores, leads: new Map(WORLD_LEAGUES.map((row) => [worldKey(row), []])) }
+}
+
+const cloneState = (state: WorldState): WorldState => ({
+  step: state.step,
+  players: new Map([...state.players].map(([id, row]) => [id, { ...row }])),
+  scores: new Map([...state.scores].map(([id, row]) => [id, { ...row }])),
+  leads: new Map([...state.leads].map(([id, row]) => [id, [...row]]))
+})
+
+const eligibleForPlay = (id: string, state: WorldState): boolean => {
+  const row = POOL.get(id)
+  const live = state.players.get(id)
+  if (!row || !live) return false
+  if (live.status === 'OUT' || live.remaining < 0.8) return false
+  const game = GAME_BY_TEAM.get(row.nflTeam)
+  return game != null && phaseAt(game, state.step + 1).status === 'live'
+}
+
+const teamQb = (nflTeam: string, state: WorldState): string | undefined =>
+  [...ROSTERED].find((id) => {
+    const row = POOL.get(id)
+    return row?.position === 'QB' && row.nflTeam === nflTeam && state.players.get(id)?.status !== 'OUT'
+  })
+
+const generatedBeat = (step: number, state: WorldState): ReplayBeat | null => {
+  const rand = mulberry32(step * 2654435761)
+  if (rand() > PLAY_RATE) return null
+  const candidates = [...ROSTERED].filter((id) => eligibleForPlay(id, state))
+  const player = pickWeighted(candidates, playWeight, rand())
+  if (!player) return null
+  const row = poolRow(player)
+  const remaining = state.players.get(player)?.remaining ?? 0
+  const menu = (PLAY_MENU[row.position] ?? PLAY_MENU.WR).filter((opt) => opt.delta <= remaining + 2)
+  const option = pickWeighted(menu, (opt) => opt.weight, rand())
+  if (!option) return null
+  const credits: Credit[] = [{ player, delta: option.delta, note: option.note }]
+  if (option.passTd) {
+    const qb = teamQb(row.nflTeam, state)
+    if (qb) credits.push({ player: qb, delta: 4.3, note: 'PASS TD' })
+  }
+  return { kind: 'play', credits, ...(option.nflPoints ? { nflPoints: option.nflPoints } : {}) }
+}
+
+const replayBeatAt = (step: number, state: WorldState): ReplayBeat | null =>
+  step <= SCRIPT.length ? SCRIPT[step - 1] : generatedBeat(step, state)
+
+const leadOf = (row: WorldLeague, state: WorldState): number => {
+  const sum = (list: string[]): number => list.reduce((total, id) => total + (state.players.get(id)?.points ?? 0), 0)
+  return round1(sum(row.my.starters) - sum(row.opp.starters))
+}
+
+const applyBeat = (state: WorldState, beat: ReplayBeat, step: number): void => {
+  switch (beat.kind) {
+    case 'play': {
+      for (const credit of beat.credits) {
+        const live = state.players.get(credit.player)
+        if (!live) continue
+        live.points = round1(live.points + credit.delta)
+        if (credit.delta > 0) live.remaining = Math.max(0, round1(live.remaining - credit.delta))
+        live.lastDelta = live.lastStep === step ? round1((live.lastDelta ?? 0) + credit.delta) : credit.delta
+        live.lastPlay = credit.note
+        live.lastStep = step
+      }
+      const scorer = POOL.get(beat.credits[0]?.player ?? '')
+      const game = scorer ? GAME_BY_TEAM.get(scorer.nflTeam) : undefined
+      const score = game ? state.scores.get(game.id) : undefined
+      if (beat.nflPoints && game && score && scorer) {
+        if (game.away === scorer.nflTeam) score.away += beat.nflPoints
+        else score.home += beat.nflPoints
+      }
+      return
+    }
+    case 'injury': {
+      const live = state.players.get(beat.player)
+      if (!live) return
+      live.status = beat.status
+      live.remaining = 0
+      live.lastPlay = beat.note
+      return
+    }
+    default: {
+      const _never: never = beat
+      return _never
+    }
+  }
+}
+
+/** A player whose game just went final keeps what he scored; nothing is left to project. */
+const settleFinals = (state: WorldState): void => {
+  for (const [id, live] of state.players) {
+    if (live.remaining === 0) continue
+    const team = POOL.get(id)?.nflTeam
+    const game = team ? GAME_BY_TEAM.get(team) : undefined
+    if (game && phaseAt(game, state.step).status === 'final') live.remaining = 0
+  }
+}
+
+let memo: WorldState = initialState()
+
+/** World after `tick` beats. Ticks only move forward in the app, so advance from the last state. */
+export const replayWorldAt = (tick: number): WorldState => {
+  const target = Math.max(0, Math.floor(tick))
+  if (target < memo.step) memo = initialState()
+  while (memo.step < target) {
+    const step = memo.step + 1
+    const beat = replayBeatAt(step, memo)
+    if (beat) applyBeat(memo, beat, step)
+    memo.step = step
+    settleFinals(memo)
+    for (const row of WORLD_LEAGUES) {
+      const series = memo.leads.get(worldKey(row))
+      const lead = leadOf(row, memo)
+      if (series && series[series.length - 1] !== lead) series.push(lead)
+    }
+  }
+  return cloneState(memo)
+}
+
+const toPlayer = (row: WorldLeague, id: string, slot: string | null, state: WorldState): Player => {
+  const base = poolRow(id)
+  const live = state.players.get(id)
+  return {
+    playerId: `${row.short}-${id}`,
+    name: base.name,
+    position: slot ?? base.position,
+    nflTeam: base.nflTeam,
+    points: live?.points ?? base.points,
+    ...(live?.status ? { status: live.status } : {}),
+    ...(live?.lastPlay ? { lastPlay: live.lastPlay } : {}),
+    ...(live?.lastDelta != null && live.lastStep === state.step && state.step > 0
+      ? { tickDelta: live.lastDelta }
+      : {})
+  }
+}
+
+const starters = (row: WorldLeague, side: Roster, state: WorldState): Player[] =>
+  side.starters.map((id, index) => toPlayer(row, id, STARTER_SLOTS[index] ?? null, state))
+
+const bench = (row: WorldLeague, side: Roster, state: WorldState): Player[] =>
+  side.bench.map((id) => toPlayer(row, id, null, state))
+
+const projectedTotal = (side: Roster, state: WorldState): number =>
+  round1(
+    side.starters.reduce((total, id) => {
+      const live = state.players.get(id)
+      return total + (live?.points ?? 0) + (live?.remaining ?? 0)
+    }, 0)
+  )
+
+const sumPts = (rows: Player[]): number => round1(rows.reduce((total, row) => total + (row.points ?? 0), 0))
+
+const worldLeague = (league: Pick<League, 'provider' | 'id'>): WorldLeague | undefined =>
   WORLD_LEAGUES.find((row) => row.provider === league.provider && row.id === league.id)
 
 export const replayWorldLeagues = (week: number): League[] =>
@@ -471,23 +801,40 @@ export const replayWorldLeagues = (week: number): League[] =>
   }))
 
 export const replayMatchupFor = (league: League, tick: number): Matchup | null => {
-  const key = leagueKey(league.provider, league.id)
-  const base = MATCHUPS[key]
-  if (!base) return null
-  const matchup = cloneMatchup(base)
-  for (let step = 1; step <= tick; step += 1) {
-    const beat = SCORE_BEATS[(step - 1) % SCORE_BEATS.length]
-    if (leagueKeyOf(beat) !== key) continue
-    applyBeat(matchup, beat, step === tick)
+  const row = worldLeague(league)
+  if (!row) return null
+  const state = replayWorldAt(tick)
+  const myStarters = starters(row, row.my, state)
+  const oppStarters = starters(row, row.opp, state)
+  const myPoints = sumPts(myStarters)
+  const oppPoints = sumPts(oppStarters)
+  const myProjectedPoints = projectedTotal(row.my, state)
+  const oppProjectedPoints = projectedTotal(row.opp, state)
+  const matchup: Matchup = {
+    myTeam: { ...row.my.team },
+    oppTeam: { ...row.opp.team },
+    myPoints,
+    oppPoints,
+    myProjectedPoints,
+    oppProjectedPoints,
+    winPctSource: row.provider === 'espn' ? 'official' : 'estimated',
+    starters: myStarters,
+    bench: bench(row, row.my, state),
+    oppStarters,
+    oppBench: bench(row, row.opp, state)
   }
-  if (tick >= INJURY_BEAT.at && leagueKeyOf(INJURY_BEAT) === key) {
-    const row = findPlayer(matchup, INJURY_BEAT.playerId)
-    if (row) {
-      row.status = INJURY_BEAT.status
-      row.lastPlay = INJURY_BEAT.note
+  if (row.provider === 'espn') {
+    const chance = estimatedChanceToWin({
+      myLive: myPoints,
+      oppLive: oppPoints,
+      myProjected: myProjectedPoints,
+      oppProjected: oppProjectedPoints
+    })
+    if (chance) {
+      matchup.myWinPct = round2(chance.mine)
+      matchup.oppWinPct = round2(1 - round2(chance.mine))
     }
   }
-  recomputeTotals(matchup)
   return matchup
 }
 
@@ -496,89 +843,150 @@ export const replayTransactionsFor = (league: League, _tick: number): Transactio
   return []
 }
 
-export const replaySeedTape = (): TapeEvent[] =>
-  SEED_TAPE.map((row, index) => ({
-    ...row,
-    at: TAPE_T0 - index * 47_000
-  }))
+/** Demo tape reads as "earlier this afternoon" relative to when the demo started. */
+const TAPE_ANCHOR = Date.now()
 
-export const replayTickerGames = (): NflTickerGame[] => TICKER.map((row) => ({ ...row }))
-
-const SEED_SCORERS: Record<string, ScorerChip[]> = {
-  'sleeper:friday-night-gridiron': [
-    { playerId: 'fng-gibbs', name: 'Gibbs', position: 'RB', points: 24.7, delta: 6.2 },
-    { playerId: 'fng-lamb', name: 'Lamb', position: 'WR', points: 23.1, delta: 3.4 },
-    { playerId: 'fng-hill', name: 'Hill', position: 'WR', points: 10.2, delta: -2.0 }
-  ],
-  'sleeper:fourth-drunken': [
-    { playerId: 'fd-chase', name: 'Chase', position: 'WR', points: 18.6, delta: 6.4 },
-    { playerId: 'fd-cmc', name: 'McCaffrey', position: 'RB', points: 12.8, delta: -1.6 },
-    { playerId: 'fd-mahomes', name: 'Mahomes', position: 'QB', points: 24.8, delta: 4.2 }
-  ],
-  'sleeper:sunday-lights': [
-    { playerId: 'sl-hurts', name: 'Hurts', position: 'QB', points: 22.4, delta: 2.4 },
-    { playerId: 'sl-henry', name: 'Henry', position: 'RB', points: 16.4, delta: 15.2 },
-    { playerId: 'sl-tyreek', name: 'Hill', position: 'WR', points: 10.2, delta: -0.8 }
-  ],
-  'espn:gridiron-gurus': [
-    { playerId: 'gg-lamar', name: 'Jackson', position: 'QB', points: 26.8, delta: 4.6 },
-    { playerId: 'gg-cd', name: 'Lamb', position: 'WR', points: 18.6, delta: 3.1 },
-    { playerId: 'gg-burrow', name: 'Burrow', position: 'QB', points: 21.4, delta: -1.2 }
-  ],
-  'espn:basement-bowl': [
-    { playerId: 'hm-pickens', name: 'Pickens', position: 'WR', points: 14.6, delta: 6.4 },
-    { playerId: 'hm-irving', name: 'Irving', position: 'RB', points: 14.1, delta: 2.2 },
-    { playerId: 'hm-dak', name: 'Prescott', position: 'QB', points: 16.4, delta: -0.4 }
-  ],
-  'sleeper:waiver-wire': [
-    { playerId: 'bw-bowers', name: 'Bowers', position: 'TE', points: 13.6, delta: 1.8 },
-    { playerId: 'bw-nabers', name: 'Nabers', position: 'WR', points: 15.0, delta: 5.2 },
-    { playerId: 'bw-kyren', name: 'Williams', position: 'RB', points: 12.2, delta: -0.6 }
-  ]
+const WAIVER_TX: Transaction = {
+  id: 'replay-waiver-pollard',
+  type: 'add',
+  players: ['Tony Pollard'],
+  timestamp: TAPE_ANCHOR - 104 * 60_000
 }
 
-export const replayLastScorers = (league: League, tick: number): ScorerChip[] => {
-  const key = leagueKey(league.provider, league.id)
-  const matchup = replayMatchupFor(league, tick)
-  const chips: ScorerChip[] = []
-  const seen = new Set<string>()
-  if (matchup && tick >= 1) {
-    for (let step = tick; step >= 1 && chips.length < 3; step -= 1) {
-      const beat = SCORE_BEATS[(step - 1) % SCORE_BEATS.length]
-      if (leagueKeyOf(beat) !== key) continue
-      if (seen.has(beat.playerId)) continue
-      const row = findPlayer(matchup, beat.playerId)
-      if (!row) continue
-      seen.add(beat.playerId)
-      chips.push({
-        playerId: row.playerId,
-        name: lastName(row.name),
-        position: row.position,
-        points: row.points ?? 0,
-        delta: beat.delta
-      })
+type SeedPlay = {
+  player: string
+  minutesAgo: number
+  period: string
+} & ({ kind: 'score'; delta: number; note: string } | { kind: 'injury'; note: string })
+
+/** Already counted in the pinned points. Friday Night Gridiron rows follow spec §1.3. */
+const SEED_PLAYS: SeedPlay[] = [
+  { kind: 'score', player: 'Jahmyr Gibbs', delta: 6.2, note: 'TD', minutesAgo: 1, period: '3RD' },
+  { kind: 'score', player: 'Kyler Murray', delta: 1.8, note: 'PASS', minutesAgo: 3, period: '3RD' },
+  { kind: 'score', player: 'Tyreek Hill', delta: -2, note: 'FUM', minutesAgo: 7, period: '2ND' },
+  { kind: 'score', player: 'Jameson Williams', delta: 8.1, note: 'REC TD', minutesAgo: 12, period: '3RD' },
+  { kind: 'score', player: 'DK Metcalf', delta: 1.6, note: 'REC', minutesAgo: 18, period: '2ND' },
+  { kind: 'score', player: 'Josh Allen', delta: 4, note: 'PASS TD', minutesAgo: 24, period: '2ND' },
+  { kind: 'score', player: 'Matthew Stafford', delta: 1.2, note: 'PASS', minutesAgo: 27, period: '2ND' },
+  { kind: 'score', player: 'Amon-Ra St. Brown', delta: 1.8, note: 'REC', minutesAgo: 31, period: '2ND' },
+  { kind: 'score', player: 'Patrick Mahomes', delta: 4.3, note: 'PASS TD', minutesAgo: 40, period: '2ND' },
+  { kind: 'score', player: 'Jalen Hurts', delta: 2.4, note: 'RUSH', minutesAgo: 45, period: '1ST' },
+  { kind: 'injury', player: 'Rico Dowdle', note: 'LEFT GAME (ANKLE)', minutesAgo: 53, period: '3RD' },
+  { kind: 'score', player: 'CeeDee Lamb', delta: 8.4, note: 'REC TD', minutesAgo: 60, period: '4TH' },
+  { kind: 'score', player: 'George Pickens', delta: 3.1, note: 'REC', minutesAgo: 66, period: '2ND' },
+  { kind: 'score', player: 'Ravens', delta: 2, note: 'INT', minutesAgo: 77, period: '1ST' },
+  { kind: 'score', player: "Ja'Marr Chase", delta: 2.2, note: 'REC', minutesAgo: 85, period: '1ST' },
+  { kind: 'score', player: 'Justin Fields', delta: 1.4, note: 'RUSH', minutesAgo: 94, period: '1ST' },
+  { kind: 'score', player: 'Jared Goff', delta: 4, note: 'PASS TD', minutesAgo: 99, period: '1ST' },
+  { kind: 'score', player: 'Dak Prescott', delta: 4.2, note: 'PASS TD', minutesAgo: 110, period: '3RD' }
+]
+
+const SEED_ROSTER_MOVES: (Omit<TapeEvent, 'at'> & { minutesAgo: number })[] = [
+  {
+    id: 'seed-pollard-waiver',
+    kind: 'add',
+    player: 'Pollard TEN',
+    detail: 'WAIVER CLAIM',
+    leagueKey: 'sleeper:fourth-drunken',
+    leagueName: 'Fourth & Drunken',
+    period: '1ST',
+    minutesAgo: 104
+  },
+  {
+    id: 'seed-kupp-trade',
+    kind: 'trade',
+    player: 'Kupp SEA',
+    detail: 'TRADE',
+    leagueKey: 'sleeper:sunday-lights',
+    leagueName: 'Sunday Lights',
+    period: '1ST',
+    minutesAgo: 115
+  }
+]
+
+const tapeLabel = (poolId: string): string => {
+  const row = poolRow(poolId)
+  return tapePlayerLabel({ playerId: poolId, name: row.name, position: row.position, nflTeam: row.nflTeam })
+}
+
+export const replaySeedTape = (anchor = TAPE_ANCHOR): TapeEvent[] => {
+  const out: TapeEvent[] = []
+  SEED_PLAYS.forEach((seed, index) => {
+    const id = slug(seed.player)
+    for (const row of leaguesRostering(id)) {
+      const key = worldKey(row)
+      const at = anchor - seed.minutesAgo * 60_000
+      const base = { id: `seed-${index}-${row.short}-${id}`, at, leagueKey: key, leagueName: row.name, period: seed.period, player: tapeLabel(id) }
+      switch (seed.kind) {
+        case 'score':
+          out.push({ ...base, kind: 'score', detail: seed.note, delta: seed.delta })
+          break
+        case 'injury':
+          out.push({ ...base, kind: 'injury', detail: seed.note })
+          break
+        default: {
+          const _never: never = seed
+          void _never
+        }
+      }
     }
+  })
+  for (const { minutesAgo, ...row } of SEED_ROSTER_MOVES) {
+    out.push({ ...row, at: anchor - minutesAgo * 60_000 })
   }
-  for (const seed of SEED_SCORERS[key] ?? []) {
-    if (chips.length >= 3) break
-    if (seen.has(seed.playerId)) continue
-    seen.add(seed.playerId)
-    chips.push({ ...seed })
-  }
-  return chips
+  return out.sort((a, b) => b.at - a.at)
 }
 
-export const replayBoardExtra = (league: League, tick: number) => {
-  const meta = worldLeague(league)
-  const matchup = replayMatchupFor(league, tick)
-  const lead = matchup ? round1(matchup.myPoints - matchup.oppPoints) : 0
-  const spark = [...(meta?.leadSpark ?? [])]
-  if (spark[spark.length - 1] !== lead) spark.push(lead)
-  return {
-    lastScorers: replayLastScorers(league, tick),
-    leadSpark: spark.slice(-8),
-    size: meta?.size
+export const replayTickerGames = (tick = 0): NflTickerGame[] => {
+  const state = replayWorldAt(tick)
+  const out: NflTickerGame[] = []
+  for (const game of SLATE) {
+    const phase = phaseAt(game, state.step)
+    if (phase.status === 'pre') continue
+    const score = state.scores.get(game.id) ?? { away: game.awayScore, home: game.homeScore }
+    out.push({
+      id: game.id,
+      away: game.away,
+      awayScore: score.away,
+      home: game.home,
+      homeScore: score.home,
+      clock: phase.clock,
+      ...(phase.status === 'final' ? { final: true } : {})
+    })
   }
+  return out
 }
 
-export const replayScoreBeats = (): ScoreBeat[] => [...SCORE_BEATS]
+/** Lead history before the demo opened, rebuilt by rewinding the seeded plays. */
+const seededLeadHistory = (row: WorldLeague, lead0: number): number[] => {
+  const history: number[] = []
+  let lead = lead0
+  for (const seed of SEED_PLAYS) {
+    if (seed.kind !== 'score') continue
+    const id = slug(seed.player)
+    if (row.my.starters.includes(id)) lead = round1(lead - seed.delta)
+    else if (row.opp.starters.includes(id)) lead = round1(lead + seed.delta)
+    else continue
+    history.unshift(lead)
+  }
+  return history
+}
+
+export const replayBoardExtra = (league: League, tick: number): { leadSpark: number[]; size?: number } => {
+  const row = worldLeague(league)
+  if (!row) return { leadSpark: [] }
+  const lead0 = leadOf(row, initialState())
+  const state = replayWorldAt(tick)
+  const spark = [...seededLeadHistory(row, lead0), lead0, ...(state.leads.get(worldKey(row)) ?? [])]
+  return { leadSpark: spark.slice(-8), size: row.size }
+}
+
+export const replayScript = (): ReplayBeat[] => [...SCRIPT]
+
+export const replayRosteredPlayers = (): { id: string; name: string; nflTeam: string }[] =>
+  [...ROSTERED].map((id) => ({ id, name: poolRow(id).name, nflTeam: poolRow(id).nflTeam }))
+
+export const replayGameStatus = (nflTeam: string, tick = 0): GameStatus | undefined => {
+  const game = GAME_BY_TEAM.get(nflTeam)
+  return game ? phaseAt(game, tick).status : undefined
+}

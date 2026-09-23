@@ -115,6 +115,16 @@ describe('TopBar', () => {
     expect(renderTop()).toContain('companion-titlebar')
   })
 
+  it('shows a small Replay chip (a button to Connect) only while Replay is armed', () => {
+    const state = emptyAppState()
+    state.replay = true
+    const html = renderTop(state)
+    expect(html).toContain('data-replay-chip="armed"')
+    expect(html).toContain('>Replay<')
+    expect(html).not.toContain('Demo')
+    expect(renderTop()).not.toContain('data-replay-chip')
+  })
+
   it('does not paint a decorative Live pip when polling', () => {
     const state = emptyAppState()
     state.pollingLive = true

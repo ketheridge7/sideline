@@ -52,26 +52,6 @@ body {
   font-family: var(--font-cond);
 }
 
-.hud-frost {
-  -webkit-text-stroke: 0.4px rgba(7, 8, 10, 0.45);
-  paint-order: stroke fill;
-  text-shadow: 0 1px 10px rgba(7, 8, 10, 0.65);
-}
-
-@keyframes live-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
-.live-dot {
-  animation: live-pulse 1.6s ease-in-out infinite;
-}
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -92,28 +72,12 @@ body {
   }
 }
 
-@keyframes tick-flash {
-  0%,
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  40% {
-    opacity: 1;
-    transform: translateY(-2px);
-  }
-}
-
 .rise {
   animation: rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .fade {
   animation: fade 1s ease both;
-}
-
-.tick-live {
-  animation: tick-flash 0.7s ease;
 }
 
 .hero-room {
@@ -124,31 +88,13 @@ body {
     linear-gradient(180deg, #0b0d10 0%, #07080a 42%, #050607 100%);
 }
 
-.glass-rail {
-  background: linear-gradient(180deg, rgba(16, 18, 22, 0.28), rgba(7, 8, 10, 0.55));
-  border: 1px solid rgba(244, 246, 248, 0.08);
-  box-shadow:
-    0 0 0 1px rgba(7, 8, 10, 0.4) inset,
-    0 24px 48px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
-}
-
-.wood-top {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 30%),
-    linear-gradient(90deg, #3a2818, #5a3d24 20%, #2e2014 50%, #4a321c 80%, #26180f);
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
-  .live-dot,
   .rise,
-  .fade,
-  .tick-live {
+  .fade {
     animation: none !important;
   }
 }

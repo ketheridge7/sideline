@@ -31,6 +31,7 @@ describe('LineupRow', () => {
     )
     const css = readFileSync(resolve(__dirname, '../styles.css'), 'utf8')
     expect(css).toContain('grid-template-columns: 3.25em minmax(0, 1fr) 3.75em')
+    expect(css).toMatch(/\.hud-rail-row \{[^}]*grid-template-columns: calc\(var\(--hud-pos[^)]*\) \* 2\.6\) minmax\(0, 1fr\) calc\(var\(--hud-pts[^)]*\) \* 2\.4\)/)
     for (const html of [scored, kicker, dash]) {
       expect(html).toContain('lineup-row')
       expect(html.indexOf('data-lineup-col="pos"')).toBeLessThan(html.indexOf('data-lineup-col="name"'))

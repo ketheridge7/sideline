@@ -42,6 +42,11 @@ describe('lastName', () => {
     expect(lastName('Jahmyr Gibbs')).toBe('Gibbs')
     expect(lastName('Eagles D/ST')).toBe('Eagles D/ST')
     expect(lastName('Hurts')).toBe('Hurts')
+    expect(lastName('Brian Thomas Jr.')).toBe('Thomas')
+    expect(lastName('Kenneth Walker III')).toBe('Walker')
+    expect(lastName('Amon-Ra St. Brown')).toBe('St. Brown')
+    expect(lastName('T.J. Hockenson')).toBe('Hockenson')
+    expect(lastName('Odell Beckham Jr')).toBe('Beckham')
   })
 })
 

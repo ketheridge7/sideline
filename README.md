@@ -21,13 +21,18 @@ npm install
 npm start
 ```
 
-Preseason / no live scoring yet? Replay a scripted Sunday so Board, Boards, and the overlay look like the watch mockups (mixed leagues, +/- tape, INJ/waiver, ON AIR ticker):
+### Replay
+
+Preseason, no live games, or need screenshots? **Connect → Arm Replay** restarts Sideline into a scripted Week 3 Sunday with six fake friend-group leagues. The pinned frame is Friday Night Gridiron: Maya's Ice Box 98.4 vs Owen's Hash Marks 91.2, Est. win% 62/38. Four Sleeper and two ESPN boards, short benches, a moving scoring tape with an injury, a waiver, and a trade, plus the NFL ticker. From there the slate plays out: halftime ends, early games go final, and the late window kicks off. A small **Replay** chip sits in the top bar while it's armed; **Disarm Replay** on Connect restarts into your real leagues.
+
+From a dev checkout (power-user escape hatch):
 
 ```bash
-npm run replay
+npm run replay           # SIDELINE_REPLAY=1: Replay armed, plays out from the pinned frame
+npm run replay:capture   # also SIDELINE_REPLAY_HOLD=1: holds the pinned frame for marketing stills
 ```
 
-Replay is fixture-only. It does not call a sports-data API and does not capture ESPN passwords.
+Replay is fixture-only. It never calls a sports-data API, never touches ESPN cookies or your Sleeper username (sign-in, sign-out, and league edits are refused while it's armed), and its slug league ids are stripped from settings on the next live launch.
 
 ## Connect
 
