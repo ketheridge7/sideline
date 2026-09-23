@@ -2,6 +2,7 @@ export const BUG_REPORT_REPO = 'ketheridge7/sideline'
 export const BUG_REPORT_TEMPLATE = 'bug_report.yml'
 export const BUG_REPORT_NEW_ISSUE_PATH = `/${BUG_REPORT_REPO}/issues/new`
 export const BUG_REPORT_TITLE_PLACEHOLDER = '[Bug] '
+export const BUG_REPORT_ASSIGNEE = 'ketheridge7'
 
 export type CompanionScreen = 'board' | 'boards' | 'connect'
 
@@ -71,6 +72,7 @@ export const buildBugReportUrl = (info: BugReportDiagnostics): string => {
   const params = new URLSearchParams()
   params.set('template', BUG_REPORT_TEMPLATE)
   params.set('labels', 'bug')
+  params.set('assignees', BUG_REPORT_ASSIGNEE)
   params.set('title', BUG_REPORT_TITLE_PLACEHOLDER)
   params.set('body', buildBugReportBody(info))
   params.set('diagnostics', buildBugReportDiagnostics(info))

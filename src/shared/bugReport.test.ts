@@ -32,8 +32,9 @@ describe('buildBugReportUrl', () => {
   it('opens a prefilled GitHub new-issue URL with version and platform in the body', () => {
     const url = buildBugReportUrl(sample)
     expect(url).toContain('github.com/ketheridge7/sideline/issues/new')
-    expect(url).toContain('labels=bug')
     expect(url).toContain('template=bug_report.yml')
+    expect(url).toContain('labels=bug')
+    expect(url).toContain('assignees=ketheridge7')
     const parsed = new URL(url)
     expect(parsed.origin + parsed.pathname).toBe(`https://github.com${BUG_REPORT_NEW_ISSUE_PATH}`)
     const body = parsed.searchParams.get('body') ?? ''
@@ -92,7 +93,8 @@ describe('GitHub issue template', () => {
     const yaml = readFileSync(resolve(process.cwd(), '.github/ISSUE_TEMPLATE/bug_report.yml'), 'utf8')
     expect(yaml).toContain('name: Bug report')
     expect(yaml).toContain('title: "[Bug] "')
-    expect(yaml).toContain('labels: ["bug"]')
+    expect(yaml).toContain('labels: [bug]')
+    expect(yaml).toContain('assignees: [ketheridge7]')
     expect(yaml).toContain('id: diagnostics')
     expect(yaml).toContain('id: steps')
     expect(yaml).toContain('id: expected')

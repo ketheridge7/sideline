@@ -1,7 +1,8 @@
 name: Bug report
 description: Report a Sideline companion bug
 title: "[Bug] "
-labels: ["bug"]
+labels: [bug]
+assignees: [ketheridge7]
 body:
   - type: markdown
     attributes:
