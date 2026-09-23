@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { submitBugReport } from '@shared/bugReport'
 import type { AppState, League, Provider } from '@shared/types'
+import { captureSurface } from '../shared/capture'
 import { chromeFillPillClass, chromePillClass } from './chrome'
 import { ShortcutSettings } from './ShortcutSettings'
 import { UpdateSettings } from './UpdateSettings'
@@ -59,7 +60,8 @@ const HowTo = ({
 const connectedLabel = (count: number): string =>
   count === 0 ? 'Connected · pick leagues' : `Connected · ${count} league${count === 1 ? '' : 's'}`
 
-const demoLeaguesLabel = (count: number): string => `Demo · ${count} fake league${count === 1 ? '' : 's'}`
+const demoLeaguesLabel = (count: number): string =>
+  captureSurface() ? connectedLabel(count) : `Demo · ${count} fake league${count === 1 ? '' : 's'}`
 
 const espnHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
   if (state.replay) return { label: demoLeaguesLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
@@ -548,7 +550,7 @@ export const ConnectScreen = ({
 
   const hub = (
     <>
-      {state.replay ? <DemoPanel replay onToggle={(enabled) => void handleDemo(enabled)} /> : null}
+      {state.replay && !captureSurface() ? <DemoPanel replay onToggle={(enabled) => void handleDemo(enabled)} /> : null}
       <details
         className="connect-howto rounded-sm border border-line bg-card p-5"
         data-howto="getting-started"
