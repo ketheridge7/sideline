@@ -1,3 +1,5 @@
+import { lastName } from '@shared/display'
+
 export const formatScore = (value: number): string => {
   if (!Number.isFinite(value)) return '—'
   return value.toFixed(1)
@@ -12,8 +14,6 @@ export const formatDelta = (value: number): string => {
 }
 
 export const overlayName = (name: string): string => {
-  const parts = name.trim().split(/\s+/)
-  if (/D\/ST|DST|\bDEF\b/i.test(name)) return parts[0] || name
-  if (parts.length <= 1) return name
-  return parts[parts.length - 1]
+  if (/D\/ST|DST|\bDEF\b/i.test(name)) return name.trim().split(/\s+/)[0] || name
+  return lastName(name)
 }

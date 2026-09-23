@@ -82,11 +82,18 @@ export const nflTeamLabel = (value: string | undefined): string => {
   return value
 }
 
+const NAME_SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i
+const NAME_PARTICLE = /^(st\.?|van|von|de|del|la|le)$/i
+
+/** Surname for tight rails and tape: drops Jr./III, keeps "St. Brown". */
 export const lastName = (name: string): string => {
   if (/D\/ST|DST|\bDEF\b/i.test(name)) return name
   const parts = name.trim().split(/\s+/)
   if (parts.length <= 1) return name
-  return parts[parts.length - 1]
+  while (parts.length > 2 && NAME_SUFFIX.test(parts[parts.length - 1])) parts.pop()
+  const surname = parts[parts.length - 1]
+  const particle = parts.length > 2 ? parts[parts.length - 2] : ''
+  return NAME_PARTICLE.test(particle) ? `${particle} ${surname}` : surname
 }
 
 export const tapePlayerLabel = (player: Player): string => {
