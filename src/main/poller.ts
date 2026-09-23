@@ -7,8 +7,9 @@ import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, weekShiftClearedB
 import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionsToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { settingsHotkeys } from '@shared/settings'
+import { finalNflTeams } from '@shared/winPct'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
-import { recentFetchTimings } from './http'
+import { hostsInBackoff, recentFetchTimings, resetHostBackoff } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
 import {
   getSleeperProjectionPts,
@@ -28,7 +29,9 @@ import {
   type SleeperLeagueUser,
   type SleeperMatchup,
   type SleeperRoster,
-  type SleeperUser
+  type SleeperScoringKind,
+  type SleeperUser,
+  sleeperScoringKind
 } from './providers/sleeperClient'
 import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
 import {
@@ -45,7 +48,7 @@ import {
   weekTeamScheduleFilter,
   type EspnCookies
 } from './providers/espnClient'
-import { nflScoreboardState } from './providers/nflScoreboard'
+import { nflScoreboardReachable, nflScoreboardState, type NflScoreboardState } from './providers/nflScoreboard'
 import {
   leaguesFromFanPayload,
   espnTeamsFromPayload,
@@ -60,7 +63,11 @@ import {
     toEspnLeague,
     toEspnMatchup,
     toEspnTransactions,
-    scoringPeriodFromStatus
+    scoringPeriodFromStatus,
+    espnMatchupPeriodFor,
+    espnMatchupPeriodsFromPayload,
+    type EspnMatchupPeriod,
+    type EspnMatchupPeriods
 } from './providers/espnAdapter'
 import {
   FEATURED_LEAGUE_KEY,
@@ -76,11 +83,12 @@ import {
   replayTransactions
 } from './providers/replay'
 import { runtime } from './runtime'
+import { backoffNoticePlan, startupErrorNotice, statusErrorPlan } from './notices'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
-import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, confirmNflWeekSourcePlan, nflFromEspnScoringPeriod, type LastHudSnapshot } from './pollTargets'
-import { readEspnLeaguesDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
+import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, calendarFallbackLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, confirmNflWeekSourcePlan, nflFromEspnScoringPeriod, espnMatchupPeriodsKickPlan, sleeperProjectionKindPlan, type LastHudSnapshot } from './pollTargets'
+import { readEspnLeaguesDisk, readEspnMatchupPeriodsDisk, writeEspnMatchupPeriodsDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
 
 let timer: NodeJS.Timeout | null = null
 let sleeperUser: SleeperUser | null = null
@@ -157,6 +165,7 @@ const restScoreFetch = (liveTick: boolean) => {
 }
 const SLEEPER_USER_CDN_MS = 120_000
 let sleeperLeaguesCache: { at: number; username: string; season: string; leagues: League[] } | null = null
+const sleeperScoringKindById = new Map<string, SleeperScoringKind>()
 const sleeperRosterCache = new Map<
   string,
   { at: number; rosters: SleeperRoster[]; users: SleeperLeagueUser[] }
@@ -174,6 +183,11 @@ let espnLeaguesCache: {
 } | null = null
 let espnTeamCache = new Map<string, Record<string, unknown>[]>()
 const espnTeamFetch = new Map<string, Promise<Record<string, unknown>[]>>()
+const espnMatchupPeriodsById = new Map<string, EspnMatchupPeriods>()
+let espnMatchupPeriodsSeason: string | null = null
+let espnMatchupPeriodsHydrated = false
+const espnMatchupPeriodsFetch = new Map<string, Promise<void>>()
+const espnMatchupPeriodsTriedAt = new Map<string, number>()
 const espnScoreCache = new Map<string, { at: number; week: number; payload: unknown }>()
 const espnLiveCache = new Map<string, unknown>()
 const espnScoreRefresh = new Map<
@@ -222,6 +236,13 @@ const peekLastHud = (): LastHudSnapshot | null => {
 
 export const currentState = (): AppState => lastState
 
+const withStatusNotices = (refreshError: string | null): string | null =>
+  statusErrorPlan({
+    refreshError,
+    startupError: startupErrorNotice(),
+    holdNotice: backoffNoticePlan(hostsInBackoff())
+  })
+
 const lanFields = (): Pick<
   AppState,
   'lanOverlayEnabled' | 'lanOverlayHost' | 'overlayToken' | 'overlayPairingCode'
@@ -255,7 +276,12 @@ export const applyOverlayLayout = (layout: AppState['overlayLayout']): void => {
 }
 
 export const applyLanOverlay = (): void => {
-  lastState = { ...lastState, overlayPort: runtime.overlayPort(), ...lanFields() }
+  lastState = {
+    ...lastState,
+    overlayPort: runtime.overlayPort(),
+    ...lanFields(),
+    error: withStatusNotices(lastState.error)
+  }
   broadcast(lastState)
 }
 
@@ -506,6 +532,7 @@ const peekEspnScoringPeriod = async (
       views: SETTINGS_VIEWS,
       ...LIVE_FETCH
     })
+    rememberEspnMatchupPeriods(leagueId, peeked.leagueSeason, payload)
     const period = scoringPeriodFromStatus(payload, 0)
     if (confirmNflWeekSourcePlan({ sleeperOk: false, espnPeriod: period }) !== 'espn') return null
     const nfl = nflFromEspnScoringPeriod(peeked, period)
@@ -762,18 +789,25 @@ const kickPendingRosterSwr = async (limit: number, liveTick = false): Promise<vo
   })
 }
 
+const sleeperProjectionPtsFor = (leagueId: string): Record<string, number> | null =>
+  peekSleeperProjectionPts(sleeperProjectionKindPlan(sleeperScoringKindById.get(leagueId)))
+
 const loadSleeperLeaguesFresh = async (nfl: NflState, user: SleeperUser, username: string): Promise<League[]> => {
-  const leagues = toLeagues(
-    await getUserLeagues(user.user_id, nfl.leagueSeason, {
-      ...BACKGROUND_FETCH,
-      cacheBust: sleeperCdnBustToken(Date.now(), LEAGUE_TTL_MS)
-    }),
-    nfl.leagueSeason,
-    nfl.displayWeek
-  )
+  const raw = await getUserLeagues(user.user_id, nfl.leagueSeason, {
+    ...BACKGROUND_FETCH,
+    cacheBust: sleeperCdnBustToken(Date.now(), LEAGUE_TTL_MS)
+  })
+  const scoringKinds: Record<string, SleeperScoringKind> = {}
+  for (const league of raw) {
+    const kind = sleeperScoringKind(league)
+    if (!kind) continue
+    scoringKinds[league.league_id] = kind
+    sleeperScoringKindById.set(league.league_id, kind)
+  }
+  const leagues = toLeagues(raw, nfl.leagueSeason, nfl.displayWeek)
   sleeperLeaguesCache = { at: Date.now(), username, season: nfl.leagueSeason, leagues }
   persistAfterPaint(() => {
-    writeSleeperLeaguesDisk({ username, season: nfl.leagueSeason, leagues })
+    writeSleeperLeaguesDisk({ username, season: nfl.leagueSeason, leagues, scoringKinds })
   })
   return leagues
 }
@@ -785,6 +819,9 @@ const hydrateSleeperLeaguesFromDisk = (nfl: NflState): void => {
   if (!username) return
   const disk = readSleeperLeaguesDisk()
   if (!disk || disk.username !== username || disk.season !== nfl.leagueSeason) return
+  for (const [id, kind] of Object.entries(disk.scoringKinds ?? {})) {
+    if (!sleeperScoringKindById.has(id)) sleeperScoringKindById.set(id, kind)
+  }
   if (sleeperLeaguesCache) return
   sleeperLeaguesCache = {
     at: Date.now() - LEAGUE_TTL_MS,
@@ -883,7 +920,11 @@ const persistAfterPaint = (write: () => void): void => {
 
 const persistLiveSnapshot = (write: () => void): void => {
   const seasonType = lastState.nfl?.seasonType
-  const calendarLive = seasonType != null && isLikelyLive(new Date(), seasonType)
+  const calendarLive = calendarFallbackLive({
+    replay: false,
+    scoreboardReachable: nflScoreboardReachable(),
+    calendarLive: seasonType != null && isLikelyLive(new Date(), seasonType)
+  })
   const plan = liveMatchupsPersistPlan(
     gamedayLiveTick({ pollingLive: lastState.pollingLive, calendarLive })
   )
@@ -1102,12 +1143,13 @@ const rememberEspnLivePayload = (leagueId: string, payload: unknown): void => {
 }
 
 /** Current-period live/period 0 on scores disk wins over leftover last-HUD / matchups points for that week. */
-const overlayEspnCachedWeekPts = (key: string, row: Matchup, week: number): Matchup => {
+const overlayEspnCachedWeekPts = (key: string, row: Matchup, nfl: NflState): Matchup => {
   const parsed = parseLeagueKey(key)
   if (parsed?.provider !== 'espn') return row
+  const week = nfl.displayWeek
   const cached = espnScoreCache.get(parsed.id)
   if (!cached || cached.week !== week) return row
-  const next = overlayEspnMatchup(row, cached.payload, week, true) ?? row
+  const next = overlayEspnMatchup(row, cached.payload, week, true, espnPeriodFor(parsed.id, nfl)) ?? row
   if (next.myPoints !== row.myPoints || next.oppPoints !== row.oppPoints) {
     const memory = scoreDisplayByKey.get(key)
     if (memory) {
@@ -1145,12 +1187,91 @@ const rememberEspnTeams = (leagueId: string, payload: unknown): void => {
   persistEspnTeams()
 }
 
+const hydrateEspnMatchupPeriodsFromDisk = (season: string): void => {
+  if (espnMatchupPeriodsHydrated) return
+  espnMatchupPeriodsHydrated = true
+  const disk = readEspnMatchupPeriodsDisk()
+  if (!disk || disk.season !== season) return
+  if (espnMatchupPeriodsSeason != null && espnMatchupPeriodsSeason !== season) return
+  espnMatchupPeriodsSeason = season
+  for (const [id, periods] of Object.entries(disk.byId)) {
+    if (!espnMatchupPeriodsById.has(id)) espnMatchupPeriodsById.set(id, periods)
+  }
+}
+
+const rememberEspnMatchupPeriods = (leagueId: string, season: string, payload: unknown): void => {
+  if (!isLiveLeagueId(leagueId)) return
+  const periods = espnMatchupPeriodsFromPayload(payload)
+  if (!periods) return
+  if (espnMatchupPeriodsSeason !== season) {
+    espnMatchupPeriodsById.clear()
+    espnMatchupPeriodsSeason = season
+  }
+  const prev = espnMatchupPeriodsById.get(leagueId)
+  if (prev && JSON.stringify(prev) === JSON.stringify(periods)) return
+  espnMatchupPeriodsById.set(leagueId, periods)
+  const byId = Object.fromEntries(espnMatchupPeriodsById)
+  persistAfterPaint(() => writeEspnMatchupPeriodsDisk({ season, byId }))
+}
+
+/** Scoring period (NFL week) → ESPN matchup period for this league. Identity until settings are known. */
+const espnPeriodFor = (leagueId: string, nfl: NflState): EspnMatchupPeriod => {
+  hydrateEspnMatchupPeriodsFromDisk(nfl.leagueSeason)
+  const periods =
+    espnMatchupPeriodsSeason === nfl.leagueSeason ? espnMatchupPeriodsById.get(leagueId) : undefined
+  return espnMatchupPeriodFor(periods, nfl.displayWeek)
+}
+
+const kickEspnMatchupPeriods = (
+  leagueId: string,
+  nfl: NflState,
+  cookies: EspnCookies | null,
+  liveTick: boolean
+): void => {
+  if (isReplayMode() || !isLiveLeagueId(leagueId)) return
+  hydrateEspnMatchupPeriodsFromDisk(nfl.leagueSeason)
+  const plan = espnMatchupPeriodsKickPlan({
+    hasPeriods:
+      espnMatchupPeriodsSeason === nfl.leagueSeason && espnMatchupPeriodsById.has(leagueId),
+    inFlight: espnMatchupPeriodsFetch.has(leagueId),
+    lastTryAt: espnMatchupPeriodsTriedAt.get(leagueId),
+    now: Date.now(),
+    retryMs: LEAGUE_TTL_MS
+  })
+  switch (plan) {
+    case 'skip':
+      return
+    case 'kick':
+      break
+    default: {
+      const _never: never = plan
+      void _never
+      return
+    }
+  }
+  espnMatchupPeriodsTriedAt.set(leagueId, Date.now())
+  const promise = fetchLeague({
+    season: nfl.leagueSeason,
+    leagueId,
+    cookies,
+    views: SETTINGS_VIEWS,
+    ...backgroundFetch(liveTick)
+  })
+    .then((payload) => rememberEspnMatchupPeriods(leagueId, nfl.leagueSeason, payload))
+    .catch(() => undefined)
+    .finally(() => {
+      if (espnMatchupPeriodsFetch.get(leagueId) === promise) espnMatchupPeriodsFetch.delete(leagueId)
+    })
+  espnMatchupPeriodsFetch.set(leagueId, promise)
+}
+
 const paintEspnBoxscoreSwr = (opts: {
   leagueId: string
   payload: unknown
   prev: Matchup | null
   cookies: EspnCookies | null
   displayWeek: number
+  matchupPeriod: EspnMatchupPeriod
   recover?: boolean
   teams?: Record<string, unknown>[]
 }): Matchup | null => {
@@ -1164,10 +1285,14 @@ const paintEspnBoxscoreSwr = (opts: {
   switch (plan) {
     case 'merge-compact':
       body = overlayLiveScoring(opts.payload, compact)
-      overlaid = opts.prev ? overlayEspnMatchup(opts.prev, body, opts.displayWeek, true) : null
+      overlaid = opts.prev
+        ? overlayEspnMatchup(opts.prev, body, opts.displayWeek, true, opts.matchupPeriod)
+        : null
       break
     case 'boxscore':
-      overlaid = opts.prev ? overlayEspnMatchup(opts.prev, body, opts.displayWeek) : null
+      overlaid = opts.prev
+        ? overlayEspnMatchup(opts.prev, body, opts.displayWeek, false, opts.matchupPeriod)
+        : null
       break
     case 'keep-prev':
       break
@@ -1182,6 +1307,7 @@ const paintEspnBoxscoreSwr = (opts: {
     payload: mergeEspnTeams(body, espnTeamCache.get(opts.leagueId) ?? opts.teams),
     cookies: opts.cookies,
     displayWeek: opts.displayWeek,
+    matchupPeriod: opts.matchupPeriod,
     myTeamId: myEspnTeamId(opts.leagueId, opts.cookies)
   })
   return espnFullSwrPaintPlan({ prev: opts.prev, overlaid, parsed })
@@ -1238,6 +1364,7 @@ const loadEspnLeague = async (
           ...BACKGROUND_FETCH
         })
       ])
+      rememberEspnMatchupPeriods(id, nfl.leagueSeason, settingsPayload)
       return toEspnLeague({
         leagueId: id,
         payload: mergeEspnTeams(settingsPayload, teams),
@@ -1253,6 +1380,7 @@ const loadEspnLeague = async (
       ...BACKGROUND_FETCH
     })
     rememberEspnTeams(id, payload)
+    rememberEspnMatchupPeriods(id, nfl.leagueSeason, payload)
     return toEspnLeague({
       leagueId: id,
       payload,
@@ -1732,6 +1860,7 @@ const fetchEspnScorePayload = async (
   compactHit: boolean
 }> => {
   const teamId = myEspnTeamId(league.id, cookies)
+  const { matchupPeriodId } = espnPeriodFor(league.id, nfl)
   const scoreArgs = {
     season: nfl.leagueSeason,
     leagueId: league.id,
@@ -1739,8 +1868,8 @@ const fetchEspnScorePayload = async (
     scoringPeriodId: nfl.displayWeek,
     filter:
       teamId != null
-        ? weekTeamScheduleFilter(nfl.displayWeek, teamId)
-        : weekScheduleFilter(nfl.displayWeek),
+        ? weekTeamScheduleFilter(matchupPeriodId, teamId)
+        : weekScheduleFilter(matchupPeriodId),
     ...LIVE_FETCH
   }
   const liveScoreArgs = {
@@ -1945,7 +2074,7 @@ const espnMatchup = async (
     week: nfl.displayWeek,
     cached: matchupCache.get(key)?.matchup ?? null
   })
-  const prev = prevRaw ? overlayEspnCachedWeekPts(key, prevRaw, nfl.displayWeek) : null
+  const prev = prevRaw ? overlayEspnCachedWeekPts(key, prevRaw, nfl) : null
   if (prev && prevRaw && prev !== prevRaw) {
     matchupCache.set(key, { at: Date.now() - COLD_TTL_MS, matchup: prev })
   }
@@ -1961,11 +2090,14 @@ const espnMatchup = async (
     liveTick,
     matchupHasLineup(prev)
   )
+  // Same synchronous turn as the filter built inside fetchEspnScorePayload, so filter and match agree.
+  const matchupPeriod = espnPeriodFor(league.id, nfl)
   const toLoaded = (payload: unknown, teams?: Record<string, unknown>[]): Matchup | null =>
     toEspnMatchup({
       payload: mergeEspnTeams(payload, espnTeamCache.get(league.id) ?? teams),
       cookies,
       displayWeek: nfl.displayWeek,
+      matchupPeriod,
       myTeamId: myEspnTeamId(league.id, cookies)
     })
   const finish = (
@@ -1985,6 +2117,7 @@ const espnMatchup = async (
             prev,
             cookies,
             displayWeek: nfl.displayWeek,
+            matchupPeriod,
             recover: true,
             teams
           })
@@ -2006,7 +2139,7 @@ const espnMatchup = async (
       case 'overlay-matchup': {
         if (!prev) return toLoaded(score.payload, teams)
         const preferLive = espnOverlayPtsPlan(score.overlayFromMatchup) === 'trust-live'
-        const overlaid = overlayEspnMatchup(prev, score.payload, nfl.displayWeek, preferLive)
+        const overlaid = overlayEspnMatchup(prev, score.payload, nfl.displayWeek, preferLive, matchupPeriod)
         if (overlaid) return overlaid
         const loaded = toLoaded(score.payload, teams)
         if (loaded && matchupHasLineup(loaded)) return loaded
@@ -2021,6 +2154,7 @@ const espnMatchup = async (
     }
   }
   const score = await scorePromise
+  kickEspnMatchupPeriods(league.id, nfl, cookies, liveTick)
   espnCompactLiveHit.set(league.id, score.compactHit)
   if (cookies && score.compactHit) markEspnSessionHealthy()
   const diskPlan = espnTeamsHydrateAfterScorePlan({
@@ -2253,7 +2387,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const nflState = nfl
     let liveNfl: NflState = nflState
 
-    const calendarLive = replay || isLikelyLive(new Date(), nflState.seasonType)
+    const rawCalendarLive = isLikelyLive(new Date(), nflState.seasonType)
+    const calendarLive = calendarFallbackLive({
+      replay,
+      scoreboardReachable: nflScoreboardReachable(),
+      calendarLive: rawCalendarLive
+    })
     const liveTick = gamedayLiveTick({ pollingLive: lastState.pollingLive, calendarLive })
     const restLimit = restConcurrency(liveTick)
 
@@ -2391,7 +2530,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
         pollingLive: lastState.pollingLive || calendarLive,
-        error
+        error: withStatusNotices(error)
       })
     }
 
@@ -2401,7 +2540,11 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       let incoming = loaded
       switch (league.provider) {
         case 'sleeper':
-          incoming = applySleeperWinEstimate(loaded, peekSleeperProjectionPts())
+          incoming = applySleeperWinEstimate(
+            loaded,
+            sleeperProjectionPtsFor(league.id),
+            finalNflTeams(lastState.nflTicker)
+          )
           break
         case 'espn':
           break
@@ -2577,7 +2720,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         break
       case 'paint':
         if (diskHud) {
-          publishEarlyHud(overlayEspnCachedWeekPts(diskHud.selectedKey, diskHud.matchup, nflState.displayWeek))
+          publishEarlyHud(overlayEspnCachedWeekPts(diskHud.selectedKey, diskHud.matchup, nflState))
         }
         break
       default: {
@@ -2683,7 +2826,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
         pollingLive: lastState.pollingLive || calendarLive,
-        error: error
+        error: withStatusNotices(error)
       })
     }
 
@@ -2847,18 +2990,21 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     }
 
     let restPrefetchDone = Promise.resolve()
-    const paintSleeperEstimates = (pts: Record<string, number> | null): void => {
+    const paintSleeperEstimates = (): void => {
       if (gen !== pollGen || replay) return
-      const apply = (loaded: Matchup): Matchup => applySleeperWinEstimate(loaded, pts)
+      const finalTeams = finalNflTeams(lastState.nflTicker)
+      const apply = (leagueId: string, loaded: Matchup): Matchup =>
+        applySleeperWinEstimate(loaded, sleeperProjectionPtsFor(leagueId), finalTeams)
       for (const [key, row] of matchupCache) {
         const parsed = parseLeagueKey(key)
         if (parsed?.provider !== 'sleeper') continue
-        matchupCache.set(key, { at: row.at, matchup: apply(row.matchup) })
+        matchupCache.set(key, { at: row.at, matchup: apply(parsed.id, row.matchup) })
       }
       let nextMatchup = lastState.matchup
       const selectedKey = lastState.selectedLeagueKey
-      if (selectedKey && parseLeagueKey(selectedKey)?.provider === 'sleeper' && nextMatchup) {
-        nextMatchup = apply(nextMatchup)
+      const selected = selectedKey ? parseLeagueKey(selectedKey) : null
+      if (selectedKey && selected?.provider === 'sleeper' && nextMatchup) {
+        nextMatchup = apply(selected.id, nextMatchup)
         matchup = nextMatchup
         persistSelectedHud(selectedKey, nextMatchup)
       }
@@ -2885,7 +3031,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           seasonType: liveNfl.seasonType
         })
           .then((result) => {
-            if (result.refreshed) paintSleeperEstimates(result.pts)
+            if (result.refreshed) paintSleeperEstimates()
           })
           .catch(() => undefined)
       }
@@ -2913,6 +3059,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
               stubLeagueFromKey(leagueKey('espn', id), liveNfl.leagueSeason, liveNfl.displayWeek)
             if (!league) return
             const teamId = myEspnTeamId(id, cookies)
+            const matchupPeriod = espnPeriodFor(id, liveNfl)
             const cached = espnScoreCache.get(id)
             const fresh = espnBoxscoreSwrFreshPlan({
               cachedWeek: cached?.week,
@@ -2947,8 +3094,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
                       scoringPeriodId: liveNfl.displayWeek,
                       filter:
                         teamId != null
-                          ? weekTeamScheduleFilter(liveNfl.displayWeek, teamId)
-                          : weekScheduleFilter(liveNfl.displayWeek),
+                          ? weekTeamScheduleFilter(matchupPeriod.matchupPeriodId, teamId)
+                          : weekScheduleFilter(matchupPeriod.matchupPeriodId),
                       ...backgroundFetch(liveTick)
                     }).then((body) => {
                       rememberEspnScorePayload(id, liveNfl.displayWeek, body)
@@ -2973,7 +3120,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
               payload,
               prev,
               cookies,
-              displayWeek: liveNfl.displayWeek
+              displayWeek: liveNfl.displayWeek,
+              matchupPeriod
             })
             if (!next) return
             if (lastState.selectedLeagueKey === key) {
@@ -3102,11 +3250,11 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     })
     let live = seeded.live
     let nflTicker = seeded.ticker
-    const replayBoard = (): Promise<{ live: boolean; ticker: ReturnType<typeof replayNflTicker> }> =>
-      Promise.resolve({ live: true, ticker: replayNflTicker() })
-    const applyScoreboard = (scoreboard: { live: boolean; ticker: ReturnType<typeof replayNflTicker> }): void => {
+    const replayBoard = (): Promise<NflScoreboardState> =>
+      Promise.resolve({ live: true, ticker: replayNflTicker(), reachable: true })
+    const applyScoreboard = (scoreboard: NflScoreboardState): void => {
       if (gen !== pollGen) return
-      const nextLive = scoreboardPollLive({ gamesIn: scoreboard.live, calendarLive })
+      const nextLive = scoreboard.live
       const sameLive = nextLive === live
       const sameTicker = scoreboard.ticker === nflTicker
       live = nextLive
@@ -3136,12 +3284,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         lastUpdated: Date.now()
       })
     }
-    let scoreboardPromise: Promise<{ live: boolean; ticker: ReturnType<typeof replayNflTicker> }> =
-      Promise.resolve({ live: calendarLive, ticker: [] })
+    let scoreboardPromise: Promise<NflScoreboardState> =
+      Promise.resolve({ live: calendarLive, ticker: [], reachable: false })
     const scoreboardOrder = nflScoreboardSettleOrder(boardPlan)
     switch (scoreboardOrder) {
       case 'before-lists':
-        scoreboardPromise = replay ? replayBoard() : nflScoreboardState(calendarLive, liveTick)
+        scoreboardPromise = replay ? replayBoard() : nflScoreboardState(rawCalendarLive, liveTick)
         void scoreboardPromise.then(applyScoreboard).catch(() => undefined)
         break
       case 'after-pinned-rest':
@@ -3422,7 +3570,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       case 'after-pinned':
         scoreboardPromise = replay
           ? replayBoard()
-          : pinnedPromise.then(() => nflScoreboardState(calendarLive, liveTick))
+          : pinnedPromise.then(() => nflScoreboardState(rawCalendarLive, liveTick))
         void scoreboardPromise.then(applyScoreboard).catch(() => undefined)
         break
       case 'after-hud':
@@ -3476,7 +3624,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
         pollingLive: live,
-        error
+        error: withStatusNotices(error)
       }
       persistSelectedHud(publishKey, matchup)
       broadcast(state)
@@ -3732,7 +3880,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       lastToast,
       ...lanFields(),
       replay,
-      error
+      error: withStatusNotices(error)
     }
     broadcast(state)
     schedule(false, Date.now() - started)
@@ -3829,13 +3977,13 @@ export const warmupPollerCaches = (): void => {
       matchupCache.set(lastHudRaw.selectedKey, { at: Date.now() - COLD_TTL_MS, matchup: lastHudRaw.matchup })
     }
     for (const [key, row] of matchupCache) {
-      const next = overlayEspnCachedWeekPts(key, row.matchup, nfl.displayWeek)
+      const next = overlayEspnCachedWeekPts(key, row.matchup, nfl)
       if (next !== row.matchup) matchupCache.set(key, { ...row, matchup: next })
     }
     const lastHud = lastHudRaw
       ? {
           ...lastHudRaw,
-          matchup: overlayEspnCachedWeekPts(lastHudRaw.selectedKey, lastHudRaw.matchup, nfl.displayWeek)
+          matchup: overlayEspnCachedWeekPts(lastHudRaw.selectedKey, lastHudRaw.matchup, nfl)
         }
       : null
     if (lastHud) lastHudMem = lastHud
@@ -3859,7 +4007,7 @@ export const warmupPollerCaches = (): void => {
       matchupsWeek: matchupsDiskWeek ?? undefined
     })
     if (matchup && selectedKey) {
-      matchup = overlayEspnCachedWeekPts(selectedKey, matchup, nfl.displayWeek)
+      matchup = overlayEspnCachedWeekPts(selectedKey, matchup, nfl)
     }
     lastState = {
       ...emptyAppState(),
@@ -3929,6 +4077,7 @@ export const resetPollerForTests = (): void => {
   scoreDisplayByKey.clear()
   txCache.clear()
   sleeperLeaguesCache = null
+  sleeperScoringKindById.clear()
   sleeperRosterCache.clear()
   sleeperIdentityHold.clear()
   sleeperMatchupsHold.clear()
@@ -3941,6 +4090,11 @@ export const resetPollerForTests = (): void => {
   espnCompactLiveHit.clear()
   espnCompactLiveHold.clear()
   espnTeamFetch.clear()
+  espnMatchupPeriodsById.clear()
+  espnMatchupPeriodsSeason = null
+  espnMatchupPeriodsHydrated = false
+  espnMatchupPeriodsFetch.clear()
+  espnMatchupPeriodsTriedAt.clear()
   espnCookieCache = null
   espnCookieInFlight = null
   espnDiscoveryInFlight = null
@@ -3955,6 +4109,7 @@ export const resetPollerForTests = (): void => {
   liveTape = []
   espnNeedsRelogin = false
   resetSleeperProjectionsCache()
+  resetHostBackoff()
 }
 
 export const startPoller = (): void => {

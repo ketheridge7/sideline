@@ -12,6 +12,7 @@ import {
   resolveOverlayFile,
   tokenMatches
 } from './overlayAccess'
+import { listenOnFreePort } from './overlayListen'
 import { OverlayPairing, pairingHttpStatus } from './overlayPairing'
 
 const MIME: Record<string, string> = {
@@ -195,17 +196,8 @@ const tryListen = (port: number, host: string): Promise<number> =>
     })
   })
 
-const listen = async (startPort: number, host: string): Promise<number> => {
-  for (let port = startPort; port < startPort + 30; port += 1) {
-    try {
-      return await tryListen(port, host)
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
-      if (code !== 'EADDRINUSE') throw error
-    }
-  }
-  throw new Error('No free port for overlay server')
-}
+const listen = (startPort: number, host: string): Promise<number> =>
+  listenOnFreePort(startPort, host, tryListen)
 
 export const startOverlayServer = async (
   startPort = 7333,

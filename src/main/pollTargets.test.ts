@@ -5,6 +5,9 @@ import {
   asNflState,
   cacheFresh,
   espnTeamsFromDiskPayload,
+  espnMatchupPeriodsFromDiskPayload,
+  espnMatchupPeriodsKickPlan,
+  ESPN_MATCHUP_PERIODS_DISK_TRUST_MS,
   espnScoresFromDiskPayload,
   lastHudFromDiskPayload,
   nflFromDiskPayload,
@@ -21,6 +24,7 @@ import {
   sleeperUserFromSettings,
   sleeperUserHudPlan,
   sleeperLeaguesFromDiskPayload,
+  sleeperProjectionKindPlan,
   espnLeaguesFromDiskPayload,
   espnLeaguesCachePlan,
   espnDiscoverySwrPlan,
@@ -37,6 +41,7 @@ import {
   restPrefetchGate,
   gamedayLiveTick,
   scoreboardPollLive,
+  calendarFallbackLive,
   restSettleSchedulePlan,
   restConcurrency,
   restScoreTimeoutMs,
@@ -2074,10 +2079,29 @@ describe('gamedayLiveTick', () => {
 })
 
 describe('scoreboardPollLive', () => {
-  it('does not drop the 3s gameday poll when every NFL event is still pre', () => {
-    expect(scoreboardPollLive({ gamesIn: false, calendarLive: true })).toBe(true)
-    expect(scoreboardPollLive({ gamesIn: true, calendarLive: false })).toBe(true)
-    expect(scoreboardPollLive({ gamesIn: false, calendarLive: false })).toBe(false)
+  const base = { gamesIn: false, kickoffSoon: false, reachable: true, calendarLive: false }
+
+  it('goes live when a game is in or a kickoff is imminent', () => {
+    expect(scoreboardPollLive({ ...base, gamesIn: true })).toBe(true)
+    expect(scoreboardPollLive({ ...base, kickoffSoon: true })).toBe(true)
+  })
+
+  it('stays idle inside the calendar window when the reachable scoreboard has only distant pre games', () => {
+    expect(scoreboardPollLive({ ...base, calendarLive: true })).toBe(false)
+  })
+
+  it('uses the calendar window only when the scoreboard is unreachable', () => {
+    expect(scoreboardPollLive({ ...base, reachable: false, calendarLive: true })).toBe(true)
+    expect(scoreboardPollLive({ ...base, reachable: false, calendarLive: false })).toBe(false)
+  })
+})
+
+describe('calendarFallbackLive', () => {
+  it('ignores the Fri/Sat/Sun calendar window while the scoreboard is reachable', () => {
+    expect(calendarFallbackLive({ replay: false, scoreboardReachable: true, calendarLive: true })).toBe(false)
+    expect(calendarFallbackLive({ replay: false, scoreboardReachable: false, calendarLive: true })).toBe(true)
+    expect(calendarFallbackLive({ replay: false, scoreboardReachable: false, calendarLive: false })).toBe(false)
+    expect(calendarFallbackLive({ replay: true, scoreboardReachable: true, calendarLive: false })).toBe(true)
   })
 })
 
@@ -2761,5 +2785,65 @@ describe('live tick DAG', () => {
       names: false,
       leagues: false
     })
+  })
+})
+
+describe('espnMatchupPeriodsFromDiskPayload', () => {
+  const now = 1_800_000_000_000
+  it('keeps live league ids with valid matchup period maps for the season', () => {
+    expect(
+      espnMatchupPeriodsFromDiskPayload(
+        {
+          at: now - 1000,
+          season: '2026',
+          byId: {
+            '90664721': { '14': [14], '15': [15, 16] },
+            'replay-1': { '1': [1] },
+            '555': 'nope'
+          }
+        },
+        now
+      )
+    ).toEqual({ season: '2026', byId: { '90664721': { '14': [14], '15': [15, 16] } } })
+  })
+
+  it('drops stale or malformed snapshots', () => {
+    const byId = { '90664721': { '15': [15, 16] } }
+    expect(
+      espnMatchupPeriodsFromDiskPayload({ at: now - ESPN_MATCHUP_PERIODS_DISK_TRUST_MS - 1, season: '2026', byId }, now)
+    ).toBeNull()
+    expect(espnMatchupPeriodsFromDiskPayload({ at: now, byId }, now)).toBeNull()
+    expect(espnMatchupPeriodsFromDiskPayload({ at: now, season: '2026', byId: {} }, now)).toBeNull()
+    expect(espnMatchupPeriodsFromDiskPayload(null, now)).toBeNull()
+  })
+})
+
+describe('espnMatchupPeriodsKickPlan', () => {
+  it('fetches settings once when the map is missing, then waits out the retry window', () => {
+    const base = { hasPeriods: false, inFlight: false, now: 100_000, retryMs: 60_000 }
+    expect(espnMatchupPeriodsKickPlan(base)).toBe('kick')
+    expect(espnMatchupPeriodsKickPlan({ ...base, hasPeriods: true })).toBe('skip')
+    expect(espnMatchupPeriodsKickPlan({ ...base, inFlight: true })).toBe('skip')
+    expect(espnMatchupPeriodsKickPlan({ ...base, lastTryAt: 90_000 })).toBe('skip')
+    expect(espnMatchupPeriodsKickPlan({ ...base, lastTryAt: 30_000 })).toBe('kick')
+  })
+})
+
+describe('Sleeper scoring kinds on the leagues disk snapshot', () => {
+  it('round-trips valid scoring kinds and drops unknown values', () => {
+    const now = 1_000_000
+    const leagues = [{ id: '11', name: 'One', provider: 'sleeper' as const, season: '2026', week: 1 }]
+    expect(
+      sleeperLeaguesFromDiskPayload(
+        { at: now, username: 'bob', season: '2026', leagues, scoringKinds: { '11': 'half_ppr', '12': 'superflex' } },
+        now
+      )
+    ).toEqual({ username: 'bob', season: '2026', leagues, scoringKinds: { '11': 'half_ppr' } })
+  })
+
+  it('falls back to PPR projections only when league scoring is unknown', () => {
+    expect(sleeperProjectionKindPlan('half_ppr')).toBe('half_ppr')
+    expect(sleeperProjectionKindPlan('std')).toBe('std')
+    expect(sleeperProjectionKindPlan(undefined)).toBe('ppr')
   })
 })

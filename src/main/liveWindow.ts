@@ -1,3 +1,4 @@
+/** Broad gameday calendar window. Only decides cadence while the NFL scoreboard is unreachable. */
 export const isLikelyLive = (now: Date, seasonType: string): boolean => {
   if (seasonType !== 'regular' && seasonType !== 'post') return false
   const parts = new Intl.DateTimeFormat('en-US', {

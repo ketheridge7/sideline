@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
-import { BENCH_SLOT_IDS, espnLivePayloadIsStub, espnPayloadHasNamedLineup, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
+import { BENCH_SLOT_IDS, espnLivePayloadIsStub, espnMatchupPeriodFor, espnMatchupPeriodsFromPayload, espnPayloadHasNamedLineup, findMyTeam, getAppliedTotal, mergeEspnTeams, overlayEspnMatchup, overlayLiveScoring, toEspnActivity, toEspnMatchup, type EspnRosterEntry } from './espnAdapter'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 
 const fixture = JSON.parse(
@@ -4592,5 +4592,129 @@ describe('overlayLiveScoring', () => {
     })
     expect(matchup?.starters[0]?.points).toBe(12.4)
     expect(matchup?.myPoints).toBe(12.4)
+  })
+})
+
+const playoffTwoWeek = JSON.parse(
+  readFileSync(join(process.cwd(), 'fixtures/espn-playoff-two-week.json'), 'utf8')
+) as Record<string, unknown>
+
+const playoffCookies = { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' }
+
+type PlayoffSide = {
+  totalPoints?: number
+  totalPointsLive?: number
+  pointsByScoringPeriod: Record<string, number>
+  rosterForCurrentScoringPeriod: {
+    entries: { playerId: number; playerPoolEntry: { appliedStatTotal: number; player: { stats: { appliedTotal: number }[] } } }[]
+  }
+}
+
+const playoffWith = (edit: (home: PlayoffSide, away: PlayoffSide) => void): Record<string, unknown> => {
+  const copy = JSON.parse(JSON.stringify(playoffTwoWeek)) as { schedule: { home: PlayoffSide; away: PlayoffSide }[] }
+  edit(copy.schedule[0].home, copy.schedule[0].away)
+  return copy as unknown as Record<string, unknown>
+}
+
+describe('ESPN multi-week playoff matchup periods', () => {
+  const periods = espnMatchupPeriodsFromPayload(playoffTwoWeek)
+
+  it('reads settings.scheduleSettings.matchupPeriods', () => {
+    expect(periods?.['14']).toEqual([14])
+    expect(periods?.['15']).toEqual([15, 16])
+    expect(periods?.['16']).toEqual([17])
+    expect(espnMatchupPeriodsFromPayload(fixture)).toBeNull()
+    expect(
+      espnMatchupPeriodsFromPayload({
+        settings: { scheduleSettings: { matchupPeriods: { '3': ['4', 3, 3], x: [1], '0': [2], '5': [] } } }
+      })
+    ).toEqual({ '3': [3, 4] })
+  })
+
+  it('maps an NFL week to the matchup period that contains it', () => {
+    expect(espnMatchupPeriodFor(periods, 14)).toEqual({ matchupPeriodId: 14, scoringPeriodIds: [14] })
+    expect(espnMatchupPeriodFor(periods, 15)).toEqual({ matchupPeriodId: 15, scoringPeriodIds: [15, 16] })
+    expect(espnMatchupPeriodFor(periods, 16)).toEqual({ matchupPeriodId: 15, scoringPeriodIds: [15, 16] })
+    expect(espnMatchupPeriodFor(periods, 17)).toEqual({ matchupPeriodId: 16, scoringPeriodIds: [17] })
+    expect(espnMatchupPeriodFor(periods, 18)).toEqual({ matchupPeriodId: 18, scoringPeriodIds: [18] })
+    expect(espnMatchupPeriodFor(null, 7)).toEqual({ matchupPeriodId: 7, scoringPeriodIds: [7] })
+  })
+
+  it('goes blank in week 2 of a two-week round when the NFL week is used as the matchup period', () => {
+    expect(toEspnMatchup({ payload: playoffTwoWeek, cookies: playoffCookies, displayWeek: 16 })).toBeNull()
+  })
+
+  it('finds the championship game and carries week-1 points into a pre-kickoff week 2', () => {
+    const matchup = toEspnMatchup({
+      payload: playoffTwoWeek,
+      cookies: playoffCookies,
+      displayWeek: 16,
+      matchupPeriod: espnMatchupPeriodFor(periods, 16)
+    })
+    expect(matchup?.myTeam.name).toBe('Sideline Squad')
+    expect(matchup?.oppTeam?.name).toBe('Rival Club')
+    expect(matchup?.starters.map((player) => player.name)).toEqual(['Patrick Mahomes', 'Bijan Robinson'])
+    expect(matchup?.myPoints).toBe(121.5)
+    expect(matchup?.oppPoints).toBe(98.25)
+  })
+
+  it('adds week-2 period actuals on top of week 1 when no live team total is present', () => {
+    const payload = playoffWith((home, away) => {
+      home.pointsByScoringPeriod['16'] = 28.7
+      away.pointsByScoringPeriod['16'] = 12
+    })
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: playoffCookies,
+      displayWeek: 16,
+      matchupPeriod: espnMatchupPeriodFor(periods, 16)
+    })
+    expect(matchup?.myPoints).toBeCloseTo(150.2, 5)
+    expect(matchup?.oppPoints).toBeCloseTo(110.25, 5)
+  })
+
+  it('trusts a cumulative totalPointsLive but never paints below the completed week', () => {
+    const payload = playoffWith((home, away) => {
+      home.totalPointsLive = 150.2
+      home.pointsByScoringPeriod['16'] = 28.7
+      away.totalPointsLive = 12
+      away.pointsByScoringPeriod['16'] = 12
+    })
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: playoffCookies,
+      displayWeek: 16,
+      matchupPeriod: espnMatchupPeriodFor(periods, 16)
+    })
+    expect(matchup?.myPoints).toBe(150.2)
+    expect(matchup?.oppPoints).toBe(98.25)
+  })
+
+  it('overlays live week-2 scoring onto the HUD only with the mapped matchup period', () => {
+    const matchupPeriod = espnMatchupPeriodFor(periods, 16)
+    const prev = toEspnMatchup({ payload: playoffTwoWeek, cookies: playoffCookies, displayWeek: 16, matchupPeriod })
+    expect(prev).not.toBeNull()
+    const live = playoffWith((home) => {
+      const qb = home.rosterForCurrentScoringPeriod.entries[0]
+      qb.playerPoolEntry.appliedStatTotal = 12.4
+      qb.playerPoolEntry.player.stats[0].appliedTotal = 12.4
+      home.pointsByScoringPeriod['16'] = 12.4
+    })
+    expect(overlayEspnMatchup(prev!, live, 16, true)).toBeNull()
+    const overlaid = overlayEspnMatchup(prev!, live, 16, true, matchupPeriod)
+    expect(overlaid?.starters[0]?.points).toBe(12.4)
+    expect(overlaid?.myPoints).toBeCloseTo(133.9, 5)
+    expect(overlaid?.oppPoints).toBe(98.25)
+  })
+
+  it('leaves regular-season weeks unchanged (matchup period = scoring period)', () => {
+    const matchup = toEspnMatchup({
+      payload: fixture,
+      cookies: playoffCookies,
+      displayWeek: 14,
+      matchupPeriod: espnMatchupPeriodFor(periods, 14)
+    })
+    expect(matchup).toEqual(toEspnMatchup({ payload: fixture, cookies: playoffCookies, displayWeek: 14 }))
+    expect(matchup?.myPoints).toBe(124.6)
   })
 })

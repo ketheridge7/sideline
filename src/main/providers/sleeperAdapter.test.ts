@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, starterProjectedTotal, toMatchup, toTransactions } from './sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, starterProjectedFinal, starterProjectedTotal, toMatchup, toTransactions } from './sleeperAdapter'
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
+import { finalNflTeams } from '@shared/winPct'
 
 const players = {
   '1': { name: 'Hurts', position: 'QB', nflTeam: 'PHI' },
@@ -577,9 +578,62 @@ describe('applySleeperWinEstimate', () => {
     const next = applySleeperWinEstimate(matchup, projections)
     expect(next.winPctSource).toBe('estimated')
     expect(next.myProjectedPoints).toBe(40)
-    expect(next.oppProjectedPoints).toBe(16)
+    // Allen already has 18 against a 16 projection: his projected final is what he has.
+    expect(next.oppProjectedPoints).toBe(18)
     expect(next.myWinPct).toBeGreaterThan(0.8)
     expect(next.myPoints).toBe(20)
+  })
+
+  it('counts only actual points for starters whose NFL game is final (finished-under-projection skew)', () => {
+    // Mine: Hurts PHI final with 5 (proj 22), Barkley still to play (proj 18).
+    // Theirs: Allen BUF still to play (proj 16) with 0 so far.
+    const early: SleeperMatchup[] = [
+      { ...matchups[0], points: 5, players_points: { '1': 5, '2': 0, '9': 0 } },
+      { ...matchups[1], points: 0, players_points: { '3': 0 } }
+    ]
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups: early, players })!
+    const beforeFinal = applySleeperWinEstimate(matchup, { '1': 22, '2': 18, '3': 16 })
+    expect(beforeFinal.myProjectedPoints).toBe(40)
+    expect(beforeFinal.myWinPct).toBeGreaterThan(0.8)
+
+    // Hurts and Barkley are both PHI, so a final PHI game leaves only what they scored: 5 + 0.
+    const bothFinal = applySleeperWinEstimate(matchup, { '1': 22, '2': 18, '3': 16 }, finalNflTeams([
+      { id: 'g1', away: 'DAL', awayScore: 20, home: 'PHI', homeScore: 17, clock: 'FINAL', final: true }
+    ]))
+    expect(bothFinal.myProjectedPoints).toBe(5)
+    expect(bothFinal.oppProjectedPoints).toBe(16)
+    expect(bothFinal.myWinPct).toBeLessThan(0.5)
+  })
+
+  it('flips the favorite once an underperforming starter finishes, even with a teammate still to play', () => {
+    const splitPlayers = { ...players, '2': { name: 'Barkley', position: 'RB', nflTeam: 'NYG' } }
+    const live: SleeperMatchup[] = [
+      { ...matchups[0], points: 4, players_points: { '1': 4, '2': 0, '9': 0 } },
+      { ...matchups[1], points: 10, players_points: { '3': 10 } }
+    ]
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups: live, players: splitPlayers })!
+    const projections = { '1': 25, '2': 12, '3': 24 }
+    const old = applySleeperWinEstimate(matchup, projections)
+    expect(old.myProjectedPoints).toBe(37)
+    expect(old.myWinPct).toBeGreaterThan(0.5)
+    const next = applySleeperWinEstimate(
+      matchup,
+      projections,
+      finalNflTeams([{ id: 'g2', away: 'WSH', awayScore: 3, home: 'PHI', homeScore: 30, clock: 'FINAL', final: true }])
+    )
+    expect(next.myProjectedPoints).toBe(16)
+    expect(next.oppProjectedPoints).toBe(24)
+    expect(next.myWinPct).toBeLessThan(0.5)
+    expect(next.winPctSource).toBe('estimated')
+  })
+
+  it('does not need a projection for a starter whose game is already final', () => {
+    const matchup = toMatchup({ userId: 'me', rosters, users, matchups, players })!
+    const finalPhi = finalNflTeams([
+      { id: 'g1', away: 'DAL', awayScore: 20, home: 'PHI', homeScore: 17, clock: 'FINAL', final: true }
+    ])
+    expect(starterProjectedFinal(matchup.starters, { '3': 16 }, finalPhi)).toBe(20)
+    expect(starterProjectedFinal(matchup.starters, { '3': 16 })).toBeUndefined()
   })
 
   it('stays pending when a starter is missing a projection (no score-share)', () => {

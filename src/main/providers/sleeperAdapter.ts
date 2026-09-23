@@ -3,7 +3,9 @@ import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import {
   estimatedChanceToWin,
-  hasProjectedFinals
+  hasProjectedFinals,
+  nflTeamKey,
+  playerProjectedFinal
 } from '@shared/winPct'
 import type {
   CachedPlayer,
@@ -290,6 +292,31 @@ export const starterProjectedTotal = (
   return sum
 }
 
+/**
+ * Remaining-aware starter final: players whose NFL game is final count their
+ * actual points; everyone else max(actual, weekly projection). Undefined
+ * (pending) when a starter still to play has no projection.
+ */
+export const starterProjectedFinal = (
+  starters: Player[],
+  projections: Record<string, number>,
+  finalTeams: ReadonlySet<string> = new Set()
+): number | undefined => {
+  const rows = starters.filter((player) => Boolean(player.playerId))
+  if (rows.length === 0) return undefined
+  let sum = 0
+  for (const player of rows) {
+    const pts = playerProjectedFinal({
+      actual: player.points,
+      projected: projectionOf(projections, player.playerId),
+      gameFinal: finalTeams.has(nflTeamKey(player.nflTeam))
+    })
+    if (pts == null) return undefined
+    sum += pts
+  }
+  return sum
+}
+
 const withoutEstimatedWin = (matchup: Matchup): Matchup => {
   const {
     myWinPct: _mine,
@@ -303,18 +330,20 @@ const withoutEstimatedWin = (matchup: Matchup): Matchup => {
 }
 
 /**
- * Sleeper Est. win% from weekly projection sums + live points.
+ * Sleeper Est. win% from per-player remaining-aware finals + live points.
+ * `finalTeams` are NFL teams whose game is final (scoreboard ticker).
  * Official REST win_probability is left alone. Missing projections stay pending.
  */
 export const applySleeperWinEstimate = (
   matchup: Matchup,
-  projections: Record<string, number> | null | undefined
+  projections: Record<string, number> | null | undefined,
+  finalTeams: ReadonlySet<string> = new Set()
 ): Matchup => {
   if (matchup.winPctSource === 'official') return matchup
   const pending = withoutEstimatedWin(matchup)
   if (!projections || !matchup.oppTeam) return pending
-  const myProjected = starterProjectedTotal(matchup.starters, projections)
-  const oppProjected = starterProjectedTotal(matchup.oppStarters, projections)
+  const myProjected = starterProjectedFinal(matchup.starters, projections, finalTeams)
+  const oppProjected = starterProjectedFinal(matchup.oppStarters, projections, finalTeams)
   if (!hasProjectedFinals(myProjected, oppProjected)) return pending
   const chance = estimatedChanceToWin({
     myLive: matchup.myPoints,

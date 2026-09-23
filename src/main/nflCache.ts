@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync } from 'fs'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import type { NflState } from '@shared/types'
-import { espnLeaguesFromDiskPayload, espnScoresFromDiskPayload, espnTeamsFromDiskPayload, lastHudFromDiskPayload, matchupsFromDiskPayload, nflFromDiskPayload, sleeperLeaguesFromDiskPayload, sleeperRostersFromDiskPayload, NFL_DISK_STALE_MS, type LastHudSnapshot, type EspnLeaguesDiskRow, type EspnScoreDiskRow, type MatchupsDiskSnapshot, type SleeperLeaguesDiskRow, type SleeperRosterDiskRow } from './pollTargets'
+import { espnLeaguesFromDiskPayload, espnMatchupPeriodsFromDiskPayload, espnScoresFromDiskPayload, espnTeamsFromDiskPayload, lastHudFromDiskPayload, matchupsFromDiskPayload, nflFromDiskPayload, sleeperLeaguesFromDiskPayload, sleeperRostersFromDiskPayload, NFL_DISK_STALE_MS, type LastHudSnapshot, type EspnLeaguesDiskRow, type EspnMatchupPeriodsDiskRow, type EspnScoreDiskRow, type MatchupsDiskSnapshot, type SleeperLeaguesDiskRow, type SleeperRosterDiskRow } from './pollTargets'
 
 const nflPath = (): string => join(app.getPath('userData'), 'sideline-nfl.json')
 const espnTeamsPath = (): string => join(app.getPath('userData'), 'sideline-espn-teams.json')
@@ -13,6 +13,7 @@ const sleeperRostersPath = (): string => join(app.getPath('userData'), 'sideline
 const sleeperLeaguesPath = (): string => join(app.getPath('userData'), 'sideline-sleeper-leagues.json')
 const espnLeaguesPath = (): string => join(app.getPath('userData'), 'sideline-espn-leagues.json')
 const matchupsPath = (): string => join(app.getPath('userData'), 'sideline-matchups.json')
+const espnMatchupPeriodsPath = (): string => join(app.getPath('userData'), 'sideline-espn-matchup-periods.json')
 
 const ensureUserData = (): string => {
   const dir = app.getPath('userData')
@@ -120,7 +121,13 @@ export const readSleeperLeaguesDisk = (): SleeperLeaguesDiskRow | null => {
 }
 
 export const writeSleeperLeaguesDisk = (row: SleeperLeaguesDiskRow): void => {
-  writeJson(sleeperLeaguesPath(), { at: Date.now(), username: row.username, season: row.season, leagues: row.leagues })
+  writeJson(sleeperLeaguesPath(), {
+    at: Date.now(),
+    username: row.username,
+    season: row.season,
+    leagues: row.leagues,
+    ...(row.scoringKinds ? { scoringKinds: row.scoringKinds } : {})
+  })
 }
 
 export const readEspnLeaguesDisk = (): EspnLeaguesDiskRow | null => {
@@ -133,6 +140,18 @@ export const readEspnLeaguesDisk = (): EspnLeaguesDiskRow | null => {
 
 export const writeEspnLeaguesDisk = (row: EspnLeaguesDiskRow): void => {
   writeJson(espnLeaguesPath(), { at: Date.now(), season: row.season, ids: row.ids, leagues: row.leagues })
+}
+
+export const readEspnMatchupPeriodsDisk = (): EspnMatchupPeriodsDiskRow | null => {
+  try {
+    return espnMatchupPeriodsFromDiskPayload(JSON.parse(readFileSync(espnMatchupPeriodsPath(), 'utf8')), Date.now())
+  } catch {
+    return null
+  }
+}
+
+export const writeEspnMatchupPeriodsDisk = (row: EspnMatchupPeriodsDiskRow): void => {
+  writeJson(espnMatchupPeriodsPath(), { at: Date.now(), season: row.season, byId: row.byId })
 }
 
 export const readMatchupsDisk = (): MatchupsDiskSnapshot | null => {

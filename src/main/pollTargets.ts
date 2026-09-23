@@ -1,7 +1,8 @@
 import { leagueKey, parseLeagueKey, type AppState, type League, type Matchup, type NflState, type NflTickerGame, type Player, type Team } from '@shared/types'
 import type { Settings } from '@shared/settings'
 import { matchupHasLineup } from '@shared/display'
-import { parseSleeperLeagueUser, parseSleeperRoster } from './providers/sleeperClient'
+import { isSleeperScoringKind, parseSleeperLeagueUser, parseSleeperRoster, type SleeperScoringKind } from './providers/sleeperClient'
+import { espnMatchupPeriodsFromPayload, type EspnMatchupPeriods } from './providers/espnAdapter'
 
 export const isLiveLeagueId = (id: string): boolean => /^\d+$/.test(id)
 
@@ -1142,6 +1143,8 @@ export type SleeperLeaguesDiskRow = {
   username: string
   season: string
   leagues: League[]
+  /** League id → projection column for Est. win%. Older snapshots omit it. */
+  scoringKinds?: Record<string, SleeperScoringKind>
 }
 
 const asLeague = (value: unknown, provider: League['provider']): League | null => {
@@ -1167,7 +1170,56 @@ export const sleeperLeaguesFromDiskPayload = (parsed: unknown, now: number): Sle
     .map((item) => asLeague(item, 'sleeper'))
     .filter((league): league is League => league != null)
   if (leagues.length === 0) return null
-  return { username, season, leagues }
+  const scoringKinds: Record<string, SleeperScoringKind> = {}
+  if (typeof row.scoringKinds === 'object' && row.scoringKinds != null && !Array.isArray(row.scoringKinds)) {
+    for (const [id, kind] of Object.entries(row.scoringKinds as Record<string, unknown>)) {
+      if (isSleeperScoringKind(kind)) scoringKinds[id] = kind
+    }
+  }
+  return { username, season, leagues, ...(Object.keys(scoringKinds).length > 0 ? { scoringKinds } : {}) }
+}
+
+/** Projection column for a Sleeper league's Est. win%. PPR only when the league's scoring is unknown. */
+export const sleeperProjectionKindPlan = (kind: SleeperScoringKind | undefined): SleeperScoringKind => kind ?? 'ppr'
+
+/** League schedule settings rarely change in-season; the season key guards rollover. */
+export const ESPN_MATCHUP_PERIODS_DISK_TRUST_MS = 30 * 24 * 60 * 60 * 1000
+
+export type EspnMatchupPeriodsDiskRow = {
+  season: string
+  byId: Record<string, EspnMatchupPeriods>
+}
+
+export const espnMatchupPeriodsFromDiskPayload = (
+  parsed: unknown,
+  now: number
+): EspnMatchupPeriodsDiskRow | null => {
+  if (typeof parsed !== 'object' || parsed == null || Array.isArray(parsed)) return null
+  const row = parsed as Record<string, unknown>
+  if (typeof row.at !== 'number' || !cacheFresh(row.at, now, ESPN_MATCHUP_PERIODS_DISK_TRUST_MS)) return null
+  const season = diskStr(row.season)
+  if (!season || typeof row.byId !== 'object' || row.byId == null || Array.isArray(row.byId)) return null
+  const byId: Record<string, EspnMatchupPeriods> = {}
+  for (const [id, value] of Object.entries(row.byId as Record<string, unknown>)) {
+    if (!isLiveLeagueId(id)) continue
+    const periods = espnMatchupPeriodsFromPayload({ settings: { scheduleSettings: { matchupPeriods: value } } })
+    if (periods) byId[id] = periods
+  }
+  if (Object.keys(byId).length === 0) return null
+  return { season, byId }
+}
+
+/** Fetch league settings for the matchup-period map only when nothing is cached and the last try is stale. */
+export const espnMatchupPeriodsKickPlan = (opts: {
+  hasPeriods: boolean
+  inFlight: boolean
+  lastTryAt?: number
+  now: number
+  retryMs: number
+}): 'skip' | 'kick' => {
+  if (opts.hasPeriods || opts.inFlight) return 'skip'
+  if (opts.lastTryAt != null && cacheFresh(opts.lastTryAt, opts.now, opts.retryMs)) return 'skip'
+  return 'kick'
 }
 
 export const ESPN_LEAGUES_DISK_TRUST_MS = HUD_DISK_TRUST_MS
@@ -1406,9 +1458,25 @@ export const restPrefetchAwaitPlan = (opts: {
 export const gamedayLiveTick = (opts: { pollingLive: boolean; calendarLive: boolean }): boolean =>
   opts.pollingLive || opts.calendarLive
 
-/** Scoreboard events still `pre` must not drop the 3s gameday interval. Rest settle must not reschedule 30s over an armed HUD tick. */
-export const scoreboardPollLive = (opts: { gamesIn: boolean; calendarLive: boolean }): boolean =>
-  gamedayLiveTick({ pollingLive: opts.gamesIn, calendarLive: opts.calendarLive })
+/**
+ * Live cadence is game-driven: a game `in`, or a kickoff within
+ * KICKOFF_SOON_MS. A reachable scoreboard with only distant `pre` games stays
+ * idle even inside the calendar window; the calendar decides only when the
+ * scoreboard is unreachable.
+ */
+export const scoreboardPollLive = (opts: {
+  gamesIn: boolean
+  kickoffSoon: boolean
+  reachable: boolean
+  calendarLive: boolean
+}): boolean => (opts.reachable ? opts.gamesIn || opts.kickoffSoon : opts.calendarLive)
+
+/** Tick-start gameday flag before this tick's scoreboard settles: calendar window only while the scoreboard is unreachable. */
+export const calendarFallbackLive = (opts: {
+  replay: boolean
+  scoreboardReachable: boolean
+  calendarLive: boolean
+}): boolean => opts.replay || (!opts.scoreboardReachable && opts.calendarLive)
 
 export const restSettleSchedulePlan = (opts: {
   hudScheduled: boolean

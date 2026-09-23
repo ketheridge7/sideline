@@ -1,17 +1,27 @@
 import type { NflTickerGame } from '@shared/types'
 import { fetchJson } from '../http'
 import { IDLE_POLL_MS } from '../liveWindow'
-import { cacheFresh } from '../pollTargets'
+import { cacheFresh, scoreboardPollLive } from '../pollTargets'
 
 export const NFL_SCOREBOARD_TTL_MS = 10_000
 export const NFL_SCOREBOARD_PRE_TTL_MS = IDLE_POLL_MS
 export const NFL_SCOREBOARD_TIMEOUT_MS = 2_000
 
+/** A game `pre` whose kickoff is this close counts as live so the 3s cadence is armed at kickoff. */
+export const KICKOFF_SOON_MS = 10 * 60_000
+/** A `pre` game this far past its scheduled kickoff (weather delay) still counts as imminent. */
+export const KICKOFF_LATE_MS = 4 * 60 * 60_000
+/** A scoreboard older than this after failed refreshes is unreachable — fall back to the calendar window. */
+export const NFL_SCOREBOARD_REACHABLE_MS = 5 * 60_000
+
 export const nflScoreboardTtlMs = (gamesInProgress: boolean): number =>
   gamesInProgress ? NFL_SCOREBOARD_TTL_MS : NFL_SCOREBOARD_PRE_TTL_MS
 
-let scoreboardCache: { at: number; live: boolean; ticker: NflTickerGame[] } | null = null
+let scoreboardCache: { at: number; gamesIn: boolean; kickoffs: number[]; ticker: NflTickerGame[] } | null = null
 let lastGoodScoreboardUrl: string | null = null
+
+export const nflScoreboardReachable = (now = Date.now()): boolean =>
+  scoreboardCache != null && cacheFresh(scoreboardCache.at, now, NFL_SCOREBOARD_REACHABLE_MS)
 
 export const resetNflScoreboardCache = (): void => {
   scoreboardCache = null
@@ -133,6 +143,28 @@ export const nflTickerFromPayload = (payload: unknown): NflTickerGame[] => {
 export const nflGamesInProgress = (payload: unknown): boolean =>
   collectEvents(payload).some((event) => eventState(event) === 'in')
 
+const eventKickoffMs = (event: Record<string, unknown>): number | undefined => {
+  const competitions = Array.isArray(event.competitions) ? event.competitions : []
+  const first = competitions.find(isRecord)
+  const raw = str(event.date) ?? str(first?.date)
+  const ms = raw ? Date.parse(raw) : Number.NaN
+  return Number.isFinite(ms) ? ms : undefined
+}
+
+/** Scheduled kickoff times (epoch ms) of events still `pre`. */
+export const nflPreKickoffs = (payload: unknown): number[] => {
+  const out: number[] = []
+  for (const event of collectEvents(payload)) {
+    if (eventState(event) !== 'pre') continue
+    const at = eventKickoffMs(event)
+    if (at != null) out.push(at)
+  }
+  return out
+}
+
+export const nflKickoffSoon = (kickoffs: readonly number[], now: number, windowMs = KICKOFF_SOON_MS): boolean =>
+  kickoffs.some((at) => at - now <= windowMs && now - at <= KICKOFF_LATE_MS)
+
 /** Live ticks with a sticky host or last ticker try one host only so a 403/timeout cannot walk 251KB×2 beside HUD. */
 export const nflScoreboardHostPlan = (opts: {
   liveTick: boolean
@@ -168,7 +200,9 @@ export const fetchNflScoreboard = async (liveTick = false): Promise<unknown> => 
         headers: { Accept: 'application/json' },
         timeoutMs: NFL_SCOREBOARD_TIMEOUT_MS,
         retries: 0,
-        priority: 'low'
+        priority: 'low',
+        // Two scoreboard endpoints share site.web.api; back off per endpoint so the header API stays a fallback.
+        backoffKey: url
       })
       lastGoodScoreboardUrl = url
       return payload
@@ -179,23 +213,57 @@ export const fetchNflScoreboard = async (liveTick = false): Promise<unknown> => 
   throw lastError instanceof Error ? lastError : new Error('NFL scoreboard failed')
 }
 
+export type NflScoreboardState = {
+  /** Poll at the live cadence: a game is `in` or kicks off soon; calendar window only when unreachable. */
+  live: boolean
+  ticker: NflTickerGame[]
+  reachable: boolean
+}
+
+const fromCache = (
+  cache: NonNullable<typeof scoreboardCache>,
+  now: number,
+  calendarLive: boolean
+): NflScoreboardState => ({
+  live: scoreboardPollLive({
+    gamesIn: cache.gamesIn,
+    kickoffSoon: nflKickoffSoon(cache.kickoffs, now),
+    reachable: true,
+    calendarLive
+  }),
+  ticker: cache.ticker,
+  reachable: true
+})
+
+/** `calendarLive` is the raw calendar window; it only decides cadence when the scoreboard is unreachable. */
 export const nflScoreboardState = async (
   calendarLive: boolean,
   liveTick = false
-): Promise<{ live: boolean; ticker: NflTickerGame[] }> => {
+): Promise<NflScoreboardState> => {
+  const now = Date.now()
   const ttlMs = scoreboardCache
-    ? nflScoreboardTtlMs(scoreboardCache.live)
+    ? nflScoreboardTtlMs(scoreboardCache.gamesIn || nflKickoffSoon(scoreboardCache.kickoffs, now))
     : NFL_SCOREBOARD_TTL_MS
-  if (scoreboardCache && cacheFresh(scoreboardCache.at, Date.now(), ttlMs)) {
-    return { live: scoreboardCache.live, ticker: scoreboardCache.ticker }
+  if (scoreboardCache && cacheFresh(scoreboardCache.at, now, ttlMs)) {
+    return fromCache(scoreboardCache, now, calendarLive)
   }
   try {
     const payload = await fetchNflScoreboard(liveTick)
-    const next = { live: nflGamesInProgress(payload), ticker: nflTickerFromPayload(payload) }
-    scoreboardCache = { at: Date.now(), ...next }
-    return next
+    scoreboardCache = {
+      at: Date.now(),
+      gamesIn: nflGamesInProgress(payload),
+      kickoffs: nflPreKickoffs(payload),
+      ticker: nflTickerFromPayload(payload)
+    }
+    return fromCache(scoreboardCache, Date.now(), calendarLive)
   } catch {
-    if (scoreboardCache) return { live: scoreboardCache.live, ticker: scoreboardCache.ticker }
-    return { live: calendarLive, ticker: [] }
+    if (scoreboardCache && nflScoreboardReachable(Date.now())) {
+      return fromCache(scoreboardCache, Date.now(), calendarLive)
+    }
+    return {
+      live: scoreboardPollLive({ gamesIn: false, kickoffSoon: false, reachable: false, calendarLive }),
+      ticker: scoreboardCache?.ticker ?? [],
+      reachable: false
+    }
   }
 }

@@ -35,6 +35,7 @@ import { app } from 'electron'
 import { saveSettings } from './store'
 import { warmupPollerCaches, refresh, resetPollerForTests, currentState, invalidateEspnSession, primeEspnCookies, setOverlayVisible } from './poller'
 import { runtime } from './runtime'
+import { resetNflScoreboardCache } from './providers/nflScoreboard'
 
 afterEach(() => {
   resetPollerForTests()
@@ -2731,5 +2732,309 @@ describe('setOverlayVisible', () => {
     sendState.mockRestore()
     sendTick.mockRestore()
     sendLive.mockRestore()
+  })
+})
+
+describe('poller ESPN multi-week playoff periods', () => {
+  const playoff = JSON.parse(
+    readFileSync(join(process.cwd(), 'fixtures/espn-playoff-two-week.json'), 'utf8')
+  ) as Record<string, unknown> & { settings: { scheduleSettings: { matchupPeriods: Record<string, number[]> } } }
+  const week16Nfl = { week: 16, display_week: 16, season: '2026', league_season: '2026', season_type: 'regular' }
+
+  const setupWeek16 = (leagueId: string): string => {
+    const dir = app.getPath('userData')
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: { week: 16, displayWeek: 16, season: '2026', leagueSeason: '2026', seasonType: 'regular' }
+      })
+    )
+    const hud = join(dir, 'sideline-last-hud.json')
+    if (existsSync(hud)) unlinkSync(hud)
+    espnAuth.cookies = { espn_s2: 'playoff-s2', SWID: '{11111111-1111-1111-1111-111111111111}' }
+    return dir
+  }
+
+  const periodsPath = (dir: string): string => join(dir, 'sideline-espn-matchup-periods.json')
+
+  /** Emulates ESPN's schedule filter: games only come back for the requested matchup period. */
+  const stubEspn = (filters: number[][]) =>
+    vi.fn(async (url: string, init?: { headers?: Record<string, string> }) => {
+      if (url.includes('/state/nfl')) return jsonOk(week16Nfl)
+      if (url.includes('scoreboard')) return jsonOk({ events: [] })
+      if (url.includes('fan.api')) return jsonOk({ preferences: [] })
+      if (url.includes('view=mSettings')) {
+        return jsonOk({ id: playoff.id, status: playoff.status, settings: playoff.settings, teams: playoff.teams })
+      }
+      const raw = init?.headers?.['X-Fantasy-Filter']
+      if (url.includes('lm-api-reads') && raw) {
+        const ids = (JSON.parse(raw) as { schedule?: { filterMatchupPeriodIds?: { value: number[] } } }).schedule
+          ?.filterMatchupPeriodIds?.value
+        if (ids) {
+          filters.push(ids)
+          if (!ids.includes(15)) return jsonOk({ ...playoff, schedule: [] })
+          return jsonOk(playoff)
+        }
+      }
+      if (url.includes('lm-api-reads')) return jsonOk({ teams: playoff.teams })
+      return jsonOk([])
+    })
+
+  it('filters week 16 by matchup period 15 from cached league settings and paints the championship HUD', async () => {
+    const leagueId = '77016001'
+    const dir = setupWeek16(leagueId)
+    writeFileSync(
+      periodsPath(dir),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        byId: { [leagueId]: playoff.settings.scheduleSettings.matchupPeriods }
+      })
+    )
+    warmupPollerCaches()
+    const filters: number[][] = []
+    vi.stubGlobal('fetch', stubEspn(filters))
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.myPoints).toBe(121.5)
+    expect(currentState().matchup?.oppTeam?.name).toBe('Rival Club')
+    expect(filters.length).toBeGreaterThan(0)
+    expect(filters.every((ids) => ids.length === 1 && ids[0] === 15)).toBe(true)
+    unlinkSync(periodsPath(dir))
+  })
+
+  it('learns matchup periods from league settings and persists them for the next launch', async () => {
+    const leagueId = '77016002'
+    const dir = setupWeek16(leagueId)
+    if (existsSync(periodsPath(dir))) unlinkSync(periodsPath(dir))
+    warmupPollerCaches()
+    const filters: number[][] = []
+    vi.stubGlobal('fetch', stubEspn(filters))
+
+    await refresh({ waitForBoards: true })
+    await expect
+      .poll(async () => {
+        await refresh({ waitForBoards: true })
+        return currentState().matchup?.myPoints
+      })
+      .toBe(121.5)
+    expect(filters.at(-1)).toEqual([15])
+    await expect
+      .poll(() =>
+        existsSync(periodsPath(dir))
+          ? (JSON.parse(readFileSync(periodsPath(dir), 'utf8')) as { byId: Record<string, unknown> }).byId[leagueId]
+          : null
+      )
+      .toEqual(playoff.settings.scheduleSettings.matchupPeriods)
+    unlinkSync(periodsPath(dir))
+  })
+})
+
+describe('poller Sleeper Est. win% scoring kind', () => {
+  it('projects a half-PPR league with pts_half_ppr, not the PPR column', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '880000000000000001'
+    const selectedKey = leagueKey('sleeper', leagueId)
+    saveSettings({
+      sleeperUsername: 'halfppr',
+      sleeperUserId: 'me',
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: []
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+    warmupPollerCaches()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/state/nfl')) {
+          return jsonOk({ week: 1, display_week: 1, season: '2026', league_season: '2026', season_type: 'regular' })
+        }
+        if (url.includes('/projections/')) {
+          return jsonOk({
+            '1': { pts_ppr: 20, pts_half_ppr: 17, pts_std: 14 },
+            '3': { pts_ppr: 15, pts_half_ppr: 13, pts_std: 11 }
+          })
+        }
+        if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+        if (url.includes('/leagues/')) {
+          return jsonOk([{ league_id: leagueId, name: 'Half Stack', season: '2026', scoring_settings: { rec: 0.5 } }])
+        }
+        if (url.includes('/rosters')) {
+          return jsonOk([
+            { roster_id: 1, owner_id: 'me', players: ['1'], starters: ['1'] },
+            { roster_id: 2, owner_id: 'them', players: ['3'], starters: ['3'] }
+          ])
+        }
+        if (url.includes('/users')) {
+          return jsonOk([
+            { user_id: 'me', display_name: 'Me' },
+            { user_id: 'them', display_name: 'You' }
+          ])
+        }
+        if (url.includes('/user/')) return jsonOk({ user_id: 'me', username: 'halfppr' })
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('/players/nfl')) return jsonOk({})
+        return jsonOk([])
+      })
+    )
+
+    await expect
+      .poll(async () => {
+        await refresh({ waitForBoards: true })
+        return currentState().matchup?.myProjectedPoints
+      })
+      .toBe(17)
+    expect(currentState().matchup?.oppProjectedPoints).toBe(13)
+    expect(currentState().matchup?.winPctSource).toBe('estimated')
+    const disk = JSON.parse(readFileSync(join(dir, 'sideline-sleeper-leagues.json'), 'utf8')) as {
+      scoringKinds?: Record<string, string>
+    }
+    expect(disk.scoringKinds?.[leagueId]).toBe('half_ppr')
+  })
+})
+
+describe('poller game-driven cadence', () => {
+  const saturdayAfternoon = new Date('2026-09-12T18:00:00Z')
+
+  const setupSaturday = (leagueId: string): void => {
+    const dir = app.getPath('userData')
+    const selectedKey = leagueKey('sleeper', leagueId)
+    saveSettings({ sleeperUsername: 'tester', sleeperUserId: 'me', selectedLeagueKey: selectedKey, espnLeagueIds: [] })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+  }
+
+  const stubSleeper = (scoreboard: () => unknown) =>
+    vi.fn(async (url: string) => {
+      if (url.includes('/state/nfl')) {
+        return jsonOk({ week: 1, display_week: 1, season: '2026', league_season: '2026', season_type: 'regular' })
+      }
+      if (url.includes('scoreboard')) return scoreboard()
+      if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+      return jsonOk([])
+    })
+
+  const scheduledPollDelays = (spy: { mock: { calls: unknown[][] } }): number[] =>
+    spy.mock.calls.map((call) => Number(call[1])).filter((ms) => ms >= 1_000)
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    resetNflScoreboardCache()
+  })
+
+  it('stays on the 30s idle interval inside the Saturday calendar window when no game is near', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(saturdayAfternoon)
+    resetNflScoreboardCache()
+    setupSaturday('880000000000000101')
+    warmupPollerCaches()
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    vi.stubGlobal(
+      'fetch',
+      stubSleeper(() =>
+        jsonOk({ events: [{ id: 'sun-1', date: '2026-09-13T17:00Z', status: { type: { state: 'pre' } } }] })
+      )
+    )
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
+    await refresh()
+    expect(currentState().pollingLive).toBe(false)
+    const delays = scheduledPollDelays(spy)
+    expect(delays.at(-1)).toBeGreaterThan(20_000)
+  })
+
+  it('arms the 3s cadence when a kickoff is within ten minutes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(saturdayAfternoon)
+    resetNflScoreboardCache()
+    setupSaturday('880000000000000102')
+    warmupPollerCaches()
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    vi.stubGlobal(
+      'fetch',
+      stubSleeper(() =>
+        jsonOk({ events: [{ id: 'sat-1', date: '2026-09-12T18:08Z', status: { type: { state: 'pre' } } }] })
+      )
+    )
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().pollingLive).toBe(true)
+    await refresh()
+    expect(scheduledPollDelays(spy).at(-1)).toBeLessThanOrEqual(3_000)
+  })
+
+  it('falls back to the calendar window only when the scoreboard is unreachable', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(saturdayAfternoon)
+    resetNflScoreboardCache()
+    setupSaturday('880000000000000103')
+    warmupPollerCaches()
+    vi.stubGlobal('fetch', stubSleeper(() => ({ ok: false, status: 503, headers: { get: () => null }, json: async () => ({}) })))
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().pollingLive).toBe(true)
+  })
+})
+
+describe('poller provider backoff', () => {
+  it('holds the last ESPN HUD after a 429 instead of hammering lm-api-reads every tick', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '77042901'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({ sleeperUsername: null, sleeperUserId: null, selectedLeagueKey: selectedKey, espnLeagueIds: [leagueId] })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+    warmupPollerCaches()
+
+    const espnUrls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/state/nfl')) {
+          return jsonOk({ week: 1, display_week: 1, season: '2026', league_season: '2026', season_type: 'regular' })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('espn.com') && !url.includes('scoreboard')) {
+          espnUrls.push(url)
+          return {
+            ok: false,
+            status: 429,
+            headers: { get: (name: string) => (name.toLowerCase() === 'retry-after' ? '120' : null) },
+            json: async () => ({})
+          }
+        }
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().error).toBe('ESPN slow, holding last scores')
+    const afterFirst = espnUrls.length
+    expect(afterFirst).toBeGreaterThan(0)
+    await refresh({ waitForBoards: true })
+    await refresh({ waitForBoards: true })
+    expect(espnUrls.length).toBe(afterFirst)
+    expect(currentState().matchup?.myPoints).toBe(10)
+    expect(currentState().matchup?.myTeam.name).toBe('Mine')
+    expect(currentState().espnNeedsRelogin).toBe(false)
+    expect(currentState().error).toBe('ESPN slow, holding last scores')
   })
 })

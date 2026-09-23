@@ -10,14 +10,22 @@ import {
   NFL_SCOREBOARD_PRE_TTL_MS,
   NFL_SCOREBOARD_TIMEOUT_MS,
   nflScoreboardTtlMs,
+  nflKickoffSoon,
+  nflPreKickoffs,
+  nflScoreboardReachable,
+  KICKOFF_LATE_MS,
+  KICKOFF_SOON_MS,
+  NFL_SCOREBOARD_REACHABLE_MS,
   resetNflScoreboardCache
 } from './nflScoreboard'
 import { cacheFresh } from '../pollTargets'
+import { resetHostBackoff } from '../http'
 
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
   resetNflScoreboardCache()
+  resetHostBackoff()
 })
 
 describe('nflGamesInProgress', () => {
@@ -276,6 +284,7 @@ describe('nflScoreboardState', () => {
     )
     await expect(nflScoreboardState(false)).resolves.toEqual({
       live: true,
+      reachable: true,
       ticker: [
         { id: 'live-1', away: 'DET', awayScore: 14, home: 'KC', homeScore: 21, clock: 'Q2 4:12' }
       ]
@@ -287,8 +296,74 @@ describe('nflScoreboardState', () => {
       'fetch',
       vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({}) })
     )
-    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [] })
-    await expect(nflScoreboardState(false)).resolves.toEqual({ live: false, ticker: [] })
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [], reachable: false })
+    await expect(nflScoreboardState(false)).resolves.toEqual({ live: false, ticker: [], reachable: false })
+    expect(nflScoreboardReachable()).toBe(false)
+  })
+
+  const preSlate = (kickoffIso: string) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      events: [{ id: 'pre-1', date: kickoffIso, status: { type: { state: 'pre' } } }]
+    })
+  })
+
+  it('stays idle in the calendar window when the next kickoff is hours away', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-13T13:00:00Z'))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(preSlate('2026-09-13T17:00Z')))
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: false, ticker: [], reachable: true })
+    expect(nflScoreboardReachable()).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('goes live about ten minutes before kickoff, re-evaluated from the cached kickoff time', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-13T16:45:00Z'))
+    const fetchMock = vi.fn().mockResolvedValue(preSlate('2026-09-13T17:00Z'))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(nflScoreboardState(false)).resolves.toMatchObject({ live: false })
+    vi.setSystemTime(new Date('2026-09-13T16:50:00Z'))
+    await expect(nflScoreboardState(false)).resolves.toMatchObject({ live: true })
+    vi.useRealTimers()
+  })
+
+  it('keeps a weather-delayed pre game live after its scheduled kickoff', () => {
+    const kickoff = Date.parse('2026-09-13T17:00Z')
+    expect(nflKickoffSoon([kickoff], kickoff - KICKOFF_SOON_MS - 1)).toBe(false)
+    expect(nflKickoffSoon([kickoff], kickoff - KICKOFF_SOON_MS)).toBe(true)
+    expect(nflKickoffSoon([kickoff], kickoff + 60 * 60_000)).toBe(true)
+    expect(nflKickoffSoon([kickoff], kickoff + KICKOFF_LATE_MS + 1)).toBe(false)
+  })
+
+  it('reads kickoff times from event.date or the first competition', () => {
+    expect(
+      nflPreKickoffs({
+        events: [
+          { date: '2026-09-13T17:00Z', status: { type: { state: 'pre' } } },
+          { status: { type: { state: 'pre' } }, competitions: [{ date: '2026-09-13T20:25Z' }] },
+          { date: '2026-09-13T13:30Z', status: { type: { state: 'in' } } }
+        ]
+      })
+    ).toEqual([Date.parse('2026-09-13T17:00Z'), Date.parse('2026-09-13T20:25Z')])
+    expect(
+      nflPreKickoffs({ sports: [{ leagues: [{ events: [{ date: '2026-09-14T00:20Z', status: 'pre' }] }] }] })
+    ).toEqual([Date.parse('2026-09-14T00:20Z')])
+  })
+
+  it('keeps the cached slate briefly after a failed refresh, then falls back to the calendar', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-13T13:00:00Z'))
+    const fetchMock = vi.fn().mockResolvedValue(preSlate('2026-09-13T17:00Z'))
+    vi.stubGlobal('fetch', fetchMock)
+    await nflScoreboardState(true)
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+    vi.advanceTimersByTime(NFL_SCOREBOARD_PRE_TTL_MS)
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: false, ticker: [], reachable: true })
+    vi.advanceTimersByTime(NFL_SCOREBOARD_REACHABLE_MS)
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [], reachable: false })
+    vi.useRealTimers()
   })
 
   it('reuses a fresh scoreboard so a 3s scoring tick does not re-download 251KB', async () => {
