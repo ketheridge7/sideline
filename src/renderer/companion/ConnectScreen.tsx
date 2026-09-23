@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
+import { submitBugReport } from '@shared/bugReport'
 import type { AppState, League, Provider } from '@shared/types'
 import { chromeFillPillClass, chromePillClass } from './chrome'
 import { ShortcutSettings } from './ShortcutSettings'
@@ -7,6 +8,18 @@ import { UpdateSettings } from './UpdateSettings'
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
   return window.sideline
+}
+
+export const reportBugFromConnect = async (
+  sideline: Pick<NonNullable<Window['sideline']>, 'getRuntimeInfo' | 'openExternal'>,
+  activeView: string
+): Promise<string> => {
+  const runtime = await sideline.getRuntimeInfo()
+  return submitBugReport({ ...runtime, activeView }, async (url) => {
+    const result = await sideline.openExternal(url)
+    if (!result.ok) throw new Error(result.error ?? 'Could not open GitHub')
+    return result
+  })
 }
 
 export type ConnectPath = 'hub' | 'espn' | 'sleeper' | 'tv'
@@ -378,12 +391,14 @@ export const ConnectScreen = ({
   state,
   onOpenBoards,
   initialPath = 'hub',
-  discoverable
+  discoverable,
+  activeView = 'Connect'
 }: {
   state: AppState
   onOpenBoards?: () => void
   initialPath?: ConnectPath
   discoverable?: League[]
+  activeView?: string
 }): JSX.Element => {
   const [path, setPath] = useState<ConnectPath>(initialPath)
   const [username, setUsername] = useState(state.sleeperUsername ?? '')
@@ -462,6 +477,15 @@ export const ConnectScreen = ({
     if (result.ok) {
       setLeagueId('')
       onOpenBoards?.()
+    }
+  }
+
+  const handleReportBug = async (): Promise<void> => {
+    if (!window.sideline) return
+    try {
+      await reportBugFromConnect(window.sideline, activeView)
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Could not open GitHub')
     }
   }
 
@@ -547,6 +571,14 @@ export const ConnectScreen = ({
             <ShortcutSettings state={state} framed={false} />
           </div>
         </details>
+        <button
+          type="button"
+          onClick={() => void handleReportBug()}
+          className="mt-1 w-fit cursor-pointer text-left text-sm text-muted hover:text-lime"
+          data-connect-report="bug"
+        >
+          Report a bug
+        </button>
       </footer>
     </>
   )

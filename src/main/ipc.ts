@@ -4,6 +4,7 @@ import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { parseLeagueKey, parseProvider } from '@shared/types'
+import { collectBugReportRuntime, openExternalUrl } from './bugReport'
 import { loadSettings, saveSettings } from './store'
 import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
@@ -100,4 +101,6 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:getUpdateStatus', () => getUpdateStatus())
   ipcMain.handle('sideline:checkForUpdates', () => checkForUpdates(true))
   ipcMain.handle('sideline:installUpdate', () => installUpdate())
+  ipcMain.handle('sideline:getRuntimeInfo', () => collectBugReportRuntime())
+  ipcMain.handle('sideline:openExternal', (_event, url: unknown) => openExternalUrl(url))
 }

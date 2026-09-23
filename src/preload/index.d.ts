@@ -1,3 +1,4 @@
+import type { BugReportRuntime } from '@shared/bugReport'
 import type { OverlayLayout } from '@shared/overlayLayout'
 import type { ShortcutAction } from '@shared/shortcuts'
 import type {
@@ -47,6 +48,8 @@ export type SidelineApi = {
   onUpdate: (cb: (snapshot: UpdateSnapshot) => void) => () => void
   checkForUpdates: () => Promise<UpdateSnapshot>
   installUpdate: () => Promise<{ ok: boolean; error?: string }>
+  getRuntimeInfo: () => Promise<BugReportRuntime>
+  openExternal: (url: string) => Promise<{ ok: boolean; error?: string }>
 }
 
 declare global {
