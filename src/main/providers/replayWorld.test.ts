@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { leagueKey, type Matchup, type Player } from '@shared/types'
 import { matchupChanceToWin, tapePlayerLabel } from '@shared/display'
+import { overlayName } from '../../renderer/shared/format'
 import {
   FEATURED_LEAGUE_KEY,
-  REPLAY_FEATURED_KEYS,
   REPLAY_SEASON,
   REPLAY_WEEK,
   replayBoardExtra,
@@ -27,112 +27,111 @@ const everyone = (matchup: Matchup): Player[] => [
   ...matchup.oppBench
 ]
 
-describe('replayWorld', () => {
+/** Spec §1.1 MY LEAGUES rows: [league, you, them]. */
+const PINNED_LEAGUES: [string, number, number][] = [
+  ['Friday Night Gridiron', 98.4, 91.2],
+  ['Fourth & Drunken', 84.1, 102.6],
+  ['Sunday Lights', 71.0, 68.4],
+  ['Waiver Wire Warriors', 55.2, 49.8],
+  ['Gridiron Gurus', 112.3, 88.0],
+  ['Basement Bowl', 40.1, 61.7]
+]
+
+describe('replayWorld (Sunday-real spec)', () => {
   const weekLeagues = replayWorldLeagues(REPLAY_WEEK)
   const featured = weekLeagues.find((row) => leagueKey(row.provider, row.id) === FEATURED_LEAGUE_KEY)!
   const at = (tick: number) => weekLeagues.map((league) => ({ league, matchup: replayMatchupFor(league, tick)! }))
 
-  it('ships six mixed Sleeper/ESPN boards with one featured Sleeper and one featured ESPN matchup', () => {
-    expect(weekLeagues).toHaveLength(6)
-    expect(weekLeagues.filter((row) => row.provider === 'sleeper').length).toBeGreaterThanOrEqual(3)
-    expect(weekLeagues.filter((row) => row.provider === 'espn').length).toBeGreaterThanOrEqual(2)
-    expect(weekLeagues.every((row) => row.season === REPLAY_SEASON && row.week === REPLAY_WEEK)).toBe(true)
-    expect(REPLAY_FEATURED_KEYS).toEqual(['sleeper:cul-de-sac', 'espn:break-room'])
-    expect(featured.name).toBe('Cul-de-Sac League')
+  it('pins Friday Night Gridiron: Maya Ice Box 98.4 vs Owen Hash Marks 91.2, Week 3, Est. win% ~62/38', () => {
+    expect(featured.name).toBe('Friday Night Gridiron')
+    expect(featured.provider).toBe('sleeper')
+    expect(featured.week).toBe(3)
+    expect(featured.season).toBe(REPLAY_SEASON)
     const matchup = replayMatchupFor(featured, 0)!
-    expect(matchup.myTeam).toMatchObject({ name: 'Ice Box', owner: 'Maya' })
-    expect(matchup.oppTeam).toMatchObject({ name: 'Hash Marks', owner: 'Owen' })
-    expect(matchup.starters.map((row) => row.position)).toEqual(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DEF'])
-    const espn = replayMatchupFor(weekLeagues.find((row) => row.id === 'break-room')!, 0)!
-    expect(espn.myTeam.name).toBe('Two-Minute Drill')
-    expect(espn.oppTeam?.name).toBe('Monday Morning QBs')
+    expect(matchup.myTeam).toMatchObject({ name: 'Ice Box', owner: 'Maya', record: '2-0' })
+    expect(matchup.oppTeam).toMatchObject({ name: 'Hash Marks', owner: 'Owen', record: '1-1' })
+    expect(matchup.myPoints).toBe(98.4)
+    expect(matchup.oppPoints).toBe(91.2)
+    expect(matchup.winPctSource).toBe('estimated')
+    const chance = matchupChanceToWin(matchup)!
+    expect(Math.round(chance.mine * 100)).toBe(62)
   })
 
-  it('carries full benches on every board (6+ each side on the featured pair)', () => {
+  it('carries the spec §1.2 lineups with LAST / LAST NFL display and no fixture prefix', () => {
+    const matchup = replayMatchupFor(featured, 0)!
+    const rail = (rows: Player[]) => rows.map((row) => [row.position, overlayName(row.name).toUpperCase(), row.points])
+    expect(rail(matchup.starters)).toEqual([
+      ['QB', 'FIELDS', 18.4],
+      ['RB', 'GIBBS', 16.2],
+      ['RB', 'MONTGOMERY', 9.1],
+      ['WR', 'ST. BROWN', 14.6],
+      ['WR', 'HILL', 8.3],
+      ['TE', 'KELCE', 7.4],
+      ['FLEX', 'COLLINS', 11.8],
+      ['K', 'AUBREY', 6.0],
+      ['DEF', 'STEELERS', 6.6]
+    ])
+    expect(rail(matchup.oppStarters)).toEqual([
+      ['QB', 'ALLEN', 21.1],
+      ['RB', 'BARKLEY', 15.4],
+      ['RB', 'CONNER', 5.8],
+      ['WR', 'BROWN', 14.2],
+      ['WR', 'LONDON', 6.9],
+      ['TE', 'KITTLE', 4.2],
+      ['FLEX', 'WADDLE', 8.1],
+      ['K', 'BASS', 5.0],
+      ['DEF', 'RAVENS', 10.5]
+    ])
+    const tape = (rows: Player[]) => rows.map((row) => tapePlayerLabel(row).toUpperCase())
+    expect(tape(matchup.starters)).toContain('FIELDS PIT')
+    expect(tape(matchup.starters)).toContain('GIBBS DET')
+    expect(tape(matchup.oppStarters)).toContain('ALLEN BUF')
+    expect(matchup.bench.length).toBeGreaterThanOrEqual(5)
+    expect(matchup.oppBench.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('lists the six fake friend-group leagues at their spec §1.1 scores (Sleeper ×4, ESPN ×2)', () => {
+    expect(at(0).map(({ league, matchup }) => [league.name, matchup.myPoints, matchup.oppPoints])).toEqual(PINNED_LEAGUES)
+    expect(weekLeagues.filter((row) => row.provider === 'sleeper')).toHaveLength(4)
+    expect(weekLeagues.filter((row) => row.provider === 'espn')).toHaveLength(2)
+    expect(weekLeagues.every((row) => !/^\d+$/.test(row.id))).toBe(true)
+  })
+
+  it('keeps every chance-to-win contestable-to-lopsided but never a lock on the pinned frame', () => {
     for (const { league, matchup } of at(0)) {
-      const key = leagueKey(league.provider, league.id)
-      const min = REPLAY_FEATURED_KEYS.includes(key) ? 6 : 5
-      expect(matchup.bench.length).toBeGreaterThanOrEqual(min)
-      expect(matchup.oppBench.length).toBeGreaterThanOrEqual(min)
+      expect(matchup.winPctSource).toBe(league.provider === 'espn' ? 'official' : 'estimated')
+      const chance = matchupChanceToWin(matchup)!
+      expect(chance.mine).toBeGreaterThan(0.2)
+      expect(chance.mine).toBeLessThan(0.92)
+      expect(matchup.myProjectedPoints!).toBeGreaterThan(matchup.myPoints)
+      expect(matchup.oppProjectedPoints!).toBeGreaterThan(matchup.oppPoints)
+      expect(matchup.myTeam.record).not.toBe('0-0')
     }
   })
 
-  it('uses believable player names — never FNG slugs, placeholders, or raw ids', () => {
-    for (const { matchup } of at(0)) {
+  it('never shows FNG slugs, PlayerN placeholders, raw ids, or real Kevin leagues', () => {
+    const frame = at(0)
+    for (const { matchup } of frame) {
       for (const player of everyone(matchup)) {
         expect(player.name).not.toMatch(PLACEHOLDER_NAME)
         expect(player.name).not.toBe(player.playerId)
-        if (player.position === 'DEF') expect(player.name).toMatch(/ D\/ST$/)
-        else expect(player.name.split(' ').length).toBeGreaterThanOrEqual(2)
+        expect(overlayName(player.name)).not.toMatch(/fng|player\d/i)
       }
     }
-    expect(JSON.stringify(at(0))).not.toMatch(/fng/i)
-  })
-
-  it('rosters each NFL player once per league, with non-numeric ids scoped to the board', () => {
-    for (const { league, matchup } of at(0)) {
-      const names = everyone(matchup).map((row) => row.name)
-      expect(new Set(names).size).toBe(names.length)
-      const prefixes = new Set(everyone(matchup).map((player) => player.playerId.split('-')[0]))
-      expect(prefixes.size).toBe(1)
-      expect(everyone(matchup).every((player) => !/^\d+$/.test(player.playerId))).toBe(true)
-      expect(/^\d+$/.test(league.id)).toBe(false)
-    }
-  })
-
-  it('keeps fake league/team/owner names off live Kevin leagues', () => {
-    const blob = at(0)
-      .flatMap(({ league, matchup }) => [
-        league.id,
-        league.name,
-        matchup.myTeam.name,
-        matchup.myTeam.owner,
-        matchup.oppTeam?.name,
-        matchup.oppTeam?.owner
-      ])
-      .join(' | ')
+    const blob = JSON.stringify(
+      frame.map(({ league, matchup }) => [league.name, matchup.myTeam, matchup.oppTeam, everyone(matchup).map((row) => row.name)])
+    )
+    expect(blob).not.toMatch(/fng-|player1/i)
     expect(blob).not.toMatch(REAL_NAME)
     expect(JSON.stringify(replaySeedTape())).not.toMatch(REAL_NAME)
   })
 
-  it('opens mid-slate: totals 40–90, projections 90–145, and a sane chance-to-win on every board', () => {
-    for (const { league, matchup } of at(0)) {
-      for (const side of [
-        { live: matchup.myPoints, projected: matchup.myProjectedPoints! },
-        { live: matchup.oppPoints, projected: matchup.oppProjectedPoints! }
-      ]) {
-        expect(side.live).toBeGreaterThanOrEqual(40)
-        expect(side.live).toBeLessThanOrEqual(90)
-        expect(side.projected).toBeGreaterThanOrEqual(90)
-        expect(side.projected).toBeLessThanOrEqual(145)
-        expect(side.projected).toBeGreaterThan(side.live)
-      }
-      expect(matchup.winPctSource).toBe(league.provider === 'espn' ? 'official' : 'estimated')
-      const chance = matchupChanceToWin(matchup)
-      expect(chance).not.toBeNull()
-      expect(chance!.mine).toBeGreaterThan(0.1)
-      expect(chance!.mine).toBeLessThan(0.9)
-      expect(/^[0-2]-[0-2]$/.test(matchup.myTeam.record)).toBe(true)
-      expect(matchup.myTeam.record).not.toBe('0-0')
-    }
-    const featuredChance = matchupChanceToWin(replayMatchupFor(featured, 0)!)!
-    expect(featuredChance.mine).toBeGreaterThan(0.3)
-    expect(featuredChance.mine).toBeLessThan(0.7)
-  })
-
-  it('keeps yet-to-play players at 0 and finished players off the projection', () => {
-    for (const { matchup } of at(0)) {
-      for (const player of everyone(matchup)) {
-        if (replayGameStatus(player.nflTeam, 0) === 'pre') expect(player.points).toBe(0)
-      }
-      expect(matchup.starters.some((row) => replayGameStatus(row.nflTeam, 0) === 'pre')).toBe(true)
-      expect(matchup.starters.some((row) => (row.points ?? 0) > 0)).toBe(true)
-    }
-  })
-
-  it('shows one player at the same points on every board that rosters him', () => {
+  it('rosters each NFL player once per league and shows him at the same points everywhere', () => {
     const seen = new Map<string, number>()
-    for (const { matchup } of at(40)) {
+    for (const { matchup } of at(0)) {
+      const names = everyone(matchup).map((row) => row.name)
+      expect(new Set(names).size).toBe(names.length)
+      expect(new Set(everyone(matchup).map((row) => row.playerId.split('-')[0])).size).toBe(1)
       for (const player of everyone(matchup)) {
         const prev = seen.get(player.name)
         if (prev != null) expect(player.points).toBe(prev)
@@ -141,84 +140,84 @@ describe('replayWorld', () => {
     }
   })
 
-  it('ticks a featured starter up then an opponent down so the overlay can flash both tags', () => {
-    const script = replayScript()
-    expect(script.length).toBeGreaterThanOrEqual(20)
-    const base = replayMatchupFor(featured, 0)!
-    const up = replayMatchupFor(featured, 1)!
-    const bijan0 = base.starters.find((row) => row.name === 'Bijan Robinson')!
-    const bijan1 = up.starters.find((row) => row.name === 'Bijan Robinson')!
-    expect(bijan1.tickDelta).toBe(6.6)
-    expect(bijan1.lastPlay).toBe('RUSH TD')
-    expect((bijan1.points ?? 0) - (bijan0.points ?? 0)).toBeCloseTo(6.6)
-    expect(up.myPoints - base.myPoints).toBeCloseTo(6.6)
-
-    const down = replayMatchupFor(featured, 2)!
-    const chase = down.oppStarters.find((row) => row.name === "Ja'Marr Chase")!
-    expect(chase.tickDelta).toBe(-2)
-    expect(chase.lastPlay).toBe('FUM')
-    expect(down.oppPoints).toBeLessThan(base.oppPoints)
-    expect(down.starters.find((row) => row.name === 'Bijan Robinson')?.tickDelta).toBeUndefined()
-
-    const hurt = replayMatchupFor(featured, 5)!.oppStarters.find((row) => row.name === 'Drake London')!
-    expect(hurt.status).toBe('OUT')
-    expect(replayMatchupFor(featured, 5)!.oppProjectedPoints!).toBeLessThan(replayMatchupFor(featured, 4)!.oppProjectedPoints!)
+  it('keeps yet-to-play players at 0 and leaves several featured starters still grinding', () => {
+    for (const { matchup } of at(0)) {
+      for (const player of everyone(matchup)) {
+        if (replayGameStatus(player.nflTeam, 0) === 'pre') expect(player.points).toBe(0)
+      }
+    }
+    const featuredStarters = [...replayMatchupFor(featured, 0)!.starters, ...replayMatchupFor(featured, 0)!.oppStarters]
+    expect(featuredStarters.filter((row) => replayGameStatus(row.nflTeam, 0) === 'live').length).toBeGreaterThanOrEqual(8)
   })
 
-  it('stays bounded over a long demo session: no runaway totals, projections stay realistic', () => {
+  it('plays the spec §1.4 ticker strip first: live and final mixed', () => {
+    const strip = replayTickerGames(0).map((row) => `${row.away} ${row.awayScore} ${row.home} ${row.homeScore} ${row.clock}`)
+    expect(strip.slice(0, 5)).toEqual([
+      'DET 21 KC 20 3RD 8:14',
+      'DAL 28 NYG 14 FINAL',
+      'BUF 24 MIA 17 2ND 4:03',
+      'PHI 14 ATL 10 1ST 2:11',
+      'PIT 17 LAC 14 HALFTIME'
+    ])
+    const ticker = replayTickerGames(0)
+    expect(ticker.filter((row) => row.final)).toHaveLength(1)
+    expect(ticker.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('seeds the spec §1.3 THIS MATCHUP tape newest first, including one injury', () => {
+    const tape = replaySeedTape(1_000_000_000_000).filter((row) => row.leagueKey === FEATURED_LEAGUE_KEY)
+    expect(tape.map((row) => [row.player.toUpperCase(), row.detail, row.kind === 'injury' ? 'INJ' : row.delta])).toEqual([
+      ['GIBBS DET', 'TD', 6.2],
+      ['HILL MIA', 'FUM', -2],
+      ['ALLEN BUF', 'PASS TD', 4],
+      ['ST. BROWN DET', 'REC', 1.8],
+      ['DOWDLE DAL', 'LEFT GAME (ANKLE)', 'INJ'],
+      ['RAVENS BAL', 'INT', 2],
+      ['FIELDS PIT', 'RUSH', 1.4]
+    ])
+    const all = replaySeedTape(1_000_000_000_000)
+    expect(new Set(all.map((row) => row.leagueKey).filter(Boolean)).size).toBe(6)
+    expect(all.some((row) => row.kind === 'add' && /waiver/i.test(row.detail))).toBe(true)
+    expect(all.some((row) => row.kind === 'trade')).toBe(true)
+    expect(all.some((row) => row.kind === 'add' && row.leagueKey?.startsWith('espn:'))).toBe(false)
+    expect(new Set(all.map((row) => row.id)).size).toBe(all.length)
+    expect(all.every((row, index) => index === 0 || all[index - 1].at >= row.at)).toBe(true)
+    const labels = new Set(
+      replayRosteredPlayers().map((row) => tapePlayerLabel({ playerId: row.id, name: row.name, position: '', nflTeam: row.nflTeam }))
+    )
+    for (const row of all) {
+      if (row.kind === 'score' || row.kind === 'injury') expect(labels.has(row.player)).toBe(true)
+    }
+  })
+
+  it('ticks the featured board from the pinned frame, then stays bounded over a long session', () => {
+    expect(replayScript().length).toBeGreaterThanOrEqual(16)
+    const base = replayMatchupFor(featured, 0)!
+    const up = replayMatchupFor(featured, 1)!
+    expect(up.starters.find((row) => row.name === 'Jahmyr Gibbs')?.tickDelta).toBe(1.1)
+    expect(up.myPoints).toBeCloseTo(base.myPoints + 1.1)
     for (const tick of [100, 300, 600, 1200, 5000]) {
       for (const { matchup } of at(tick)) {
         for (const total of [matchup.myPoints, matchup.oppPoints, matchup.myProjectedPoints!, matchup.oppProjectedPoints!]) {
-          expect(total).toBeGreaterThan(40)
-          expect(total).toBeLessThan(165)
+          expect(total).toBeGreaterThan(35)
+          expect(total).toBeLessThan(170)
         }
         expect(matchup.myProjectedPoints!).toBeGreaterThanOrEqual(matchup.myPoints)
       }
     }
-    const late = replayMatchupFor(featured, 5000)!
-    expect(late.myPoints).toBe(replayMatchupFor(featured, 6000)!.myPoints)
+    expect(replayMatchupFor(featured, 5000)!.myPoints).toBe(replayMatchupFor(featured, 6000)!.myPoints)
   })
 
-  it('advances the slate: halftime resumes, the 1:00 window goes final, and 4:25 kicks off', () => {
-    expect(replayGameStatus('PHI', 0)).toBe('half')
-    expect(replayGameStatus('PHI', 60)).toBe('live')
-    expect(replayGameStatus('ATL', 0)).toBe('live')
-    expect(replayGameStatus('ATL', 400)).toBe('final')
-    expect(replayGameStatus('DET', 0)).toBe('pre')
-    expect(replayGameStatus('DET', 500)).toBe('live')
-    expect(replayGameStatus('BAL', 5000)).toBe('pre')
-    const opening = replayTickerGames(0)
-    expect(opening.some((game) => game.final)).toBe(true)
-    expect(opening.some((game) => !game.final)).toBe(true)
-    expect(opening.some((game) => game.home === 'DET' || game.away === 'DET')).toBe(false)
-    expect(replayTickerGames(500).some((game) => game.away === 'DET')).toBe(true)
-    const atl0 = opening.find((game) => game.away === 'ATL')!
-    const atl1 = replayTickerGames(1).find((game) => game.away === 'ATL')!
-    expect(atl1.awayScore - atl0.awayScore).toBe(7)
-  })
-
-  it('seeds a Sunday tape across all six boards with +pts, -pts, INJ, a Sleeper waiver, and a trade', () => {
-    const tape = replaySeedTape(1_000_000_000_000)
-    expect(tape.length).toBeGreaterThanOrEqual(16)
-    expect(tape.filter((row) => row.leagueKey === FEATURED_LEAGUE_KEY).length).toBeGreaterThanOrEqual(6)
-    expect(new Set(tape.map((row) => row.leagueKey).filter(Boolean)).size).toBe(6)
-    expect(tape.some((row) => row.kind === 'score' && (row.delta ?? 0) > 0)).toBe(true)
-    expect(tape.some((row) => row.kind === 'score' && (row.delta ?? 0) < 0)).toBe(true)
-    expect(tape.some((row) => row.kind === 'injury')).toBe(true)
-    expect(tape.some((row) => row.kind === 'add' && /waiver/i.test(row.detail))).toBe(true)
-    expect(tape.some((row) => row.kind === 'trade')).toBe(true)
-    expect(tape.some((row) => row.kind === 'add' && row.leagueKey?.startsWith('espn:'))).toBe(false)
-    expect(new Set(tape.map((row) => row.id)).size).toBe(tape.length)
-    expect(tape.every((row, index) => index === 0 || tape[index - 1].at >= row.at)).toBe(true)
-    expect(tape.every((row) => row.at <= 1_000_000_000_000)).toBe(true)
-    const labels = new Set(
-      replayRosteredPlayers().map((row) =>
-        tapePlayerLabel({ playerId: row.id, name: row.name, position: '', nflTeam: row.nflTeam })
-      )
-    )
-    for (const row of tape) {
-      if (row.kind === 'score' || row.kind === 'injury') expect(labels.has(row.player)).toBe(true)
-    }
+  it('advances the slate: halftime resumes, early games go final, and the late window kicks off', () => {
+    expect(replayGameStatus('PIT', 0)).toBe('half')
+    expect(replayGameStatus('PIT', 60)).toBe('live')
+    expect(replayGameStatus('DET', 0)).toBe('live')
+    expect(replayGameStatus('DET', 400)).toBe('final')
+    expect(replayGameStatus('TB', 0)).toBe('pre')
+    expect(replayGameStatus('TB', 400)).toBe('live')
+    expect(replayGameStatus('GB', 5000)).toBe('pre')
+    expect(replayTickerGames(0).some((row) => row.home === 'TB')).toBe(false)
+    expect(replayTickerGames(400).some((row) => row.home === 'TB')).toBe(true)
   })
 
   it('draws a lead sparkline that ends on the current lead', () => {
@@ -232,7 +231,7 @@ describe('replayWorld', () => {
   })
 
   it('replays waiver transactions for Sleeper only, not ESPN', () => {
-    const sleeper = weekLeagues.find((row) => row.id === 'fourth-and-long')!
+    const sleeper = weekLeagues.find((row) => row.id === 'fourth-drunken')!
     const espn = weekLeagues.find((row) => row.provider === 'espn')!
     expect(replayTransactionsFor(sleeper, 1)).toHaveLength(1)
     expect(replayTransactionsFor(sleeper, 1)[0]?.type).toBe('add')

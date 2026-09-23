@@ -10,10 +10,10 @@ const round1 = (value: number): number => Math.round(value * 10) / 10
 const round2 = (value: number): number => Math.round(value * 100) / 100
 
 /**
- * Demo Sunday: Week 3, ~2:45pm ET. Thursday night is final, the 1:00 window is
- * in the 3rd/4th quarter, and the 4:05/4:25, SNF, and MNF players have not kicked
- * off. Team totals open mid-game (roughly 45–90) and project to ~95–140. As ticks
- * pass, halftime ends, the early window goes final, and the late window kicks off.
+ * Replay "Sunday-real" slate (Designer spec, MARKETING_REPLAY_SPEC §1). Tick 0 is the
+ * pinned marketing frame: Friday Night Gridiron, Ice Box 98.4 vs Hash Marks 91.2,
+ * Est. win% ~62/38, several games in Q2–early Q3, one FINAL on the ticker. As ticks
+ * pass, halftime ends, early games go final, and the late window kicks off.
  */
 type GameStatus = 'final' | 'live' | 'half' | 'pre'
 
@@ -25,79 +25,70 @@ type SlateGame = {
   home: string
   awayScore: number
   homeScore: number
-  /** Share of regulation already played at tick 0 (0–1). Seeds each player's remaining projection. */
+  /** Share of regulation already played at tick 0 (0–1). Seeds default remaining projections. */
   progress: number
   phases: GamePhase[]
 }
 
-/** ~3s per replay tick: early window goes final ~15 minutes in, late window kicks off right after. */
-const EARLY_FINAL_STEP = 300
-const LATE_KICKOFF_STEP = 320
-
-const early = (clock: string): GamePhase[] => [
+const live = (clock: string, finalAt: number): GamePhase[] => [
   { from: 0, status: 'live', clock },
-  { from: EARLY_FINAL_STEP, status: 'final', clock: 'FINAL' }
+  { from: finalAt, status: 'final', clock: 'FINAL' }
 ]
+
+/** ~3s per replay tick: the late window kicks off about 16 minutes in. */
+const LATE_KICKOFF_STEP = 320
 
 const late = (kickoff: string, liveClock: string, offset = 0): GamePhase[] => [
   { from: 0, status: 'pre', clock: kickoff },
   { from: LATE_KICKOFF_STEP + offset, status: 'live', clock: liveClock }
 ]
 
+const game = (
+  id: string,
+  away: string,
+  awayScore: number,
+  home: string,
+  homeScore: number,
+  progress: number,
+  phases: GamePhase[]
+): SlateGame => ({ id, away, home, awayScore, homeScore, progress, phases })
+
+/** Ticker order leads with the spec §1.4 strip. */
 const SLATE: SlateGame[] = [
-  { id: 'mia-buf', away: 'MIA', home: 'BUF', awayScore: 20, homeScore: 27, progress: 1, phases: [{ from: 0, status: 'final', clock: 'FINAL' }] },
-  {
-    id: 'lv-was',
-    away: 'LV',
-    home: 'WAS',
-    awayScore: 16,
-    homeScore: 24,
-    progress: 0.78,
-    phases: [
-      { from: 0, status: 'live', clock: '13:02 - 4th' },
-      { from: 160, status: 'final', clock: 'FINAL' }
-    ]
-  },
-  { id: 'atl-car', away: 'ATL', home: 'CAR', awayScore: 20, homeScore: 10, progress: 0.72, phases: early('2:05 - 3rd') },
-  { id: 'ind-ten', away: 'IND', home: 'TEN', awayScore: 21, homeScore: 7, progress: 0.68, phases: early('4:22 - 3rd') },
-  { id: 'no-nyg', away: 'NO', home: 'NYG', awayScore: 10, homeScore: 7, progress: 0.65, phases: early('5:48 - 3rd') },
-  { id: 'pit-ne', away: 'PIT', home: 'NE', awayScore: 13, homeScore: 10, progress: 0.64, phases: early('6:40 - 3rd') },
-  { id: 'nyj-tb', away: 'NYJ', home: 'TB', awayScore: 3, homeScore: 10, progress: 0.63, phases: early('7:15 - 3rd') },
-  { id: 'gb-cle', away: 'GB', home: 'CLE', awayScore: 17, homeScore: 6, progress: 0.6, phases: early('8:51 - 3rd') },
-  { id: 'cin-min', away: 'CIN', home: 'MIN', awayScore: 17, homeScore: 14, progress: 0.58, phases: early('10:12 - 3rd') },
-  { id: 'hou-jax', away: 'HOU', home: 'JAX', awayScore: 10, homeScore: 13, progress: 0.54, phases: early('12:30 - 3rd') },
-  {
-    id: 'lar-phi',
-    away: 'LAR',
-    home: 'PHI',
-    awayScore: 14,
-    homeScore: 17,
-    progress: 0.5,
-    phases: [
-      { from: 0, status: 'half', clock: 'Halftime' },
-      { from: 30, status: 'live', clock: '14:10 - 3rd' },
-      { from: EARLY_FINAL_STEP + 60, status: 'final', clock: 'FINAL' }
-    ]
-  },
-  { id: 'den-lac', away: 'DEN', home: 'LAC', awayScore: 0, homeScore: 0, progress: 0, phases: late('4:05 PM', '11:52 - 1st') },
-  { id: 'dal-sf', away: 'DAL', home: 'SF', awayScore: 0, homeScore: 0, progress: 0, phases: late('4:25 PM', '13:40 - 1st', 40) },
-  { id: 'det-ari', away: 'DET', home: 'ARI', awayScore: 0, homeScore: 0, progress: 0, phases: late('4:25 PM', '13:05 - 1st', 40) },
-  { id: 'kc-bal', away: 'KC', home: 'BAL', awayScore: 0, homeScore: 0, progress: 0, phases: [{ from: 0, status: 'pre', clock: '8:20 PM' }] },
-  { id: 'chi-sea', away: 'CHI', home: 'SEA', awayScore: 0, homeScore: 0, progress: 0, phases: [{ from: 0, status: 'pre', clock: 'MON 8:15 PM' }] }
+  game('det-kc', 'DET', 21, 'KC', 20, 0.61, live('3RD 8:14', 300)),
+  game('dal-nyg', 'DAL', 28, 'NYG', 14, 1, [{ from: 0, status: 'final', clock: 'FINAL' }]),
+  game('buf-mia', 'BUF', 24, 'MIA', 17, 0.43, live('2ND 4:03', 450)),
+  game('phi-atl', 'PHI', 14, 'ATL', 10, 0.21, live('1ST 2:11', 600)),
+  game('pit-lac', 'PIT', 17, 'LAC', 14, 0.5, [
+    { from: 0, status: 'half', clock: 'HALFTIME' },
+    { from: 30, status: 'live', clock: '3RD 14:10' },
+    { from: 360, status: 'final', clock: 'FINAL' }
+  ]),
+  game('hou-ind', 'HOU', 10, 'IND', 13, 0.47, live('2ND 1:47', 450)),
+  game('sf-lar', 'SF', 7, 'LAR', 3, 0.35, live('2ND 9:30', 500)),
+  game('ari-sea', 'ARI', 13, 'SEA', 10, 0.55, live('3RD 12:05', 320)),
+  game('cin-bal', 'CIN', 3, 'BAL', 17, 0.39, live('2ND 6:30', 480)),
+  game('no-tb', 'NO', 0, 'TB', 0, 0, late('4:05 PM', '1ST 11:52')),
+  game('ne-nyj', 'NE', 0, 'NYJ', 0, 0, late('4:05 PM', '1ST 12:20')),
+  game('car-jax', 'CAR', 0, 'JAX', 0, 0, late('4:25 PM', '1ST 13:40', 40)),
+  game('den-lv', 'DEN', 0, 'LV', 0, 0, late('4:25 PM', '1ST 13:05', 40)),
+  game('min-cle', 'MIN', 0, 'CLE', 0, 0, late('4:25 PM', '1ST 12:48', 40)),
+  game('gb-chi', 'GB', 0, 'CHI', 0, 0, [{ from: 0, status: 'pre', clock: '8:20 PM' }]),
+  game('was-ten', 'WAS', 0, 'TEN', 0, 0, [{ from: 0, status: 'pre', clock: 'MON 8:15 PM' }])
 ]
 
-const phaseAt = (game: SlateGame, step: number): GamePhase => {
-  let current = game.phases[0]
-  for (const phase of game.phases) {
+const phaseAt = (slateGame: SlateGame, step: number): GamePhase => {
+  let current = slateGame.phases[0]
+  for (const phase of slateGame.phases) {
     if (phase.from <= step) current = phase
   }
   return current
 }
 
 const GAME_BY_TEAM = new Map<string, SlateGame>(
-  SLATE.flatMap((game) => [
-    [game.away, game],
-    [game.home, game]
+  SLATE.flatMap((row) => [
+    [row.away, row],
+    [row.home, row]
   ])
 )
 
@@ -105,10 +96,10 @@ type PoolPlayer = {
   name: string
   position: string
   nflTeam: string
-  /** Fantasy points at the demo kickoff (tick 0). */
+  /** Fantasy points on the pinned frame (tick 0). */
   points: number
-  /** Full-game projection. */
-  projected: number
+  /** Points still expected this week. Defaults from the position and game clock. */
+  remaining?: number
   status?: string
   note?: string
 }
@@ -119,173 +110,187 @@ const slug = (name: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
+const p = (name: string, position: string, nflTeam: string, points: number, remaining?: number): PoolPlayer => ({
+  name,
+  position,
+  nflTeam,
+  points,
+  ...(remaining != null ? { remaining } : {})
+})
+
+/**
+ * Display names are what the product prints: full name on the companion LineupRow,
+ * LAST on HUD rails, LAST NFL on the tape. D/ST rows use the nickname (STEELERS).
+ * Pool keys are internal only and never reach the UI.
+ */
 const POOL_ROWS: PoolPlayer[] = [
-  // Thursday night — final.
-  { name: 'Josh Allen', position: 'QB', nflTeam: 'BUF', points: 26.3, projected: 23 },
-  { name: 'James Cook', position: 'RB', nflTeam: 'BUF', points: 21.2, projected: 15 },
-  { name: 'Dalton Kincaid', position: 'TE', nflTeam: 'BUF', points: 11.7, projected: 9 },
-  { name: 'Khalil Shakir', position: 'WR', nflTeam: 'BUF', points: 9.4, projected: 10 },
-  { name: 'Keon Coleman', position: 'WR', nflTeam: 'BUF', points: 6.9, projected: 8 },
-  { name: 'Ray Davis', position: 'RB', nflTeam: 'BUF', points: 1.8, projected: 4 },
-  { name: 'Tyler Bass', position: 'K', nflTeam: 'BUF', points: 9, projected: 8 },
-  { name: 'Bills D/ST', position: 'DEF', nflTeam: 'BUF', points: 5, projected: 7 },
-  { name: "De'Von Achane", position: 'RB', nflTeam: 'MIA', points: 19.4, projected: 17 },
-  { name: 'Jaylen Waddle', position: 'WR', nflTeam: 'MIA', points: 12.6, projected: 12 },
-  { name: 'Jaylen Wright', position: 'RB', nflTeam: 'MIA', points: 1.4, projected: 4 },
-  // 1:00 window — in progress.
-  { name: 'Brock Bowers', position: 'TE', nflTeam: 'LV', points: 10.4, projected: 13 },
-  { name: 'Ashton Jeanty', position: 'RB', nflTeam: 'LV', points: 14.5, projected: 16 },
-  { name: 'Jakobi Meyers', position: 'WR', nflTeam: 'LV', points: 8.9, projected: 10 },
-  { name: 'Tre Tucker', position: 'WR', nflTeam: 'LV', points: 4.9, projected: 6 },
-  { name: 'Jayden Daniels', position: 'QB', nflTeam: 'WAS', points: 19.6, projected: 21 },
-  { name: 'Terry McLaurin', position: 'WR', nflTeam: 'WAS', points: 13.9, projected: 13 },
-  { name: 'Matt Gay', position: 'K', nflTeam: 'WAS', points: 8, projected: 8 },
-  { name: 'Commanders D/ST', position: 'DEF', nflTeam: 'WAS', points: 8, projected: 6 },
-  { name: 'Bijan Robinson', position: 'RB', nflTeam: 'ATL', points: 17.8, projected: 19 },
-  { name: 'Drake London', position: 'WR', nflTeam: 'ATL', points: 11.9, projected: 14 },
-  { name: 'Kyle Pitts', position: 'TE', nflTeam: 'ATL', points: 7.2, projected: 8 },
-  { name: 'Darnell Mooney', position: 'WR', nflTeam: 'ATL', points: 5.8, projected: 7 },
-  { name: 'Tyler Allgeier', position: 'RB', nflTeam: 'ATL', points: 2.9, projected: 6 },
-  { name: 'Falcons D/ST', position: 'DEF', nflTeam: 'ATL', points: 7, projected: 6 },
-  { name: 'Chuba Hubbard', position: 'RB', nflTeam: 'CAR', points: 9.9, projected: 13 },
-  { name: 'Tetairoa McMillan', position: 'WR', nflTeam: 'CAR', points: 9.4, projected: 13 },
-  { name: 'Rico Dowdle', position: 'RB', nflTeam: 'CAR', points: 2.4, projected: 7 },
-  { name: 'Bryce Young', position: 'QB', nflTeam: 'CAR', points: 12, projected: 14 },
-  { name: 'Jonathan Taylor', position: 'RB', nflTeam: 'IND', points: 15.2, projected: 16 },
-  { name: 'Michael Pittman Jr.', position: 'WR', nflTeam: 'IND', points: 12.4, projected: 11 },
-  { name: 'Tyler Warren', position: 'TE', nflTeam: 'IND', points: 8.2, projected: 10 },
-  { name: 'Josh Downs', position: 'WR', nflTeam: 'IND', points: 6.6, projected: 9 },
-  { name: 'Colts D/ST', position: 'DEF', nflTeam: 'IND', points: 8, projected: 6 },
-  { name: 'Calvin Ridley', position: 'WR', nflTeam: 'TEN', points: 5.9, projected: 9 },
-  { name: 'Tony Pollard', position: 'RB', nflTeam: 'TEN', points: 7.9, projected: 11 },
-  { name: 'Tyjae Spears', position: 'RB', nflTeam: 'TEN', points: 3.7, projected: 7 },
-  { name: 'Chris Olave', position: 'WR', nflTeam: 'NO', points: 10.7, projected: 13 },
-  { name: 'Alvin Kamara', position: 'RB', nflTeam: 'NO', points: 9.3, projected: 12 },
-  { name: 'Malik Nabers', position: 'WR', nflTeam: 'NYG', points: 9.8, projected: 15 },
-  { name: 'Cam Skattebo', position: 'RB', nflTeam: 'NYG', points: 8.6, projected: 11 },
-  { name: "Wan'Dale Robinson", position: 'WR', nflTeam: 'NYG', points: 7.1, projected: 9 },
-  { name: 'Tyrone Tracy Jr.', position: 'RB', nflTeam: 'NYG', points: 5.4, projected: 8 },
-  { name: 'Jaxson Dart', position: 'QB', nflTeam: 'NYG', points: 14.1, projected: 16 },
-  { name: 'DK Metcalf', position: 'WR', nflTeam: 'PIT', points: 3.4, projected: 12 },
-  { name: 'Jaylen Warren', position: 'RB', nflTeam: 'PIT', points: 5.1, projected: 10 },
-  { name: 'Jonnu Smith', position: 'TE', nflTeam: 'PIT', points: 3.4, projected: 6 },
-  { name: 'Kaleb Johnson', position: 'RB', nflTeam: 'PIT', points: 1.1, projected: 5 },
-  { name: 'Chris Boswell', position: 'K', nflTeam: 'PIT', points: 7, projected: 8 },
-  { name: 'Steelers D/ST', position: 'DEF', nflTeam: 'PIT', points: 5, projected: 6 },
-  { name: 'Drake Maye', position: 'QB', nflTeam: 'NE', points: 12.3, projected: 18 },
-  { name: 'TreVeyon Henderson', position: 'RB', nflTeam: 'NE', points: 9.8, projected: 12 },
-  {
-    name: 'Rhamondre Stevenson',
-    position: 'RB',
-    nflTeam: 'NE',
-    points: 4.2,
-    projected: 10,
-    status: 'OUT',
-    note: 'LEFT GAME (ANKLE)'
-  },
-  { name: 'Stefon Diggs', position: 'WR', nflTeam: 'NE', points: 7.4, projected: 10 },
-  { name: 'Hunter Henry', position: 'TE', nflTeam: 'NE', points: 3.9, projected: 7 },
-  { name: 'Patriots D/ST', position: 'DEF', nflTeam: 'NE', points: 6, projected: 6 },
-  { name: 'Garrett Wilson', position: 'WR', nflTeam: 'NYJ', points: 4.1, projected: 12 },
-  { name: 'Breece Hall', position: 'RB', nflTeam: 'NYJ', points: 6.9, projected: 13 },
-  { name: 'Justin Fields', position: 'QB', nflTeam: 'NYJ', points: 7.2, projected: 16 },
-  { name: 'Baker Mayfield', position: 'QB', nflTeam: 'TB', points: 11.8, projected: 18 },
-  { name: 'Bucky Irving', position: 'RB', nflTeam: 'TB', points: 11.2, projected: 14 },
-  { name: 'Mike Evans', position: 'WR', nflTeam: 'TB', points: 8.1, projected: 12 },
-  { name: 'Emeka Egbuka', position: 'WR', nflTeam: 'TB', points: 11.6, projected: 12 },
-  { name: 'Chris Godwin', position: 'WR', nflTeam: 'TB', points: 6.7, projected: 10 },
-  { name: 'Rachaad White', position: 'RB', nflTeam: 'TB', points: 3.3, projected: 8 },
-  { name: 'Jalen McMillan', position: 'WR', nflTeam: 'TB', points: 2.1, projected: 6 },
-  { name: 'Chase McLaughlin', position: 'K', nflTeam: 'TB', points: 5, projected: 8 },
-  { name: 'Buccaneers D/ST', position: 'DEF', nflTeam: 'TB', points: 7, projected: 6 },
-  { name: 'Josh Jacobs', position: 'RB', nflTeam: 'GB', points: 12.6, projected: 15 },
-  { name: 'Tucker Kraft', position: 'TE', nflTeam: 'GB', points: 5.4, projected: 9 },
-  { name: 'Jordan Love', position: 'QB', nflTeam: 'GB', points: 13.9, projected: 17 },
-  { name: 'Matthew Golden', position: 'WR', nflTeam: 'GB', points: 2.3, projected: 8 },
-  { name: 'Jayden Reed', position: 'WR', nflTeam: 'GB', points: 2.8, projected: 9 },
-  { name: 'Brandon McManus', position: 'K', nflTeam: 'GB', points: 7, projected: 8 },
-  { name: 'Packers D/ST', position: 'DEF', nflTeam: 'GB', points: 9, projected: 7 },
-  { name: 'Quinshon Judkins', position: 'RB', nflTeam: 'CLE', points: 6.4, projected: 12 },
-  { name: 'Jerry Jeudy', position: 'WR', nflTeam: 'CLE', points: 1.6, projected: 8 },
-  { name: 'David Njoku', position: 'TE', nflTeam: 'CLE', points: 1.9, projected: 7 },
-  { name: 'Jerome Ford', position: 'RB', nflTeam: 'CLE', points: 2.2, projected: 6 },
-  { name: 'Browns D/ST', position: 'DEF', nflTeam: 'CLE', points: 1, projected: 6 },
-  { name: 'Joe Burrow', position: 'QB', nflTeam: 'CIN', points: 13.1, projected: 19 },
-  { name: "Ja'Marr Chase", position: 'WR', nflTeam: 'CIN', points: 14.6, projected: 18 },
-  { name: 'Tee Higgins', position: 'WR', nflTeam: 'CIN', points: 12.8, projected: 13 },
-  { name: 'Chase Brown', position: 'RB', nflTeam: 'CIN', points: 10.1, projected: 14 },
-  { name: 'Justin Jefferson', position: 'WR', nflTeam: 'MIN', points: 11.3, projected: 16 },
-  { name: 'Jordan Addison', position: 'WR', nflTeam: 'MIN', points: 4.7, projected: 11 },
-  { name: 'T.J. Hockenson', position: 'TE', nflTeam: 'MIN', points: 7.3, projected: 9 },
-  { name: 'Jordan Mason', position: 'RB', nflTeam: 'MIN', points: 5.5, projected: 9 },
-  { name: 'Vikings D/ST', position: 'DEF', nflTeam: 'MIN', points: 3, projected: 6 },
-  { name: 'C.J. Stroud', position: 'QB', nflTeam: 'HOU', points: 8.7, projected: 17 },
-  { name: 'Nico Collins', position: 'WR', nflTeam: 'HOU', points: 6.8, projected: 14 },
-  { name: "Ka'imi Fairbairn", position: 'K', nflTeam: 'HOU', points: 3, projected: 8 },
-  { name: 'Brian Thomas Jr.', position: 'WR', nflTeam: 'JAX', points: 10.5, projected: 14 },
-  { name: 'Travis Hunter', position: 'WR', nflTeam: 'JAX', points: 5.3, projected: 10 },
-  { name: 'Travis Etienne Jr.', position: 'RB', nflTeam: 'JAX', points: 4.8, projected: 10 },
-  { name: 'Trevor Lawrence', position: 'QB', nflTeam: 'JAX', points: 9.4, projected: 16 },
-  { name: 'Brenton Strange', position: 'TE', nflTeam: 'JAX', points: 3.1, projected: 6 },
-  // LAR @ PHI — halftime.
-  { name: 'Matthew Stafford', position: 'QB', nflTeam: 'LAR', points: 9.9, projected: 17 },
-  { name: 'Puka Nacua', position: 'WR', nflTeam: 'LAR', points: 9.6, projected: 17 },
-  { name: 'Davante Adams', position: 'WR', nflTeam: 'LAR', points: 11.4, projected: 13 },
-  { name: 'Kyren Williams', position: 'RB', nflTeam: 'LAR', points: 9.1, projected: 15 },
-  { name: 'Blake Corum', position: 'RB', nflTeam: 'LAR', points: 1.2, projected: 4 },
-  { name: 'Jalen Hurts', position: 'QB', nflTeam: 'PHI', points: 12.4, projected: 20 },
-  { name: 'Saquon Barkley', position: 'RB', nflTeam: 'PHI', points: 8.3, projected: 17 },
-  { name: 'A.J. Brown', position: 'WR', nflTeam: 'PHI', points: 7.8, projected: 14 },
-  { name: 'DeVonta Smith', position: 'WR', nflTeam: 'PHI', points: 3.9, projected: 12 },
-  { name: 'Dallas Goedert', position: 'TE', nflTeam: 'PHI', points: 5.1, projected: 8 },
-  { name: 'Tank Bigsby', position: 'RB', nflTeam: 'PHI', points: 1.9, projected: 5 },
-  { name: 'Jake Elliott', position: 'K', nflTeam: 'PHI', points: 4, projected: 8 },
-  { name: 'Eagles D/ST', position: 'DEF', nflTeam: 'PHI', points: 4, projected: 7 },
-  // Late window, SNF, MNF — yet to play.
-  { name: 'Bo Nix', position: 'QB', nflTeam: 'DEN', points: 0, projected: 17 },
-  { name: 'Courtland Sutton', position: 'WR', nflTeam: 'DEN', points: 0, projected: 12 },
-  { name: 'Troy Franklin', position: 'WR', nflTeam: 'DEN', points: 0, projected: 7 },
-  { name: 'Evan Engram', position: 'TE', nflTeam: 'DEN', points: 0, projected: 7 },
-  { name: 'Wil Lutz', position: 'K', nflTeam: 'DEN', points: 0, projected: 7 },
-  { name: 'Justin Herbert', position: 'QB', nflTeam: 'LAC', points: 0, projected: 18 },
-  { name: 'Ladd McConkey', position: 'WR', nflTeam: 'LAC', points: 0, projected: 13 },
-  { name: 'Omarion Hampton', position: 'RB', nflTeam: 'LAC', points: 0, projected: 13 },
-  { name: 'Cameron Dicker', position: 'K', nflTeam: 'LAC', points: 0, projected: 8 },
-  { name: 'CeeDee Lamb', position: 'WR', nflTeam: 'DAL', points: 0, projected: 16 },
-  { name: 'George Pickens', position: 'WR', nflTeam: 'DAL', points: 0, projected: 13 },
-  { name: 'Jake Ferguson', position: 'TE', nflTeam: 'DAL', points: 0, projected: 9 },
-  { name: 'Javonte Williams', position: 'RB', nflTeam: 'DAL', points: 0, projected: 12 },
-  { name: 'Brandon Aubrey', position: 'K', nflTeam: 'DAL', points: 0, projected: 8 },
-  { name: 'Christian McCaffrey', position: 'RB', nflTeam: 'SF', points: 0, projected: 18 },
-  { name: 'George Kittle', position: 'TE', nflTeam: 'SF', points: 0, projected: 10 },
-  { name: 'Jauan Jennings', position: 'WR', nflTeam: 'SF', points: 0, projected: 9 },
-  { name: 'Jahmyr Gibbs', position: 'RB', nflTeam: 'DET', points: 0, projected: 17 },
-  { name: 'Amon-Ra St. Brown', position: 'WR', nflTeam: 'DET', points: 0, projected: 15.5 },
-  { name: 'Sam LaPorta', position: 'TE', nflTeam: 'DET', points: 0, projected: 10 },
-  { name: 'Jake Bates', position: 'K', nflTeam: 'DET', points: 0, projected: 8 },
-  { name: 'Jared Goff', position: 'QB', nflTeam: 'DET', points: 0, projected: 17 },
-  { name: 'Trey McBride', position: 'TE', nflTeam: 'ARI', points: 0, projected: 10.5 },
-  { name: 'Marvin Harrison Jr.', position: 'WR', nflTeam: 'ARI', points: 0, projected: 12 },
-  { name: 'James Conner', position: 'RB', nflTeam: 'ARI', points: 0, projected: 12 },
-  { name: 'Patrick Mahomes', position: 'QB', nflTeam: 'KC', points: 0, projected: 20 },
-  { name: 'Rashee Rice', position: 'WR', nflTeam: 'KC', points: 0, projected: 14 },
-  { name: 'Xavier Worthy', position: 'WR', nflTeam: 'KC', points: 0, projected: 11 },
-  { name: 'Isiah Pacheco', position: 'RB', nflTeam: 'KC', points: 0, projected: 9 },
-  { name: 'Hollywood Brown', position: 'WR', nflTeam: 'KC', points: 0, projected: 8 },
-  { name: 'Lamar Jackson', position: 'QB', nflTeam: 'BAL', points: 0, projected: 20 },
-  { name: 'Derrick Henry', position: 'RB', nflTeam: 'BAL', points: 0, projected: 16 },
-  { name: 'Zay Flowers', position: 'WR', nflTeam: 'BAL', points: 0, projected: 12 },
-  { name: 'Mark Andrews', position: 'TE', nflTeam: 'BAL', points: 0, projected: 9 },
-  { name: 'Isaiah Likely', position: 'TE', nflTeam: 'BAL', points: 0, projected: 6 },
-  { name: 'Caleb Williams', position: 'QB', nflTeam: 'CHI', points: 0, projected: 17 },
-  { name: 'Rome Odunze', position: 'WR', nflTeam: 'CHI', points: 0, projected: 11 },
-  { name: "D'Andre Swift", position: 'RB', nflTeam: 'CHI', points: 0, projected: 11 },
-  { name: 'Colston Loveland', position: 'TE', nflTeam: 'CHI', points: 0, projected: 8 },
-  { name: 'Jaxon Smith-Njigba', position: 'WR', nflTeam: 'SEA', points: 0, projected: 13 },
-  { name: 'Kenneth Walker III', position: 'RB', nflTeam: 'SEA', points: 0, projected: 13 },
-  { name: 'Cooper Kupp', position: 'WR', nflTeam: 'SEA', points: 0, projected: 7 },
-  { name: 'Rashid Shaheed', position: 'WR', nflTeam: 'SEA', points: 0, projected: 8 },
-  { name: 'Jason Myers', position: 'K', nflTeam: 'SEA', points: 0, projected: 8 }
+  // Friday Night Gridiron — Ice Box (Maya). Starters sum 98.4, 30.0 still to come.
+  p('Justin Fields', 'QB', 'PIT', 18.4, 7),
+  p('Jahmyr Gibbs', 'RB', 'DET', 16.2, 4),
+  p('David Montgomery', 'RB', 'DET', 9.1, 3),
+  p('Amon-Ra St. Brown', 'WR', 'DET', 14.6, 4),
+  p('Tyreek Hill', 'WR', 'MIA', 8.3, 3.5),
+  p('Travis Kelce', 'TE', 'KC', 7.4, 3),
+  p('Nico Collins', 'WR', 'HOU', 11.8, 4),
+  p('Brandon Aubrey', 'K', 'DAL', 6),
+  p('Steelers', 'DEF', 'PIT', 6.6, 1.5),
+  { ...p('Rico Dowdle', 'RB', 'DAL', 3.1), status: 'OUT', note: 'LEFT GAME (ANKLE)' },
+  p('Najee Harris', 'RB', 'PIT', 4.6),
+  p('Jerry Jeudy', 'WR', 'CLE', 0),
+  p('Keon Coleman', 'WR', 'BUF', 3.7),
+  p('Tyjae Spears', 'RB', 'TEN', 0),
+  p('Drake Maye', 'QB', 'NE', 0),
+  // Friday Night Gridiron — Hash Marks (Owen). Starters sum 91.2, 31.9 still to come.
+  p('Josh Allen', 'QB', 'BUF', 21.1, 7),
+  p('Saquon Barkley', 'RB', 'PHI', 15.4, 4.5),
+  p('James Conner', 'RB', 'ARI', 5.8, 3),
+  p('A.J. Brown', 'WR', 'PHI', 14.2, 4),
+  p('Drake London', 'WR', 'ATL', 6.9, 3.5),
+  p('George Kittle', 'TE', 'SF', 4.2, 3),
+  p('Jaylen Waddle', 'WR', 'MIA', 8.1, 2.5),
+  p('Tyler Bass', 'K', 'BUF', 5, 2.9),
+  p('Ravens', 'DEF', 'BAL', 10.5, 1.5),
+  p('Brian Robinson Jr.', 'RB', 'WAS', 0),
+  p('Jordan Addison', 'WR', 'MIN', 0),
+  p('Tank Bigsby', 'RB', 'JAX', 0),
+  p('Pat Freiermuth', 'TE', 'PIT', 2.4),
+  p('Justin Herbert', 'QB', 'LAC', 11.9),
+  p('Romeo Doubs', 'WR', 'GB', 0),
+  // Fourth & Drunken — Last Call 84.1 vs Sober Sundays 102.6.
+  p('C.J. Stroud', 'QB', 'HOU', 12.3),
+  p('Christian McCaffrey', 'RB', 'SF', 14.1),
+  p('Jonathan Taylor', 'RB', 'IND', 13),
+  p("Ja'Marr Chase", 'WR', 'CIN', 9.4),
+  p('Puka Nacua', 'WR', 'LAR', 12.2),
+  p('Trey McBride', 'TE', 'ARI', 6.8),
+  p('Jaxon Smith-Njigba', 'WR', 'SEA', 9.1),
+  p('Cameron Dicker', 'K', 'LAC', 5),
+  p('Chiefs', 'DEF', 'KC', 2.2),
+  p('Tony Pollard', 'RB', 'TEN', 0),
+  p('Chris Godwin', 'WR', 'TB', 0),
+  p('Dallas Goedert', 'TE', 'PHI', 3.3),
+  p('Baker Mayfield', 'QB', 'TB', 0),
+  p('Lamar Jackson', 'QB', 'BAL', 22.6),
+  p('Bijan Robinson', 'RB', 'ATL', 9.8),
+  p('Kyren Williams', 'RB', 'LAR', 11.4),
+  p('Justin Jefferson', 'WR', 'MIN', 0),
+  p('CeeDee Lamb', 'WR', 'DAL', 24.3),
+  p('Mark Andrews', 'TE', 'BAL', 8.1),
+  p('Malik Nabers', 'WR', 'NYG', 17.2),
+  p('Harrison Butker', 'K', 'KC', 6),
+  p('Chargers', 'DEF', 'LAC', 3.2),
+  p('Travis Etienne Jr.', 'RB', 'JAX', 0),
+  p('DeAndre Hopkins', 'WR', 'BAL', 2.9),
+  p('Kyle Pitts', 'TE', 'ATL', 1.8),
+  p('Caleb Williams', 'QB', 'CHI', 0),
+  // Sunday Lights — Night Shift 71.0 vs Gridiron Ghosts 68.4.
+  p('Jalen Hurts', 'QB', 'PHI', 11.6),
+  p("De'Von Achane", 'RB', 'MIA', 10.2),
+  p('Breece Hall', 'RB', 'NYJ', 0),
+  p('Tee Higgins', 'WR', 'CIN', 7.3),
+  p('Zay Flowers', 'WR', 'BAL', 9.9),
+  p('Sam LaPorta', 'TE', 'DET', 6.4),
+  p('James Cook', 'RB', 'BUF', 12.1),
+  p('Jake Bates', 'K', 'DET', 7),
+  p('Texans', 'DEF', 'HOU', 6.5),
+  p('Chuba Hubbard', 'RB', 'CAR', 0),
+  p('Terry McLaurin', 'WR', 'WAS', 0),
+  p('Cooper Kupp', 'WR', 'SEA', 4.4),
+  p('Bryce Young', 'QB', 'CAR', 0),
+  p('Joe Burrow', 'QB', 'CIN', 9.8),
+  p('Kenneth Walker III', 'RB', 'SEA', 8.7),
+  p('Garrett Wilson', 'WR', 'NYJ', 0),
+  p('DK Metcalf', 'WR', 'PIT', 7.4),
+  p('Dalton Kincaid', 'TE', 'BUF', 5.5),
+  p('Rashee Rice', 'WR', 'KC', 9.3),
+  p('Chris Boswell', 'K', 'PIT', 4),
+  p('49ers', 'DEF', 'SF', 7.5),
+  p('Rhamondre Stevenson', 'RB', 'NE', 0),
+  p('Jayden Reed', 'WR', 'GB', 0),
+  p('Calvin Ridley', 'WR', 'TEN', 0),
+  p('Darnell Mooney', 'WR', 'ATL', 1.4),
+  // Waiver Wire Warriors — Priority Wire 55.2 vs Claim Jumpers 49.8.
+  p('Jordan Love', 'QB', 'GB', 0),
+  p('Josh Jacobs', 'RB', 'GB', 0),
+  p('Joe Mixon', 'RB', 'HOU', 8.8),
+  p('Davante Adams', 'WR', 'LAR', 10.3),
+  p('Jameson Williams', 'WR', 'DET', 11.2),
+  p('Jake Ferguson', 'TE', 'DAL', 9.4),
+  p('Jaylen Warren', 'RB', 'PIT', 5.9),
+  p('Jason Myers', 'K', 'SEA', 6),
+  p('Seahawks', 'DEF', 'SEA', 3.6),
+  p('Courtland Sutton', 'WR', 'DEN', 0),
+  p("D'Andre Swift", 'RB', 'CHI', 0),
+  p('Brock Purdy', 'QB', 'SF', 8.1),
+  p('Jerome Ford', 'RB', 'CLE', 0),
+  p('Kyler Murray', 'QB', 'ARI', 13.2),
+  p('Isiah Pacheco', 'RB', 'KC', 6.1),
+  p('Jonathon Brooks', 'RB', 'CAR', 0),
+  p('Ladd McConkey', 'WR', 'LAC', 8.8),
+  p('Khalil Shakir', 'WR', 'BUF', 5.2),
+  p('David Njoku', 'TE', 'CLE', 0),
+  p('Jauan Jennings', 'WR', 'SF', 4.7),
+  p('Tyler Loop', 'K', 'BAL', 8),
+  p('Dolphins', 'DEF', 'MIA', 3.8),
+  p('Rachaad White', 'RB', 'TB', 0),
+  p('Elijah Moore', 'WR', 'CLE', 0),
+  p('Tucker Kraft', 'TE', 'GB', 0),
+  p('Sam Darnold', 'QB', 'SEA', 7.6),
+  // Gridiron Gurus (ESPN) — Fourth & Fearless 112.3 vs End Zone Errands 88.0. The late stack is mostly spent.
+  p('Patrick Mahomes', 'QB', 'KC', 21.4, 3),
+  p('Derrick Henry', 'RB', 'BAL', 19.6, 3),
+  p('Tyrone Tracy Jr.', 'RB', 'NYG', 13.4),
+  p('George Pickens', 'WR', 'PIT', 14.8, 3),
+  p('DeVonta Smith', 'WR', 'PHI', 9.3, 5),
+  p('Brock Bowers', 'TE', 'LV', 0),
+  p('Marvin Harrison Jr.', 'WR', 'ARI', 16.1, 3),
+  p("Ka'imi Fairbairn", 'K', 'HOU', 9.7, 2),
+  p('Lions', 'DEF', 'DET', 8, 1),
+  p('Bucky Irving', 'RB', 'TB', 0),
+  p('Mike Evans', 'WR', 'TB', 0),
+  p('Rome Odunze', 'WR', 'CHI', 0),
+  p('Travis Hunter', 'WR', 'JAX', 0),
+  p('Geno Smith', 'QB', 'LV', 0),
+  p('Dak Prescott', 'QB', 'DAL', 18.8),
+  p('Javonte Williams', 'RB', 'DAL', 15.2),
+  p('Chase Brown', 'RB', 'CIN', 10.4),
+  p('Josh Downs', 'WR', 'IND', 8.4),
+  p("Wan'Dale Robinson", 'WR', 'NYG', 11.6),
+  p('Tyler Warren', 'TE', 'IND', 7.7),
+  p('Quentin Johnston', 'WR', 'LAC', 9.9),
+  p('Jake Elliott', 'K', 'PHI', 5),
+  p('Giants', 'DEF', 'NYG', 1),
+  p('Brian Thomas Jr.', 'WR', 'JAX', 0),
+  p('Jordan Mason', 'RB', 'MIN', 0),
+  p('Stefon Diggs', 'WR', 'NE', 0),
+  p('Jalen Tolbert', 'WR', 'DAL', 3.9),
+  // Basement Bowl (ESPN) — River City 40.1 vs First Down Club 61.7.
+  p('Matthew Stafford', 'QB', 'LAR', 14.3),
+  p('Alvin Kamara', 'RB', 'NO', 0),
+  p('Kaleb Johnson', 'RB', 'PIT', 3.2),
+  p('Chris Olave', 'WR', 'NO', 0),
+  p('Keenan Allen', 'WR', 'LAC', 6.8),
+  p('Hunter Henry', 'TE', 'NE', 0),
+  p('Xavier Worthy', 'WR', 'KC', 12.4),
+  p('Younghoe Koo', 'K', 'ATL', 3.4),
+  p('Patriots', 'DEF', 'NE', 0),
+  p('Aaron Jones', 'RB', 'MIN', 0),
+  p('Jakobi Meyers', 'WR', 'LV', 0),
+  p('Christian Watson', 'WR', 'GB', 0),
+  p('Jaylen Wright', 'RB', 'MIA', 2.2),
+  p('Jared Goff', 'QB', 'DET', 15.6),
+  p('Kenneth Gainwell', 'RB', 'PIT', 4.4),
+  p('Zach Charbonnet', 'RB', 'SEA', 7.1),
+  p('Christian Kirk', 'WR', 'HOU', 8.5),
+  p('Ricky Pearsall', 'WR', 'SF', 5.9),
+  p('Evan Engram', 'TE', 'DEN', 0),
+  p('Hollywood Brown', 'WR', 'KC', 7.2),
+  p('Chad Ryland', 'K', 'ARI', 7),
+  p('Eagles', 'DEF', 'PHI', 6),
+  p('Tetairoa McMillan', 'WR', 'CAR', 0),
+  p('Emeka Egbuka', 'WR', 'TB', 0),
+  p('Colston Loveland', 'TE', 'CHI', 0),
+  p('Bo Nix', 'QB', 'DEN', 0)
 ]
 
 const POOL = new Map<string, PoolPlayer>(POOL_ROWS.map((row) => [slug(row.name), row]))
@@ -320,127 +325,115 @@ const roster = (team: Team, starters: string[], bench: string[]): Roster => ({
   bench: ids(...bench)
 })
 
+const league = (
+  row: Omit<WorldLeague, 'season' | 'week' | 'featured'> & { featured?: boolean }
+): WorldLeague => ({ season: REPLAY_SEASON, week: REPLAY_WEEK, featured: false, ...row })
+
+/** MY LEAGUES order from spec §1.1: four Sleeper, then two ESPN. */
 const WORLD_LEAGUES: WorldLeague[] = [
-  {
-    id: 'cul-de-sac',
-    short: 'cds',
-    name: 'Cul-de-Sac League',
+  league({
+    id: 'friday-night-gridiron',
+    short: 'fri',
+    name: 'Friday Night Gridiron',
     provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
     size: 12,
     featured: true,
     my: roster(
-      { id: 'cds-ice-box', name: 'Ice Box', owner: 'Maya', record: '2-0' },
-      ['Jalen Hurts', 'Bijan Robinson', 'Jonathan Taylor', 'Puka Nacua', 'Amon-Ra St. Brown', 'Trey McBride', 'Garrett Wilson', 'Brandon Aubrey', 'Colts D/ST'],
-      ['Chase Brown', 'Jordan Addison', 'Tucker Kraft', 'Rhamondre Stevenson', 'Baker Mayfield', 'Matthew Golden']
+      { id: 'fri-ice-box', name: 'Ice Box', owner: 'Maya', record: '2-0' },
+      ['Justin Fields', 'Jahmyr Gibbs', 'David Montgomery', 'Amon-Ra St. Brown', 'Tyreek Hill', 'Travis Kelce', 'Nico Collins', 'Brandon Aubrey', 'Steelers'],
+      ['Rico Dowdle', 'Najee Harris', 'Jerry Jeudy', 'Keon Coleman', 'Tyjae Spears', 'Drake Maye']
     ),
     opp: roster(
-      { id: 'cds-hash-marks', name: 'Hash Marks', owner: 'Owen', record: '1-1' },
-      ['Josh Allen', 'Saquon Barkley', 'Kyren Williams', "Ja'Marr Chase", 'Drake London', 'George Kittle', 'Jaxon Smith-Njigba', 'Jake Elliott', 'Packers D/ST'],
-      ['Breece Hall', 'Mike Evans', 'Jaylen Warren', 'Evan Engram', 'Jordan Love', 'Rome Odunze']
+      { id: 'fri-hash-marks', name: 'Hash Marks', owner: 'Owen', record: '1-1' },
+      ['Josh Allen', 'Saquon Barkley', 'James Conner', 'A.J. Brown', 'Drake London', 'George Kittle', 'Jaylen Waddle', 'Tyler Bass', 'Ravens'],
+      ['Brian Robinson Jr.', 'Jordan Addison', 'Tank Bigsby', 'Pat Freiermuth', 'Justin Herbert', 'Romeo Doubs']
     )
-  },
-  {
-    id: 'break-room',
-    short: 'brl',
-    name: 'Break Room League',
-    provider: 'espn',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 10,
-    featured: true,
-    my: roster(
-      { id: 'brl-two-minute-drill', name: 'Two-Minute Drill', owner: 'Dana', record: '1-1' },
-      ['Lamar Jackson', 'James Conner', 'Josh Jacobs', 'Justin Jefferson', 'Nico Collins', 'Brock Bowers', 'Terry McLaurin', 'Chris Boswell', 'Buccaneers D/ST'],
-      ["De'Von Achane", 'Jaylen Waddle', 'Jake Ferguson', 'Xavier Worthy', 'Travis Etienne Jr.', 'Bo Nix', 'Keon Coleman']
-    ),
-    opp: roster(
-      { id: 'brl-monday-morning-qbs', name: 'Monday Morning QBs', owner: 'Theo', record: '2-0' },
-      ['Jayden Daniels', 'Jahmyr Gibbs', 'James Cook', 'CeeDee Lamb', 'Malik Nabers', 'Sam LaPorta', 'DK Metcalf', 'Jake Bates', 'Eagles D/ST'],
-      ['Chuba Hubbard', 'Travis Hunter', 'Zay Flowers', 'Kenneth Walker III', 'Tyler Warren', 'Justin Herbert', 'Jordan Mason']
-    )
-  },
-  {
-    id: 'fourth-and-long',
-    short: 'fal',
-    name: 'Fourth & Long',
+  }),
+  league({
+    id: 'fourth-drunken',
+    short: 'fdr',
+    name: 'Fourth & Drunken',
     provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
     size: 10,
-    featured: false,
     my: roster(
-      { id: 'fal-last-call', name: 'Last Call', owner: 'Riley', record: '0-2' },
-      ['C.J. Stroud', 'Christian McCaffrey', 'Breece Hall', 'Tee Higgins', 'DeVonta Smith', 'Mark Andrews', 'Chris Olave', "Ka'imi Fairbairn", 'Browns D/ST'],
-      ['Khalil Shakir', 'Alvin Kamara', 'Jerry Jeudy', 'Isiah Pacheco', 'Dallas Goedert', 'Calvin Ridley']
+      { id: 'fdr-last-call', name: 'Last Call', owner: 'Riley', record: '0-2' },
+      ['C.J. Stroud', 'Christian McCaffrey', 'Jonathan Taylor', "Ja'Marr Chase", 'Puka Nacua', 'Trey McBride', 'Jaxon Smith-Njigba', 'Cameron Dicker', 'Chiefs'],
+      ['Tony Pollard', 'Chris Godwin', 'Dallas Goedert', 'Baker Mayfield']
     ),
     opp: roster(
-      { id: 'fal-sunday-scaries', name: 'Sunday Scaries', owner: 'Pat', record: '2-0' },
-      ['Patrick Mahomes', 'Derrick Henry', 'Bucky Irving', 'A.J. Brown', 'Brian Thomas Jr.', 'Dalton Kincaid', 'Ladd McConkey', 'Cameron Dicker', 'Bills D/ST'],
-      ['Stefon Diggs', 'Tyrone Tracy Jr.', 'Kyle Pitts', 'Justin Fields', 'Hollywood Brown']
+      { id: 'fdr-sober-sundays', name: 'Sober Sundays', owner: 'Pat', record: '2-0' },
+      ['Lamar Jackson', 'Bijan Robinson', 'Kyren Williams', 'Justin Jefferson', 'CeeDee Lamb', 'Mark Andrews', 'Malik Nabers', 'Harrison Butker', 'Chargers'],
+      ['Travis Etienne Jr.', 'DeAndre Hopkins', 'Kyle Pitts', 'Caleb Williams']
     )
-  },
-  {
+  }),
+  league({
     id: 'sunday-lights',
     short: 'sul',
     name: 'Sunday Lights',
     provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
     size: 12,
-    featured: false,
     my: roster(
       { id: 'sul-night-shift', name: 'Night Shift', owner: 'Chris', record: '1-1' },
-      ['Drake Maye', 'Ashton Jeanty', 'Omarion Hampton', 'Marvin Harrison Jr.', 'Tetairoa McMillan', 'Tyler Warren', 'Emeka Egbuka', 'Brandon McManus', 'Steelers D/ST'],
-      ['Jordan Mason', "Wan'Dale Robinson", 'Travis Etienne Jr.', 'Jauan Jennings', 'Hunter Henry', 'Caleb Williams']
+      ['Jalen Hurts', "De'Von Achane", 'Breece Hall', 'Tee Higgins', 'Zay Flowers', 'Sam LaPorta', 'James Cook', 'Jake Bates', 'Texans'],
+      ['Chuba Hubbard', 'Terry McLaurin', 'Cooper Kupp', 'Bryce Young']
     ),
     opp: roster(
       { id: 'sul-gridiron-ghosts', name: 'Gridiron Ghosts', owner: 'Jordan', record: '1-1' },
-      ['Joe Burrow', 'TreVeyon Henderson', 'Kenneth Walker III', 'Jakobi Meyers', 'Rashee Rice', 'Colston Loveland', 'Michael Pittman Jr.', 'Wil Lutz', 'Commanders D/ST'],
-      ['Rachaad White', 'Jayden Reed', 'Cam Skattebo', 'Jared Goff', 'David Njoku']
+      ['Joe Burrow', 'Kenneth Walker III', 'Jahmyr Gibbs', 'Garrett Wilson', 'DK Metcalf', 'Dalton Kincaid', 'Rashee Rice', 'Chris Boswell', '49ers'],
+      ['Rhamondre Stevenson', 'Jayden Reed', 'Calvin Ridley', 'Darnell Mooney']
     )
-  },
-  {
-    id: 'basement-bowl',
-    short: 'bbl',
-    name: 'Basement Bowl',
-    provider: 'espn',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
-    size: 12,
-    featured: false,
-    my: roster(
-      { id: 'bbl-river-city', name: 'River City', owner: 'Sam', record: '1-1' },
-      ['Baker Mayfield', 'Chuba Hubbard', 'Quinshon Judkins', 'Chris Godwin', 'Zay Flowers', 'Dallas Goedert', 'George Pickens', 'Tyler Bass', 'Patriots D/ST'],
-      ['Rico Dowdle', 'Tyjae Spears', 'Justin Fields', 'Josh Downs', 'Evan Engram', 'Troy Franklin', 'Isaiah Likely']
-    ),
-    opp: roster(
-      { id: 'bbl-first-down-club', name: 'First Down Club', owner: 'Nia', record: '2-0' },
-      ['Matthew Stafford', 'Alvin Kamara', 'Javonte Williams', 'Davante Adams', 'Jaylen Waddle', 'T.J. Hockenson', 'Rome Odunze', 'Chase McLaughlin', 'Vikings D/ST'],
-      ['Jerome Ford', 'Jonnu Smith', 'Tre Tucker', 'Kaleb Johnson', 'Bryce Young', 'Darnell Mooney', 'Ray Davis']
-    )
-  },
-  {
+  }),
+  league({
     id: 'waiver-wire',
     short: 'www',
     name: 'Waiver Wire Warriors',
     provider: 'sleeper',
-    season: REPLAY_SEASON,
-    week: REPLAY_WEEK,
     size: 10,
-    featured: false,
     my: roster(
       { id: 'www-priority-wire', name: 'Priority Wire', owner: 'Lee', record: '1-1' },
-      ['Jaxson Dart', 'James Conner', 'Tony Pollard', 'Drake London', 'Jordan Addison', 'Kyle Pitts', 'Chase Brown', 'Matt Gay', 'Falcons D/ST'],
-      ['Tyrone Tracy Jr.', 'Jalen McMillan', 'Isaiah Likely', 'Jaylen Wright', 'Troy Franklin', 'Blake Corum']
+      ['Jordan Love', 'Josh Jacobs', 'Joe Mixon', 'Davante Adams', 'Jameson Williams', 'Jake Ferguson', 'Jaylen Warren', 'Jason Myers', 'Seahawks'],
+      ['Courtland Sutton', "D'Andre Swift", 'Brock Purdy', 'Jerome Ford']
     ),
     opp: roster(
       { id: 'www-claim-jumpers', name: 'Claim Jumpers', owner: 'Mo', record: '1-1' },
-      ['Trevor Lawrence', 'Tyler Allgeier', 'Rhamondre Stevenson', 'Jaxon Smith-Njigba', 'Tee Higgins', 'Brenton Strange', 'Emeka Egbuka', "Ka'imi Fairbairn", 'Buccaneers D/ST'],
-      ["D'Andre Swift", 'Tank Bigsby', 'Cooper Kupp', 'Rashid Shaheed', 'Courtland Sutton']
+      ['Kyler Murray', 'Isiah Pacheco', 'Jonathon Brooks', 'Ladd McConkey', 'Khalil Shakir', 'David Njoku', 'Jauan Jennings', 'Tyler Loop', 'Dolphins'],
+      ['Rachaad White', 'Elijah Moore', 'Tucker Kraft', 'Sam Darnold']
     )
-  }
+  }),
+  league({
+    id: 'gridiron-gurus',
+    short: 'ggu',
+    name: 'Gridiron Gurus',
+    provider: 'espn',
+    size: 10,
+    my: roster(
+      { id: 'ggu-fourth-fearless', name: 'Fourth & Fearless', owner: 'Ada', record: '2-0' },
+      ['Patrick Mahomes', 'Derrick Henry', 'Tyrone Tracy Jr.', 'George Pickens', 'DeVonta Smith', 'Brock Bowers', 'Marvin Harrison Jr.', "Ka'imi Fairbairn", 'Lions'],
+      ['Bucky Irving', 'Mike Evans', 'Rome Odunze', 'Travis Hunter', 'Geno Smith']
+    ),
+    opp: roster(
+      { id: 'ggu-end-zone-errands', name: 'End Zone Errands', owner: 'Bo', record: '1-1' },
+      ['Dak Prescott', 'Javonte Williams', 'Chase Brown', 'Josh Downs', "Wan'Dale Robinson", 'Tyler Warren', 'Quentin Johnston', 'Jake Elliott', 'Giants'],
+      ['Brian Thomas Jr.', 'Jordan Mason', 'Stefon Diggs', 'Jalen Tolbert']
+    )
+  }),
+  league({
+    id: 'basement-bowl',
+    short: 'bbl',
+    name: 'Basement Bowl',
+    provider: 'espn',
+    size: 12,
+    my: roster(
+      { id: 'bbl-river-city', name: 'River City', owner: 'Sam', record: '1-1' },
+      ['Matthew Stafford', 'Alvin Kamara', 'Kaleb Johnson', 'Chris Olave', 'Keenan Allen', 'Hunter Henry', 'Xavier Worthy', 'Younghoe Koo', 'Patriots'],
+      ['Aaron Jones', 'Jakobi Meyers', 'Christian Watson', 'Jaylen Wright']
+    ),
+    opp: roster(
+      { id: 'bbl-first-down-club', name: 'First Down Club', owner: 'Nia', record: '2-0' },
+      ['Jared Goff', 'Kenneth Gainwell', 'Zach Charbonnet', 'Christian Kirk', 'Ricky Pearsall', 'Evan Engram', 'Hollywood Brown', 'Chad Ryland', 'Eagles'],
+      ['Tetairoa McMillan', 'Emeka Egbuka', 'Colston Loveland', 'Bo Nix']
+    )
+  })
 ]
 
 export const FEATURED_LEAGUE_KEY = leagueKey(WORLD_LEAGUES[0].provider, WORLD_LEAGUES[0].id)
@@ -502,32 +495,28 @@ const passTd = (qb: string, qbDelta: number, target: string, targetDelta: number
   nflPoints: 7
 })
 
-/** Opening minute: both featured boards swing up and down before the generated slate takes over. */
+/** Opening minute: Ice Box and Hash Marks trade blows before the generated slate takes over. */
 const SCRIPT: ReplayBeat[] = [
-  play('Bijan Robinson', 6.6, 'RUSH TD', 7),
-  play("Ja'Marr Chase", -2, 'FUM'),
-  play('Brock Bowers', 2.4, 'REC'),
-  passTd('Jayden Daniels', 4.6, 'Terry McLaurin', 8.1),
-  { kind: 'injury', player: slug('Drake London'), status: 'OUT', note: 'LEFT GAME (HAMSTRING)' },
-  play('Jonathan Taylor', 1.9, 'REC'),
-  play('Packers D/ST', 1, 'SACK'),
-  play('Josh Jacobs', 1.4, 'RUSH'),
-  play('Malik Nabers', 2.2, 'REC'),
-  play('Colts D/ST', 2, 'INT'),
-  play('Garrett Wilson', 2.6, 'REC'),
-  play('Justin Jefferson', 2.1, 'REC'),
-  play("Ja'Marr Chase", 2.9, 'REC'),
-  play('Chris Boswell', 4, 'FG', 3),
-  play('Bucky Irving', 7.1, 'RUSH TD', 7),
-  play('Chris Olave', 1.8, 'REC'),
-  play('Tetairoa McMillan', 2.1, 'REC'),
-  play('Michael Pittman Jr.', 1.5, 'REC'),
-  play('Quinshon Judkins', 1.2, 'RUSH'),
-  passTd('Jaxson Dart', 4.4, "Wan'Dale Robinson", 7.3),
-  play('Trevor Lawrence', -1, 'INT'),
-  play('Nico Collins', 2.3, 'REC'),
-  play('DK Metcalf', 1.9, 'REC'),
-  play('Bijan Robinson', 1.6, 'REC')
+  play('Jahmyr Gibbs', 1.1, 'RUSH'),
+  play('Ravens', 1, 'SACK'),
+  play('Tyreek Hill', 2.3, 'REC'),
+  play('Josh Allen', 1.2, 'PASS'),
+  play('Nico Collins', 1.9, 'REC'),
+  play('Saquon Barkley', 1.4, 'RUSH'),
+  passTd('Patrick Mahomes', 4.3, 'Rashee Rice', 8.2),
+  play('Travis Kelce', 1.7, 'REC'),
+  passTd('Jalen Hurts', 4.4, 'A.J. Brown', 7.9),
+  passTd('Jared Goff', 4, 'Amon-Ra St. Brown', 8.4),
+  play('James Conner', 0.9, 'RUSH'),
+  play('Tyler Bass', 3, 'FG', 3),
+  play('David Montgomery', 1.2, 'RUSH'),
+  play('Jaylen Waddle', 2.6, 'REC'),
+  play('C.J. Stroud', 1.6, 'PASS'),
+  play('George Kittle', 2.1, 'REC'),
+  play("De'Von Achane", 2.4, 'REC'),
+  play('Kyler Murray', 2.2, 'RUSH'),
+  play('Drake London', 1.8, 'REC'),
+  play('Jahmyr Gibbs', 2.2, 'REC')
 ]
 
 type PlayOption = { delta: number; note: string; weight: number; nflPoints?: number; passTd?: boolean }
@@ -612,19 +601,23 @@ export type WorldState = {
   leads: Map<string, number[]>
 }
 
+/** Typical full-game output; a live player is expected to add the unplayed share of it. */
+const POSITION_PROJECTION: Record<string, number> = { QB: 19, RB: 13, WR: 13, TE: 9, K: 8, DEF: 7 }
+
 const initialRemaining = (row: PoolPlayer): number => {
   if (row.status === 'OUT') return 0
-  const game = GAME_BY_TEAM.get(row.nflTeam)
-  if (!game) return 0
-  const status = phaseAt(game, 0).status
+  const slateGame = GAME_BY_TEAM.get(row.nflTeam)
+  if (!slateGame) return 0
+  const status = phaseAt(slateGame, 0).status
+  if (status === 'final') return 0
+  if (row.remaining != null) return row.remaining
+  const projected = POSITION_PROJECTION[row.position] ?? 10
   switch (status) {
-    case 'final':
-      return 0
     case 'pre':
-      return row.projected
+      return projected
     case 'live':
     case 'half':
-      return round1(row.projected * (1 - game.progress))
+      return round1(projected * (1 - slateGame.progress))
     default: {
       const _never: never = status
       return _never
@@ -846,7 +839,7 @@ export const replayMatchupFor = (league: League, tick: number): Matchup | null =
 }
 
 export const replayTransactionsFor = (league: League, _tick: number): Transaction[] => {
-  if (league.provider === 'sleeper' && league.id === 'fourth-and-long') return [WAIVER_TX]
+  if (league.provider === 'sleeper' && league.id === 'fourth-drunken') return [WAIVER_TX]
   return []
 }
 
@@ -854,10 +847,10 @@ export const replayTransactionsFor = (league: League, _tick: number): Transactio
 const TAPE_ANCHOR = Date.now()
 
 const WAIVER_TX: Transaction = {
-  id: 'replay-waiver-ridley',
+  id: 'replay-waiver-pollard',
   type: 'add',
-  players: ['Calvin Ridley'],
-  timestamp: TAPE_ANCHOR - 31 * 60_000
+  players: ['Tony Pollard'],
+  timestamp: TAPE_ANCHOR - 104 * 60_000
 }
 
 type SeedPlay = {
@@ -866,45 +859,48 @@ type SeedPlay = {
   period: string
 } & ({ kind: 'score'; delta: number; note: string } | { kind: 'injury'; note: string })
 
+/** Already counted in the pinned points. Friday Night Gridiron rows follow spec §1.3. */
 const SEED_PLAYS: SeedPlay[] = [
-  { kind: 'score', player: 'Jonathan Taylor', delta: 7.4, note: 'RUSH TD', minutesAgo: 2, period: '3RD' },
-  { kind: 'score', player: 'Josh Jacobs', delta: 2.1, note: 'REC', minutesAgo: 3, period: '3RD' },
-  { kind: 'score', player: "Ja'Marr Chase", delta: 8.6, note: 'REC TD', minutesAgo: 5, period: '3RD' },
-  { kind: 'score', player: 'Brock Bowers', delta: 1.9, note: 'REC', minutesAgo: 6, period: '4TH' },
-  { kind: 'score', player: 'Garrett Wilson', delta: 1.4, note: 'REC', minutesAgo: 7, period: '3RD' },
-  { kind: 'score', player: 'Jayden Daniels', delta: 1.8, note: 'RUSH', minutesAgo: 8, period: '4TH' },
-  { kind: 'score', player: 'Colts D/ST', delta: 1, note: 'SACK', minutesAgo: 9, period: '3RD' },
-  { kind: 'injury', player: 'Rhamondre Stevenson', note: 'LEFT GAME (ANKLE)', minutesAgo: 11, period: '3RD' },
-  { kind: 'score', player: 'Tee Higgins', delta: 8, note: 'REC TD', minutesAgo: 12, period: '3RD' },
-  { kind: 'score', player: 'Bucky Irving', delta: 1.1, note: 'RUSH', minutesAgo: 13, period: '3RD' },
-  { kind: 'score', player: 'Jakobi Meyers', delta: 1.7, note: 'REC', minutesAgo: 14, period: '3RD' },
-  { kind: 'score', player: 'Drake Maye', delta: -1, note: 'INT', minutesAgo: 15, period: '3RD' },
-  { kind: 'score', player: 'Chuba Hubbard', delta: 6.9, note: 'RUSH TD', minutesAgo: 16, period: '3RD' },
-  { kind: 'score', player: 'Davante Adams', delta: 2.2, note: 'REC', minutesAgo: 18, period: '2ND' },
-  { kind: 'score', player: 'Jaxson Dart', delta: 1.5, note: 'RUSH', minutesAgo: 19, period: '3RD' },
-  { kind: 'score', player: 'Bijan Robinson', delta: 1.2, note: 'RUSH', minutesAgo: 20, period: '3RD' },
-  { kind: 'score', player: 'Jalen Hurts', delta: 4.4, note: 'PASS TD', minutesAgo: 24, period: '2ND' },
-  { kind: 'score', player: 'Terry McLaurin', delta: 1.6, note: 'REC', minutesAgo: 26, period: '3RD' }
+  { kind: 'score', player: 'Jahmyr Gibbs', delta: 6.2, note: 'TD', minutesAgo: 1, period: '3RD' },
+  { kind: 'score', player: 'Kyler Murray', delta: 1.8, note: 'PASS', minutesAgo: 3, period: '3RD' },
+  { kind: 'score', player: 'Tyreek Hill', delta: -2, note: 'FUM', minutesAgo: 7, period: '2ND' },
+  { kind: 'score', player: 'Jameson Williams', delta: 8.1, note: 'REC TD', minutesAgo: 12, period: '3RD' },
+  { kind: 'score', player: 'DK Metcalf', delta: 1.6, note: 'REC', minutesAgo: 18, period: '2ND' },
+  { kind: 'score', player: 'Josh Allen', delta: 4, note: 'PASS TD', minutesAgo: 24, period: '2ND' },
+  { kind: 'score', player: 'Matthew Stafford', delta: 1.2, note: 'PASS', minutesAgo: 27, period: '2ND' },
+  { kind: 'score', player: 'Amon-Ra St. Brown', delta: 1.8, note: 'REC', minutesAgo: 31, period: '2ND' },
+  { kind: 'score', player: 'Patrick Mahomes', delta: 4.3, note: 'PASS TD', minutesAgo: 40, period: '2ND' },
+  { kind: 'score', player: 'Jalen Hurts', delta: 2.4, note: 'RUSH', minutesAgo: 45, period: '1ST' },
+  { kind: 'injury', player: 'Rico Dowdle', note: 'LEFT GAME (ANKLE)', minutesAgo: 53, period: '3RD' },
+  { kind: 'score', player: 'CeeDee Lamb', delta: 8.4, note: 'REC TD', minutesAgo: 60, period: '4TH' },
+  { kind: 'score', player: 'George Pickens', delta: 3.1, note: 'REC', minutesAgo: 66, period: '2ND' },
+  { kind: 'score', player: 'Ravens', delta: 2, note: 'INT', minutesAgo: 77, period: '1ST' },
+  { kind: 'score', player: "Ja'Marr Chase", delta: 2.2, note: 'REC', minutesAgo: 85, period: '1ST' },
+  { kind: 'score', player: 'Justin Fields', delta: 1.4, note: 'RUSH', minutesAgo: 94, period: '1ST' },
+  { kind: 'score', player: 'Jared Goff', delta: 4, note: 'PASS TD', minutesAgo: 99, period: '1ST' },
+  { kind: 'score', player: 'Dak Prescott', delta: 4.2, note: 'PASS TD', minutesAgo: 110, period: '3RD' }
 ]
 
-const SEED_ROSTER_MOVES: Omit<TapeEvent, 'at'>[] = [
+const SEED_ROSTER_MOVES: (Omit<TapeEvent, 'at'> & { minutesAgo: number })[] = [
   {
-    id: 'seed-ridley-waiver',
+    id: 'seed-pollard-waiver',
     kind: 'add',
-    player: 'Ridley TEN',
+    player: 'Pollard TEN',
     detail: 'WAIVER CLAIM',
-    leagueKey: 'sleeper:fourth-and-long',
-    leagueName: 'Fourth & Long',
-    period: '1ST'
+    leagueKey: 'sleeper:fourth-drunken',
+    leagueName: 'Fourth & Drunken',
+    period: '1ST',
+    minutesAgo: 104
   },
   {
-    id: 'seed-skattebo-trade',
+    id: 'seed-kupp-trade',
     kind: 'trade',
-    player: 'Skattebo NYG',
+    player: 'Kupp SEA',
     detail: 'TRADE',
     leagueKey: 'sleeper:sunday-lights',
     leagueName: 'Sunday Lights',
-    period: '1ST'
+    period: '1ST',
+    minutesAgo: 115
   }
 ]
 
@@ -935,9 +931,9 @@ export const replaySeedTape = (anchor = TAPE_ANCHOR): TapeEvent[] => {
       }
     }
   })
-  SEED_ROSTER_MOVES.forEach((row, index) => {
-    out.push({ ...row, at: anchor - (31 + index * 9) * 60_000 })
-  })
+  for (const { minutesAgo, ...row } of SEED_ROSTER_MOVES) {
+    out.push({ ...row, at: anchor - minutesAgo * 60_000 })
+  }
   return out.sort((a, b) => b.at - a.at)
 }
 

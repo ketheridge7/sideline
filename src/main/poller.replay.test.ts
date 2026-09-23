@@ -60,7 +60,7 @@ describe('replay poller', () => {
     expect(state.replay).toBe(true)
     expect(state.matchup?.myTeam.name).toBe('Ice Box')
     const names = [...(state.matchup?.starters ?? []), ...(state.matchup?.bench ?? [])].map((row) => row.name)
-    expect(names).toContain('Bijan Robinson')
+    expect(names).toContain('Justin Fields')
     expect(names.some((name) => /^[a-z]+-[a-z-]+$/.test(name) || /^fng/i.test(name))).toBe(false)
     expect(state.matchup?.starters.every((row) => row.position !== '?')).toBe(true)
   })
@@ -70,12 +70,25 @@ describe('replay poller', () => {
     const opening = currentState().matchup
     expect(opening?.myTeam.name).toBe('Ice Box')
     await refresh({ waitForBoards: true })
+    expect(opening?.myPoints).toBe(98.4)
+    expect(opening?.oppPoints).toBe(91.2)
     const next = currentState().matchup
-    expect(next?.myPoints).toBeCloseTo((opening?.myPoints ?? 0) + 6.6)
-    expect(next?.starters.find((row) => row.name === 'Bijan Robinson')?.tickDelta).toBe(6.6)
+    expect(next?.myPoints).toBeCloseTo(98.4 + 1.1)
+    expect(next?.starters.find((row) => row.name === 'Jahmyr Gibbs')?.tickDelta).toBe(1.1)
     await refresh({ waitForBoards: true })
-    expect(currentState().matchup?.oppPoints).toBeCloseTo((opening?.oppPoints ?? 0) - 2)
-    expect(currentState().tape.some((row) => row.player === 'Robinson ATL' && row.delta === 6.6)).toBe(true)
+    expect(currentState().matchup?.oppPoints).toBeCloseTo(91.2 + 1)
+    expect(currentState().tape.some((row) => row.player === 'Gibbs DET' && row.delta === 1.1)).toBe(true)
+  })
+
+  it('holds the pinned frame for marketing captures', async () => {
+    process.env.SIDELINE_REPLAY_HOLD = '1'
+    try {
+      for (let poll = 0; poll < 4; poll += 1) await refresh({ waitForBoards: true })
+      expect(currentState().matchup?.myPoints).toBe(98.4)
+      expect(currentState().matchup?.oppPoints).toBe(91.2)
+    } finally {
+      delete process.env.SIDELINE_REPLAY_HOLD
+    }
   })
 
   it('schedules the next demo poll after the HUD has painted', async () => {
