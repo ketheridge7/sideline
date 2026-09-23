@@ -43,9 +43,11 @@ const deltaLabel = (event: TapeEvent): string => {
   }
 }
 
-const lastToken = (value: string): string => {
-  const parts = value.trim().split(/\s+/)
-  return parts[0] || value
+/** Tape labels read "St. Brown DET"; the rail drops only the trailing NFL abbreviation. */
+export const railPlayerName = (label: string): string => {
+  const parts = label.trim().split(/\s+/)
+  if (parts.length > 1 && /^[A-Z]{2,3}$/.test(parts[parts.length - 1])) parts.pop()
+  return parts.join(' ') || label
 }
 
 export const LiveScoringRail = ({
@@ -77,7 +79,7 @@ export const LiveScoringRail = ({
               </div>
               <span className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 ${pipClass(event)}`} aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-semibold uppercase">{lastToken(event.player)}</div>
+                <div className="truncate text-[13px] font-semibold uppercase">{railPlayerName(event.player)}</div>
                 <div className="truncate text-[11px] text-muted">{event.leagueName}</div>
               </div>
               <span className={`shrink-0 font-cond text-sm font-bold tabular-nums ${deltaClass(event)}`}>
