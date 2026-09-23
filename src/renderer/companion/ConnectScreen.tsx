@@ -77,7 +77,7 @@ const sleeperHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' 
 }
 
 const tvHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
-  if (!state.lanOverlayEnabled) return { label: 'Not connected', kind: 'off' }
+  if (!state.lanOverlayEnabled) return { label: state.replay ? 'Ready to pair' : 'Not connected', kind: 'off' }
   return { label: state.overlayPairingCode ? 'On · pairing ready' : 'On', kind: 'on' }
 }
 

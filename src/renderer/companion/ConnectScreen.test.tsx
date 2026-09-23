@@ -330,6 +330,7 @@ describe('Connect Demo Sunday entry', () => {
     expect(html).not.toContain('data-demo-toggle="start"')
     expect(html.indexOf('data-connect-demo="on"')).toBeLessThan(html.indexOf('data-connect-card="espn"'))
     expect(html).toContain('Demo · 1 fake league')
+    expect(html).toContain('Ready to pair')
     expect(html).not.toContain('Replay mode is on')
   })
 
