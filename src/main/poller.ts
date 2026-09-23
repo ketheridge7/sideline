@@ -76,6 +76,7 @@ import {
   replayTransactions
 } from './providers/replay'
 import { runtime } from './runtime'
+import { startupErrorNotice, statusErrorPlan } from './notices'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
@@ -222,6 +223,13 @@ const peekLastHud = (): LastHudSnapshot | null => {
 
 export const currentState = (): AppState => lastState
 
+const withStatusNotices = (refreshError: string | null): string | null =>
+  statusErrorPlan({
+    refreshError,
+    startupError: startupErrorNotice(),
+    holdNotice: null
+  })
+
 const lanFields = (): Pick<
   AppState,
   'lanOverlayEnabled' | 'lanOverlayHost' | 'overlayToken' | 'overlayPairingCode'
@@ -255,7 +263,12 @@ export const applyOverlayLayout = (layout: AppState['overlayLayout']): void => {
 }
 
 export const applyLanOverlay = (): void => {
-  lastState = { ...lastState, overlayPort: runtime.overlayPort(), ...lanFields() }
+  lastState = {
+    ...lastState,
+    overlayPort: runtime.overlayPort(),
+    ...lanFields(),
+    error: withStatusNotices(lastState.error)
+  }
   broadcast(lastState)
 }
 
@@ -2391,7 +2404,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
         pollingLive: lastState.pollingLive || calendarLive,
-        error
+        error: withStatusNotices(error)
       })
     }
 
@@ -2683,7 +2696,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
         pollingLive: lastState.pollingLive || calendarLive,
-        error: error
+        error: withStatusNotices(error)
       })
     }
 
@@ -3476,7 +3489,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
         pollingLive: live,
-        error
+        error: withStatusNotices(error)
       }
       persistSelectedHud(publishKey, matchup)
       broadcast(state)
@@ -3732,7 +3745,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       lastToast,
       ...lanFields(),
       replay,
-      error
+      error: withStatusNotices(error)
     }
     broadcast(state)
     schedule(false, Date.now() - started)

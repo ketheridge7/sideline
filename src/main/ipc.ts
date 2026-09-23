@@ -5,6 +5,8 @@ import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { parseLeagueKey, parseProvider } from '@shared/types'
 import { collectBugReportRuntime, openExternalUrl } from './bugReport'
+import { clearStartupError, reportStartupError } from './notices'
+import { startupErrorMessage } from './startup'
 import { loadSettings, saveSettings } from './store'
 import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
@@ -91,8 +93,14 @@ export const registerIpc = (): void => {
   })
   ipcMain.handle('sideline:setLanOverlay', async (_event, enabled: boolean) => {
     saveSettings({ lanOverlayEnabled: Boolean(enabled) })
-    const port = await setOverlayLanEnabled(Boolean(enabled))
-    runtime.setOverlayPort(port)
+    try {
+      const port = await setOverlayLanEnabled(Boolean(enabled))
+      runtime.setOverlayPort(port)
+      clearStartupError('overlay-server')
+    } catch (error) {
+      console.error('[sideline] overlay server rebind failed', error)
+      reportStartupError('overlay-server', startupErrorMessage('overlay-server', error))
+    }
     applyLanOverlay()
   })
   ipcMain.handle('sideline:showCompanion', () => {
