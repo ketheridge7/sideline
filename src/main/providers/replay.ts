@@ -1,5 +1,5 @@
 import type { League, Matchup, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
-import { demoRequested } from '../demoMode'
+import { demoRequested, holdRequested } from '../demoMode'
 import {
   FEATURED_LEAGUE_KEY,
   REPLAY_SEASON,
@@ -21,7 +21,7 @@ let tick = 0
 export const replayTickCount = (): number => tick
 
 export const bumpReplayTick = (): number => {
-  tick += 1
+  if (!holdRequested(process.env)) tick += 1
   return tick
 }
 

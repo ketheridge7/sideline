@@ -5,7 +5,7 @@ import type { SidelineApi } from './index.d'
 
 const api: SidelineApi = {
   getState: () => ipcRenderer.invoke('sideline:getState'),
-  setDemoMode: (enabled) => ipcRenderer.invoke('sideline:setDemoMode', enabled),
+  setReplayArmed: (armed) => ipcRenderer.invoke('sideline:setReplayArmed', armed),
   onState: (cb) => {
     const listener = (_event: unknown, state: AppState): void => cb(state)
     ipcRenderer.on('sideline:state', listener)

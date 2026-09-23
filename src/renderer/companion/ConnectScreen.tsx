@@ -1,7 +1,6 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { submitBugReport } from '@shared/bugReport'
 import type { AppState, League, Provider } from '@shared/types'
-import { captureSurface } from '../shared/capture'
 import { chromeFillPillClass, chromePillClass } from './chrome'
 import { ShortcutSettings } from './ShortcutSettings'
 import { UpdateSettings } from './UpdateSettings'
@@ -60,18 +59,17 @@ const HowTo = ({
 const connectedLabel = (count: number): string =>
   count === 0 ? 'Connected · pick leagues' : `Connected · ${count} league${count === 1 ? '' : 's'}`
 
-const demoLeaguesLabel = (count: number): string =>
-  captureSurface() ? connectedLabel(count) : `Demo · ${count} fake league${count === 1 ? '' : 's'}`
+const replayLeaguesLabel = (count: number): string => `Replay · ${count} fake league${count === 1 ? '' : 's'}`
 
 const espnHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
-  if (state.replay) return { label: demoLeaguesLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
+  if (state.replay) return { label: replayLeaguesLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
   if (state.espnNeedsRelogin) return { label: 'Needs re-login', kind: 'warn' }
   if (!state.espnConnected) return { label: 'Not connected', kind: 'off' }
   return { label: connectedLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
 }
 
 const sleeperHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
-  if (state.replay) return { label: demoLeaguesLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
+  if (state.replay) return { label: replayLeaguesLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
   if (!state.sleeperConnected) return { label: 'Not connected', kind: 'off' }
   return { label: connectedLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
 }
@@ -314,51 +312,42 @@ const HubCard = ({
   )
 }
 
-export const DemoPanel = ({
-  replay,
+export const ReplayPanel = ({
+  armed,
   onToggle
 }: {
-  replay: boolean
-  onToggle: (enabled: boolean) => void
-}): JSX.Element =>
-  replay ? (
-    <section
-      className="rounded-sm border border-lime/60 bg-lime/[0.06] p-5 ring-1 ring-lime/30"
-      data-connect-demo="on"
-      aria-label="Demo Sunday"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 max-w-2xl">
-          <p className="font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime">Demo Sunday is on</p>
-          <h2 className="mt-1 text-base font-semibold">Scripted Week 3 slate · six fake leagues</h2>
-          <p className="mt-1 text-sm text-muted">
-            Scores, the scoring tape, and the HUD are staged — nothing here comes from your ESPN or Sleeper accounts. Your
-            real sign-ins, leagues, and settings are left alone.
-          </p>
-        </div>
-        <button type="button" onClick={() => onToggle(false)} className={chromeFillPillClass('you')} data-demo-toggle="exit">
-          Exit demo
-        </button>
-      </div>
-    </section>
-  ) : (
-    <section
-      className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-line bg-card p-5"
-      data-connect-demo="off"
-      aria-label="Demo Sunday"
-    >
+  armed: boolean
+  onToggle: (armed: boolean) => void
+}): JSX.Element => (
+  <section
+    className={`rounded-sm border p-5 ${armed ? 'border-lime/60 bg-lime/[0.06] ring-1 ring-lime/30' : 'border-line bg-card'}`}
+    data-connect-replay={armed ? 'armed' : 'off'}
+    aria-label="Replay"
+  >
+    <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0 max-w-2xl">
-        <h2 className="text-base font-semibold">Try Demo Sunday</h2>
+        <p className={`font-cond text-xs font-bold uppercase tracking-[0.18em] ${armed ? 'text-lime' : 'text-muted'}`}>
+          Replay · {armed ? 'Armed' : 'Off'}
+        </p>
+        <h2 className="mt-1 text-base font-semibold">Scripted Sunday slate for screenshots &amp; demos — fake leagues only</h2>
         <p className="mt-1 text-sm text-muted">
-          Preview the board, scoring tape, and HUD on a scripted Week 3 slate with fake leagues. Sideline restarts into
-          the demo; your accounts stay signed in and untouched. Exit any time from here.
+          {armed
+            ? 'Replay mode is on — scripted Week 3 Sunday, six fake leagues, both providers loaded. Nothing here comes from your ESPN or Sleeper accounts, and your real sign-ins, leagues, and settings are left alone.'
+            : 'Sideline restarts into a scripted Week 3 Sunday with six fake leagues, a live-looking scoring tape, and the HUD. Your accounts stay signed in and untouched. Disarm any time from here.'}
         </p>
       </div>
-      <button type="button" onClick={() => onToggle(true)} className={chromePillClass(false, 'control')} data-demo-toggle="start">
-        Start demo
+      <button
+        type="button"
+        onClick={() => onToggle(!armed)}
+        className={armed ? chromePillClass(true, 'control') : chromeFillPillClass('you')}
+        data-replay-toggle={armed ? 'disarm' : 'arm'}
+        aria-pressed={armed}
+      >
+        {armed ? 'Disarm Replay' : 'Arm Replay'}
       </button>
-    </section>
-  )
+    </div>
+  </section>
+)
 
 const TvPath = ({ state, onBack }: { state: AppState; onBack: () => void }): JSX.Element => (
   <section className="rounded-sm border border-line bg-card p-5">
@@ -534,9 +523,9 @@ export const ConnectScreen = ({
     }
   }
 
-  const handleDemo = async (enabled: boolean): Promise<void> => {
-    const result = await api().setDemoMode(enabled)
-    if (!result.ok) setMessage(result.error ?? 'Could not switch Demo Sunday')
+  const handleReplay = async (armed: boolean): Promise<void> => {
+    const result = await api().setReplayArmed(armed)
+    if (!result.ok) setMessage(result.error ?? 'Could not switch Replay')
   }
 
   const handleReportBug = async (): Promise<void> => {
@@ -550,7 +539,7 @@ export const ConnectScreen = ({
 
   const hub = (
     <>
-      {state.replay && !captureSurface() ? <DemoPanel replay onToggle={(enabled) => void handleDemo(enabled)} /> : null}
+      {state.replay ? <ReplayPanel armed onToggle={(armed) => void handleReplay(armed)} /> : null}
       <details
         className="connect-howto rounded-sm border border-line bg-card p-5"
         data-howto="getting-started"
@@ -618,7 +607,7 @@ export const ConnectScreen = ({
         />
       </div>
 
-      {state.replay ? null : <DemoPanel replay={false} onToggle={(enabled) => void handleDemo(enabled)} />}
+      {state.replay ? null : <ReplayPanel armed={false} onToggle={(armed) => void handleReplay(armed)} />}
 
       <footer className="grid gap-2" data-connect-footer="settings">
         <details className="connect-howto rounded-sm border border-line bg-card p-5">

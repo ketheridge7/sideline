@@ -306,41 +306,42 @@ describe('ConnectScreen fantasy paths', () => {
   })
 })
 
-describe('Connect Demo Sunday entry', () => {
-  const demoLeagues: League[] = [
-    { id: 'cul-de-sac', name: 'Cul-de-Sac League', provider: 'sleeper', season: '2026', week: 3 },
-    { id: 'break-room', name: 'Break Room League', provider: 'espn', season: '2026', week: 3 }
+describe('Connect Replay arming', () => {
+  const replayLeagues: League[] = [
+    { id: 'friday-night-gridiron', name: 'Friday Night Gridiron', provider: 'sleeper', season: '2026', week: 3 },
+    { id: 'gridiron-gurus', name: 'Gridiron Gurus', provider: 'espn', season: '2026', week: 3 }
   ]
+  const armed = { replay: true, sleeperConnected: true, espnConnected: true, sleeperUsername: 'sideline-demo', leagues: replayLeagues }
 
-  it('offers Start demo on the live hub, below the ESPN / Sleeper / TV cards and above settings', () => {
+  it('offers Arm Replay on the live hub, below the ESPN / Sleeper / TV cards and above settings', () => {
     const html = htmlOf()
-    expect(html).toContain('data-connect-demo="off"')
-    expect(html).toContain('Try Demo Sunday')
-    expect(html).toContain('data-demo-toggle="start"')
-    expect(html).not.toContain('data-demo-toggle="exit"')
-    expect(html.indexOf('data-connect-demo="off"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
-    expect(html.indexOf('data-connect-demo="off"')).toBeLessThan(html.indexOf('data-connect-footer="settings"'))
+    expect(html).toContain('data-connect-replay="off"')
+    expect(html).toContain('Scripted Sunday slate for screenshots &amp; demos — fake leagues only')
+    expect(html).toContain('data-replay-toggle="arm"')
+    expect(html).toContain('Arm Replay')
+    expect(html).not.toContain('data-replay-toggle="disarm"')
+    expect(html.indexOf('data-connect-replay="off"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
+    expect(html.indexOf('data-connect-replay="off"')).toBeLessThan(html.indexOf('data-connect-footer="settings"'))
   })
 
-  it('leads the demo hub with an Exit demo banner and labels provider cards as fake demo leagues', () => {
-    const html = htmlOf({ replay: true, sleeperConnected: true, espnConnected: true, sleeperUsername: 'sideline-demo', leagues: demoLeagues })
-    expect(html).toContain('data-connect-demo="on"')
-    expect(html).toContain('Demo Sunday is on')
-    expect(html).toContain('data-demo-toggle="exit"')
-    expect(html).not.toContain('data-demo-toggle="start"')
-    expect(html.indexOf('data-connect-demo="on"')).toBeLessThan(html.indexOf('data-connect-card="espn"'))
-    expect(html).toContain('Demo · 1 fake league')
+  it('leads the armed hub with an honest Replay status and Disarm, and labels cards as fake leagues', () => {
+    const html = htmlOf(armed)
+    expect(html).toContain('data-connect-replay="armed"')
+    expect(html).toContain('Replay mode is on — scripted Week 3 Sunday')
+    expect(html).toContain('Disarm Replay')
+    expect(html).not.toContain('Arm Replay<')
+    expect(html.indexOf('data-connect-replay="armed"')).toBeLessThan(html.indexOf('data-connect-card="espn"'))
+    expect(html).toContain('Replay · 1 fake league')
     expect(html).toContain('Ready to pair')
-    expect(html).not.toContain('Replay mode is on')
   })
 
-  it('never offers Sign out, Add leagues, or Remove on real accounts while the demo is on', () => {
-    const html = htmlOf({ replay: true, sleeperConnected: true, espnConnected: true, sleeperUsername: 'sideline-demo', leagues: demoLeagues })
+  it('never offers Sign out, Add leagues, or Remove on real accounts while Replay is armed', () => {
+    const html = htmlOf(armed)
     expect(html).not.toContain('Sign out')
     expect(html).not.toContain('Add leagues')
     expect(html).not.toContain('>Remove<')
-    expect(html).toContain('Cul-de-Sac League')
-    expect(html).toContain('Break Room League')
+    expect(html).toContain('Friday Night Gridiron')
+    expect(html).toContain('Gridiron Gurus')
   })
 })
 

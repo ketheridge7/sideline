@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { captureRequested, DEMO_FLAG, demoDevHint, demoRelaunchArgs, demoRequested, demoSwitchPlan } from './demoMode'
+import { DEMO_FLAG, demoDevHint, demoRelaunchArgs, demoRequested, demoSwitchPlan, holdRequested } from './demoMode'
 
 describe('demoMode', () => {
-  it('turns on from npm run replay or from the Connect relaunch flag', () => {
+  it('arms from npm run replay or from the Connect relaunch flag', () => {
     expect(demoRequested({ SIDELINE_REPLAY: '1' }, ['electron', '.'])).toBe(true)
     expect(demoRequested({}, ['Sideline.exe', DEMO_FLAG])).toBe(true)
     expect(demoRequested({}, ['Sideline.exe'])).toBe(false)
     expect(demoRequested({ SIDELINE_REPLAY: '0' }, ['Sideline.exe'])).toBe(false)
   })
 
-  it('only hides Demo chrome for explicit marketing captures', () => {
-    expect(captureRequested({ SIDELINE_CAPTURE: '1' })).toBe(true)
-    expect(captureRequested({ SIDELINE_REPLAY: '1' })).toBe(false)
+  it('holds the pinned frame only for explicit marketing captures', () => {
+    expect(holdRequested({ SIDELINE_REPLAY_HOLD: '1' })).toBe(true)
+    expect(holdRequested({ SIDELINE_REPLAY: '1' })).toBe(false)
   })
 
   it('relaunches to switch, never flips demo inside a live process, and hints on a dev server', () => {

@@ -18,7 +18,7 @@ import { setOverlayDisplayId, setOverlayEditMode, toggleOverlay } from './window
 
 const demoLocked = (): { ok: false; error: string } => ({ ok: false, error: DEMO_LOCKED_MESSAGE })
 
-const setDemoMode = (enabled: boolean): { ok: boolean; error?: string } => {
+const setReplayArmed = (enabled: boolean): { ok: boolean; error?: string } => {
   const plan = demoSwitchPlan({
     enabled,
     active: isReplayMode(),
@@ -44,7 +44,7 @@ const setDemoMode = (enabled: boolean): { ok: boolean; error?: string } => {
 
 export const registerIpc = (): void => {
   ipcMain.handle('sideline:getState', () => currentState())
-  ipcMain.handle('sideline:setDemoMode', (_event, enabled: unknown) => setDemoMode(Boolean(enabled)))
+  ipcMain.handle('sideline:setReplayArmed', (_event, enabled: unknown) => setReplayArmed(Boolean(enabled)))
   ipcMain.handle('sideline:connectSleeper', (_event, username: string) =>
     isReplayMode() ? demoLocked() : connectSleeper(username)
   )

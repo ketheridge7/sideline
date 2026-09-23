@@ -115,14 +115,14 @@ describe('TopBar', () => {
     expect(renderTop()).toContain('companion-titlebar')
   })
 
-  it('labels the demo as Demo Sunday (a button to Connect), not a cryptic Replay tag', () => {
+  it('shows a small Replay chip (a button to Connect) only while Replay is armed', () => {
     const state = emptyAppState()
     state.replay = true
     const html = renderTop(state)
-    expect(html).toContain('data-demo-chip="on"')
-    expect(html).toContain('Demo Sunday')
-    expect(html).not.toContain('>Replay<')
-    expect(renderTop()).not.toContain('data-demo-chip')
+    expect(html).toContain('data-replay-chip="armed"')
+    expect(html).toContain('>Replay<')
+    expect(html).not.toContain('Demo')
+    expect(renderTop()).not.toContain('data-replay-chip')
   })
 
   it('does not paint a decorative Live pip when polling', () => {

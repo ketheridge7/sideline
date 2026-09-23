@@ -1,13 +1,13 @@
-/** Launch flag the Connect "Start demo" button relaunches with. `SIDELINE_REPLAY=1` (npm run replay) still works. */
-export const DEMO_FLAG = '--sideline-demo'
+/** Launch flag Connect's Arm Replay relaunches with. `SIDELINE_REPLAY=1` (npm run replay) is the power-user path. */
+export const DEMO_FLAG = '--sideline-replay'
 
 type Env = Record<string, string | undefined>
 
 export const demoRequested = (env: Env, argv: readonly string[]): boolean =>
   env.SIDELINE_REPLAY === '1' || argv.includes(DEMO_FLAG)
 
-/** Marketing captures: demo data without the Demo chrome (`npm run replay:capture`). */
-export const captureRequested = (env: Env): boolean => env.SIDELINE_CAPTURE === '1'
+/** Marketing captures hold Replay on its pinned frame so every still shows the same Sunday (`npm run replay:capture`). */
+export const holdRequested = (env: Env): boolean => env.SIDELINE_REPLAY_HOLD === '1'
 
 export type DemoSwitchPlan = 'noop' | 'dev-hint' | 'relaunch'
 
@@ -29,7 +29,7 @@ export const demoRelaunchArgs = (argv: readonly string[], enabled: boolean): str
 
 export const demoDevHint = (enabled: boolean): string =>
   enabled
-    ? 'Dev checkout: quit Sideline, then run `npm run replay` to open the demo.'
+    ? 'Dev checkout: quit Sideline, then run `npm run replay` to arm Replay.'
     : 'Dev checkout: quit Sideline, then run `npm run dev` to go back to live.'
 
-export const DEMO_LOCKED_MESSAGE = 'Demo Sunday is on. Exit the demo from Connect to use your real accounts.'
+export const DEMO_LOCKED_MESSAGE = 'Replay is armed. Disarm Replay on Connect to use your real accounts.'
