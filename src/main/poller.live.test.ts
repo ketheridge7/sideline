@@ -2836,3 +2836,71 @@ describe('poller ESPN multi-week playoff periods', () => {
     unlinkSync(periodsPath(dir))
   })
 })
+
+describe('poller Sleeper Est. win% scoring kind', () => {
+  it('projects a half-PPR league with pts_half_ppr, not the PPR column', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '880000000000000001'
+    const selectedKey = leagueKey('sleeper', leagueId)
+    saveSettings({
+      sleeperUsername: 'halfppr',
+      sleeperUserId: 'me',
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: []
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+    warmupPollerCaches()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/state/nfl')) {
+          return jsonOk({ week: 1, display_week: 1, season: '2026', league_season: '2026', season_type: 'regular' })
+        }
+        if (url.includes('/projections/')) {
+          return jsonOk({
+            '1': { pts_ppr: 20, pts_half_ppr: 17, pts_std: 14 },
+            '3': { pts_ppr: 15, pts_half_ppr: 13, pts_std: 11 }
+          })
+        }
+        if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+        if (url.includes('/leagues/')) {
+          return jsonOk([{ league_id: leagueId, name: 'Half Stack', season: '2026', scoring_settings: { rec: 0.5 } }])
+        }
+        if (url.includes('/rosters')) {
+          return jsonOk([
+            { roster_id: 1, owner_id: 'me', players: ['1'], starters: ['1'] },
+            { roster_id: 2, owner_id: 'them', players: ['3'], starters: ['3'] }
+          ])
+        }
+        if (url.includes('/users')) {
+          return jsonOk([
+            { user_id: 'me', display_name: 'Me' },
+            { user_id: 'them', display_name: 'You' }
+          ])
+        }
+        if (url.includes('/user/')) return jsonOk({ user_id: 'me', username: 'halfppr' })
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('/players/nfl')) return jsonOk({})
+        return jsonOk([])
+      })
+    )
+
+    await expect
+      .poll(async () => {
+        await refresh({ waitForBoards: true })
+        return currentState().matchup?.myProjectedPoints
+      })
+      .toBe(17)
+    expect(currentState().matchup?.oppProjectedPoints).toBe(13)
+    expect(currentState().matchup?.winPctSource).toBe('estimated')
+    const disk = JSON.parse(readFileSync(join(dir, 'sideline-sleeper-leagues.json'), 'utf8')) as {
+      scoringKinds?: Record<string, string>
+    }
+    expect(disk.scoringKinds?.[leagueId]).toBe('half_ppr')
+  })
+})

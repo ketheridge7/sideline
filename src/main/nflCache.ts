@@ -121,7 +121,13 @@ export const readSleeperLeaguesDisk = (): SleeperLeaguesDiskRow | null => {
 }
 
 export const writeSleeperLeaguesDisk = (row: SleeperLeaguesDiskRow): void => {
-  writeJson(sleeperLeaguesPath(), { at: Date.now(), username: row.username, season: row.season, leagues: row.leagues })
+  writeJson(sleeperLeaguesPath(), {
+    at: Date.now(),
+    username: row.username,
+    season: row.season,
+    leagues: row.leagues,
+    ...(row.scoringKinds ? { scoringKinds: row.scoringKinds } : {})
+  })
 }
 
 export const readEspnLeaguesDisk = (): EspnLeaguesDiskRow | null => {

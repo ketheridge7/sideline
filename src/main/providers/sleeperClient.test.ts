@@ -19,6 +19,7 @@ import {
   parseWeekProjections,
   getWeekProjections,
   toProjectionPtsMap,
+  sleeperScoringKind,
   SleeperHttpError
 } from './sleeperClient'
 
@@ -902,3 +903,26 @@ describe('week projections', () => {
   })
 })
 
+
+describe('Sleeper league scoring kind', () => {
+  it('keeps scoring_settings.rec on parsed leagues', () => {
+    expect(
+      parseSleeperLeague({ league_id: '1', name: 'L', season: '2026', scoring_settings: { rec: '0.5', pass_td: 4 } })
+    ).toEqual({ league_id: '1', name: 'L', season: '2026', scoring_settings: { rec: 0.5 } })
+    expect(parseSleeperLeague({ league_id: '1', name: 'L', season: '2026' })).toEqual({
+      league_id: '1',
+      name: 'L',
+      season: '2026'
+    })
+  })
+
+  it('snaps the reception weight to the ppr / half_ppr / std projection column', () => {
+    expect(sleeperScoringKind({ scoring_settings: { rec: 1 } })).toBe('ppr')
+    expect(sleeperScoringKind({ scoring_settings: { rec: 0.5 } })).toBe('half_ppr')
+    expect(sleeperScoringKind({ scoring_settings: { rec: 0 } })).toBe('std')
+    expect(sleeperScoringKind({ scoring_settings: {} })).toBe('std')
+    expect(sleeperScoringKind({ scoring_settings: { rec: 0.25 } })).toBe('half_ppr')
+    expect(sleeperScoringKind({ scoring_settings: { rec: 0.75 } })).toBe('ppr')
+    expect(sleeperScoringKind({})).toBeUndefined()
+  })
+})

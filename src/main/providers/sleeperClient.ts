@@ -26,6 +26,8 @@ export type SleeperLeague = {
   league_id: string
   name: string
   season: string
+  /** Only the reception weight is kept — it decides ppr / half_ppr / std projections. */
+  scoring_settings?: { rec?: number }
 }
 
 export type SleeperRoster = {
@@ -484,10 +486,13 @@ export const parseSleeperLeague = (raw: unknown): SleeperLeague | null => {
   if (!row) return null
   const leagueId = asStr(row.league_id)
   if (!leagueId) return null
+  const scoring = asJsonObject(row.scoring_settings)
+  const rec = scoring ? asFinite(scoring.rec) : undefined
   return {
     league_id: leagueId,
     name: asStr(row.name) ?? leagueId,
-    season: asStr(row.season) ?? ''
+    season: asStr(row.season) ?? '',
+    ...(scoring ? { scoring_settings: rec != null ? { rec } : {} } : {})
   }
 }
 
@@ -700,6 +705,22 @@ export type SleeperPlayerProjection = {
 }
 
 export type SleeperScoringKind = 'ppr' | 'half_ppr' | 'std'
+
+/**
+ * League scoring kind from `scoring_settings.rec` (points per reception),
+ * snapped to the nearest projection column Sleeper publishes. Undefined when
+ * the league omits scoring settings.
+ */
+export const sleeperScoringKind = (league: Pick<SleeperLeague, 'scoring_settings'>): SleeperScoringKind | undefined => {
+  if (!league.scoring_settings) return undefined
+  const rec = league.scoring_settings.rec ?? 0
+  if (rec >= 0.75) return 'ppr'
+  if (rec >= 0.25) return 'half_ppr'
+  return 'std'
+}
+
+export const isSleeperScoringKind = (value: unknown): value is SleeperScoringKind =>
+  value === 'ppr' || value === 'half_ppr' || value === 'std'
 
 const PROJECTION_WRAP_KEYS = ['projections', 'data', 'payload', 'stats', 'players'] as const
 

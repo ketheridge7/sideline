@@ -1,7 +1,7 @@
 import { leagueKey, parseLeagueKey, type AppState, type League, type Matchup, type NflState, type NflTickerGame, type Player, type Team } from '@shared/types'
 import type { Settings } from '@shared/settings'
 import { matchupHasLineup } from '@shared/display'
-import { parseSleeperLeagueUser, parseSleeperRoster } from './providers/sleeperClient'
+import { isSleeperScoringKind, parseSleeperLeagueUser, parseSleeperRoster, type SleeperScoringKind } from './providers/sleeperClient'
 import { espnMatchupPeriodsFromPayload, type EspnMatchupPeriods } from './providers/espnAdapter'
 
 export const isLiveLeagueId = (id: string): boolean => /^\d+$/.test(id)
@@ -1143,6 +1143,8 @@ export type SleeperLeaguesDiskRow = {
   username: string
   season: string
   leagues: League[]
+  /** League id → projection column for Est. win%. Older snapshots omit it. */
+  scoringKinds?: Record<string, SleeperScoringKind>
 }
 
 const asLeague = (value: unknown, provider: League['provider']): League | null => {
@@ -1168,8 +1170,17 @@ export const sleeperLeaguesFromDiskPayload = (parsed: unknown, now: number): Sle
     .map((item) => asLeague(item, 'sleeper'))
     .filter((league): league is League => league != null)
   if (leagues.length === 0) return null
-  return { username, season, leagues }
+  const scoringKinds: Record<string, SleeperScoringKind> = {}
+  if (typeof row.scoringKinds === 'object' && row.scoringKinds != null && !Array.isArray(row.scoringKinds)) {
+    for (const [id, kind] of Object.entries(row.scoringKinds as Record<string, unknown>)) {
+      if (isSleeperScoringKind(kind)) scoringKinds[id] = kind
+    }
+  }
+  return { username, season, leagues, ...(Object.keys(scoringKinds).length > 0 ? { scoringKinds } : {}) }
 }
+
+/** Projection column for a Sleeper league's Est. win%. PPR only when the league's scoring is unknown. */
+export const sleeperProjectionKindPlan = (kind: SleeperScoringKind | undefined): SleeperScoringKind => kind ?? 'ppr'
 
 /** League schedule settings rarely change in-season; the season key guards rollover. */
 export const ESPN_MATCHUP_PERIODS_DISK_TRUST_MS = 30 * 24 * 60 * 60 * 1000

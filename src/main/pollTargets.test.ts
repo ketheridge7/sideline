@@ -24,6 +24,7 @@ import {
   sleeperUserFromSettings,
   sleeperUserHudPlan,
   sleeperLeaguesFromDiskPayload,
+  sleeperProjectionKindPlan,
   espnLeaguesFromDiskPayload,
   espnLeaguesCachePlan,
   espnDiscoverySwrPlan,
@@ -2805,5 +2806,24 @@ describe('espnMatchupPeriodsKickPlan', () => {
     expect(espnMatchupPeriodsKickPlan({ ...base, inFlight: true })).toBe('skip')
     expect(espnMatchupPeriodsKickPlan({ ...base, lastTryAt: 90_000 })).toBe('skip')
     expect(espnMatchupPeriodsKickPlan({ ...base, lastTryAt: 30_000 })).toBe('kick')
+  })
+})
+
+describe('Sleeper scoring kinds on the leagues disk snapshot', () => {
+  it('round-trips valid scoring kinds and drops unknown values', () => {
+    const now = 1_000_000
+    const leagues = [{ id: '11', name: 'One', provider: 'sleeper' as const, season: '2026', week: 1 }]
+    expect(
+      sleeperLeaguesFromDiskPayload(
+        { at: now, username: 'bob', season: '2026', leagues, scoringKinds: { '11': 'half_ppr', '12': 'superflex' } },
+        now
+      )
+    ).toEqual({ username: 'bob', season: '2026', leagues, scoringKinds: { '11': 'half_ppr' } })
+  })
+
+  it('falls back to PPR projections only when league scoring is unknown', () => {
+    expect(sleeperProjectionKindPlan('half_ppr')).toBe('half_ppr')
+    expect(sleeperProjectionKindPlan('std')).toBe('std')
+    expect(sleeperProjectionKindPlan(undefined)).toBe('ppr')
   })
 })

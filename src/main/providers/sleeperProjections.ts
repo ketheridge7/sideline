@@ -43,10 +43,27 @@ const readDisk = (): ProjectionCacheFile | null => {
   }
 }
 
+let ptsCache: {
+  players: Record<string, SleeperPlayerProjection>
+  byKind: Map<SleeperScoringKind, Record<string, number> | null>
+} | null = null
+
+const ptsForKind = (
+  players: Record<string, SleeperPlayerProjection>,
+  kind: SleeperScoringKind
+): Record<string, number> | null => {
+  if (ptsCache?.players !== players) ptsCache = { players, byKind: new Map() }
+  if (ptsCache.byKind.has(kind)) return ptsCache.byKind.get(kind) ?? null
+  const pts = toProjectionPtsMap(players, kind)
+  const out = Object.keys(pts).length > 0 ? pts : null
+  ptsCache.byKind.set(kind, out)
+  return out
+}
+
+/** Memoized per scoring kind until the weekly projection rows change. */
 export const peekSleeperProjectionPts = (kind: SleeperScoringKind = 'ppr'): Record<string, number> | null => {
   if (!memory) return null
-  const pts = toProjectionPtsMap(memory.players, kind)
-  return Object.keys(pts).length > 0 ? pts : null
+  return ptsForKind(memory.players, kind)
 }
 
 export const hydrateSleeperProjectionsFromDisk = (opts: {
@@ -94,8 +111,7 @@ export const getSleeperProjectionPts = async (opts: {
       const dir = app.getPath('userData')
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
       void writeFile(cachePath(), JSON.stringify(memory), 'utf8').catch(() => undefined)
-      const pts = toProjectionPtsMap(players, scoring)
-      return { pts: Object.keys(pts).length > 0 ? pts : null, refreshed: true }
+      return { pts: ptsForKind(players, scoring), refreshed: true }
     } finally {
       inflight = null
     }
@@ -107,4 +123,5 @@ export const getSleeperProjectionPts = async (opts: {
 export const resetSleeperProjectionsCache = (): void => {
   memory = null
   inflight = null
+  ptsCache = null
 }
