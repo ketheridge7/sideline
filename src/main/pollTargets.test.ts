@@ -41,6 +41,7 @@ import {
   restPrefetchGate,
   gamedayLiveTick,
   scoreboardPollLive,
+  calendarFallbackLive,
   restSettleSchedulePlan,
   restConcurrency,
   restScoreTimeoutMs,
@@ -2078,10 +2079,29 @@ describe('gamedayLiveTick', () => {
 })
 
 describe('scoreboardPollLive', () => {
-  it('does not drop the 3s gameday poll when every NFL event is still pre', () => {
-    expect(scoreboardPollLive({ gamesIn: false, calendarLive: true })).toBe(true)
-    expect(scoreboardPollLive({ gamesIn: true, calendarLive: false })).toBe(true)
-    expect(scoreboardPollLive({ gamesIn: false, calendarLive: false })).toBe(false)
+  const base = { gamesIn: false, kickoffSoon: false, reachable: true, calendarLive: false }
+
+  it('goes live when a game is in or a kickoff is imminent', () => {
+    expect(scoreboardPollLive({ ...base, gamesIn: true })).toBe(true)
+    expect(scoreboardPollLive({ ...base, kickoffSoon: true })).toBe(true)
+  })
+
+  it('stays idle inside the calendar window when the reachable scoreboard has only distant pre games', () => {
+    expect(scoreboardPollLive({ ...base, calendarLive: true })).toBe(false)
+  })
+
+  it('uses the calendar window only when the scoreboard is unreachable', () => {
+    expect(scoreboardPollLive({ ...base, reachable: false, calendarLive: true })).toBe(true)
+    expect(scoreboardPollLive({ ...base, reachable: false, calendarLive: false })).toBe(false)
+  })
+})
+
+describe('calendarFallbackLive', () => {
+  it('ignores the Fri/Sat/Sun calendar window while the scoreboard is reachable', () => {
+    expect(calendarFallbackLive({ replay: false, scoreboardReachable: true, calendarLive: true })).toBe(false)
+    expect(calendarFallbackLive({ replay: false, scoreboardReachable: false, calendarLive: true })).toBe(true)
+    expect(calendarFallbackLive({ replay: false, scoreboardReachable: false, calendarLive: false })).toBe(false)
+    expect(calendarFallbackLive({ replay: true, scoreboardReachable: true, calendarLive: false })).toBe(true)
   })
 })
 

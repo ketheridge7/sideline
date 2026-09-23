@@ -35,6 +35,7 @@ import { app } from 'electron'
 import { saveSettings } from './store'
 import { warmupPollerCaches, refresh, resetPollerForTests, currentState, invalidateEspnSession, primeEspnCookies, setOverlayVisible } from './poller'
 import { runtime } from './runtime'
+import { resetNflScoreboardCache } from './providers/nflScoreboard'
 
 afterEach(() => {
   resetPollerForTests()
@@ -2902,5 +2903,90 @@ describe('poller Sleeper Est. win% scoring kind', () => {
       scoringKinds?: Record<string, string>
     }
     expect(disk.scoringKinds?.[leagueId]).toBe('half_ppr')
+  })
+})
+
+describe('poller game-driven cadence', () => {
+  const saturdayAfternoon = new Date('2026-09-12T18:00:00Z')
+
+  const setupSaturday = (leagueId: string): void => {
+    const dir = app.getPath('userData')
+    const selectedKey = leagueKey('sleeper', leagueId)
+    saveSettings({ sleeperUsername: 'tester', sleeperUserId: 'me', selectedLeagueKey: selectedKey, espnLeagueIds: [] })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+  }
+
+  const stubSleeper = (scoreboard: () => unknown) =>
+    vi.fn(async (url: string) => {
+      if (url.includes('/state/nfl')) {
+        return jsonOk({ week: 1, display_week: 1, season: '2026', league_season: '2026', season_type: 'regular' })
+      }
+      if (url.includes('scoreboard')) return scoreboard()
+      if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+      return jsonOk([])
+    })
+
+  const scheduledPollDelays = (spy: { mock: { calls: unknown[][] } }): number[] =>
+    spy.mock.calls.map((call) => Number(call[1])).filter((ms) => ms >= 1_000)
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    resetNflScoreboardCache()
+  })
+
+  it('stays on the 30s idle interval inside the Saturday calendar window when no game is near', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(saturdayAfternoon)
+    resetNflScoreboardCache()
+    setupSaturday('880000000000000101')
+    warmupPollerCaches()
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    vi.stubGlobal(
+      'fetch',
+      stubSleeper(() =>
+        jsonOk({ events: [{ id: 'sun-1', date: '2026-09-13T17:00Z', status: { type: { state: 'pre' } } }] })
+      )
+    )
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
+    await refresh()
+    expect(currentState().pollingLive).toBe(false)
+    const delays = scheduledPollDelays(spy)
+    expect(delays.at(-1)).toBeGreaterThan(20_000)
+  })
+
+  it('arms the 3s cadence when a kickoff is within ten minutes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(saturdayAfternoon)
+    resetNflScoreboardCache()
+    setupSaturday('880000000000000102')
+    warmupPollerCaches()
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    vi.stubGlobal(
+      'fetch',
+      stubSleeper(() =>
+        jsonOk({ events: [{ id: 'sat-1', date: '2026-09-12T18:08Z', status: { type: { state: 'pre' } } }] })
+      )
+    )
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().pollingLive).toBe(true)
+    await refresh()
+    expect(scheduledPollDelays(spy).at(-1)).toBeLessThanOrEqual(3_000)
+  })
+
+  it('falls back to the calendar window only when the scoreboard is unreachable', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(saturdayAfternoon)
+    resetNflScoreboardCache()
+    setupSaturday('880000000000000103')
+    warmupPollerCaches()
+    vi.stubGlobal('fetch', stubSleeper(() => ({ ok: false, status: 503, headers: { get: () => null }, json: async () => ({}) })))
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().pollingLive).toBe(true)
   })
 })

@@ -1458,9 +1458,25 @@ export const restPrefetchAwaitPlan = (opts: {
 export const gamedayLiveTick = (opts: { pollingLive: boolean; calendarLive: boolean }): boolean =>
   opts.pollingLive || opts.calendarLive
 
-/** Scoreboard events still `pre` must not drop the 3s gameday interval. Rest settle must not reschedule 30s over an armed HUD tick. */
-export const scoreboardPollLive = (opts: { gamesIn: boolean; calendarLive: boolean }): boolean =>
-  gamedayLiveTick({ pollingLive: opts.gamesIn, calendarLive: opts.calendarLive })
+/**
+ * Live cadence is game-driven: a game `in`, or a kickoff within
+ * KICKOFF_SOON_MS. A reachable scoreboard with only distant `pre` games stays
+ * idle even inside the calendar window; the calendar decides only when the
+ * scoreboard is unreachable.
+ */
+export const scoreboardPollLive = (opts: {
+  gamesIn: boolean
+  kickoffSoon: boolean
+  reachable: boolean
+  calendarLive: boolean
+}): boolean => (opts.reachable ? opts.gamesIn || opts.kickoffSoon : opts.calendarLive)
+
+/** Tick-start gameday flag before this tick's scoreboard settles: calendar window only while the scoreboard is unreachable. */
+export const calendarFallbackLive = (opts: {
+  replay: boolean
+  scoreboardReachable: boolean
+  calendarLive: boolean
+}): boolean => opts.replay || (!opts.scoreboardReachable && opts.calendarLive)
 
 export const restSettleSchedulePlan = (opts: {
   hudScheduled: boolean

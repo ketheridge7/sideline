@@ -48,7 +48,7 @@ import {
   weekTeamScheduleFilter,
   type EspnCookies
 } from './providers/espnClient'
-import { nflScoreboardState } from './providers/nflScoreboard'
+import { nflScoreboardReachable, nflScoreboardState, type NflScoreboardState } from './providers/nflScoreboard'
 import {
   leaguesFromFanPayload,
   espnTeamsFromPayload,
@@ -87,7 +87,7 @@ import { startupErrorNotice, statusErrorPlan } from './notices'
 import { overlayLanState } from './server'
 import { loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
-import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, scoreboardPollLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, confirmNflWeekSourcePlan, nflFromEspnScoringPeriod, espnMatchupPeriodsKickPlan, sleeperProjectionKindPlan, type LastHudSnapshot } from './pollTargets'
+import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, calendarFallbackLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, confirmNflWeekSourcePlan, nflFromEspnScoringPeriod, espnMatchupPeriodsKickPlan, sleeperProjectionKindPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnMatchupPeriodsDisk, writeEspnMatchupPeriodsDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
 
 let timer: NodeJS.Timeout | null = null
@@ -920,7 +920,11 @@ const persistAfterPaint = (write: () => void): void => {
 
 const persistLiveSnapshot = (write: () => void): void => {
   const seasonType = lastState.nfl?.seasonType
-  const calendarLive = seasonType != null && isLikelyLive(new Date(), seasonType)
+  const calendarLive = calendarFallbackLive({
+    replay: false,
+    scoreboardReachable: nflScoreboardReachable(),
+    calendarLive: seasonType != null && isLikelyLive(new Date(), seasonType)
+  })
   const plan = liveMatchupsPersistPlan(
     gamedayLiveTick({ pollingLive: lastState.pollingLive, calendarLive })
   )
@@ -2383,7 +2387,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const nflState = nfl
     let liveNfl: NflState = nflState
 
-    const calendarLive = replay || isLikelyLive(new Date(), nflState.seasonType)
+    const rawCalendarLive = isLikelyLive(new Date(), nflState.seasonType)
+    const calendarLive = calendarFallbackLive({
+      replay,
+      scoreboardReachable: nflScoreboardReachable(),
+      calendarLive: rawCalendarLive
+    })
     const liveTick = gamedayLiveTick({ pollingLive: lastState.pollingLive, calendarLive })
     const restLimit = restConcurrency(liveTick)
 
@@ -3241,11 +3250,11 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     })
     let live = seeded.live
     let nflTicker = seeded.ticker
-    const replayBoard = (): Promise<{ live: boolean; ticker: ReturnType<typeof replayNflTicker> }> =>
-      Promise.resolve({ live: true, ticker: replayNflTicker() })
-    const applyScoreboard = (scoreboard: { live: boolean; ticker: ReturnType<typeof replayNflTicker> }): void => {
+    const replayBoard = (): Promise<NflScoreboardState> =>
+      Promise.resolve({ live: true, ticker: replayNflTicker(), reachable: true })
+    const applyScoreboard = (scoreboard: NflScoreboardState): void => {
       if (gen !== pollGen) return
-      const nextLive = scoreboardPollLive({ gamesIn: scoreboard.live, calendarLive })
+      const nextLive = scoreboard.live
       const sameLive = nextLive === live
       const sameTicker = scoreboard.ticker === nflTicker
       live = nextLive
@@ -3275,12 +3284,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         lastUpdated: Date.now()
       })
     }
-    let scoreboardPromise: Promise<{ live: boolean; ticker: ReturnType<typeof replayNflTicker> }> =
-      Promise.resolve({ live: calendarLive, ticker: [] })
+    let scoreboardPromise: Promise<NflScoreboardState> =
+      Promise.resolve({ live: calendarLive, ticker: [], reachable: false })
     const scoreboardOrder = nflScoreboardSettleOrder(boardPlan)
     switch (scoreboardOrder) {
       case 'before-lists':
-        scoreboardPromise = replay ? replayBoard() : nflScoreboardState(calendarLive, liveTick)
+        scoreboardPromise = replay ? replayBoard() : nflScoreboardState(rawCalendarLive, liveTick)
         void scoreboardPromise.then(applyScoreboard).catch(() => undefined)
         break
       case 'after-pinned-rest':
@@ -3561,7 +3570,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       case 'after-pinned':
         scoreboardPromise = replay
           ? replayBoard()
-          : pinnedPromise.then(() => nflScoreboardState(calendarLive, liveTick))
+          : pinnedPromise.then(() => nflScoreboardState(rawCalendarLive, liveTick))
         void scoreboardPromise.then(applyScoreboard).catch(() => undefined)
         break
       case 'after-hud':
