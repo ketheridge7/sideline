@@ -84,6 +84,8 @@ Companion still has `O` (HUD), `E` (Studio panel), and `Esc` (close Studio) on t
 
 Connect → **Allow devices on this Wi-Fi to load the overlay**. Sideline then binds the overlay server on all interfaces, shows a **6-digit pairing code**, and requires a session token (`?k=`). On the Google TV app (`tv/`), type that code — you do not enter the IP or hex token. Paste the phone URL into a browser to confirm. Loopback OBS use is unchanged while this toggle is off.
 
+The PC saves that token and reuses it across restarts, so a paired TV keeps working after Sideline relaunches. Turning the Wi-Fi toggle off forgets the token; turn it back on and pair the TV again. The 6-digit code still refreshes about every 10 minutes.
+
 Windows is the first-class overlay target. macOS uses `type: 'panel'`, `setAlwaysOnTop(..., 'screen-saver')`, `setVisibleOnAllWorkspaces({ visibleOnFullScreen: true })`, and accessory activation policy so it can sit above fullscreen video. That last setting **hides the Dock icon**; use the tray icon to show the companion.
 
 Google TV overlay app: see [`tv/README.md`](tv/README.md).
@@ -115,6 +117,8 @@ Companion chrome uses the locked **broadcast S** (`src/renderer/assets/broadcast
 
 `npm run build:mac` is wired and uses `build/icon.icns`, with notarization off. Run that on a Mac when you want a `.dmg`; it is not the current goal. macOS auto-update is out of scope until the app is signed/notarized.
 
+Packaged builds flip Electron fuses (`electron-builder.yml`), including cookie encryption. That encryption is one-way: after you install a fused build, sign in to ESPN again. `npm start` and `electron-vite preview` are not fused.
+
 ## Updates
 
 Installed Windows builds check **public GitHub Releases** (`ketheridge7/sideline`) via `electron-updater`. People running the installed app do **not** need a GitHub token. `npm start` / `electron-vite` never talks to the updater.
@@ -130,7 +134,11 @@ Connect → **Check for updates**. On startup (packaged only) Sideline also chec
 5. `releaseType: release` publishes that Release immediately (not a draft) so `electron-updater` can read `/releases/latest`.
 6. Already-installed Sideline offers the update on the next check.
 
-Tag workflow (`.github/workflows/release.yml`) builds NSIS on `windows-latest` when you push `v*`. It maps `GITHUB_TOKEN` to `GH_TOKEN` for electron-builder (`contents: write` on the same repo). No extra secret.
+During the NFL season, do not push a `v*` tag Thursday through Monday (Eastern).
+
+Set repository variable `SIDELINE_STAGING_PERCENTAGE` to an integer from 1 to 99 before a risky tag. The release workflow writes that into `latest.yml`. `electron-updater` then offers the build only to that share of installs (a stable per-machine roll). Leave the variable unset for a full rollout.
+
+Tag workflow (`.github/workflows/release.yml`) runs `npm run typecheck` and `npm test`, then builds NSIS on `windows-latest` when you push `v*`. It maps `GITHUB_TOKEN` to `GH_TOKEN` for electron-builder (`contents: write` on the same repo). No extra secret. Pull requests run the same typecheck and test job (`.github/workflows/ci.yml`).
 
 ### Publishing auth (maintainers only)
 
