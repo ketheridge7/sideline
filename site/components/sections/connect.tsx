@@ -44,14 +44,15 @@ export function ConnectSection() {
             sizes="(min-width: 1152px) 640px, 100vw"
           />
           <div>
-            <p className="font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-lime">Demo Sunday</p>
+            <p className="font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-lime">Replay</p>
             <h3 className="mt-2 font-cond text-2xl font-bold uppercase tracking-[0.06em]">
-              Try it before you connect
+              A scripted Sunday, on demand
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              Connect has a <strong className="font-medium text-text">Start demo</strong> button. Sideline
-              restarts into a scripted Week 3 slate with six fake leagues — live-looking scores, tape,
-              and the HUD — without touching your accounts. Exit the demo from the same place.
+              Connect has a <strong className="font-medium text-text">Replay</strong> block. Arm it and
+              Sideline restarts into a scripted Week 3 slate — six fake leagues, a moving scoring tape,
+              and the HUD — for screenshots, demos, or a Tuesday night. Your accounts stay untouched;
+              disarm from the same place.
             </p>
           </div>
         </div>

@@ -21,18 +21,18 @@ npm install
 npm start
 ```
 
-### Demo Sunday
+### Replay
 
-Preseason, no live games, or just want to show someone? **Connect → Start demo** restarts Sideline into Demo Sunday: a scripted Week 3 slate with six fake leagues (Ice Box vs Hash Marks on Sleeper, Two-Minute Drill vs Monday Morning QBs on ESPN, plus four more), full benches, a moving scoring tape, injuries and waivers, and the NFL ticker. Scores open mid-slate (~45–90) and play out toward realistic finals; the 1:00 window goes final and the late window kicks off as it runs. A **Demo Sunday** chip stays in the top bar; **Exit demo** on Connect restarts into your real leagues.
+Preseason, no live games, or need screenshots? **Connect → Arm Replay** restarts Sideline into a scripted Week 3 Sunday with six fake friend-group leagues. The pinned frame is Friday Night Gridiron: Maya's Ice Box 98.4 vs Owen's Hash Marks 91.2, Est. win% 62/38. Four Sleeper and two ESPN boards, short benches, a moving scoring tape with an injury, a waiver, and a trade, plus the NFL ticker. From there the slate plays out: halftime ends, early games go final, and the late window kicks off. A small **Replay** chip sits in the top bar while it's armed; **Disarm Replay** on Connect restarts into your real leagues.
 
-From a dev checkout:
+From a dev checkout (power-user escape hatch):
 
 ```bash
-npm run replay           # Demo Sunday with demo labels
-npm run replay:capture   # same data, no demo chrome — for marketing stills (docs/marketing/stills.md)
+npm run replay           # SIDELINE_REPLAY=1: Replay armed, plays out from the pinned frame
+npm run replay:capture   # also SIDELINE_REPLAY_HOLD=1: holds the pinned frame for marketing stills
 ```
 
-The demo is fixture-only. It never calls a sports-data API, never touches ESPN cookies or your Sleeper username (sign-in, sign-out, and league edits are refused while it runs), and its slug league ids are stripped from settings on the next live launch.
+Replay is fixture-only. It never calls a sports-data API, never touches ESPN cookies or your Sleeper username (sign-in, sign-out, and league edits are refused while it's armed), and its slug league ids are stripped from settings on the next live launch.
 
 ## Connect
 

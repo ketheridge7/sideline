@@ -1,62 +1,72 @@
 # Marketing stills
 
-Every product screen on the site is a real capture from **Demo Sunday**, the scripted
-Week 3 slate (six fake Sleeper and ESPN leagues, real NFL player names). Never capture
+Source of truth: Designer's Sunday-real spec (`MARKETING_REPLAY_SPEC`, 2026-09-23). Every
+product screen on the site is a real capture of the **pinned Replay frame**. Never capture
 live leagues for the public site, and never put a real person in a still.
 
-| File in `site/public/images/` | What it shows | How it is made |
-| --- | --- | --- |
-| `companion-board.jpg` | Scoreboard, Cul-de-Sac League, Ice Box vs Hash Marks | Window capture, 1600×900 |
-| `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1600×900 |
-| `overlay-studio.jpg` | Scoreboard with Overlay Studio open | Window capture, 1600×900 |
-| `connect-hub.jpg` | Connect hub cards (ESPN, Sleeper, TV) | Window capture, cropped to the hub, 980×550 |
-| `frost-hud.jpg` | Frost HUD on a living-room TV | `hud-shot.mjs` + `compose.py frost` |
-| `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `hud-shot.mjs` + board capture + `compose.py hero` |
+Pinned frame (tick 0, `src/main/providers/replayWorld.ts`, mirrored in `site/lib/demo.ts`;
+`src/main/siteDemo.test.ts` fails if they drift):
 
-Alt text and captions live in `site/lib/stills.ts`. Update the alt text whenever a
-still's scores or teams change.
+- Friday Night Gridiron (Sleeper), Week 3: Maya's **Ice Box 98.4** vs Owen's **Hash Marks 91.2**,
+  Est. win% **62 / 38**.
+- MY LEAGUES: Fourth & Drunken 84.1–102.6 · Sunday Lights 71.0–68.4 · Waiver Wire Warriors
+  55.2–49.8 · Gridiron Gurus (ESPN) 112.3–88.0 · Basement Bowl (ESPN) 40.1–61.7.
+- Tape (THIS MATCHUP): Gibbs TD · Hill FUM · Allen PASS TD · St. Brown REC · Dowdle INJ ·
+  Ravens INT · Fields RUSH.
+- Ticker leads with DET–KC 3RD, DAL–NYG FINAL, BUF–MIA 2ND, PHI–ATL 1ST, PIT–LAC HALFTIME.
 
-The two living-room backdrops (`scripts/marketing/backdrops/`) are generated rooms with
-no people in them. Only the screens are replaced, and only with real captures.
+| Slot | File in `site/public/images/` | What it shows | How it is made |
+| --- | --- | --- | --- |
+| A hero | `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `hud-shot.mjs` + board capture + `compose.py hero` |
+| B | `companion-board.jpg` | Scoreboard, Hash Marks bench popover open | Window capture, 1440×900 |
+| — | `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1440×900 |
+| C | `frost-hud.jpg` | Frost HUD (preset 1, far sides) on a living-room TV | `hud-shot.mjs` + `compose.py frost` |
+| D | `overlay-studio.jpg` | Scoreboard with Overlay Studio, preview over the game plate | Window capture, 1440×900 |
+| E | `connect-hub.jpg` | Replay armed block + ESPN / Sleeper / TV cards | Window capture, cropped to the hub |
+
+Alt text and captions live in `site/lib/stills.ts` (spec §2 wording).
+
+The two living-room backdrops (`scripts/marketing/backdrops/`) are generated rooms with no
+people in them. Only the screens are replaced, and only with real captures. The Studio
+preview plate (`src/renderer/assets/studio-plate.jpg`) is cropped from the same TV backdrop and
+ships in the app, so still D shows what the product actually renders.
 
 ## Capture checklist
 
-1. `npm install`, then `npm run replay:capture`. This is Demo Sunday with the Demo chip and
-   the Connect demo banner hidden, so the stills carry no demo chrome.
-2. Size the companion window to **1600×900** (Windows: PowerToys FancyZones or a window
-   sizer; Linux: `xdotool search --name Sideline windowsize 1600 900`).
-3. **Scoreboard** — about 30–45 seconds after launch the opening script has played out:
-   Ice Box and Hash Marks are within a few points, Est. win% sits near 55–45, Drake London
-   shows OUT, and the tape is full. Capture the window → `companion-board.jpg`.
+1. `npm install`, then `npm run replay:capture`. Replay is armed and **held** on the pinned frame
+   (`SIDELINE_REPLAY_HOLD=1`), so every still shows the same Sunday. The small REPLAY chip and
+   caption stay visible on purpose (spec §4).
+2. Size the companion window to **1440×900** (Windows: PowerToys FancyZones or a window sizer;
+   Linux: `xdotool search --name Sideline windowsize 1440 900`).
+3. **B** — Scoreboard. Open the **Hash Marks** bench (right foot) so Ice Box's lineup stays
+   visible and one foot shows a bench list. Capture → `companion-board.jpg`.
 4. **Leagues** — click Leagues and capture → `leagues-board.jpg`.
-5. **Connect** — click Connect and capture, then crop to the hub cards (Getting started
-   through Report a bug) → `connect-hub.jpg`.
-6. **Studio** — back on Scoreboard, turn on HUD, press **Edit layout**. Move the overlay to
-   another display, or capture only the companion window, so the rails do not cover it →
-   `overlay-studio.jpg`.
-7. **HUD renders** — with the app still running, in a second terminal:
+5. **E** — click Connect and capture, then crop from the Replay block through the provider
+   cards → `connect-hub.jpg`.
+6. **D** — Scoreboard, turn on HUD, press **Edit layout**. Move the overlay to another display
+   (or capture only the companion window) so the rails don't cover it → `overlay-studio.jpg`.
+7. **HUD render** — with the app still running, in a second terminal:
 
    ```bash
-   node scripts/marketing/hud-shot.mjs hud-tv.png          # TV surface (Google TV look)
+   node scripts/marketing/hud-shot.mjs hud.png http://127.0.0.1:7333/overlay
    ```
 
-   Capture a fresh Scoreboard window **in the same moment** as `board.png`, so the laptop
-   and TV in the hero agree on the score.
-8. **Composite** (Python 3 with Pillow and NumPy):
+   Use the desktop surface (regular density); the TV surface truncates ST. BROWN.
+   Capture the Scoreboard with benches closed as `board.png` for the hero laptop.
+8. **Composite C and A** (Python 3 with Pillow and NumPy):
 
    ```bash
-   python3 scripts/marketing/compose.py frost --hud hud-tv.png
-   python3 scripts/marketing/compose.py hero --hud hud-tv.png --board board.png
+   python3 scripts/marketing/compose.py frost --hud hud.png
+   python3 scripts/marketing/compose.py hero --hud hud.png --board board.png
    ```
 
-9. Update alt text in `site/lib/stills.ts`, then `cd site && npm run lint && npm run build`.
+9. Update alt text in `site/lib/stills.ts` if anything changed, then
+   `cd site && npm run lint && npm run build`.
 
-## Demo Sunday timeline (3s per tick)
+## After the pinned frame (`npm run replay`, 3s per tick)
 
-- 0:00 — opening scores (Ice Box 67.1, Hash Marks 83.2). Thursday night is final, the
-  1:00 window is in the 3rd/4th quarter, and LAR @ PHI is at halftime.
-- 0:00–1:15 — scripted opening: Bijan Robinson rushing TD, Ja'Marr Chase fumble, Drake
-  London hurt, Daniels to McLaurin, and more across both featured boards.
-- 1:30 — halftime ends in Philadelphia.
-- ~15:00 — the 1:00 window goes final; 4:05/4:25 games kick off right after.
-- Scores stay bounded (team totals finish around 90–140). Relaunch the demo to replay.
+- 0:00–1:00 — scripted opening: Gibbs and Allen tick first, then TDs by A.J. Brown and
+  St. Brown swing the featured board.
+- 1:30 — halftime ends in PIT–LAC.
+- ~15:00 — DET–KC and ARI–SEA go final; the 4:05 and 4:25 games kick off from ~16:00.
+- Scores stay bounded; relaunch to replay from the pinned frame.

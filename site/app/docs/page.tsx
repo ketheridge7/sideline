@@ -3,7 +3,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { Kbd } from "@/components/ui";
 import { DOWNLOAD_URL } from "@/lib/constants";
-import { SHORTCUTS } from "@/lib/shortcuts";
+import { SHORTCUTS } from "@/lib/demo";
 
 export const metadata: Metadata = {
   title: "Connect & shortcuts",
@@ -69,15 +69,16 @@ export default function DocsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">Demo Sunday</h2>
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">Replay</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Want to see Sideline on a Sunday before you connect anything? Open Connect and press{" "}
-            <strong className="font-medium text-text">Start demo</strong>. Sideline restarts into a
-            scripted Week 3 slate: six fake Sleeper and ESPN leagues, live-looking scores, a moving
-            scoring tape, and the HUD. A <strong className="font-medium text-text">Demo Sunday</strong>{" "}
-            chip sits in the top bar the whole time. Your sign-ins, leagues, and settings are not
-            touched — press <strong className="font-medium text-text">Exit demo</strong> on Connect to
-            restart back into your real leagues.
+            Want to see Sideline on a Sunday before you connect anything, or grab screenshots? Open
+            Connect and press <strong className="font-medium text-text">Arm Replay</strong>. Sideline
+            restarts into a scripted Week 3 slate: six fake Sleeper and ESPN leagues, live-looking
+            scores, a moving scoring tape, and the HUD. A small{" "}
+            <strong className="font-medium text-text">Replay</strong> chip sits in the top bar while it
+            is armed. Your sign-ins, leagues, and settings are not touched — press{" "}
+            <strong className="font-medium text-text">Disarm Replay</strong> on Connect to restart into
+            your real leagues.
           </p>
         </section>
 
