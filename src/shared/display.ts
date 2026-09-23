@@ -8,7 +8,7 @@ import type {
   Provider,
   ScorerChip
 } from './types'
-import { leagueKey, parseLeagueKey } from './types'
+import { leagueKey, parseLeagueKey, preferStoredLeagueName } from './types'
 import {
   estimatedChanceToWin,
   providerChanceToWin,
@@ -247,7 +247,13 @@ export const weekShiftClearedBoard = (
 export const upsertMatchupBoard = (boards: MatchupBoard[], next: MatchupBoard): MatchupBoard[] => {
   const index = boards.findIndex((row) => row.key === next.key)
   if (index < 0) return [...boards, next]
-  return boards.map((row, rowIndex) => (rowIndex === index ? next : row))
+  const prev = boards[index]
+  const id = parseLeagueKey(next.key)?.id
+  const leagueName = id
+    ? preferStoredLeagueName(next.leagueName, id, prev.leagueName)
+    : next.leagueName
+  const merged = leagueName === next.leagueName ? next : { ...next, leagueName }
+  return boards.map((row, rowIndex) => (rowIndex === index ? merged : row))
 }
 
 export const applyCompanionHudPatch = (current: AppState, patch: CompanionHudPatch): AppState => {
@@ -256,17 +262,21 @@ export const applyCompanionHudPatch = (current: AppState, patch: CompanionHudPat
   const key = current.selectedLeagueKey
   if (!matchup || !key) return next
   const parsed = parseLeagueKey(key)
-  const league: League | undefined =
-    current.leagues.find((row) => leagueKey(row.provider, row.id) === key) ??
-    (parsed
+  const fromLeagues = current.leagues.find((row) => leagueKey(row.provider, row.id) === key)
+  const storedName = current.boards.find((row) => row.key === key)?.leagueName
+  const incomingName = fromLeagues?.name ?? matchup.myTeam.name
+  const name = parsed ? preferStoredLeagueName(incomingName, parsed.id, storedName) : incomingName
+  const league: League | undefined = fromLeagues
+    ? { ...fromLeagues, name }
+    : parsed
       ? {
           id: parsed.id,
-          name: matchup.myTeam.name,
+          name,
           provider: parsed.provider,
           season: current.nfl?.leagueSeason ?? '',
           week: current.nfl?.displayWeek ?? 0
         }
-      : undefined)
+      : undefined
   if (!league) return next
   return { ...next, boards: upsertMatchupBoard(current.boards, toMatchupBoard(league, matchup)) }
 }

@@ -248,6 +248,13 @@ export const parseLeagueKey = (key: string): { provider: Provider; id: string } 
   return { provider, id }
 }
 
+/** Live ESPN paints stub the selected league with `name: id`. Keep a stored human title. */
+export const preferStoredLeagueName = (incoming: string, id: string, stored?: string): string => {
+  if (incoming && incoming !== id) return incoming
+  if (stored && stored !== id) return stored
+  return incoming
+}
+
 export const emptyAppState = (): AppState => ({
   sleeperConnected: false,
   sleeperUsername: null,
@@ -412,6 +419,22 @@ export const overlayHudUnchanged = (prev: OverlayHudState, next: OverlayHudState
   sameTape(prev.tape, next.tape) &&
   sameTicker(prev.nflTicker, next.nflTicker)
 
+const overlayLeagueName = (
+  state: AppState,
+  league: League | undefined,
+  selected: { provider: Provider; id: string } | null,
+  fallback: string
+): string => {
+  const board = state.selectedLeagueKey
+    ? state.boards.find((row) => row.key === state.selectedLeagueKey)
+    : undefined
+  return preferStoredLeagueName(
+    league?.name ?? fallback,
+    league?.id ?? selected?.id ?? '',
+    board?.leagueName
+  )
+}
+
 export const toOverlayHud = (state: AppState): OverlayHudState => {
   const selected = state.selectedLeagueKey ? parseLeagueKey(state.selectedLeagueKey) : null
   const league = selected
@@ -429,7 +452,7 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
     return {
       ...hudShell(state),
       pollingLive: fakeOnAir ? false : state.pollingLive,
-      leagueName: league?.name ?? 'Sideline',
+      leagueName: overlayLeagueName(state, league, selected, 'Sideline'),
       provider: league?.provider ?? selected?.provider ?? null,
       week: league?.week ?? state.nfl?.displayWeek ?? null,
       myPoints: 0,
@@ -447,7 +470,7 @@ export const toOverlayHud = (state: AppState): OverlayHudState => {
   return {
     ...hudShell(state),
     pollingLive: fakeOnAir ? false : state.pollingLive,
-    leagueName: league?.name ?? matchup.myTeam.name,
+    leagueName: overlayLeagueName(state, league, selected, matchup.myTeam.name),
     provider: league?.provider ?? selected?.provider ?? null,
     week: league?.week ?? state.nfl?.displayWeek ?? null,
     myPoints: matchup.myPoints,

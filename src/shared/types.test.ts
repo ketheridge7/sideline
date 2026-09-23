@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyAppState, overlayHudUnchanged, parseProvider, toOverlayHud } from './types'
+import { emptyAppState, overlayHudUnchanged, parseProvider, preferStoredLeagueName, toOverlayHud } from './types'
 import { layoutFromPreset } from './overlayLayout'
 import { mapTransactionKind } from './transactionKind'
 
@@ -9,6 +9,17 @@ describe('parseProvider', () => {
     expect(parseProvider('sleeper')).toBe('sleeper')
     expect(parseProvider('tv')).toBeNull()
     expect(parseProvider(1)).toBeNull()
+  })
+})
+
+describe('preferStoredLeagueName', () => {
+  it('keeps a human ESPN title instead of the raw league id', () => {
+    expect(preferStoredLeagueName('543268341', '543268341', 'Dawg Pound')).toBe('Dawg Pound')
+    expect(preferStoredLeagueName('Dawg Pound', '543268341', 'Dawg Pound')).toBe('Dawg Pound')
+    expect(preferStoredLeagueName('Dawg Pound Dynasty', '543268341', 'Dawg Pound')).toBe('Dawg Pound Dynasty')
+    expect(preferStoredLeagueName('Friday Night Gridiron', '1', 'Friday Night Gridiron')).toBe(
+      'Friday Night Gridiron'
+    )
   })
 })
 
@@ -178,6 +189,24 @@ describe('toOverlayHud', () => {
     expect(hud.leagueName).toBe('Dawg Pound')
     expect(hud.provider).toBe('espn')
     expect(hud.myStarters[0]?.playerId).toBe('1')
+    const stubbed = toOverlayHud({
+      ...state,
+      leagues: [{ id: '543268341', name: '543268341', provider: 'espn', season: '2026', week: 1 }],
+      boards: [
+        {
+          key: 'espn:543268341',
+          leagueName: 'Dawg Pound',
+          provider: 'espn',
+          week: 1,
+          myName: 'Dawg House',
+          oppName: 'Them',
+          myPoints: 12.5,
+          oppPoints: 9,
+          lastScorers: []
+        }
+      ]
+    })
+    expect(stubbed.leagueName).toBe('Dawg Pound')
     const sleeper = toOverlayHud({
       ...state,
       selectedLeagueKey: 'sleeper:1333470459076804608',
