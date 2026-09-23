@@ -4,7 +4,7 @@ import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { parseLeagueKey, parseProvider } from '@shared/types'
-import { collectBugReportRuntime, openExternalUrl } from './bugReport'
+import { collectBugReportRuntime, copyDiagnostics, openExternalUrl } from './bugReport'
 import { DEMO_LOCKED_MESSAGE, demoDevHint, demoRelaunchArgs, demoSwitchPlan } from './demoMode'
 import { isReplayMode } from './providers/replay'
 import { clearStartupError, reportStartupError } from './notices'
@@ -155,5 +155,6 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:checkForUpdates', () => checkForUpdates(true))
   ipcMain.handle('sideline:installUpdate', () => installUpdate())
   ipcMain.handle('sideline:getRuntimeInfo', () => collectBugReportRuntime())
+  ipcMain.handle('sideline:copyDiagnostics', () => copyDiagnostics())
   ipcMain.handle('sideline:openExternal', (_event, url: unknown) => openExternalUrl(url))
 }

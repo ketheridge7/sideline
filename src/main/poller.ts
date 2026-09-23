@@ -83,9 +83,10 @@ import {
   replayTransactions
 } from './providers/replay'
 import { runtime } from './runtime'
-import { backoffNoticePlan, startupErrorNotice, statusErrorPlan } from './notices'
+import { backoffNoticePlan, settingsFileNotice, startupErrorNotice, statusErrorPlan } from './notices'
+import { syncLanPowerSave } from './powerSave'
 import { overlayLanState } from './server'
-import { loadSettings, saveSettings } from './store'
+import { leagueSettingsRevision, loadSettings, saveSettings } from './store'
 import { readEspnCookies } from './windows/espnLogin'
 import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, calendarFallbackLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, confirmNflWeekSourcePlan, nflFromEspnScoringPeriod, espnMatchupPeriodsKickPlan, sleeperProjectionKindPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnMatchupPeriodsDisk, writeEspnMatchupPeriodsDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
@@ -124,6 +125,7 @@ let lastState: AppState = emptyAppState()
 let lastPushedHud: OverlayHudState | null = null
 let inFlight: Promise<AppState> | null = null
 let inFlightSelectedKey: string | null = null
+let inFlightSettingsRevision: number | null = null
 let pollGen = 0
 const LEAGUE_TTL_MS = 5 * 60_000
 const ROSTER_TTL_MS = 5 * 60_000
@@ -240,6 +242,7 @@ const withStatusNotices = (refreshError: string | null): string | null =>
   statusErrorPlan({
     refreshError,
     startupError: startupErrorNotice(),
+    settingsNotice: settingsFileNotice(),
     holdNotice: backoffNoticePlan(hostsInBackoff())
   })
 
@@ -293,6 +296,7 @@ export const applyHotkeys = (): void => {
 const broadcast = (state: AppState): void => {
   const prev = lastState
   lastState = state
+  syncLanPowerSave(state.lanOverlayEnabled, state.pollingLive)
   const order = broadcastOrderPlan()
   switch (order) {
     case 'hud-then-state': {
@@ -857,11 +861,13 @@ const loadSleeperLeagues = async (
       return cached?.leagues ?? []
     case 'await-fetch':
       if (!sleeperLeaguesInFlight) {
-        sleeperLeaguesInFlight = ensureSleeperUser()
+        let pending: Promise<League[]>
+        pending = ensureSleeperUser()
           .then((user) => (user ? loadSleeperLeaguesFresh(nfl, user, username) : cached?.leagues ?? []))
           .finally(() => {
-            sleeperLeaguesInFlight = null
+            if (sleeperLeaguesInFlight === pending) sleeperLeaguesInFlight = null
           })
+        sleeperLeaguesInFlight = pending
       }
       return sleeperLeaguesInFlight
     default: {
@@ -1496,10 +1502,12 @@ const startEspnDiscovery = (
   cookieKey: string
 ): Promise<League[]> => {
   if (espnDiscoveryInFlight) return espnDiscoveryInFlight
-  espnDiscoveryInFlight = loadEspnLeaguesFresh(cookies, nfl, cookieKey).finally(() => {
-    espnDiscoveryInFlight = null
+  let pending: Promise<League[]>
+  pending = loadEspnLeaguesFresh(cookies, nfl, cookieKey).finally(() => {
+    if (espnDiscoveryInFlight === pending) espnDiscoveryInFlight = null
   })
-  return espnDiscoveryInFlight
+  espnDiscoveryInFlight = pending
+  return pending
 }
 
 const kickEspnDiscoverySwr = (cookies: EspnCookies | null, nfl: NflState, gen: number): void => {
@@ -2306,12 +2314,15 @@ let boardsTail: Promise<AppState> | null = null
 
 export const refresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState> => {
   const waitForBoards = Boolean(opts?.waitForBoards)
+  const settingsNow = loadSettings()
   const join = refreshJoinPlan({
     hasInFlight: inFlight != null,
     hasBoardsTail: boardsTail != null,
     waitForBoards,
-    settingsKey: loadSettings().selectedLeagueKey,
-    inFlightKey: inFlightSelectedKey
+    settingsKey: settingsNow.selectedLeagueKey,
+    inFlightKey: inFlightSelectedKey,
+    settingsRevision: leagueSettingsRevision(),
+    inFlightRevision: inFlightSettingsRevision
   })
   switch (join) {
     case 'join':
@@ -2337,6 +2348,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
   const gen = ++pollGen
   const settings = loadSettings()
   inFlightSelectedKey = settings.selectedLeagueKey
+  inFlightSettingsRevision = leagueSettingsRevision()
   const replay = isReplayMode()
   const started = Date.now()
   let nfl: NflState | null = null
@@ -3267,7 +3279,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       })
       switch (settleSchedule) {
         case 'schedule':
-          schedule(nextLive, Date.now() - started)
+          schedule(nextLive, Date.now() - started, gen)
           break
         case 'skip':
           break
@@ -3648,7 +3660,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     })
     switch (snapshotSchedule) {
       case 'schedule':
-        schedule(live, Date.now() - started)
+        schedule(live, Date.now() - started, gen)
         break
       case 'skip':
         break
@@ -3846,7 +3858,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     if (replay) {
       const state = await finishRest()
       bumpReplayTick()
-      schedule(true, Date.now() - started)
+      schedule(true, Date.now() - started, gen)
       return state
     }
     void finishRest().catch(() => undefined)
@@ -3856,7 +3868,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     if (replay || opts?.waitForBoards || !hudPainted) {
       return settleBoards()
     }
-    schedule(lastState.pollingLive || calendarLive, Date.now() - started)
+    schedule(lastState.pollingLive || calendarLive, Date.now() - started, gen)
     const pending = settleBoards()
     boardsTail = pending
     void pending.catch(() => undefined).finally(() => {
@@ -3887,12 +3899,13 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       error: withStatusNotices(error)
     }
     broadcast(state)
-    schedule(false, Date.now() - started)
+    schedule(false, Date.now() - started, gen)
     return state
   }
 }
 
-const schedule = (live: boolean, elapsedMs: number): void => {
+const schedule = (live: boolean, elapsedMs: number, gen: number): void => {
+  if (gen !== pollGen) return
   if (timer) clearTimeout(timer)
   const interval = isReplayMode() ? 3_000 : pollIntervalMs(live)
   timer = setTimeout(() => {
@@ -4038,6 +4051,10 @@ export const warmupPollerCaches = (): void => {
       ...lanFields()
     }
   }
+  const unreadSettings = settingsFileNotice()
+  if (unreadSettings && !lastState.error) {
+    lastState = { ...lastState, error: unreadSettings }
+  }
   void loadEspnCookies()
 }
 
@@ -4058,6 +4075,7 @@ export const resetPollerForTests = (): void => {
   pollGen += 1
   inFlight = null
   inFlightSelectedKey = null
+  inFlightSettingsRevision = null
   boardsTail = null
   lastState = emptyAppState()
   overlayVisible = false

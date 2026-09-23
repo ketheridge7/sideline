@@ -3,8 +3,10 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { bindAppFetch, bindEspnFetch } from './http'
 import { espnSession } from './windows/espnLogin'
 import { registerIpc } from './ipc'
+import { appendLog, bindLogDir, installProcessLogging, userDataLogDir } from './log'
 import { reportStartupError } from './notices'
 import { applyLanOverlay, startPoller, warmupPollerCaches, publishWarmupState } from './poller'
+import { releaseLanPowerSave } from './powerSave'
 import { runtime } from './runtime'
 import { startOverlayServer, publishOverlay } from './server'
 import { loadSettings } from './store'
@@ -13,6 +15,8 @@ import { runStartup, startupErrorMessage } from './startup'
 import { createTray } from './tray'
 import { startAutoUpdater } from './updater'
 import { createCompanionWindow } from './windows/companion'
+
+installProcessLogging()
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -27,6 +31,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   if (!gotLock) return
+  bindLogDir(userDataLogDir())
   bindAppFetch((url, init) => net.fetch(url, init))
   bindEspnFetch((url, init) => espnSession().fetch(url, init))
   electronApp.setAppUserModelId('com.sideline.app')
@@ -57,8 +62,10 @@ app.whenReady().then(() => {
     startAutoUpdater,
     startPoller,
     onStepFailed: (step, error) => {
+      const message = startupErrorMessage(step, error)
       console.error(`[sideline] startup step ${step} failed`, error)
-      reportStartupError(step, startupErrorMessage(step, error))
+      appendLog('error', 'startup step failed', { step, code: message.slice(0, 180) })
+      reportStartupError(step, message)
       if (step === 'overlay-server') applyLanOverlay()
     },
     onNoUi: () => {
@@ -74,6 +81,7 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   runtime.setQuitting(true)
+  releaseLanPowerSave()
   globalShortcut.unregisterAll()
 })
 

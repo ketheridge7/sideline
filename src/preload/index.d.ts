@@ -51,6 +51,7 @@ export type SidelineApi = {
   checkForUpdates: () => Promise<UpdateSnapshot>
   installUpdate: () => Promise<{ ok: boolean; error?: string }>
   getRuntimeInfo: () => Promise<BugReportRuntime>
+  copyDiagnostics: () => Promise<{ ok: boolean; error?: string }>
   openExternal: (url: string) => Promise<{ ok: boolean; error?: string }>
 }
 

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { openExternal } = vi.hoisted(() => ({
-  openExternal: vi.fn(async () => undefined)
+const { openExternal, writeText } = vi.hoisted(() => ({
+  openExternal: vi.fn(async () => undefined),
+  writeText: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -10,11 +11,15 @@ vi.mock('electron', () => ({
   },
   shell: {
     openExternal
+  },
+  clipboard: {
+    writeText
   }
 }))
 
 import { buildBugReportUrl } from '@shared/bugReport'
-import { collectBugReportRuntime, openExternalUrl } from './bugReport'
+import { collectBugReportRuntime, copyDiagnostics, openExternalUrl } from './bugReport'
+import { appendLog } from './log'
 
 describe('collectBugReportRuntime', () => {
   it('reads app version, Electron/Chrome, and OS without league or session data', () => {
@@ -51,5 +56,18 @@ describe('openExternalUrl', () => {
       error: 'Blocked URL'
     })
     expect(openExternal).not.toHaveBeenCalled()
+  })
+})
+
+describe('copyDiagnostics', () => {
+  it('copies runtime info and a scrubbed log with no cookies', () => {
+    writeText.mockClear()
+    appendLog('error', 'unhandledRejection espn_s2=secret-cookie')
+    expect(copyDiagnostics()).toEqual({ ok: true })
+    const text = String(writeText.mock.calls[0]?.[0])
+    expect(text).toContain('Sideline: 1.0.0')
+    expect(text).toContain('unhandledRejection')
+    expect(text).not.toContain('secret-cookie')
+    expect(text).not.toContain('espn_s2=')
   })
 })

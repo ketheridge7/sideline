@@ -38,6 +38,8 @@ vi.mock('electron', () => {
       return this.destroyed
     }
 
+    webContents = { on: vi.fn(), reload: vi.fn() }
+
     on(event: string, handler: (...args: unknown[]) => void): void {
       const list = this.handlers.get(event) ?? []
       list.push(handler)
