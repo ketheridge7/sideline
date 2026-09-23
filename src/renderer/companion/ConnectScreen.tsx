@@ -59,13 +59,17 @@ const HowTo = ({
 const connectedLabel = (count: number): string =>
   count === 0 ? 'Connected · pick leagues' : `Connected · ${count} league${count === 1 ? '' : 's'}`
 
+const demoLeaguesLabel = (count: number): string => `Demo · ${count} fake league${count === 1 ? '' : 's'}`
+
 const espnHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
+  if (state.replay) return { label: demoLeaguesLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
   if (state.espnNeedsRelogin) return { label: 'Needs re-login', kind: 'warn' }
   if (!state.espnConnected) return { label: 'Not connected', kind: 'off' }
   return { label: connectedLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
 }
 
 const sleeperHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
+  if (state.replay) return { label: demoLeaguesLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
   if (!state.sleeperConnected) return { label: 'Not connected', kind: 'off' }
   return { label: connectedLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
 }
@@ -247,7 +251,7 @@ const HubCard = ({
   id: 'espn' | 'sleeper' | 'tv'
   title: string
   status: { label: string; kind: 'off' | 'on' | 'warn' }
-  onOpen: () => void
+  onOpen?: () => void
   openLabel: string
   leagues: League[]
   onRemove?: (league: League) => void
@@ -267,13 +271,15 @@ const HubCard = ({
             {status.label}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpen}
-          className={chromeFillPillClass('espn')}
-        >
-          {openLabel}
-        </button>
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className={chromeFillPillClass('espn')}
+          >
+            {openLabel}
+          </button>
+        ) : null}
       </div>
       {leagues.length > 0 ? (
         <ul className="mt-4 grid gap-2">
@@ -305,6 +311,52 @@ const HubCard = ({
     </article>
   )
 }
+
+export const DemoPanel = ({
+  replay,
+  onToggle
+}: {
+  replay: boolean
+  onToggle: (enabled: boolean) => void
+}): JSX.Element =>
+  replay ? (
+    <section
+      className="rounded-sm border border-lime/60 bg-lime/[0.06] p-5 ring-1 ring-lime/30"
+      data-connect-demo="on"
+      aria-label="Demo Sunday"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 max-w-2xl">
+          <p className="font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime">Demo Sunday is on</p>
+          <h2 className="mt-1 text-base font-semibold">Scripted Week 3 slate · six fake leagues</h2>
+          <p className="mt-1 text-sm text-muted">
+            Scores, the scoring tape, and the HUD are staged — nothing here comes from your ESPN or Sleeper accounts. Your
+            real sign-ins, leagues, and settings are left alone.
+          </p>
+        </div>
+        <button type="button" onClick={() => onToggle(false)} className={chromeFillPillClass('you')} data-demo-toggle="exit">
+          Exit demo
+        </button>
+      </div>
+    </section>
+  ) : (
+    <section
+      className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-line bg-card p-5"
+      data-connect-demo="off"
+      aria-label="Demo Sunday"
+    >
+      <div className="min-w-0 max-w-2xl">
+        <h2 className="text-base font-semibold">Try Demo Sunday</h2>
+        <p className="mt-1 text-sm text-muted">
+          Preview the board, scoring tape, and HUD on a scripted Week 3 slate with fake leagues. Sideline restarts into
+          the demo; your accounts stay signed in and untouched. Exit any time from here.
+        </p>
+      </div>
+      <button type="button" onClick={() => onToggle(true)} className={chromePillClass(false, 'control')} data-demo-toggle="start">
+        Start demo
+      </button>
+    </section>
+  )
 
 const TvPath = ({ state, onBack }: { state: AppState; onBack: () => void }): JSX.Element => (
   <section className="rounded-sm border border-line bg-card p-5">
@@ -480,6 +532,11 @@ export const ConnectScreen = ({
     }
   }
 
+  const handleDemo = async (enabled: boolean): Promise<void> => {
+    const result = await api().setDemoMode(enabled)
+    if (!result.ok) setMessage(result.error ?? 'Could not switch Demo Sunday')
+  }
+
   const handleReportBug = async (): Promise<void> => {
     if (!window.sideline) return
     try {
@@ -491,6 +548,7 @@ export const ConnectScreen = ({
 
   const hub = (
     <>
+      {state.replay ? <DemoPanel replay onToggle={(enabled) => void handleDemo(enabled)} /> : null}
       <details
         className="connect-howto rounded-sm border border-line bg-card p-5"
         data-howto="getting-started"
@@ -508,7 +566,7 @@ export const ConnectScreen = ({
           id="espn"
           title="ESPN"
           status={espnHubStatus(state)}
-          onOpen={() => setPath('espn')}
+          onOpen={state.replay ? undefined : () => setPath('espn')}
           openLabel={espnReady ? 'Add leagues' : 'Connect'}
           leagues={state.leagues.filter((row) => row.provider === 'espn')}
           onRemove={
@@ -519,7 +577,7 @@ export const ConnectScreen = ({
                 }
           }
           onSignOut={
-            state.espnConnected || state.espnNeedsRelogin
+            !state.replay && (state.espnConnected || state.espnNeedsRelogin)
               ? () => {
                   void api().disconnectEspn()
                 }
@@ -530,7 +588,7 @@ export const ConnectScreen = ({
           id="sleeper"
           title="Sleeper"
           status={sleeperHubStatus(state)}
-          onOpen={() => setPath('sleeper')}
+          onOpen={state.replay ? undefined : () => setPath('sleeper')}
           openLabel={sleeperReady ? 'Add leagues' : 'Connect'}
           leagues={state.leagues.filter((row) => row.provider === 'sleeper')}
           onRemove={
@@ -541,7 +599,7 @@ export const ConnectScreen = ({
                 }
           }
           onSignOut={
-            state.sleeperConnected
+            !state.replay && state.sleeperConnected
               ? () => {
                   void api().disconnectSleeper()
                 }
@@ -557,6 +615,8 @@ export const ConnectScreen = ({
           leagues={[]}
         />
       </div>
+
+      {state.replay ? null : <DemoPanel replay={false} onToggle={(enabled) => void handleDemo(enabled)} />}
 
       <footer className="grid gap-2" data-connect-footer="settings">
         <details className="connect-howto rounded-sm border border-line bg-card p-5">
@@ -752,9 +812,6 @@ export const ConnectScreen = ({
       {body}
       {message ? <p className="text-sm text-muted">{message}</p> : null}
       {state.error ? <p className="text-sm text-air">{state.error}</p> : null}
-      {state.replay ? (
-        <p className="text-sm text-lime">Replay mode is on — scripted 2026 Sunday slate, both providers loaded.</p>
-      ) : null}
     </div>
   )
 }

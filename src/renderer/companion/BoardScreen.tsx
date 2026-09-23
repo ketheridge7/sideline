@@ -99,7 +99,6 @@ export const BoardScreen = ({
     espnNeedsRelogin: state.espnNeedsRelogin,
     matchup
   })
-  const showReplay = boardUx === 'healthy-lineup' && state.replay
   const showLineups = boardUx === 'healthy-lineup'
   const showEditLayout = studioControlsVisible(state.overlayVisible)
   const selectedRefreshing = Boolean(
@@ -164,11 +163,6 @@ export const BoardScreen = ({
           </>
         ) : (
           <>
-            {showReplay ? (
-              <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
-                <span className="font-cond font-bold text-lime">Replay</span>
-              </div>
-            ) : null}
             <HudScoreboard
               matchup={matchup}
               needsSignIn={boardUx === 'auth-fail'}

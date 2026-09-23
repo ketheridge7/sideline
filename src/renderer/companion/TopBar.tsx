@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import type { AppState } from '@shared/types'
+import { captureSurface } from '../shared/capture'
 import { chromeDotClass, chromePillClass } from './chrome'
 import { SidelineWordmark } from './SidelineWordmark'
 
@@ -30,10 +31,16 @@ export const TopBar = ({
           Week {state.nfl.displayWeek}
         </span>
       ) : null}
-      {state.replay ? (
-        <span className="rounded-full bg-lime/10 px-2.5 py-1 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime">
-          Replay
-        </span>
+      {state.replay && !captureSurface() ? (
+        <button
+          type="button"
+          onClick={() => onScreen('connect')}
+          className="no-drag cursor-pointer rounded-full bg-lime/10 px-2.5 py-1 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime ring-1 ring-lime/50 hover:bg-lime/15"
+          data-demo-chip="on"
+          title="Scripted Week 3 slate with fake leagues. Open Connect to exit the demo."
+        >
+          Demo Sunday
+        </button>
       ) : null}
       <nav className="ml-auto flex items-center gap-1.5">
         {(

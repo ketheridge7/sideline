@@ -16,6 +16,8 @@ import type { UpdateSnapshot } from '@shared/updater'
 
 export type SidelineApi = {
   getState: () => Promise<AppState>
+  /** Relaunches into (or out of) Demo Sunday. Dev checkouts get a hint instead. */
+  setDemoMode: (enabled: boolean) => Promise<{ ok: boolean; error?: string }>
   onState: (cb: (state: AppState) => void) => () => void
   onTick: (cb: (tick: CompanionTick) => void) => () => void
   onBoards: (cb: (patch: CompanionBoardsPatch) => void) => () => void
