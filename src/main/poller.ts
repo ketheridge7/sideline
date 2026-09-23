@@ -3462,7 +3462,10 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       const key = leagueKey(selected.provider, selected.id)
       const hinted =
         hintLeague != null && key === leagueKey(hintLeague.provider, hintLeague.id)
-      if (hinted && selected.provider === 'espn' && earlyEspnMatchup) {
+      const replayed = replay ? replayMatchup(selected) : null
+      if (replayed) {
+        matchupByKey.set(key, replayed)
+      } else if (hinted && selected.provider === 'espn' && earlyEspnMatchup) {
         matchupByKey.set(key, stampLive(selected, earlyEspnMatchup))
       } else if (hinted && selected.provider === 'sleeper' && earlySleeperMatchup) {
         matchupByKey.set(key, stampLive(selected, earlySleeperMatchup))
@@ -3843,6 +3846,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     if (replay) {
       const state = await finishRest()
       bumpReplayTick()
+      schedule(true, Date.now() - started)
       return state
     }
     void finishRest().catch(() => undefined)
