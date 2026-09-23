@@ -44,3 +44,14 @@ publish:
   repo: sideline
   releaseType: release
 npmRebuild: false
+# asar must stay on: onlyLoadAppFromAsar refuses an unpacked app directory.
+asar: true
+# Packaged binaries only. `npm start` and `electron-vite preview` are not fused.
+# enableCookieEncryption is one-way: plaintext ESPN cookies already in persist:espn
+# will not decrypt. Sign in to ESPN again after installing a fused build.
+electronFuses:
+  enableCookieEncryption: true
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  onlyLoadAppFromAsar: true

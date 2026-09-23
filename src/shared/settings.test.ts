@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { OVERLAY_LAYOUT_SCHEMA_VERSION } from './overlayLayout'
-import { defaultSettings, hydrateSettings, sanitizeLeagueIds } from './settings'
+import { defaultSettings, hydrateSettings, isLanOverlayToken, sanitizeLeagueIds } from './settings'
 
 describe('sanitizeLeagueIds', () => {
   it('keeps unique numeric ids and drops junk', () => {
     expect(sanitizeLeagueIds(['11', '11', 'abc', 22, null])).toEqual(['11', '22'])
     expect(sanitizeLeagueIds(undefined)).toEqual([])
+  })
+})
+
+describe('isLanOverlayToken', () => {
+  it('accepts the 16-hex token the overlay server generates', () => {
+    expect(isLanOverlayToken('deadbeefcafebabe')).toBe(true)
+    expect(isLanOverlayToken('DEADBEEFCAFEBABE')).toBe(false)
+    expect(isLanOverlayToken('deadbeef')).toBe(false)
+    expect(isLanOverlayToken(null)).toBe(false)
   })
 })
 
@@ -41,6 +50,13 @@ describe('hydrateSettings', () => {
     expect(next.overlayLayout.widgets.find((row) => row.id === 'score.mine')?.x).not.toBe(40)
     expect(next.overlayLayout.slots['1']?.find((row) => row.id === 'score.mine')?.x).toBe(2)
     expect(defaultSettings().overlayLayout.schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
+  })
+
+  it('keeps a persisted LAN token and drops junk', () => {
+    expect(defaultSettings().lanOverlayToken).toBeNull()
+    expect(hydrateSettings({ lanOverlayToken: 'deadbeefcafebabe' }).lanOverlayToken).toBe('deadbeefcafebabe')
+    expect(hydrateSettings({ lanOverlayToken: 'nope' }).lanOverlayToken).toBeNull()
+    expect(hydrateSettings({}).lanOverlayToken).toBeNull()
   })
 
   it('hydrates shortcut defaults and heals a colliding persisted accelerator', () => {

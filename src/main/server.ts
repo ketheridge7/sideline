@@ -4,10 +4,13 @@ import { extname, join, sep } from 'path'
 import { is } from '@electron-toolkit/utils'
 import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, overlayHudUnchanged, toOverlayHud } from '@shared/types'
+import { isLanOverlayToken } from '@shared/settings'
 import {
   generateOverlayToken,
   lanBindHost,
   lanIPv4,
+  lanIPv4Addresses,
+  overlayHostAllowed,
   requiresOverlayToken,
   resolveOverlayFile,
   tokenMatches
@@ -34,6 +37,30 @@ let lanEnabled = false
 let sessionToken: string | null = null
 const pairing = new OverlayPairing()
 
+export type LanTokenPersistence = {
+  load: () => string | null
+  save: (token: string | null) => void
+}
+
+let memoryToken: string | null = null
+const memoryTokenStore: LanTokenPersistence = {
+  load: () => memoryToken,
+  save: (token) => {
+    memoryToken = token
+  }
+}
+let tokenStore: LanTokenPersistence = memoryTokenStore
+
+/** Production wires this to settings. Tests keep the in-memory store. */
+export const bindLanTokenPersistence = (store: LanTokenPersistence): void => {
+  tokenStore = store
+}
+
+export const resetLanTokenPersistenceForTests = (): void => {
+  memoryToken = null
+  tokenStore = memoryTokenStore
+}
+
 export const overlayLanState = (): {
   enabled: boolean
   token: string | null
@@ -53,16 +80,13 @@ export const publishOverlay = (hud: OverlayHudState): void => {
   for (const client of clients) client.write(lastEvent)
 }
 
-const corsHeaders = (): Record<string, string> =>
-  lanEnabled ? {} : { 'Access-Control-Allow-Origin': '*' }
-
 const sendForbidden = (res: ServerResponse): void => {
-  res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', ...corsHeaders() })
+  res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' })
   res.end('forbidden')
 }
 
 const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders() })
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
   res.end(JSON.stringify(body))
 }
 
@@ -80,22 +104,31 @@ const handlePair = (url: URL, res: ServerResponse): void => {
   sendJson(res, 200, { token: result.token, port: boundPort })
 }
 
-const armLanSession = (): void => {
-  sessionToken = generateOverlayToken()
-  pairing.issue(sessionToken)
-}
-
 const disarmLanSession = (): void => {
   sessionToken = null
   pairing.clear()
+}
+
+/** Reuse the saved token. Generate one only when nothing valid is stored. */
+const armLanSession = (): void => {
+  const existing = tokenStore.load()
+  const token = isLanOverlayToken(existing) ? existing : generateOverlayToken()
+  if (token !== existing) tokenStore.save(token)
+  sessionToken = token
+  pairing.issue(sessionToken)
+}
+
+/** User turned LAN off. The next time it is turned on, the TV must pair again. */
+const forgetLanToken = (): void => {
+  tokenStore.save(null)
+  disarmLanSession()
 }
 
 const sendSse = (res: ServerResponse): void => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    ...corsHeaders()
+    Connection: 'keep-alive'
   })
   res.write(lastEvent)
   clients.add(res)
@@ -124,7 +157,20 @@ const closeServer = (): Promise<void> =>
     current.close(() => resolve())
   })
 
+const hostAllowed = (req: IncomingMessage): boolean => {
+  const header = req.headers.host
+  return overlayHostAllowed(typeof header === 'string' ? header : undefined, {
+    port: boundPort,
+    lanEnabled,
+    lanAddresses: lanEnabled ? lanIPv4Addresses() : []
+  })
+}
+
 const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  if (!hostAllowed(req)) {
+    sendForbidden(res)
+    return
+  }
   const url = new URL(req.url || '/', 'http://127.0.0.1')
   if (requiresOverlayToken(lanEnabled, url.pathname) && !tokenMatches(url.searchParams.get('k'), sessionToken)) {
     sendForbidden(res)
@@ -154,8 +200,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> 
     try {
       const proxied = await fetch(target)
       res.writeHead(proxied.status, {
-        'Content-Type': proxied.headers.get('content-type') || 'text/plain',
-        ...corsHeaders()
+        'Content-Type': proxied.headers.get('content-type') || 'text/plain'
       })
       res.end(Buffer.from(await proxied.arrayBuffer()))
     } catch {
@@ -211,19 +256,24 @@ export const startOverlayServer = async (
   return boundPort
 }
 
-export const setOverlayLanEnabled = async (enabled: boolean): Promise<number> => {
+export const setOverlayLanEnabled = async (
+  enabled: boolean,
+  host = lanBindHost(enabled)
+): Promise<number> => {
   const port = boundPort
   lanEnabled = enabled
   if (enabled) armLanSession()
-  else disarmLanSession()
+  else forgetLanToken()
   await closeServer()
   await new Promise((resolve) => setTimeout(resolve, 100))
-  boundPort = await listen(port, lanBindHost(enabled))
+  boundPort = await listen(port, host)
   return boundPort
 }
 
 export const stopOverlayServer = async (): Promise<void> => {
   await closeServer()
+  // A process stop keeps the saved token so a paired TV survives a PC restart.
+  // Turning LAN off is what forgets it.
   disarmLanSession()
   lanEnabled = false
   lastHud = null

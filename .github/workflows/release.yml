@@ -1,5 +1,11 @@
 name: Release Windows
 
+# During the NFL season, do not push v* tags Thursday through Monday (Eastern).
+# That window is gameday. For a partial rollout, set repository variable
+# SIDELINE_STAGING_PERCENTAGE to an integer 1-99. This workflow writes it into
+# latest.yml; electron-updater then updates only that share of installs.
+# Leave the variable unset for a full rollout.
+
 on:
   push:
     tags:
@@ -18,6 +24,15 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
       - run: npm run build:win:publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Stamp stagingPercentage into latest.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SIDELINE_STAGING_PERCENTAGE: ${{ vars.SIDELINE_STAGING_PERCENTAGE }}
+        run: node scripts/stamp-staging-percentage.mjs

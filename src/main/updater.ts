@@ -55,6 +55,9 @@ const errorMessage = (error: unknown): string => {
 const bindEvents = (updater: SidelineAutoUpdater): void => {
   if (bound) return
   bound = true
+  // Who receives the download is `stagingPercentage` in latest.yml.
+  // electron-updater skips the update when this install is outside that rollout.
+  // An omitted percentage updates everyone. Dev and preview never reach this.
   updater.autoDownload = true
   updater.autoInstallOnAppQuit = true
   updater.on('checking-for-update', () => {

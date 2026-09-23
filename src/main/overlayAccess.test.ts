@@ -6,6 +6,7 @@ import {
   generateOverlayToken,
   isOverlayHtmlPath,
   lanBindHost,
+  overlayHostAllowed,
   overlayPageUrl,
   requiresOverlayToken,
   resolveOverlayFile,
@@ -19,6 +20,33 @@ describe('lanBindHost', () => {
 
   it('binds all interfaces when LAN is on', () => {
     expect(lanBindHost(true)).toBe('0.0.0.0')
+  })
+})
+
+describe('overlayHostAllowed', () => {
+  const loopback = { port: 7333, lanEnabled: false, lanAddresses: ['192.168.1.20'] }
+
+  it('allows loopback hosts with the bound port', () => {
+    expect(overlayHostAllowed('127.0.0.1:7333', loopback)).toBe(true)
+    expect(overlayHostAllowed('localhost:7333', loopback)).toBe(true)
+    expect(overlayHostAllowed(' LocalHost:7333 ', loopback)).toBe(true)
+  })
+
+  it('rejects a missing host, the wrong port, and any non-loopback name while LAN is off', () => {
+    expect(overlayHostAllowed(undefined, loopback)).toBe(false)
+    expect(overlayHostAllowed('127.0.0.1', loopback)).toBe(false)
+    expect(overlayHostAllowed('127.0.0.1:7334', loopback)).toBe(false)
+    expect(overlayHostAllowed('evil.example:7333', loopback)).toBe(false)
+    expect(overlayHostAllowed('192.168.1.20:7333', loopback)).toBe(false)
+    expect(overlayHostAllowed('[::1]:7333', loopback)).toBe(false)
+  })
+
+  it('allows LAN addresses of this machine only while LAN is on', () => {
+    const lan = { port: 7333, lanEnabled: true, lanAddresses: ['192.168.1.20', '10.0.0.4'] }
+    expect(overlayHostAllowed('192.168.1.20:7333', lan)).toBe(true)
+    expect(overlayHostAllowed('10.0.0.4:7333', lan)).toBe(true)
+    expect(overlayHostAllowed('192.168.1.21:7333', lan)).toBe(false)
+    expect(overlayHostAllowed('evil.example:7333', lan)).toBe(false)
   })
 })
 

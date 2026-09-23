@@ -137,9 +137,10 @@ export const registerIpc = (): void => {
     setShortcutCapture(Boolean(active))
   })
   ipcMain.handle('sideline:setLanOverlay', async (_event, enabled: boolean) => {
-    saveSettings({ lanOverlayEnabled: Boolean(enabled) })
+    const on = Boolean(enabled)
+    saveSettings(on ? { lanOverlayEnabled: true } : { lanOverlayEnabled: false, lanOverlayToken: null })
     try {
-      const port = await setOverlayLanEnabled(Boolean(enabled))
+      const port = await setOverlayLanEnabled(on)
       runtime.setOverlayPort(port)
       clearStartupError('overlay-server')
     } catch (error) {

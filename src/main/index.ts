@@ -8,8 +8,9 @@ import { reportStartupError } from './notices'
 import { applyLanOverlay, startPoller, warmupPollerCaches, publishWarmupState } from './poller'
 import { releaseLanPowerSave } from './powerSave'
 import { runtime } from './runtime'
-import { startOverlayServer, publishOverlay } from './server'
-import { loadSettings } from './store'
+import { isLanOverlayToken } from '@shared/settings'
+import { bindLanTokenPersistence, startOverlayServer, publishOverlay } from './server'
+import { loadSettings, saveSettings } from './store'
 import { registerAppShortcuts } from './shortcuts'
 import { runStartup, startupErrorMessage } from './startup'
 import { createTray } from './tray'
@@ -29,9 +30,22 @@ app.on('second-instance', () => {
   createCompanionWindow().show()
 })
 
+const bindPersistedLanToken = (): void => {
+  bindLanTokenPersistence({
+    load: () => {
+      const token = loadSettings().lanOverlayToken
+      return isLanOverlayToken(token) ? token : null
+    },
+    save: (token) => {
+      saveSettings({ lanOverlayToken: token })
+    }
+  })
+}
+
 app.whenReady().then(() => {
   if (!gotLock) return
   bindLogDir(userDataLogDir())
+  bindPersistedLanToken()
   bindAppFetch((url, init) => net.fetch(url, init))
   bindEspnFetch((url, init) => espnSession().fetch(url, init))
   electronApp.setAppUserModelId('com.sideline.app')

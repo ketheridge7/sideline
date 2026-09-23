@@ -22,6 +22,8 @@ export type Settings = {
   nextLeagueHotkey: string
   prevLeagueHotkey: string
   lanOverlayEnabled: boolean
+  /** 16 lowercase hex chars. Null when LAN overlay is off. */
+  lanOverlayToken: string | null
 }
 
 export type SettingsHotkeys = Pick<
@@ -57,7 +59,8 @@ export const defaultSettings = (): Settings => ({
   overlayDisplayHotkey: DEFAULT_SHORTCUTS.overlayDisplay,
   nextLeagueHotkey: DEFAULT_SHORTCUTS.nextLeague,
   prevLeagueHotkey: DEFAULT_SHORTCUTS.prevLeague,
-  lanOverlayEnabled: false
+  lanOverlayEnabled: false,
+  lanOverlayToken: null
 })
 
 const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
@@ -72,6 +75,9 @@ const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
     DEFAULT_SHORTCUTS
   )
 
+export const isLanOverlayToken = (value: unknown): value is string =>
+  typeof value === 'string' && /^[0-9a-f]{16}$/.test(value)
+
 export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
   const base = defaultSettings()
   const shortcuts = shortcutsFromParsed(parsed)
@@ -85,6 +91,7 @@ export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
     espnLeagueIds: Array.isArray(parsed.espnLeagueIds) ? sanitizeLeagueIds(parsed.espnLeagueIds) : base.espnLeagueIds,
     overlayLayout: parseOverlayLayout(parsed.overlayLayout ?? base.overlayLayout),
     overlayDisplayId: typeof parsed.overlayDisplayId === 'number' ? parsed.overlayDisplayId : null,
+    lanOverlayToken: isLanOverlayToken(parsed.lanOverlayToken) ? parsed.lanOverlayToken : null,
     ...shortcutSettingsPatch(shortcuts)
   }
 }
