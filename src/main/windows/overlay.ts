@@ -1,10 +1,12 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { nextOverlayDisplayId } from '@shared/shortcuts'
+import { appendLog } from '../log'
 import { loadSettings, saveSettings } from '../store'
 import { setOverlayEditMode as setPollerEditMode } from '../poller'
 import { runtime } from '../runtime'
 import { loadRenderer } from './load'
+import { createRendererRecovery } from './rendererCrash'
 
 let editMode = false
 
@@ -30,6 +32,12 @@ export const applyOverlayInput = (win: BrowserWindow): void => {
     return
   }
   win.setIgnoreMouseEvents(true, { forward: true })
+}
+
+const forceOverlayClickThrough = (win: BrowserWindow): void => {
+  editMode = false
+  setPollerEditMode(false)
+  if (!win.isDestroyed()) win.setIgnoreMouseEvents(true, { forward: true })
 }
 
 export const overlayEditMode = (): boolean => editMode
@@ -76,6 +84,22 @@ export const createOverlayWindow = (): BrowserWindow => {
 
   applyOverlayChrome(win)
   applyOverlayBounds(win)
+  const recovery = createRendererRecovery({
+    role: 'overlay',
+    quitting: () => runtime.isQuitting(),
+    isDestroyed: () => win.isDestroyed(),
+    reload: () => {
+      if (!win.isDestroyed()) win.webContents.reload()
+    },
+    forceClickThrough: () => forceOverlayClickThrough(win),
+    log: (level, message, extra) => appendLog(level, message, extra)
+  })
+  win.webContents.on('render-process-gone', (_event, details) => {
+    recovery.noteGone({ reason: details.reason, exitCode: details.exitCode })
+  })
+  win.webContents.on('unresponsive', () => {
+    recovery.noteUnresponsive()
+  })
   win.on('closed', () => {
     editMode = false
     runtime.setOverlay(null)

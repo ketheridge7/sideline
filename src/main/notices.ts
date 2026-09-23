@@ -1,4 +1,14 @@
+export const SETTINGS_UNREADABLE_NOTICE =
+  'Settings file was unreadable. Sideline kept a backup and is using defaults.'
+
 const startupErrors = new Map<string, string>()
+let settingsNotice: string | null = null
+
+export const reportSettingsNotice = (): void => {
+  settingsNotice = SETTINGS_UNREADABLE_NOTICE
+}
+
+export const settingsFileNotice = (): string | null => settingsNotice
 
 export const reportStartupError = (step: string, message: string): void => {
   startupErrors.set(step, message)
@@ -15,6 +25,7 @@ export const startupErrorNotice = (): string | null => {
 
 export const resetNoticesForTests = (): void => {
   startupErrors.clear()
+  settingsNotice = null
 }
 
 const providerForHost = (host: string): 'ESPN' | 'Sleeper' | null => {
@@ -35,9 +46,15 @@ export const backoffNoticePlan = (hosts: readonly string[]): string | null => {
   return `${names.join(' and ')} slow, holding last scores`
 }
 
-/** A refresh error wins; sticky startup failures and quiet provider holds only fill an empty banner. */
+/** A refresh error wins. Startup failures and a corrupt-settings notice share the banner; a quiet provider hold fills an empty one. */
 export const statusErrorPlan = (opts: {
   refreshError: string | null
   startupError: string | null
+  settingsNotice: string | null
   holdNotice: string | null
-}): string | null => opts.refreshError ?? opts.startupError ?? opts.holdNotice
+}): string | null => {
+  if (opts.refreshError) return opts.refreshError
+  const sticky = [opts.startupError, opts.settingsNotice].filter((line): line is string => Boolean(line))
+  if (sticky.length > 0) return sticky.join(' ')
+  return opts.holdNotice
+}

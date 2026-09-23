@@ -2555,7 +2555,9 @@ describe('refreshJoinPlan', () => {
         hasBoardsTail: true,
         waitForBoards: true,
         settingsKey: 'sleeper:1333470459076804608',
-        inFlightKey: 'espn:543268341'
+        inFlightKey: 'espn:543268341',
+        settingsRevision: 2,
+        inFlightRevision: 2
       })
     ).toBe('kick')
     expect(
@@ -2564,9 +2566,25 @@ describe('refreshJoinPlan', () => {
         hasBoardsTail: false,
         waitForBoards: false,
         settingsKey: 'espn:543268341',
-        inFlightKey: 'espn:543268341'
+        inFlightKey: 'espn:543268341',
+        settingsRevision: 2,
+        inFlightRevision: 2
       })
     ).toBe('join')
+  })
+
+  it('kicks when league settings changed even if the selected key did not', () => {
+    expect(
+      refreshJoinPlan({
+        hasInFlight: true,
+        hasBoardsTail: true,
+        waitForBoards: true,
+        settingsKey: 'espn:111',
+        inFlightKey: 'espn:111',
+        settingsRevision: 4,
+        inFlightRevision: 3
+      })
+    ).toBe('kick')
   })
 })
 

@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
+import { appendLog } from '../log'
 import {
   bindEmptyNativeTitle,
   COMPANION_TITLEBAR_OVERLAY,
@@ -8,6 +9,7 @@ import {
 } from '../packagingIcon'
 import { runtime } from '../runtime'
 import { loadRenderer } from './load'
+import { createRendererRecovery } from './rendererCrash'
 
 export const createCompanionWindow = (): BrowserWindow => {
   const existing = runtime.companion()
@@ -37,6 +39,22 @@ export const createCompanionWindow = (): BrowserWindow => {
   })
 
   bindEmptyNativeTitle(win)
+
+  const recovery = createRendererRecovery({
+    role: 'companion',
+    quitting: () => runtime.isQuitting(),
+    isDestroyed: () => win.isDestroyed(),
+    reload: () => {
+      if (!win.isDestroyed()) win.webContents.reload()
+    },
+    log: (level, message, extra) => appendLog(level, message, extra)
+  })
+  win.webContents.on('render-process-gone', (_event, details) => {
+    recovery.noteGone({ reason: details.reason, exitCode: details.exitCode })
+  })
+  win.webContents.on('unresponsive', () => {
+    recovery.noteUnresponsive()
+  })
 
   win.on('close', (event) => {
     if (runtime.isQuitting()) return

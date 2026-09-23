@@ -1,6 +1,8 @@
 import os from 'node:os'
-import { app, shell } from 'electron'
+import { app, clipboard, shell } from 'electron'
 import { isAllowedBugReportUrl, type BugReportRuntime } from '@shared/bugReport'
+import { buildDiagnosticsText } from '@shared/diagnostics'
+import { readRecentLog } from './log'
 
 export const collectBugReportRuntime = (): BugReportRuntime => ({
   appVersion: app.getVersion(),
@@ -9,6 +11,15 @@ export const collectBugReportRuntime = (): BugReportRuntime => ({
   platform: process.platform,
   osRelease: os.release()
 })
+
+export const copyDiagnostics = (): { ok: true } | { ok: false; error: string } => {
+  try {
+    clipboard.writeText(buildDiagnosticsText(collectBugReportRuntime(), readRecentLog()))
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Could not copy diagnostics' }
+  }
+}
 
 export const openExternalUrl = async (
   url: unknown

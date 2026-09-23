@@ -1,7 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { emptyAppState, type League } from '@shared/types'
-import { ConnectScreen, LeagueChecklist, leaguesToAdd, reportBugFromConnect, type ConnectPath } from './ConnectScreen'
+import {
+  ConnectScreen,
+  LeagueChecklist,
+  copyDiagnosticsFromConnect,
+  leaguesToAdd,
+  reportBugFromConnect,
+  type ConnectPath
+} from './ConnectScreen'
 
 const htmlOf = (
   overrides: Partial<ReturnType<typeof emptyAppState>> = {},
@@ -60,6 +67,15 @@ describe('ConnectScreen hub', () => {
     expect(button).toContain('text-muted')
     expect(button).toContain('hover:text-lime')
     expect(button).not.toContain('bg-espn')
+    expect(html).toContain('Copy diagnostics')
+    expect(html).toContain('data-connect-report="diagnostics"')
+    expect(html.indexOf('data-connect-report="diagnostics"')).toBeGreaterThan(html.indexOf('data-connect-report="bug"'))
+  })
+
+  it('copies diagnostics from the control next to Report a bug', async () => {
+    const copyDiagnostics = vi.fn(async () => ({ ok: true as const }))
+    await copyDiagnosticsFromConnect({ copyDiagnostics })
+    expect(copyDiagnostics).toHaveBeenCalledTimes(1)
   })
 
   it('builds a GitHub new-issue URL with version and platform and opens it', async () => {

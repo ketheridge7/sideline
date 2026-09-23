@@ -22,6 +22,13 @@ export const reportBugFromConnect = async (
   })
 }
 
+export const copyDiagnosticsFromConnect = async (
+  sideline: Pick<NonNullable<Window['sideline']>, 'copyDiagnostics'>
+): Promise<void> => {
+  const result = await sideline.copyDiagnostics()
+  if (!result.ok) throw new Error(result.error ?? 'Could not copy diagnostics')
+}
+
 export type ConnectPath = 'hub' | 'espn' | 'sleeper' | 'tv'
 
 const HowTo = ({
@@ -537,6 +544,16 @@ export const ConnectScreen = ({
     }
   }
 
+  const handleCopyDiagnostics = async (): Promise<void> => {
+    if (!window.sideline) return
+    try {
+      await copyDiagnosticsFromConnect(window.sideline)
+      setMessage('Diagnostics copied.')
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Could not copy diagnostics')
+    }
+  }
+
   const hub = (
     <>
       {state.replay ? <ReplayPanel armed onToggle={(armed) => void handleReplay(armed)} /> : null}
@@ -622,14 +639,24 @@ export const ConnectScreen = ({
             <ShortcutSettings state={state} framed={false} />
           </div>
         </details>
-        <button
-          type="button"
-          onClick={() => void handleReportBug()}
-          className="mt-1 w-fit cursor-pointer text-left text-sm text-muted hover:text-lime"
-          data-connect-report="bug"
-        >
-          Report a bug
-        </button>
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+          <button
+            type="button"
+            onClick={() => void handleReportBug()}
+            className="w-fit cursor-pointer text-left text-sm text-muted hover:text-lime"
+            data-connect-report="bug"
+          >
+            Report a bug
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCopyDiagnostics()}
+            className="w-fit cursor-pointer text-left text-sm text-muted hover:text-lime"
+            data-connect-report="diagnostics"
+          >
+            Copy diagnostics
+          </button>
+        </div>
       </footer>
     </>
   )

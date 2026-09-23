@@ -123,17 +123,35 @@ describe('startup notices', () => {
   it('keeps a startup failure sticky until cleared, below any refresh error', () => {
     reportStartupError('overlay-server', 'Overlay down')
     expect(startupErrorNotice()).toBe('Overlay down')
-    expect(statusErrorPlan({ refreshError: null, startupError: startupErrorNotice(), holdNotice: null })).toBe(
-      'Overlay down'
-    )
-    expect(statusErrorPlan({ refreshError: 'Could not confirm NFL week', startupError: 'Overlay down', holdNotice: 'x' })).toBe(
-      'Could not confirm NFL week'
-    )
+    expect(
+      statusErrorPlan({
+        refreshError: null,
+        startupError: startupErrorNotice(),
+        settingsNotice: null,
+        holdNotice: null
+      })
+    ).toBe('Overlay down')
+    expect(
+      statusErrorPlan({
+        refreshError: 'Could not confirm NFL week',
+        startupError: 'Overlay down',
+        settingsNotice: 'Settings backup',
+        holdNotice: 'x'
+      })
+    ).toBe('Could not confirm NFL week')
+    expect(
+      statusErrorPlan({
+        refreshError: null,
+        startupError: 'Overlay down',
+        settingsNotice: 'Settings backup',
+        holdNotice: 'ESPN slow, holding'
+      })
+    ).toBe('Overlay down Settings backup')
     clearStartupError('overlay-server')
     expect(startupErrorNotice()).toBeNull()
-    expect(statusErrorPlan({ refreshError: null, startupError: null, holdNotice: 'ESPN slow, holding' })).toBe(
-      'ESPN slow, holding'
-    )
+    expect(
+      statusErrorPlan({ refreshError: null, startupError: null, settingsNotice: null, holdNotice: 'ESPN slow, holding' })
+    ).toBe('ESPN slow, holding')
   })
 })
 

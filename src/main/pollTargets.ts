@@ -158,14 +158,20 @@ export const seedHudMatchupPlan = (opts: {
   return 'skip'
 }
 
-/** A selectLeague that changed settings must not join the in-flight poll that still scores the previous key. */
+/**
+ * A select/add/disconnect that changed league or provider settings must not join
+ * the in-flight poll that still scores the previous settings.
+ */
 export const refreshJoinPlan = (opts: {
   hasInFlight: boolean
   hasBoardsTail: boolean
   waitForBoards: boolean
   settingsKey: string | null
   inFlightKey: string | null
+  settingsRevision: number
+  inFlightRevision: number | null
 }): 'join' | 'kick' => {
+  if (opts.inFlightRevision != null && opts.settingsRevision !== opts.inFlightRevision) return 'kick'
   if (opts.settingsKey && opts.inFlightKey && opts.settingsKey !== opts.inFlightKey) return 'kick'
   if (opts.waitForBoards && opts.hasBoardsTail) return 'join'
   if (opts.hasInFlight) return 'join'
