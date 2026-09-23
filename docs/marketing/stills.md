@@ -18,7 +18,7 @@ Pinned frame (tick 0, `src/main/providers/replayWorld.ts`, mirrored in `site/lib
 | Slot | File in `site/public/images/` | What it shows | How it is made |
 | --- | --- | --- | --- |
 | A hero | `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `hud-shot.mjs` + board capture + `compose.py hero` |
-| B | `companion-board.jpg` | Scoreboard, Hash Marks bench popover open | Window capture, 1440×900 |
+| B | `companion-board.jpg` | Scoreboard, benches closed (both lineups visible) | Window capture, 1440×900 |
 | — | `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1440×900 |
 | C | `frost-hud.jpg` | Frost HUD (preset 1, far sides) on a living-room TV | `hud-shot.mjs` + `compose.py frost` |
 | D | `overlay-studio.jpg` | Scoreboard with Overlay Studio, preview over the game plate | Window capture, 1440×900 |
@@ -38,8 +38,10 @@ ships in the app, so still D shows what the product actually renders.
    caption stay visible on purpose (spec §4).
 2. Size the companion window to **1440×900** (Windows: PowerToys FancyZones or a window sizer;
    Linux: `xdotool search --name Sideline windowsize 1440 900`).
-3. **B** — Scoreboard. Open the **Hash Marks** bench (right foot) so Ice Box's lineup stays
-   visible and one foot shows a bench list. Capture → `companion-board.jpg`.
+3. **B** — Scoreboard with **both benches closed**, so both lineups show (Designer sign-off,
+   PR #51). Capture → `companion-board.jpg`. The same frame is the hero laptop `board.png`.
+   Optional bench proof (docs only, not the site): open the Hash Marks bench and capture →
+   `docs/marketing/bench-proof.jpg`.
 4. **Leagues** — click Leagues and capture → `leagues-board.jpg`.
 5. **E** — click Connect and capture, then crop from the Replay block through the provider
    cards → `connect-hub.jpg`.
@@ -51,8 +53,8 @@ ships in the app, so still D shows what the product actually renders.
    node scripts/marketing/hud-shot.mjs hud.png http://127.0.0.1:7333/overlay
    ```
 
-   Use the desktop surface (regular density); the TV surface truncates ST. BROWN.
-   Capture the Scoreboard with benches closed as `board.png` for the hero laptop.
+   Use the desktop surface (regular density); the TV surface truncates ST. BROWN. Use this one
+   render for both C and the hero so the TV digits match (98.4 / 91.2 / +7.2).
 8. **Composite C and A** (Python 3 with Pillow and NumPy):
 
    ```bash
