@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { emptyAppState, type League } from '@shared/types'
-import { ConnectScreen, LeagueChecklist, leaguesToAdd, type ConnectPath } from './ConnectScreen'
+import { ConnectScreen, LeagueChecklist, leaguesToAdd, reportBugFromConnect, type ConnectPath } from './ConnectScreen'
 
 const htmlOf = (
   overrides: Partial<ReturnType<typeof emptyAppState>> = {},
@@ -45,6 +45,51 @@ describe('ConnectScreen hub', () => {
     expect(html).toContain('data-update-state="idle"')
     expect(html).toContain('data-connect-footer="settings"')
     expect(html.indexOf('data-connect-footer="settings"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
+  })
+
+  it('puts a text Report a bug control under Updates and shortcuts', () => {
+    const html = htmlOf()
+    expect(html).toContain('Report a bug')
+    expect(html).toContain('data-connect-report="bug"')
+    expect(html.indexOf('data-connect-report="bug"')).toBeGreaterThan(html.indexOf('Keyboard shortcuts'))
+    expect(html.indexOf('data-connect-report="bug"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
+    const marker = 'data-connect-report="bug"'
+    const start = html.lastIndexOf('<button', html.indexOf(marker))
+    const end = html.indexOf('</button>', start)
+    const button = html.slice(start, end)
+    expect(button).toContain('text-muted')
+    expect(button).toContain('hover:text-lime')
+    expect(button).not.toContain('bg-espn')
+  })
+
+  it('builds a GitHub new-issue URL with version and platform and opens it', async () => {
+    const openExternal = vi.fn(async (url: string) => {
+      expect(url).toContain('github.com/ketheridge7/sideline/issues/new')
+      return { ok: true as const }
+    })
+    const url = await reportBugFromConnect(
+      {
+        getRuntimeInfo: async () => ({
+          appVersion: '1.0.0',
+          electron: '38.0.0',
+          chrome: '140.0.7339.0',
+          platform: 'win32',
+          osRelease: '10.0.22631'
+        }),
+        openExternal
+      },
+      'Connect'
+    )
+    expect(openExternal).toHaveBeenCalledTimes(1)
+    expect(url).toContain('github.com/ketheridge7/sideline/issues/new')
+    expect(url).toContain('template=bug_report.yml')
+    expect(url).toContain('labels=bug')
+    expect(url).toContain('assignees=ketheridge7')
+    expect(url).toContain('body=')
+    const decoded = decodeURIComponent(url.replace(/\+/g, '%20'))
+    expect(decoded).toContain('1.0.0')
+    expect(decoded).toContain('win32')
+    expect(decoded).toContain('Active view: Connect')
   })
 
   it('uses soft-pill actions on Connect instead of hard-rect buttons', () => {

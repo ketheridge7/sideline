@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a Sideline companion bug
+title: "[Bug] "
+labels: [bug]
+assignees: [ketheridge7]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Do **not** include league names, cookies, tokens, or Sleeper/ESPN credentials.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Filled automatically from Connect → Report a bug (app version, Electron/Chrome, OS, active view).
+      render: markdown
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: false
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: false

@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX } from 'react'
+import { bugReportActiveView } from '@shared/bugReport'
 import {
   acceleratorFromEvent,
   actionForAccelerator,
@@ -126,7 +127,11 @@ export const App = (): JSX.Element => {
           }`}
         >
           {!ready || screen === 'connect' ? (
-            <ConnectScreen state={state} onOpenBoards={() => setScreen('boards')} />
+            <ConnectScreen
+              state={state}
+              onOpenBoards={() => setScreen('boards')}
+              activeView={bugReportActiveView(ready ? screen : 'connect', state.overlayVisible)}
+            />
           ) : null}
           {ready && screen === 'boards' ? (
             <BoardsScreen state={state} onOpenBoard={() => setScreen('board')} />

@@ -64,7 +64,9 @@ const api: SidelineApi = {
     return () => ipcRenderer.removeListener('sideline:update', listener)
   },
   checkForUpdates: () => ipcRenderer.invoke('sideline:checkForUpdates'),
-  installUpdate: () => ipcRenderer.invoke('sideline:installUpdate')
+  installUpdate: () => ipcRenderer.invoke('sideline:installUpdate'),
+  getRuntimeInfo: () => ipcRenderer.invoke('sideline:getRuntimeInfo'),
+  openExternal: (url) => ipcRenderer.invoke('sideline:openExternal', url)
 }
 
 contextBridge.exposeInMainWorld('sideline', api)
