@@ -290,6 +290,8 @@ select {
   flex: 1;
   min-height: 0;
   padding: 0;
+  /* Rail type scales with density; em columns on the row font clip "26.0" at TV size. */
+  grid-template-columns: calc(var(--hud-pos, 12px) * 2.6) minmax(0, 1fr) calc(var(--hud-pts, 15px) * 2.4);
 }
 
 .hud-type-pos,
