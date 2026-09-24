@@ -1,3 +1,4 @@
+import { OVERLAY_PRESET_IDS, type OverlayPresetId } from '@shared/overlayLayout'
 import type { AppState, OverlayHudState } from '@shared/types'
 import { emptyAppState, overlayHudUnchanged, toOverlayHud } from '@shared/types'
 
@@ -28,6 +29,13 @@ export const overlayAllowsEdit = (search: string, hasPreload: boolean): boolean 
 }
 
 export const canvasInsetPct = (surface: OverlaySurface): number => (surface === 'tv' ? 4 : 0)
+
+/** Marketing stills freeze a Studio preset (`?preset=3`) without writing settings. */
+export const overlayPresetFromSearch = (search: string): OverlayPresetId | null => {
+  const raw = searchParams(search).get('preset')
+  if (!raw || !(OVERLAY_PRESET_IDS as readonly string[]).includes(raw)) return null
+  return raw as OverlayPresetId
+}
 
 export const subscribeHud = (onState: (hud: OverlayHudState) => void): (() => void) => {
   let prev: OverlayHudState | null = null

@@ -188,7 +188,7 @@ export const OverlayStudio = ({
                   }}
                 >
                   {widget.id === 'ticker.nfl' && hud.nflTicker.length === 0 ? (
-                    <div className="flex h-full items-center bg-black/55 px-3 font-cond text-sm font-bold uppercase tracking-wide text-muted">
+                    <div className="hud-type-ticker flex h-full items-center bg-black/55 px-[0.75em] text-muted">
                       Ticker
                     </div>
                   ) : (

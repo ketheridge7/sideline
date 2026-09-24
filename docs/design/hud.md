@@ -25,9 +25,9 @@ Screens stay **Scoreboard / Leagues / Connect**. Overlay is a window, not a four
 | `--line` | `#1E232B` | Hairline |
 | `--text` | `#F4F6F8` | Primary |
 | `--muted` | `#94A3B8` | Meta |
-| `--you` | `#A6E6A0` | Warm ice-green — lead chip, selected, ice chrome. Not my team name |
+| `--you` | `#A6E6A0` | Warm ice-green — selected, ice chrome. Not my team name, not the point differential |
 | `--them` | `#E8E4DC` | Warm silver — opponent name. Not “loss” |
-| `--lime` | `#B6FF3B` | Just scored / HUD on / chrome pill outlines / **my** team name / you-side Starters·Bench·win% / Overlay Studio |
+| `--lime` | `#B6FF3B` | Just scored / HUD on / chrome pill outlines / **my** team name / positive point differential next to the team total / you-side Starters·Bench·win% / Overlay Studio |
 | `--air` | `#FF4D4D` | ON AIR, injury, waiver |
 | Sleeper / ESPN | cyan / crimson | **tiny stamps only** |
 
@@ -43,10 +43,10 @@ Coordinates are **percent of canvas**. Studio selects **big blocks** (your team 
 
 - Meta: `meta.league`, `meta.week`, `meta.live` (hidden / unpainted in canned presets — no decorative live pip)
 - Identity: `team.mine.name`, `team.opp.name` — condensed uppercase, **centered** and enlarged in the name widget (`cqh`), above the team score
-- Scores: `score.mine`, `score.opp` (loudest number, **centered** in the score widget), `score.delta` (tiny lead next to your score, not a third scoreboard)
+- Scores: `score.mine`, `score.opp` (loudest number, **centered** in the score widget), `score.delta` (lead next to your score, not a third scoreboard). A positive delta uses the same lime `#B6FF3B` as my team name; a negative delta uses alert red.
 - Rails: one `col.*.name` widget per side paints a CSS grid `POS | NAME | PTS`. Split `col.*.pos` / `col.*.pts` stay in the catalog but are hidden so points cannot drift or overlap position labels. `col.*.nfl` stays hidden. No ice hash line on either rail.
 - Bench / alerts: `bench.mine`, `bench.opp`, `toast.slot` stay in the catalog, hidden in every canned preset. No crawler, no toast chips, no marquee.
-- Ticker: `ticker.nfl` is the bottom NFL score strip. Studio treats it as one selectable block. No ON AIR wordmark.
+- Ticker: `ticker.nfl` is the bottom NFL score strip. Overlay type fills the strip (`hud-type-ticker`, container-scaled) so the scores stay readable on a TV. Studio treats it as one selectable block. No ON AIR wordmark.
 
 Visible HUD is **names, scores, and both starter rails**. Last names only (`overlayName`). No NFL city tags.
 
@@ -56,7 +56,7 @@ When a player's points **increase**, that pts cell (and the team total if the su
 
 When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
 
-Default **Preset 1** (far sides): dual skinny frost rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Tiny lead chip stays next to your total. No framed card. Each starter row is a CSS grid `POS | NAME | PTS`. Center video stays clear.
+Default **Preset 1** (far sides): dual skinny frost rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Lead chip stays next to your total and uses lime `#B6FF3B` when ahead (same token as my team name). No framed card. Each starter row is a CSS grid `POS | NAME | PTS`. Center video stays clear.
 
 Studio has **exactly five** placements (same you/them chrome, different screen regions):
 
@@ -103,7 +103,7 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 - Leagues matchup cards: **Top scorers** chips are highest starter points, not “who just scored.”
 - Bottom ticker is **replay-only** NFL chips from the fixture. No ON AIR wordmark, no live sports-data API, no betting.
 - Top bar: broadcast S v2 (`broadcast-s.svg`, continuous blocky S, solid lime `#B6FF3B`, no square field) + **SIDELINE** (ice `#F4F7F2`, letter-spacing ~0.11em, `gap-2` lockup, no underline). Soft-pill SCOREBOARD / LEAGUES / CONNECT and HUD — lime `#B6FF3B` outline (inactive ~40% opacity, active fuller; near-black fill). Studio is **not** in the top bar. HUD still tracks `overlayVisible`. No decorative Live / Auto-refresh pips. Replay mode still labels **Replay**. ES health stays on the watchlist.
-- SCOREBOARD: you-side Starters / Bench headers, Chance to win · Est. win% header + you fill/label, and **Edit layout** use solid lime `#B6FF3B`; opponent chrome stays warm silver. Lead chip stays ice `--you`. When HUD is on, a left-aligned **Edit layout** soft pill sits under the scoreboard and opens Overlay Studio. Hidden when HUD is off. Companion `E` / `Esc` still toggle/close Studio only while HUD is on.
+- SCOREBOARD: you-side Starters / Bench headers, Chance to win · Est. win% header + you fill/label, and **Edit layout** use solid lime `#B6FF3B`; opponent chrome stays warm silver. The +/- chip next to the team total uses that same lime when ahead (alert red when behind) on SCOREBOARD and the overlay, Replay and live. When HUD is on, a left-aligned **Edit layout** soft pill sits under the scoreboard and opens Overlay Studio. Hidden when HUD is off. Companion `E` / `Esc` still toggle/close Studio only while HUD is on.
 - Overlay Studio: lime title + active preset box (same family as TopBar pills / my name). Five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No HUD on/off control — TopBar HUD pill / hotkey owns visibility.
 
 Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).

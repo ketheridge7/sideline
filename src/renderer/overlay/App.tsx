@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   dragIdsFor,
+  layoutFromPreset,
   parseOverlayLayout,
   resizeWidget,
   translateWidgets,
@@ -11,7 +12,13 @@ import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, toOverlayHud } from '@shared/types'
 import { OverlayWidgetView } from './Widgets'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from './density'
-import { canvasInsetPct, overlayAllowsEdit, overlaySurface, subscribeHud } from './subscribe'
+import {
+  canvasInsetPct,
+  overlayAllowsEdit,
+  overlayPresetFromSearch,
+  overlaySurface,
+  subscribeHud
+} from './subscribe'
 
 type DragSession = {
   ids: OverlayWidgetId[]
@@ -35,14 +42,16 @@ export const OverlayApp = (): JSX.Element => {
   layoutRef.current = layout
   const surface = overlaySurface(window.location.search)
   const inset = canvasInsetPct(surface)
+  const presetOverride = overlayPresetFromSearch(window.location.search)
   const canEdit = overlayAllowsEdit(window.location.search, Boolean(window.sideline)) && hud.overlayEditMode
 
   useEffect(() => subscribeHud(setHud), [])
 
   useEffect(() => {
     if (drag.current) return
-    setLayout(parseOverlayLayout(hud.layout))
-  }, [hud.layout])
+    const parsed = parseOverlayLayout(hud.layout)
+    setLayout(presetOverride ? layoutFromPreset(presetOverride) : parsed)
+  }, [hud.layout, presetOverride])
 
   const applyLocal = (next: OverlayLayout): void => {
     layoutRef.current = next

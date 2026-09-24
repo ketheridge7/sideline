@@ -43,7 +43,7 @@ export const PRODUCT_STILLS = {
   },
   overlay: {
     src: "/images/frost-hud.jpg",
-    alt: "Frost HUD over a Sunday living-room TV — Ice Box and Hash Marks on the sidelines.",
+    alt: "Frost HUD, Overlay Studio preset 3 (lower corners), over a Sunday living-room TV — Ice Box and Hash Marks on the sidelines.",
     width: 1600,
     height: 900,
     caption: "Real HUD capture · staged room · fake leagues",

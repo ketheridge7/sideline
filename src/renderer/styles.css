@@ -224,6 +224,15 @@ select {
   text-transform: uppercase;
 }
 
+.hud-type-ticker {
+  font-family: var(--font-cond);
+  font-size: clamp(14px, 68cqh, 64px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .hud-rail {
   display: flex;
   flex-direction: column;

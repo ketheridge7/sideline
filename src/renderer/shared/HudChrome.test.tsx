@@ -69,7 +69,7 @@ describe('HudChrome parity', () => {
     expect(youScore).toContain('data-hud="team-score"')
     expect(lead).toContain('data-hud="lead-chip"')
     expect(lead).toContain('+11.6')
-    expect(lead).toContain('text-you')
+    expect(lead).toContain('text-lime')
 
     for (const html of [overlayRail, overlayHudRail, boardRails]) {
       expect(html).toContain('data-hud-rail="mine"')
@@ -111,7 +111,6 @@ describe('HudChrome parity', () => {
     expect(html).toContain('bg-them/50')
     expect(html).toMatch(/data-hud-side="mine"[^>]*text-lime|text-lime"[^>]*data-hud-side="mine"/)
     expect(html).toMatch(/data-hud-side="opp"[^>]*text-muted|text-muted"[^>]*data-hud-side="opp"/)
-    expect(html).not.toMatch(/data-hud="lead-chip"[^>]*text-lime/)
     const pending = renderToStaticMarkup(<HudScoreboard matchup={matchup} />)
     expect(pending).toContain('Win% pending')
     expect(pending).toContain('data-hud-win-pct="pending"')
@@ -175,11 +174,15 @@ describe('HudChrome parity', () => {
     expect(emptyOpp).not.toContain('text-lime')
   })
 
-  it('keeps the lead chip on ice --you, not lime', () => {
+  it('paints a positive lead chip with the same lime as the team name', () => {
     const board = renderToStaticMarkup(<HudScoreboard matchup={matchup} />)
     expect(board).toContain('data-hud="lead-chip"')
     expect(board).toContain('+11.6')
-    expect(board).toMatch(/text-you[^"]*"[^>]*data-hud="lead-chip"|data-hud="lead-chip"[^>]*text-you/)
-    expect(board).not.toMatch(/data-hud="lead-chip"[^>]*text-lime/)
+    expect(board).toMatch(/text-lime[^"]*"[^>]*data-hud="lead-chip"|data-hud="lead-chip"[^>]*text-lime/)
+    expect(board).not.toMatch(/data-hud="lead-chip"[^>]*text-you/)
+    const trailing = renderToStaticMarkup(
+      <HudScoreboard matchup={{ ...matchup, myPoints: 90, oppPoints: 110 }} />
+    )
+    expect(trailing).toMatch(/data-hud="lead-chip"[^>]*text-air|text-air[^"]*"[^>]*data-hud="lead-chip"/)
   })
 })

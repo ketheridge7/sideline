@@ -281,8 +281,8 @@ const teamChrome = (
   return rows
 }
 
-const TICKER_Y = 94.4
-const TICKER_H = 5.6
+const TICKER_Y = 91.2
+const TICKER_H = 8.8
 
 const dualColumn = (
   mine: RailAnchor,

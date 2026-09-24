@@ -5,7 +5,8 @@
 //   node scripts/marketing/hud-shot.mjs [out.png] [url]
 //
 // Default url is the TV surface of the loopback overlay a running `npm run replay:capture`
-// serves on 127.0.0.1:7333. Needs Google Chrome (or CHROME=/path/to/chrome) and Node 22+.
+// serves on 127.0.0.1:7333. Marketing still C passes `?preset=3` (lower corners) and still
+// uses the desktop surface, not `?tv=1`. Needs Google Chrome (or CHROME=/path/to/chrome) and Node 22+.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
