@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canvasInsetPct, eventsPathFromSearch, isTvOverlay, overlayAllowsEdit, overlaySurface } from './subscribe'
+import {
+  canvasInsetPct,
+  eventsPathFromSearch,
+  isTvOverlay,
+  overlayAllowsEdit,
+  overlayPresetFromSearch,
+  overlaySurface
+} from './subscribe'
 
 describe('eventsPathFromSearch', () => {
   it('forwards the LAN token onto the SSE URL', () => {
@@ -37,6 +44,17 @@ describe('overlaySurface', () => {
     expect(canvasInsetPct('tv')).toBe(4)
     expect(canvasInsetPct('obs')).toBe(0)
     expect(canvasInsetPct('desktop')).toBe(0)
+  })
+})
+
+describe('overlayPresetFromSearch', () => {
+  it('freezes a Studio preset only when the query names one', () => {
+    expect(overlayPresetFromSearch('?preset=3')).toBe('3')
+    expect(overlayPresetFromSearch('?k=abc&preset=3')).toBe('3')
+    expect(overlayPresetFromSearch('?preset=1')).toBe('1')
+    expect(overlayPresetFromSearch('')).toBeNull()
+    expect(overlayPresetFromSearch('?preset=9')).toBeNull()
+    expect(overlayPresetFromSearch('?preset=corners')).toBeNull()
   })
 })
 

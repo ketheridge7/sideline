@@ -71,7 +71,7 @@ export const LeadChip = ({
 }): JSX.Element => {
   const leading = delta > 0
   const trailing = delta < 0
-  const deltaClass = leading ? 'text-you' : trailing ? 'text-air' : 'text-muted'
+  const deltaClass = leading ? 'text-lime' : trailing ? 'text-air' : 'text-muted'
   const sizeClass =
     surface === 'overlay'
       ? 'hud-type-delta flex h-full items-end tabular-nums'

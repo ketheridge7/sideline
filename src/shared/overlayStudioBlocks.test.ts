@@ -31,6 +31,7 @@ describe('studioBlockBox', () => {
     const layout = layoutFromPreset('1')
     const ticker = studioBlockBox(layout, 'ticker')
     expect(ticker.y).toBeGreaterThan(90)
+    expect(ticker.h).toBeGreaterThanOrEqual(8)
     expect(ticker.w).toBe(100)
     expect(widget('1', 'ticker.nfl')?.hidden).toBe(false)
   })

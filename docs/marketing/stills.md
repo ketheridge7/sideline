@@ -20,7 +20,7 @@ Pinned frame (tick 0, `src/main/providers/replayWorld.ts`, mirrored in `site/lib
 | A hero | `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `hud-shot.mjs` + board capture + `compose.py hero` |
 | B | `companion-board.jpg` | Scoreboard, benches closed (both lineups visible) | Window capture, 1440×900 |
 | — | `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1440×900 |
-| C | `frost-hud.jpg` | Frost HUD (preset 1, far sides) on a living-room TV | `hud-shot.mjs` + `compose.py frost` |
+| C | `frost-hud.jpg` | Frost HUD (preset 3, lower corners) on a living-room TV | `hud-shot.mjs` + `compose.py frost` |
 | D | `overlay-studio.jpg` | Scoreboard with Overlay Studio, preview over the game plate | Window capture, 1440×900 |
 | E | `connect-hub.jpg` | Replay armed block + ESPN / Sleeper / TV cards | Window capture, cropped to the hub |
 
@@ -50,16 +50,20 @@ ships in the app, so still D shows what the product actually renders.
 7. **HUD render** — with the app still running, in a second terminal:
 
    ```bash
-   node scripts/marketing/hud-shot.mjs hud.png http://127.0.0.1:7333/overlay
+   node scripts/marketing/hud-shot.mjs hud-preset1.png http://127.0.0.1:7333/overlay
+   node scripts/marketing/hud-shot.mjs hud.png 'http://127.0.0.1:7333/overlay?preset=3'
    ```
 
-   Use the desktop surface (regular density); the TV surface truncates ST. BROWN. Use this one
-   render for both C and the hero so the TV digits match (98.4 / 91.2 / +7.2).
+   Use the desktop surface (regular density); the TV surface truncates ST. BROWN. `?preset=3`
+   freezes Overlay Studio preset 3 (lower corners) for the still without writing settings.
+   The bottom NFL strip uses `hud-type-ticker` so those scores stay readable on the TV.
+   Hero uses the preset 1 render (`hud-preset1.png`) so the living-room TV stays far sides.
+   Slot C uses the preset 3 render. Both show the pinned digits (98.4 / 91.2 / +7.2).
 8. **Composite C and A** (Python 3 with Pillow and NumPy):
 
    ```bash
    python3 scripts/marketing/compose.py frost --hud hud.png
-   python3 scripts/marketing/compose.py hero --hud hud.png --board board.png
+   python3 scripts/marketing/compose.py hero --hud hud-preset1.png --board board.png
    ```
 
 9. Update alt text in `site/lib/stills.ts` if anything changed, then
