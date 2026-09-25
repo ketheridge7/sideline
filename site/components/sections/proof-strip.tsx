@@ -4,8 +4,7 @@ export function ProofStrip() {
   return (
     <section className="border-y border-line bg-card/60" aria-label="Sleeper and ESPN">
       <div
-        className="mx-auto flex max-w-6xl items-center justify-center px-5 py-6 sm:px-6"
-        style={{ gap: "7rem" }}
+        className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-10 px-5 py-6 sm:gap-16 sm:px-6 lg:gap-28"
       >
         <Image
           src="/images/sleeper.png"

@@ -20,39 +20,39 @@ const { you, them } = HERO_HUD;
 export const PRODUCT_STILLS = {
   hero: {
     src: "/images/hero-living-room.jpg",
-    alt: `Sunday living room: frost HUD on the TV over the game and the companion Scoreboard on a laptop — ${you.team} ${you.score}, ${them.team} ${them.score}.`,
+    alt: `Sunday living room: flat frost HUD on the TV, thin bottom ticker, and the companion Scoreboard on a laptop — ${you.team} ${you.score}, ${them.team} ${them.score}.`,
     width: 1600,
     height: 900,
   },
   companion: {
     src: "/images/companion-board.jpg",
-    alt: "Sideline Scoreboard in Replay: Ice Box vs Hash Marks, starters, scoring tape, and league watchlist.",
+    alt: "Sideline Scoreboard in Replay: Matchup Scoring, Ice Box vs Hash Marks with both benches closed, scoring tape, and the league watchlist.",
     width: 1440,
     height: 900,
   },
   leagues: {
     src: "/images/leagues-board.jpg",
-    alt: "Sideline Leagues in Replay: six Sleeper and ESPN matchups with live scores, lead bars, and top scorers beside the all-leagues scoring tape.",
+    alt: "Sideline Leagues in Replay: six matchups under League Scoring, neutral scores, outlined top-scorer chips, and the all-leagues tape. Sleeper cards show team names only.",
     width: 1440,
     height: 900,
   },
   overlay: {
     src: "/images/frost-hud.jpg",
-    alt: "Frost HUD, Overlay Studio preset 3 (lower corners), over a Sunday living-room TV — Ice Box and Hash Marks on the sidelines.",
+    alt: "Frost HUD, Overlay Studio preset 3 (lower corners), on a straight-on living-room TV — Ice Box and Hash Marks with the thin bottom ticker.",
     width: 1600,
     height: 900,
   },
   studio: {
     src: "/images/overlay-studio.jpg",
-    alt: "Overlay Studio with five placements and a live HUD preview over game footage.",
+    alt: "Scoreboard with Overlay Studio open beside it: five placements and a live HUD preview over the game plate. No separate Edit-layout control.",
     width: 1440,
     height: 900,
   },
   connect: {
     src: "/images/connect-hub.jpg",
-    alt: "Connect hub: ESPN, Sleeper, and TV peer cards with Replay armed.",
-    width: 984,
-    height: 530,
+    alt: "Connect hub in Replay: ESPN, Sleeper, and TV cards, with Updates open underneath. No Replay panel.",
+    width: 1440,
+    height: 700,
   },
 } as const satisfies Record<string, ProductStill>;
 

@@ -3,7 +3,7 @@ import { SectionEyebrow, SectionTitle } from "@/components/ui";
 
 export function CompanionSection() {
   return (
-    <section id="features" className="border-t border-line bg-[#08090c] py-20 lg:py-28">
+    <section id="features" className="border-t border-line bg-[#08090c] py-16 lg:py-20">
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <div className="max-w-3xl">
           <SectionEyebrow>Companion board</SectionEyebrow>
@@ -11,11 +11,11 @@ export function CompanionSection() {
         </div>
         <ProductStill
           still="companion"
-          className="mt-12"
+          className="mt-8"
           frameClassName="shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
           sizes="(min-width: 1152px) 1152px, 100vw"
         />
-        <div className="mt-14">
+        <div className="mt-10">
           <h3 className="font-cond text-2xl font-bold uppercase tracking-[0.06em] text-lime">Leagues</h3>
           <ProductStill
             still="leagues"

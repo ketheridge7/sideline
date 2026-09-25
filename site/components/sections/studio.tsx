@@ -3,14 +3,12 @@ import { SectionEyebrow } from "@/components/ui";
 
 export function StudioSection() {
   return (
-    <section id="studio" className="border-y border-line bg-[#08090c] py-20 lg:py-28">
+    <section id="studio" className="border-y border-line bg-[#08090c] py-16 lg:py-20">
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
-        <div className="max-w-3xl">
-          <SectionEyebrow>Overlay Studio</SectionEyebrow>
-        </div>
+        <SectionEyebrow>Overlay Studio</SectionEyebrow>
         <ProductStill
           still="studio"
-          className="mt-12"
+          className="mt-8"
           frameClassName="shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
           sizes="(min-width: 1152px) 1152px, 100vw"
         />
