@@ -1,4 +1,4 @@
-/** Launch flag Connect's Arm Replay relaunches with. `SIDELINE_REPLAY=1` (npm run replay) is the power-user path. */
+/** Launch flag for Replay. `npm run replay` sets `SIDELINE_REPLAY=1`; a manual launch passes this flag. */
 export const DEMO_FLAG = '--sideline-replay'
 
 type Env = Record<string, string | undefined>
@@ -32,4 +32,5 @@ export const demoDevHint = (enabled: boolean): string =>
     ? 'Dev checkout: quit Sideline, then run `npm run replay` to arm Replay.'
     : 'Dev checkout: quit Sideline, then run `npm run dev` to go back to live.'
 
-export const DEMO_LOCKED_MESSAGE = 'Replay is armed. Disarm Replay on Connect to use your real accounts.'
+export const DEMO_LOCKED_MESSAGE =
+  'Replay is a demo mode. Relaunch Sideline normally to use your live leagues.'

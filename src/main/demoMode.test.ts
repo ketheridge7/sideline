@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_FLAG, demoDevHint, demoRelaunchArgs, demoRequested, demoSwitchPlan, holdRequested } from './demoMode'
+import { DEMO_FLAG, DEMO_LOCKED_MESSAGE, demoDevHint, demoRelaunchArgs, demoRequested, demoSwitchPlan, holdRequested } from './demoMode'
 
 describe('demoMode', () => {
-  it('arms from npm run replay or from the Connect relaunch flag', () => {
+  it('arms from npm run replay or the --sideline-replay flag', () => {
     expect(demoRequested({ SIDELINE_REPLAY: '1' }, ['electron', '.'])).toBe(true)
     expect(demoRequested({}, ['Sideline.exe', DEMO_FLAG])).toBe(true)
     expect(demoRequested({}, ['Sideline.exe'])).toBe(false)
     expect(demoRequested({ SIDELINE_REPLAY: '0' }, ['Sideline.exe'])).toBe(false)
+  })
+
+  it('tells a locked Replay session to relaunch normally', () => {
+    expect(DEMO_LOCKED_MESSAGE).toContain('demo mode')
+    expect(DEMO_LOCKED_MESSAGE).toContain('Relaunch Sideline normally')
+    expect(DEMO_LOCKED_MESSAGE).not.toMatch(/Connect|Disarm/)
   })
 
   it('holds the pinned frame only for explicit marketing captures', () => {

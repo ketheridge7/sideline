@@ -31,3 +31,12 @@ describe('P1-10 electron fuses', () => {
     expect(config).toMatch(/one-way/i)
   })
 })
+
+describe('Windows installer filename', () => {
+  it('publishes a versionless NSIS artifact so /releases/latest/download/Sideline-Setup.exe stays stable', () => {
+    const config = read('electron-builder.yml')
+    const nsis = config.slice(config.indexOf('\nnsis:'), config.indexOf('\nmac:'))
+    expect(nsis).toContain('artifactName: Sideline-Setup.${ext}')
+    expect(nsis).not.toContain('${name}-${version}-setup.${ext}')
+  })
+})

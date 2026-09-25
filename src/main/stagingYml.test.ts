@@ -3,10 +3,10 @@ import { parseStagingPercentage, stampLatestYml, stampReleaseLatestYml } from '.
 
 const sample = `version: 1.0.1
 files:
-  - url: sideline-1.0.1-setup.exe
+  - url: Sideline-Setup.exe
     sha512: abc
     size: 10
-path: sideline-1.0.1-setup.exe
+path: Sideline-Setup.exe
 sha512: abc
 releaseDate: '2026-09-01T00:00:00.000Z'
 `
