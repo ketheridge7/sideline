@@ -43,8 +43,8 @@ export default async function OpenGraphImage() {
               letterSpacing: -1.5,
             }}
           >
-            <div style={{ display: "flex" }}>Your fantasy tape.</div>
-            <div style={{ display: "flex" }}>Always on the sideline.</div>
+            <div style={{ display: "flex" }}>Your fantasy matchup.</div>
+            <div style={{ display: "flex" }}>Always on the Sideline</div>
           </div>
           <div style={{ display: "flex", marginTop: 18, fontSize: 24, color: "#94A3B8", maxWidth: 760 }}>
             {SITE_DESCRIPTION}

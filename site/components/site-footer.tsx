@@ -11,10 +11,6 @@ export function SiteFooter() {
           <Link href="/" aria-label={`${WORDMARK_TEXT} home`}>
             <BrandMark compact />
           </Link>
-          <p className="mt-3 max-w-sm text-sm text-muted">
-            Second-screen fantasy companion for NFL Sundays. Sunday Tape on near-black — not a
-            sportsbook.
-          </p>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted" aria-label="Footer">
           <Link href="/#features" className="hover:text-text">

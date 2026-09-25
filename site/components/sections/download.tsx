@@ -1,4 +1,4 @@
-import { CtaLink, SectionEyebrow, SectionLead, SectionTitle } from "@/components/ui";
+import { CtaLink, SectionEyebrow, SectionTitle } from "@/components/ui";
 import { DOWNLOAD_URL, REPO_URL } from "@/lib/constants";
 
 export function DownloadSection() {
@@ -17,10 +17,6 @@ export function DownloadSection() {
           <div>
             <SectionEyebrow>Download</SectionEyebrow>
             <SectionTitle>Get the Windows companion.</SectionTitle>
-            <SectionLead>
-              Latest installer is on GitHub Releases. Per-user setup, desktop shortcut, no admin
-              prompt. Unsigned personal builds will trip SmartScreen — that is expected.
-            </SectionLead>
             <div className="mt-8 flex flex-wrap gap-3">
               <CtaLink href={DOWNLOAD_URL} external>
                 Download for Windows
@@ -34,10 +30,7 @@ export function DownloadSection() {
                 Windows SmartScreen
               </p>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-                Because the build is unsigned, Windows may show <strong className="font-medium text-text">Windows protected your PC</strong>.
-                Choose <strong className="font-medium text-text">More info</strong> →{" "}
-                <strong className="font-medium text-text">Run anyway</strong>. Authenticode signing is
-                an optional follow-up, not required for private use.
+                More info → Run anyway.
               </p>
             </div>
           </div>

@@ -16,15 +16,15 @@ export default function DocsPage() {
     <>
       <SiteNav />
       <main id="main" className="mx-auto max-w-3xl px-5 py-16 sm:px-6">
-        <p className="font-cond text-xs font-bold uppercase tracking-[0.22em] text-you">Docs</p>
-        <h1 className="mt-3 text-4xl font-medium tracking-tight">Connect, shortcuts, overlay</h1>
-        <p className="mt-4 text-lg leading-relaxed text-muted">
-          Sideline is a Windows-first companion. Connect in the app, then raise the HUD on this PC
-          — or share it to OBS, a phone on this Wi-Fi, or (secondarily) Google TV.
+        <p className="font-cond text-4xl font-extrabold uppercase leading-none tracking-[0.06em] text-lime sm:text-5xl">
+          Docs
         </p>
+        <h1 className="mt-3 max-w-3xl text-xl font-medium leading-snug tracking-tight text-text sm:text-2xl">
+          Connect, shortcuts, overlay
+        </h1>
 
         <section className="mt-14">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">Sleeper</h2>
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">Sleeper</h2>
           <ol className="mt-4 grid list-decimal gap-2 pl-5 text-sm leading-relaxed text-muted">
             <li>
               In the Sleeper app or on sleeper.com, find your{" "}
@@ -41,20 +41,11 @@ export default function DocsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">ESPN</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            ESPN access is unofficial, uses your own login, and is for personal companion use only.
-            Sideline never sees or stores your password.
-          </p>
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">ESPN</h2>
           <ol className="mt-4 grid list-decimal gap-2 pl-5 text-sm leading-relaxed text-muted">
             <li>
               Click <strong className="font-medium text-text">Sign in with ESPN</strong>. An in-app
               window opens ESPN&apos;s own login (2FA/OTP included).
-            </li>
-            <li>
-              After sign-in, Sideline reads <code className="text-text">espn_s2</code> and{" "}
-              <code className="text-text">SWID</code> from the local session partition on this
-              machine.
             </li>
             <li>
               Sideline lists your ESPN leagues as a checklist. Keep the ones you want and press{" "}
@@ -69,26 +60,17 @@ export default function DocsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">Replay</h2>
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">Replay</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Want to see Sideline on a Sunday before you connect anything, or grab screenshots? Open
-            Connect and press <strong className="font-medium text-text">Arm Replay</strong>. Sideline
-            restarts into a scripted Week 3 slate: six fake Sleeper and ESPN leagues, live-looking
-            scores, a moving scoring tape, and the HUD. A small{" "}
-            <strong className="font-medium text-text">Replay</strong> chip sits in the top bar while it
-            is armed. Your sign-ins, leagues, and settings are not touched — press{" "}
-            <strong className="font-medium text-text">Disarm Replay</strong> on Connect to restart into
-            your real leagues.
+            Connect → <strong className="font-medium text-text">Arm Replay</strong>. Disarm from the
+            same place.
           </p>
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">
             Keyboard shortcuts
           </h2>
-          <p className="mt-3 text-sm text-muted">
-            Windows-first defaults. On Mac, Ctrl is Cmd. Remap under Connect → Keyboard shortcuts.
-          </p>
           <div className="mt-4 overflow-hidden border border-line">
             <table className="w-full text-left text-sm">
               <thead className="bg-card font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
@@ -109,43 +91,31 @@ export default function DocsPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-sm text-muted">
-            Companion still has <Kbd>O</Kbd> (HUD), <Kbd>E</Kbd> (Studio), and <Kbd>Esc</Kbd> (close
-            Studio) on the Scoreboard.
-          </p>
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">
             OBS / localhost overlay
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Add a Browser Source pointing at{" "}
-            <code className="text-text">http://127.0.0.1:7333/overlay</code>. The port increments if
-            7333 is taken. Center ~60% of the canvas stays empty so live video is the product. OBS
-            never mounts edit chrome.
+            Browser Source: <code className="text-text">http://127.0.0.1:7333/overlay</code>
           </p>
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em]">
+          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">
             TV / LAN pairing
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Secondary to the desktop HUD. Connect → <strong className="font-medium text-text">Allow devices on this Wi-Fi to load the overlay</strong>.
-            Sideline binds on all interfaces, shows a 6-digit pairing code, and requires a session
-            token. On the Google TV app, type that code — you do not enter the IP or hex token.
-            Paste the phone URL into a browser to confirm. Loopback OBS use is unchanged while this
-            toggle is off.
+            Connect → Allow devices on this Wi-Fi. Enter the 6-digit code on the TV, or open the
+            phone URL.
           </p>
         </section>
 
-        <p className="mt-14 text-sm text-muted">
-          Ready?{" "}
-          <a href={DOWNLOAD_URL} className="text-you hover:underline" target="_blank" rel="noopener noreferrer">
+        <p className="mt-14 text-sm">
+          <a href={DOWNLOAD_URL} className="text-lime hover:underline" target="_blank" rel="noopener noreferrer">
             Download for Windows
           </a>
-          .
         </p>
       </main>
       <SiteFooter />
