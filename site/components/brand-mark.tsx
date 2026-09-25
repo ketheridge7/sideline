@@ -1,32 +1,36 @@
-import Image from "next/image";
-import { WORDMARK_ASPECT, WORDMARK_TEXT } from "@/lib/brand";
+import { WORDMARK_TEXT } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 
 /**
- * Kevin-confirmed lock: the packaging lime-stripe icon is the only Sideline logo.
- * Nav/footer render the official wordmark (that mark + SIDELINE + mint→lime underline).
- * Favicon uses `public/icon.png` / `icon.svg`. Do not substitute a hexagon S, dual-bar S,
- * or any invented mark.
+ * Same lock as the desktop companion: broadcast S v2 plus ice SIDELINE.
+ * Mark file matches `src/renderer/assets/broadcast-s.svg`.
  */
 export function BrandMark({
   compact = false,
   className,
-  preload = false,
 }: {
   compact?: boolean;
   className?: string;
-  preload?: boolean;
 }) {
-  const height = compact ? 28 : 36;
-  const width = Math.round(height * WORDMARK_ASPECT);
+  const mark = compact ? 28 : 36;
   return (
-    <Image
-      src="/wordmark.png"
-      alt={WORDMARK_TEXT}
-      width={width}
-      height={height}
-      className={cn("block", className)}
-      preload={preload}
-    />
+    <span className={cn("flex items-center gap-2", className)} data-wordmark="sideline" data-mark="broadcast-s">
+      <img
+        src="/broadcast-s.svg"
+        alt=""
+        width={mark}
+        height={mark}
+        draggable={false}
+        aria-hidden="true"
+        className="shrink-0"
+        style={{ width: mark, height: mark }}
+      />
+      <span
+        className="font-cond font-extrabold uppercase leading-none"
+        style={{ color: "#f4f7f2", letterSpacing: "0.11em", fontSize: compact ? 20 : 24 }}
+      >
+        {WORDMARK_TEXT}
+      </span>
+    </span>
   );
 }

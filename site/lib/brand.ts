@@ -1,4 +1,4 @@
-/** Official packaging lockup: mark + all-caps SIDELINE + mint→lime underline. */
+/** Desktop companion lock: broadcast S plus ice SIDELINE. */
 export const WORDMARK_TEXT = "SIDELINE";
 export const WORDMARK_WIDTH = 1155;
 export const WORDMARK_HEIGHT = 276;

@@ -54,7 +54,9 @@ export function Kbd({ children }: { children: ReactNode }) {
 
 export function SectionEyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="font-cond text-xs font-bold uppercase tracking-[0.22em] text-you">{children}</p>
+    <p className="font-cond text-4xl font-extrabold uppercase leading-none tracking-[0.06em] text-lime sm:text-5xl">
+      {children}
+    </p>
   );
 }
 
@@ -68,15 +70,11 @@ export function SectionTitle({
   return (
     <h2
       className={cn(
-        "mt-3 max-w-3xl text-3xl font-medium tracking-tight text-text sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]",
+        "mt-3 max-w-3xl text-xl font-medium leading-snug tracking-tight text-text sm:text-2xl",
         className,
       )}
     >
       {children}
     </h2>
   );
-}
-
-export function SectionLead({ children }: { children: ReactNode }) {
-  return <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">{children}</p>;
 }
