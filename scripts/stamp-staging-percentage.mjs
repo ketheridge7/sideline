@@ -123,7 +123,7 @@ if (isDirectRun()) {
     const requested = (process.env.SIDELINE_STAGING_PERCENTAGE ?? '').trim() !== ''
     if (requested) {
       console.error(
-        'The GitHub Release is already published. Until this step succeeds, latest.yml is a full rollout.'
+        'latest.yml is not stamped. The release workflow publishes only after this step, so fix it before the draft goes public.'
       )
     }
     process.exit(1)
