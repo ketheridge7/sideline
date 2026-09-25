@@ -30,7 +30,9 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
-  artifactName: ${name}-${version}-setup.${ext}
+  # Stable name so /releases/latest/download/Sideline-Setup.exe keeps working.
+  # electron-updater reads path and sha512 from latest.yml, not the filename.
+  artifactName: Sideline-Setup.${ext}
   installerIcon: icon.ico
   uninstallerIcon: icon.ico
 mac:

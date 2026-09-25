@@ -23,7 +23,7 @@ npm start
 
 ### Replay
 
-Preseason, no live games, or need screenshots? **Connect → Arm Replay** restarts Sideline into a scripted Week 3 Sunday with six fake friend-group leagues. The pinned frame is Friday Night Gridiron: Maya's Ice Box 98.4 vs Owen's Hash Marks 91.2, Est. win% 62/38. Four Sleeper and two ESPN boards, short benches, a moving scoring tape with an injury, a waiver, and a trade, plus the NFL ticker. From there the slate plays out: halftime ends, early games go final, and the late window kicks off. A small **Replay** chip sits in the top bar while it's armed; **Disarm Replay** on Connect restarts into your real leagues.
+Preseason, no live games, or need screenshots? Replay is a demo mode: a scripted Week 3 Sunday with six fake friend-group leagues. Start it with `npm run replay`, `npm run replay:capture`, or by launching Sideline with `--sideline-replay`. The pinned frame is Friday Night Gridiron: Maya's Ice Box 98.4 vs Owen's Hash Marks 91.2, Est. win% 62/38. Four Sleeper and two ESPN boards, short benches, a moving scoring tape with an injury, a waiver, and a trade, plus the NFL ticker. From there the slate plays out: halftime ends, early games go final, and the late window kicks off. A small **Replay** chip sits in the top bar while Replay is on. Quit and relaunch Sideline normally to use your real leagues.
 
 From a dev checkout (power-user escape hatch):
 
@@ -109,7 +109,7 @@ npm install
 npm run build:win
 ```
 
-The setup exe lands at `dist/sideline-1.0.0-setup.exe`. It is a per-user install (no Administrator prompt), creates a **desktop shortcut** and a Start menu entry named Sideline, and does not need to be code-signed to run. That command never uploads a GitHub Release (`--publish never`).
+The setup exe lands at `dist/Sideline-Setup.exe`. It is a per-user install (no Administrator prompt), creates a **desktop shortcut** and a Start menu entry named Sideline, and does not need to be code-signed to run. That command never uploads a GitHub Release (`--publish never`).
 
 Because the build is unsigned, Windows SmartScreen will likely show **Windows protected your PC**. Choose **More info** → **Run anyway**. Expected for a personal unsigned `.exe`. Authenticode signing is an optional follow-up so that warning goes away; it is not required for private use and is not part of this updater work.
 
@@ -130,7 +130,7 @@ Connect → **Check for updates**. On startup (packaged only) Sideline also chec
 1. Merge to `main`.
 2. Bump `version` in `package.json` (semver).
 3. Commit, tag `vX.Y.Z` to match that version, and push the tag — or on Windows run `npm run build:win:publish`.
-4. Publishing uploads `sideline-X.Y.Z-setup.exe`, `latest.yml`, and the `.blockmap` to a GitHub Release.
+4. Publishing uploads `Sideline-Setup.exe`, `Sideline-Setup.exe.blockmap`, and `latest.yml` (its `path` is `Sideline-Setup.exe`) to a GitHub Release. The installer name does not include the version, so `https://github.com/ketheridge7/sideline/releases/latest/download/Sideline-Setup.exe` stays valid. `electron-updater` still picks the file from `path` and `sha512` in that release's `latest.yml`.
 5. `releaseType: release` publishes that Release immediately (not a draft) so `electron-updater` can read `/releases/latest`.
 6. Already-installed Sideline offers the update on the next check.
 

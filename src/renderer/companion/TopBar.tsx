@@ -36,7 +36,7 @@ export const TopBar = ({
           onClick={() => onScreen('connect')}
           className="no-drag cursor-pointer rounded-full bg-lime/10 px-2.5 py-1 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime ring-1 ring-lime/50 hover:bg-lime/15"
           data-replay-chip="armed"
-          title="Replay is armed: scripted Sunday slate, fake leagues only. Open Connect to disarm."
+          title="Replay is a demo mode: scripted Sunday slate, fake leagues only. Relaunch Sideline normally for live leagues."
         >
           Replay
         </button>
