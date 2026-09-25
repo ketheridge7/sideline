@@ -13,6 +13,7 @@ vi.mock('electron-updater', () => ({
     autoInstallOnAppQuit: false,
     on: vi.fn(),
     checkForUpdates: vi.fn(),
+    downloadUpdate: vi.fn(),
     quitAndInstall: vi.fn()
   }
 }))
@@ -60,6 +61,11 @@ const createFakeUpdater = (): FakeUpdater => {
       updater.emit('checking-for-update')
       updater.emit('update-not-available', { version: '1.0.0' })
       return {}
+    }),
+    downloadUpdate: vi.fn(async () => {
+      updater.emit('download-progress', { percent: 100 })
+      updater.emit('update-downloaded', { version: '1.0.1' })
+      return []
     }),
     quitAndInstall: vi.fn()
   }
@@ -115,7 +121,7 @@ describe('startAutoUpdater', () => {
     await vi.waitFor(() => expect(updater.checkForUpdates).toHaveBeenCalledTimes(1))
     expect(getUpdateStatus()).toMatchObject({ state: 'not-available', version: '1.0.0', currentVersion: '1.0.0' })
     expect(host.toasts).toEqual([])
-    expect(updater.autoDownload).toBe(true)
+    expect(updater.autoDownload).toBe(false)
     expect(updater.autoInstallOnAppQuit).toBe(true)
   })
 })

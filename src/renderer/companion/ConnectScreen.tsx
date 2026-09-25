@@ -319,43 +319,6 @@ const HubCard = ({
   )
 }
 
-export const ReplayPanel = ({
-  armed,
-  onToggle
-}: {
-  armed: boolean
-  onToggle: (armed: boolean) => void
-}): JSX.Element => (
-  <section
-    className={`rounded-sm border p-5 ${armed ? 'border-lime/60 bg-lime/[0.06] ring-1 ring-lime/30' : 'border-line bg-card'}`}
-    data-connect-replay={armed ? 'armed' : 'off'}
-    aria-label="Replay"
-  >
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 max-w-2xl">
-        <p className={`font-cond text-xs font-bold uppercase tracking-[0.18em] ${armed ? 'text-lime' : 'text-muted'}`}>
-          Replay · {armed ? 'Armed' : 'Off'}
-        </p>
-        <h2 className="mt-1 text-base font-semibold">Scripted Sunday slate for screenshots &amp; demos — fake leagues only</h2>
-        <p className="mt-1 text-sm text-muted">
-          {armed
-            ? 'Replay mode is on — scripted Week 3 Sunday, six fake leagues, both providers loaded. Nothing here comes from your ESPN or Sleeper accounts, and your real sign-ins, leagues, and settings are left alone.'
-            : 'Sideline restarts into a scripted Week 3 Sunday with six fake leagues, a live-looking scoring tape, and the HUD. Your accounts stay signed in and untouched. Disarm any time from here.'}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => onToggle(!armed)}
-        className={armed ? chromePillClass(true, 'control') : chromeFillPillClass('you')}
-        data-replay-toggle={armed ? 'disarm' : 'arm'}
-        aria-pressed={armed}
-      >
-        {armed ? 'Disarm Replay' : 'Arm Replay'}
-      </button>
-    </div>
-  </section>
-)
-
 const TvPath = ({ state, onBack }: { state: AppState; onBack: () => void }): JSX.Element => (
   <section className="rounded-sm border border-line bg-card p-5">
     <PathHeader title="TV" onBack={onBack} />
@@ -530,11 +493,6 @@ export const ConnectScreen = ({
     }
   }
 
-  const handleReplay = async (armed: boolean): Promise<void> => {
-    const result = await api().setReplayArmed(armed)
-    if (!result.ok) setMessage(result.error ?? 'Could not switch Replay')
-  }
-
   const handleReportBug = async (): Promise<void> => {
     if (!window.sideline) return
     try {
@@ -556,7 +514,6 @@ export const ConnectScreen = ({
 
   const hub = (
     <>
-      {state.replay ? <ReplayPanel armed onToggle={(armed) => void handleReplay(armed)} /> : null}
       <details
         className="connect-howto rounded-sm border border-line bg-card p-5"
         data-howto="getting-started"
@@ -624,15 +581,13 @@ export const ConnectScreen = ({
         />
       </div>
 
-      {state.replay ? null : <ReplayPanel armed={false} onToggle={(armed) => void handleReplay(armed)} />}
-
       <footer className="grid gap-2" data-connect-footer="settings">
-        <details className="connect-howto rounded-sm border border-line bg-card p-5">
-          <summary className="text-sm font-semibold text-muted">Updates</summary>
+        <section className="rounded-sm border border-line bg-card p-5" data-connect-updates="static">
+          <h2 className="text-sm font-semibold text-muted">Updates</h2>
           <div className="mt-3">
             <UpdateSettings framed={false} />
           </div>
-        </details>
+        </section>
         <details className="connect-howto rounded-sm border border-line bg-card p-5">
           <summary className="text-sm font-semibold text-muted">Keyboard shortcuts</summary>
           <div className="mt-3">

@@ -64,7 +64,6 @@ export const App = (): JSX.Element => {
   const state = useSideline()
   const toasts = useToasts()
   const [screen, setScreen] = useState<Screen>('board')
-  const [studioOpen, setStudioOpen] = useState(false)
   const [history, setHistory] = useState<Record<string, number[]>>({})
   const ready = state.sleeperConnected || state.espnConnected || state.replay
   const tapeToasts = toasts.filter((toast) => !toast.id.startsWith(STATUS_TOAST))
@@ -105,15 +104,6 @@ export const App = (): JSX.Element => {
     state.overlayEditMode
   ])
 
-  useEffect(() => {
-    if (!state.overlayVisible) setStudioOpen(false)
-  }, [state.overlayVisible])
-
-  const handleStudio = (open: boolean): void => {
-    if (open && !state.overlayVisible) return
-    setStudioOpen(open)
-  }
-
   return (
     <div className="relative flex h-full flex-col bg-bg text-text">
       <TopBar state={state} screen={ready ? screen : 'connect'} onScreen={(next) => setScreen(next)} />
@@ -141,15 +131,11 @@ export const App = (): JSX.Element => {
               state={state}
               toasts={tapeToasts}
               history={history}
-              studioOpen={studioOpen}
-              onStudio={handleStudio}
               onBoards={() => setScreen('boards')}
             />
           ) : null}
         </main>
-        {studioOpen && state.overlayVisible ? (
-          <OverlayStudio state={state} onClose={() => handleStudio(false)} />
-        ) : null}
+        {state.overlayVisible ? <OverlayStudio state={state} /> : null}
       </div>
       {statusToast ? (
         <div

@@ -13,6 +13,7 @@ export type SidelineAutoUpdater = {
   autoInstallOnAppQuit: boolean
   on: (event: string, listener: (...args: unknown[]) => void) => unknown
   checkForUpdates: () => Promise<unknown>
+  downloadUpdate: () => Promise<unknown>
   quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => void
 }
 
@@ -58,7 +59,7 @@ const bindEvents = (updater: SidelineAutoUpdater): void => {
   // Who receives the download is `stagingPercentage` in latest.yml.
   // electron-updater skips the update when this install is outside that rollout.
   // An omitted percentage updates everyone. Dev and preview never reach this.
-  updater.autoDownload = true
+  updater.autoDownload = false
   updater.autoInstallOnAppQuit = true
   updater.on('checking-for-update', () => {
     applyStatus({ state: 'checking' })
@@ -128,6 +129,24 @@ export const checkForUpdates = async (initiatedByUser: boolean): Promise<UpdateS
   applyStatus({ state: 'checking' })
   try {
     await current.updater.checkForUpdates()
+    return snapshot()
+  } catch (error) {
+    return applyStatus({ state: 'error', message: errorMessage(error) })
+  } finally {
+    inFlight = false
+  }
+}
+
+export const downloadUpdate = async (): Promise<UpdateSnapshot> => {
+  const current = ensureHost()
+  if (!current.isPackaged()) {
+    return applyStatus({ state: 'disabled', reason: 'dev' })
+  }
+  if (status.state !== 'available' || inFlight) return snapshot()
+  bindEvents(current.updater)
+  inFlight = true
+  try {
+    await current.updater.downloadUpdate()
     return snapshot()
   } catch (error) {
     return applyStatus({ state: 'error', message: errorMessage(error) })

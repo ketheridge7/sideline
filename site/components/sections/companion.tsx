@@ -7,7 +7,7 @@ export function CompanionSection() {
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <div className="max-w-3xl">
           <SectionEyebrow>Companion board</SectionEyebrow>
-          <SectionTitle>Real-time scoring tape. One board. No app-switching.</SectionTitle>
+          <SectionTitle>Real-time scoring. One board. No app-switching.</SectionTitle>
         </div>
         <ProductStill
           still="companion"

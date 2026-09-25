@@ -8,9 +8,7 @@ import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
 import { NflTicker } from './NflTicker'
 import { LeagueSyncingBanner } from './LeagueSyncing'
-import { chromeDotClass, chromeFillPillClass, chromePillClass } from './chrome'
-
-export const studioControlsVisible = (overlayVisible: boolean): boolean => overlayVisible
+import { chromeFillPillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -54,41 +52,15 @@ const EspnRecoverBanner = ({
   )
 }
 
-const EditLayoutPill = ({
-  studioOpen,
-  onStudio
-}: {
-  studioOpen: boolean
-  onStudio: (open: boolean) => void
-}): JSX.Element => (
-  <div className="flex items-center px-6 pb-3" data-edit-layout="hud">
-    <button
-      type="button"
-      onClick={() => onStudio(!studioOpen)}
-      className={chromePillClass(studioOpen, 'compact')}
-      data-chrome="pill"
-      aria-label="Open overlay studio"
-      aria-expanded={studioOpen}
-    >
-      Edit layout
-      {studioOpen ? <span className={chromeDotClass} aria-hidden="true" /> : null}
-    </button>
-  </div>
-)
-
 export const BoardScreen = ({
   state,
   toasts,
   history,
-  studioOpen,
-  onStudio,
   onBoards
 }: {
   state: AppState
   toasts: ToastPayload[]
   history: Record<string, number[]>
-  studioOpen: boolean
-  onStudio: (open: boolean) => void
   onBoards: () => void
 }): JSX.Element => {
   const matchup = state.matchup
@@ -101,7 +73,6 @@ export const BoardScreen = ({
   })
   const showReplay = boardUx === 'healthy-lineup' && state.replay
   const showLineups = boardUx === 'healthy-lineup'
-  const showEditLayout = studioControlsVisible(state.overlayVisible)
   const selectedRefreshing = Boolean(
     state.selectedLeagueKey &&
       state.boards.some((board) => board.key === state.selectedLeagueKey && board.refreshing)
@@ -125,24 +96,13 @@ export const BoardScreen = ({
       if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) {
         return
       }
-      if (event.key === 'e' || event.key === 'E') {
-        if (!showEditLayout) return
-        onStudio(!studioOpen)
-        return
-      }
       if (event.key === 'o' || event.key === 'O') {
         void api().toggleOverlay()
-        return
-      }
-      if (event.key === 'Escape' && studioOpen) {
-        onStudio(false)
-        if (state.overlayEditMode) void api().setOverlayEditMode(false)
-        return
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onStudio, showEditLayout, state.overlayEditMode, studioOpen])
+  }, [])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -155,7 +115,6 @@ export const BoardScreen = ({
         {selectedRefreshing ? <LeagueSyncingBanner /> : null}
         {!matchup ? (
           <>
-            {showEditLayout ? <EditLayoutPill studioOpen={studioOpen} onStudio={onStudio} /> : null}
             <div className="p-8 text-sm text-muted">
               {boardUx === 'auth-fail'
                 ? 'Sign in with ESPN to load this league. Sideline cannot see a private ESPN matchup without cookies.'
@@ -163,7 +122,7 @@ export const BoardScreen = ({
             </div>
           </>
         ) : (
-          <>
+          <div key={state.selectedLeagueKey ?? 'matchup'} className="flex min-h-0 min-w-0 flex-1 flex-col">
             {showReplay ? (
               <div className="flex flex-wrap items-center gap-3 px-5 py-1.5 text-[11px] uppercase tracking-[0.16em] text-muted">
                 <span className="font-cond font-bold text-lime">Replay</span>
@@ -172,8 +131,8 @@ export const BoardScreen = ({
             <HudScoreboard
               matchup={matchup}
               needsSignIn={boardUx === 'auth-fail'}
+              showOwners={selected?.provider !== 'sleeper'}
             />
-            {showEditLayout ? <EditLayoutPill studioOpen={studioOpen} onStudio={onStudio} /> : null}
             {showLineups ? (
               <BoardRails
                 mine={matchup.starters}
@@ -187,7 +146,7 @@ export const BoardScreen = ({
                 Starters stay hidden until ESPN returns a named lineup.
               </p>
             )}
-          </>
+          </div>
         )}
       </div>
       <ScoringTape events={tape} />

@@ -43,6 +43,9 @@ describe('HudChrome parity', () => {
     const youScore = renderToStaticMarkup(
       <OverlayWidgetView id="score.mine" hud={hud} surface="desktop" density="regular" showCrawler={false} />
     )
+    const themScore = renderToStaticMarkup(
+      <OverlayWidgetView id="score.opp" hud={hud} surface="desktop" density="regular" showCrawler={false} />
+    )
     const lead = renderToStaticMarkup(
       <OverlayWidgetView id="score.delta" hud={hud} surface="desktop" density="regular" showCrawler={false} />
     )
@@ -67,6 +70,12 @@ describe('HudChrome parity', () => {
     expect(themName).toContain('text-them')
     expect(themName).not.toContain('text-lime')
     expect(youScore).toContain('data-hud="team-score"')
+    expect(youScore).toContain('#F8FBFF')
+    expect(themScore).toContain('data-hud-side="opp"')
+    expect(themScore).toContain('#F8FBFF')
+    expect(themScore).not.toContain('#E8E4DC')
+    expect(board).toContain('#F8FBFF')
+    expect(board).not.toContain('#E8E4DC')
     expect(lead).toContain('data-hud="lead-chip"')
     expect(lead).toContain('+11.6')
     expect(lead).toContain('text-lime')

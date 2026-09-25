@@ -5,7 +5,6 @@ import { HashmarkSection } from "@/components/sections/hashmark";
 import { Hero } from "@/components/sections/hero";
 import { ProofStrip } from "@/components/sections/proof-strip";
 import { StudioSection } from "@/components/sections/studio";
-import { SurfacesSection } from "@/components/sections/surfaces";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { StickyDownload } from "@/components/sticky-download";
@@ -20,7 +19,6 @@ export default function HomePage() {
         <CompanionSection />
         <HashmarkSection />
         <StudioSection />
-        <SurfacesSection />
         <ConnectSection />
         <DownloadSection />
       </main>

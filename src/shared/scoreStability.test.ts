@@ -197,6 +197,19 @@ describe('stabilizeMatchup', () => {
     expect(next.oppProjectedPoints).toBe(99.1)
   })
 
+  it('commits a D/ST drop on the first poll', () => {
+    const memory = emptyScoreMemory()
+    const defense = player('-16009', 5, { name: 'Packers D/ST', position: 'D/ST', nflTeam: 'GB' })
+    const shown = stabilizeMatchup(null, matchup(0, 5, [player('100', 0)], [defense]), memory, { week: 3 })
+    const next = stabilizeMatchup(
+      shown,
+      matchup(0, -7, [player('100', 0)], [{ ...defense, points: -7 }]),
+      memory,
+      { week: 3 }
+    )
+    expect(next.oppStarters[0]?.points).toBe(-7)
+  })
+
   it('passes provider win% through without the live-point watermark', () => {
     const memory = emptyScoreMemory()
     const shown = stabilizeMatchup(null, { ...matchup(22.4, 15.1), myWinPct: 0.74, oppWinPct: 0.26 }, memory)

@@ -36,17 +36,10 @@ export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element =>
   return (
     <aside className="flex w-64 shrink-0 flex-col border-l border-line bg-card" data-scoring-tape="selected">
       <div className="border-b border-line px-3 py-2">
-        <h2 className="font-cond text-[11px] font-bold uppercase tracking-[0.2em]">Scoring tape</h2>
-        <div className="mt-0.5 font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
-          This matchup
-        </div>
+        <h2 className="font-cond text-base font-bold uppercase tracking-[0.14em] text-text">Matchup Scoring</h2>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        {events.length === 0 ? (
-          <p className="px-3 py-6 text-xs leading-relaxed text-muted">
-            Tape is quiet. Transactions and point ticks for this matchup land here — nothing is invented.
-          </p>
-        ) : (
+        {events.length === 0 ? null : (
           events.map((event) => {
             const badge = kindBadge(event)
             const scoreDelta = event.kind === 'score' && event.delta != null

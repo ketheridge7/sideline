@@ -246,6 +246,7 @@ type RailAnchor = {
 
 const NAME_H = 4.8
 const SCORE_GAP = 0.2
+const NAME_SQUEEZE = 2.2
 const DELTA_W = 5.2
 
 const teamChrome = (
@@ -256,6 +257,7 @@ const teamChrome = (
   density: OverlayDensity
 ): OverlayWidgetInstance[] => {
   const scoreY = anchor.nameY + NAME_H + SCORE_GAP
+  const nameY = anchor.nameY + NAME_SQUEEZE
   const nameId = side === 'mine' ? 'team.mine.name' : 'team.opp.name'
   const scoreId = side === 'mine' ? 'score.mine' : 'score.opp'
   const colName = side === 'mine' ? 'col.mine.name' : 'col.opp.name'
@@ -264,7 +266,7 @@ const teamChrome = (
   const colNfl = side === 'mine' ? 'col.mine.nfl' : 'col.opp.nfl'
   const bench = side === 'mine' ? 'bench.mine' : 'bench.opp'
   const rows: OverlayWidgetInstance[] = [
-    ghost(nameId, anchor.x, anchor.nameY, railW, NAME_H, density),
+    ghost(nameId, anchor.x, nameY, railW, NAME_H, density),
     ghost(scoreId, anchor.x, scoreY, railW, scoreH, density),
     railCol(colName, anchor.x, anchor.railY, railW, anchor.railH, density),
     hide(colPos, anchor.x, anchor.railY),
@@ -281,8 +283,16 @@ const teamChrome = (
   return rows
 }
 
-const TICKER_Y = 91.2
-const TICKER_H = 8.8
+const TICKER_Y = 95.8
+const TICKER_H = 4.2
+const LEGACY_TICKER_H = 8.8
+
+/** Site stills used a tall strip. Snap that factory height back; leave a Studio resize alone. */
+const fitTickerStrip = (widgets: OverlayWidgetInstance[]): OverlayWidgetInstance[] =>
+  widgets.map((row) => {
+    if (row.id !== 'ticker.nfl' || Math.abs(row.h - LEGACY_TICKER_H) > 0.2) return row
+    return { ...row, x: 0, y: TICKER_Y, w: 100, h: TICKER_H }
+  })
 
 const dualColumn = (
   mine: RailAnchor,
@@ -473,7 +483,7 @@ const parseSlots = (raw: unknown): OverlayLayout['slots'] => {
     const rows = rec[id]
     if (!Array.isArray(rows)) continue
     const base = layoutFromPreset(id).widgets
-    slots[id] = coalesceRailColumns(mergeWidgets(base, rows))
+    slots[id] = fitTickerStrip(coalesceRailColumns(mergeWidgets(base, rows)))
   }
   return slots
 }
@@ -492,7 +502,7 @@ export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
   return {
     schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
     presetId,
-    widgets: coalesceRailColumns(mergeWidgets(base.widgets, rec.widgets)),
+    widgets: fitTickerStrip(coalesceRailColumns(mergeWidgets(base.widgets, rec.widgets))),
     slots,
     groupedRails: {
       mine: typeof grouped?.mine === 'boolean' ? grouped.mine : base.groupedRails.mine,

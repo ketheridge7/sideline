@@ -1,5 +1,5 @@
 import { CtaLink, SectionEyebrow, SectionTitle } from "@/components/ui";
-import { DOWNLOAD_URL, REPO_URL } from "@/lib/constants";
+import { DOWNLOAD_URL } from "@/lib/constants";
 
 export function DownloadSection() {
   return (
@@ -13,8 +13,7 @@ export function DownloadSection() {
         aria-hidden="true"
       />
       <div className="relative mx-auto max-w-6xl px-5 sm:px-6">
-        <div className="grid items-center gap-10 border border-line bg-card p-8 sm:p-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-          <div>
+        <div className="border border-line bg-card p-8 sm:p-12">
             <SectionEyebrow>Download</SectionEyebrow>
             <SectionTitle>Get the Windows companion.</SectionTitle>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -25,32 +24,6 @@ export function DownloadSection() {
                 Connect & shortcuts
               </CtaLink>
             </div>
-            <div className="mt-8 border-t border-line pt-6">
-              <p className="font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
-                Windows SmartScreen
-              </p>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-                More info → Run anyway.
-              </p>
-            </div>
-          </div>
-          <div className="border border-line bg-bg p-6">
-            <p className="font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
-              Latest release
-            </p>
-            <p className="mt-3 font-cond text-4xl font-extrabold uppercase tracking-[0.08em] text-lime">
-              Windows
-            </p>
-            <p className="mt-2 text-sm text-muted">NSIS installer · GitHub Releases</p>
-            <a
-              href={REPO_URL}
-              className="mt-6 inline-block text-sm text-you hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Source on GitHub →
-            </a>
-          </div>
         </div>
       </div>
     </section>

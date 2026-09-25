@@ -1,5 +1,5 @@
 import { ProductStill } from "@/components/product-still";
-import { SectionEyebrow, SectionTitle } from "@/components/ui";
+import { SectionEyebrow } from "@/components/ui";
 
 export function StudioSection() {
   return (
@@ -7,7 +7,6 @@ export function StudioSection() {
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <div className="max-w-3xl">
           <SectionEyebrow>Overlay Studio</SectionEyebrow>
-          <SectionTitle>Five placements. One click. Stay off the live rectangle.</SectionTitle>
         </div>
         <ProductStill
           still="studio"

@@ -143,7 +143,7 @@ const stabilizePlayers = (
       return held == null ? player : { ...player, points: held }
     }
     const seeded = memory.get(player.playerId) ?? { committed: playerPts(last) ?? null }
-    const lane = commitScore(seeded, live, official)
+    const lane = commitScore(seeded, live, official || player.position === 'D/ST')
     memory.set(player.playerId, lane)
     return lane.committed == null ? player : { ...player, points: lane.committed }
   })

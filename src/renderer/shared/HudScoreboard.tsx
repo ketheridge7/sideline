@@ -6,10 +6,12 @@ import { LeadBar } from './LeadBar'
 
 export const HudScoreboard = ({
   matchup,
-  needsSignIn = false
+  needsSignIn = false,
+  showOwners = true
 }: {
   matchup: Matchup
   needsSignIn?: boolean
+  showOwners?: boolean
 }): JSX.Element => {
   const bye = !matchup.oppTeam
   const opponentName = matchup.oppTeam?.name ?? (needsSignIn ? 'Sign in' : 'BYE')
@@ -17,8 +19,10 @@ export const HudScoreboard = ({
     <div className="px-6 py-5" aria-live="polite">
       <div className="grid grid-cols-[1fr_minmax(7rem,11rem)_1fr] items-end gap-6">
         <div className="min-w-0 text-center">
-          {matchup.myTeam.owner ? (
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.myTeam.owner}</div>
+          {showOwners && matchup.myTeam.owner ? (
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted" data-team-owner="mine">
+              {matchup.myTeam.owner}
+            </div>
           ) : null}
           <HudTeamName name={matchup.myTeam.name} tone="you" surface="board" />
           <div className="text-xs text-muted">{matchup.myTeam.record}</div>
@@ -31,8 +35,10 @@ export const HudScoreboard = ({
           source={matchupWinPctSource(matchup)}
         />
         <div className="min-w-0 text-center">
-          {matchup.oppTeam?.owner ? (
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{matchup.oppTeam.owner}</div>
+          {showOwners && matchup.oppTeam?.owner ? (
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted" data-team-owner="opp">
+              {matchup.oppTeam.owner}
+            </div>
           ) : null}
           <HudTeamName name={opponentName} tone="them" surface="board" muted={bye} />
           <div className="text-xs text-muted">{matchup.oppTeam?.record ?? ''}</div>

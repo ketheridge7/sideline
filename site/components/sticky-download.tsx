@@ -27,11 +27,13 @@ export function StickyDownload() {
       )}
       aria-hidden={!visible}
     >
-      <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-line bg-card/95 px-3 py-2 shadow-[0_-12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
-        <CtaLink href={DOWNLOAD_URL} external className="px-4 py-2 text-[13px]">
-          Download for Windows
-        </CtaLink>
-      </div>
+      <CtaLink
+        href={DOWNLOAD_URL}
+        external
+        className="pointer-events-auto px-4 py-2 text-[13px] shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+      >
+        Download for Windows
+      </CtaLink>
     </div>
   );
 }

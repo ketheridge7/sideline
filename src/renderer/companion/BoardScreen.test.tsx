@@ -49,19 +49,9 @@ const mixedTape: TapeEvent[] = [
   }
 ]
 
-const renderBoard = (
-  state: ReturnType<typeof emptyAppState>,
-  studioOpen = false
-): string =>
+const renderBoard = (state: ReturnType<typeof emptyAppState>): string =>
   renderToStaticMarkup(
-    <BoardScreen
-      state={state}
-      toasts={[]}
-      history={{}}
-      studioOpen={studioOpen}
-      onStudio={() => undefined}
-      onBoards={() => undefined}
-    />
+    <BoardScreen state={state} toasts={[]} history={{}} onBoards={() => undefined} />
   )
 
 describe('BoardScreen ESPN UX', () => {
@@ -144,8 +134,11 @@ describe('BoardScreen ESPN UX', () => {
     state.matchup = espnMatchup(true)
     const html = renderBoard(state)
     expect(html).toContain('data-scoring-tape="selected"')
-    expect(html).toContain('Scoring tape')
-    expect(html).toContain('This matchup')
+    expect(html).toContain('Matchup Scoring')
+    expect(html).toContain('data-team-owner="mine"')
+    expect(html).not.toContain('Scoring tape')
+    expect(html).not.toContain('This matchup')
+    expect(html).not.toContain('Tape is quiet')
     expect(html).not.toContain('Live scoring')
     expect(html).not.toContain('>Live<')
   })
@@ -169,6 +162,8 @@ describe('BoardScreen ESPN UX', () => {
     })
     expect(sleeper).toContain('Dowdle DAL')
     expect(sleeper).not.toContain('Mahomes KC')
+    expect(sleeper).not.toContain('ketheridge')
+    expect(sleeper).not.toContain('data-team-owner')
   })
 
   it('does not paint ESPN adds, drops, or waivers on Scoring tape', () => {
@@ -183,7 +178,7 @@ describe('BoardScreen ESPN UX', () => {
     expect(html).not.toContain('>Waiver<')
   })
 
-  it('puts Edit layout under the scoreboard only when HUD is on', () => {
+  it('does not put an Edit layout control on the scoreboard', () => {
     const state = emptyAppState()
     state.selectedLeagueKey = 'espn:543268341'
     state.espnConnected = true
@@ -191,20 +186,11 @@ describe('BoardScreen ESPN UX', () => {
     const off = renderBoard(state)
     expect(off).not.toContain('Edit layout')
     expect(off).not.toContain('data-edit-layout')
-    expect(off).not.toContain('>Studio<')
     state.overlayVisible = true
     const on = renderBoard(state)
-    expect(on).toContain('Edit layout')
-    expect(on).toContain('data-edit-layout="hud"')
-    expect(on).toContain('aria-label="Open overlay studio"')
-    expect(on).toContain('aria-expanded="false"')
+    expect(on).not.toContain('Edit layout')
+    expect(on).not.toContain('data-edit-layout')
     expect(on).not.toContain('>Studio<')
-    const open = renderBoard(state, true)
-    expect(open).toContain('aria-expanded="true"')
-    expect(open).toContain('ring-lime')
-    expect(open).toContain('text-lime')
-    expect(open).toContain('bg-lime/10')
-    expect(on.indexOf('Team Etheridge')).toBeLessThan(on.indexOf('Edit layout'))
     expect(on).toContain('text-lime">Starters</h2>')
     expect(on).toContain('text-them">Starters</h2>')
     expect(on).toContain('text-lime')

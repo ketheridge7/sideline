@@ -31,10 +31,10 @@ export default function DocsPage() {
               <strong className="font-medium text-text">username</strong> (the handle — not your
               password).
             </li>
-            <li>Type that username on Connect and press Connect. No password. Public API.</li>
+            <li>Type that username and press Connect. No password.</li>
             <li>
-              Your leagues appear as a checklist, all on. Uncheck any you do not want, then{" "}
-              <strong className="font-medium text-text">Add selected</strong>. You land on Leagues.
+              Your leagues appear as a checklist. Uncheck any you do not want, then{" "}
+              <strong className="font-medium text-text">Add selected</strong>.
             </li>
             <li>Click a league card to put that matchup on the Scoreboard and the HUD.</li>
           </ol>
@@ -44,8 +44,7 @@ export default function DocsPage() {
           <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">ESPN</h2>
           <ol className="mt-4 grid list-decimal gap-2 pl-5 text-sm leading-relaxed text-muted">
             <li>
-              Click <strong className="font-medium text-text">Sign in with ESPN</strong>. An in-app
-              window opens ESPN&apos;s own login (2FA/OTP included).
+              Click <strong className="font-medium text-text">Sign in with ESPN</strong>.
             </li>
             <li>
               Sideline lists your ESPN leagues as a checklist. Keep the ones you want and press{" "}
@@ -57,14 +56,6 @@ export default function DocsPage() {
             </li>
             <li>Cookies expire (often after a few weeks). Sign in again the same way.</li>
           </ol>
-        </section>
-
-        <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">Replay</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            Connect → <strong className="font-medium text-text">Arm Replay</strong>. Disarm from the
-            same place.
-          </p>
         </section>
 
         <section className="mt-12">

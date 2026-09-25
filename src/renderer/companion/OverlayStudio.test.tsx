@@ -15,7 +15,7 @@ const renderStudio = (
     { id: 'g1', away: 'KC', awayScore: 14, home: 'SF', homeScore: 10, clock: 'Q2 4:12', final: false }
   ]
   return renderToStaticMarkup(
-    <OverlayStudio state={state} onClose={() => undefined} initialSelectedBlock={selected} />
+    <OverlayStudio state={state} initialSelectedBlock={selected} />
   )
 }
 
@@ -44,7 +44,7 @@ describe('OverlayStudio preset highlight', () => {
     expect(four).toContain('text-lime')
     expect(four).not.toContain('border-you bg-you/15 text-you')
     expect(four).toContain('Same-side stack')
-    expect(four).toContain('stacked one above the other')
+    expect(four).not.toContain('stacked one above the other')
     expect(four).not.toContain('You left, them right.')
   })
 
@@ -100,7 +100,13 @@ describe('OverlayStudio block selection', () => {
     expect(html).not.toContain('HUD off')
     expect(html).not.toContain('HUD is off')
     expect(html).toContain('Overlay Studio')
-    expect(html).toContain('text-lime">Overlay Studio</h2>')
+    expect(html).not.toContain('>Close<')
+    expect(html).toContain('data-studio-edge')
+    expect(html).toContain('data-studio-collapsed="false"')
+    expect(html).toContain('aria-label="Collapse overlay studio"')
+    expect(html).toContain('text-text">Overlay Studio</h2>')
+    expect(html).toContain('stroke-width="1"')
+    expect(html.indexOf('Overlay Studio')).toBeLessThan(html.indexOf('aria-label="Collapse overlay studio"'))
     expect(html).toContain('data-studio-preview="hud"')
     expect(html).toContain('data-studio-plate="game"')
     expect(html).toContain('studio-plate.jpg')

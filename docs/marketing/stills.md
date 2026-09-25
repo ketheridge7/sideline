@@ -45,7 +45,7 @@ ships in the app, so still D shows what the product actually renders.
 4. **Leagues** — click Leagues and capture → `leagues-board.jpg`.
 5. **E** — click Connect and capture, then crop from the Replay block through the provider
    cards → `connect-hub.jpg`.
-6. **D** — Scoreboard, turn on HUD, press **Edit layout**. Move the overlay to another display
+6. **D** — Scoreboard, turn on HUD (Overlay Studio opens with it). Move the overlay to another display
    (or capture only the companion window) so the rails don't cover it → `overlay-studio.jpg`.
 7. **HUD render** — with the app still running, in a second terminal:
 
@@ -56,7 +56,7 @@ ships in the app, so still D shows what the product actually renders.
 
    Use the desktop surface (regular density); the TV surface truncates ST. BROWN. `?preset=3`
    freezes Overlay Studio preset 3 (lower corners) for the still without writing settings.
-   The bottom NFL strip uses `hud-type-ticker` so those scores stay readable on the TV.
+   The bottom NFL strip uses a compact `hud-type-ticker`.
    Hero uses the preset 1 render (`hud-preset1.png`) so the living-room TV stays far sides.
    Slot C uses the preset 3 render. Both show the pinned digits (98.4 / 91.2 / +7.2).
 8. **Composite C and A** (Python 3 with Pillow and NumPy):

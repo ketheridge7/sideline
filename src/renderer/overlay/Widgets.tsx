@@ -64,9 +64,23 @@ export const OverlayWidgetView = ({
     case 'team.opp.name':
       return <HudTeamName name={hud.oppName} tone="them" surface="overlay" />
     case 'score.mine':
-      return <HudTeamScore value={hud.myPoints} tone="you" surface="overlay" />
+      return (
+        <HudTeamScore
+          key={`${hud.leagueName}:${hud.myName}`}
+          value={hud.myPoints}
+          tone="you"
+          surface="overlay"
+        />
+      )
     case 'score.opp':
-      return <HudTeamScore value={hud.oppPoints} tone="them" surface="overlay" />
+      return (
+        <HudTeamScore
+          key={`${hud.leagueName}:${hud.oppName}`}
+          value={hud.oppPoints}
+          tone="them"
+          surface="overlay"
+        />
+      )
     case 'score.delta':
       return <LeadChip delta={hud.delta} surface="overlay" />
     case 'col.mine.name':

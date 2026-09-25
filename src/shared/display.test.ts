@@ -132,6 +132,7 @@ describe('toMatchupBoard', () => {
       'Derrick Henry'
     ])
     expect(board.lastScorers.every((row) => row.delta == null)).toBe(true)
+    expect(board.lastScorers.map((row) => row.mine)).toEqual([true, true, false])
     expect(liveScorers(null)).toEqual([])
     expect(toMatchupBoard(league, matchup, { refreshing: true }).refreshing).toBe(true)
     expect(toMatchupBoard(league, matchup).refreshing).toBeUndefined()

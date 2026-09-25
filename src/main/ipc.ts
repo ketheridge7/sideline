@@ -13,7 +13,7 @@ import { loadSettings, saveSettings } from './store'
 import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
 import { clearEspnCookies, openEspnLogin } from './windows/espnLogin'
-import { checkForUpdates, getUpdateStatus, installUpdate } from './updater'
+import { checkForUpdates, downloadUpdate, getUpdateStatus, installUpdate } from './updater'
 import { setOverlayDisplayId, setOverlayEditMode, toggleOverlay } from './windows/overlay'
 
 const demoLocked = (): { ok: false; error: string } => ({ ok: false, error: DEMO_LOCKED_MESSAGE })
@@ -154,6 +154,7 @@ export const registerIpc = (): void => {
   })
   ipcMain.handle('sideline:getUpdateStatus', () => getUpdateStatus())
   ipcMain.handle('sideline:checkForUpdates', () => checkForUpdates(true))
+  ipcMain.handle('sideline:downloadUpdate', () => downloadUpdate())
   ipcMain.handle('sideline:installUpdate', () => installUpdate())
   ipcMain.handle('sideline:getRuntimeInfo', () => collectBugReportRuntime())
   ipcMain.handle('sideline:copyDiagnostics', () => copyDiagnostics())

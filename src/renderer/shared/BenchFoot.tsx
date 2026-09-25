@@ -159,7 +159,7 @@ export const BenchSocialCard = ({
             style={{ width: BENCH_HAIRLINE_PX }}
             aria-hidden="true"
           />
-          <div className="max-h-full overflow-y-auto overscroll-contain py-1">
+          <div className="max-h-full overflow-y-auto overscroll-contain px-6 py-1" data-bench-row-inset="">
             {children}
           </div>
         </div>

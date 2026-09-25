@@ -23,6 +23,8 @@ export type ScorerChip = {
   position: string
   points: number
   delta?: number
+  /** Starter on the signed-in roster. League cards outline those chips lime. */
+  mine?: boolean
 }
 
 export type MatchupBoard = {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type JSX } from 'react'
-import { updateStatusCopy, type UpdateSnapshot } from '@shared/updater'
+import type { UpdateSnapshot } from '@shared/updater'
 import { chromeFillPillClass, chromePillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
@@ -9,27 +9,41 @@ const api = (): NonNullable<Window['sideline']> => {
 
 const idleSnapshot = (): UpdateSnapshot => ({ state: 'idle', currentVersion: '' })
 
+const versionOf = (snapshot: UpdateSnapshot): string | null =>
+  snapshot.state === 'available' || snapshot.state === 'not-available' || snapshot.state === 'downloaded'
+    ? snapshot.version
+    : null
+
 export const UpdateSettings = ({ framed = true }: { framed?: boolean }): JSX.Element => {
   const [snapshot, setSnapshot] = useState<UpdateSnapshot>(idleSnapshot)
+  const [latest, setLatest] = useState<string | null>(null)
 
   useEffect(() => {
     if (!window.sideline) return
-    void window.sideline.getUpdateStatus().then(setSnapshot)
-    return window.sideline.onUpdate(setSnapshot)
+    void window.sideline.getUpdateStatus().then((next) => {
+      setSnapshot(next)
+      const version = versionOf(next)
+      if (version) setLatest(version)
+    })
+    return window.sideline.onUpdate((next) => {
+      setSnapshot(next)
+      const version = versionOf(next)
+      if (version) setLatest(version)
+    })
   }, [])
 
-  const copy = updateStatusCopy(snapshot, snapshot.currentVersion)
+  const shownLatest = versionOf(snapshot) ?? (snapshot.state === 'downloading' ? latest : null)
+  const canDownload = snapshot.state === 'available' || snapshot.state === 'downloading' || snapshot.state === 'downloaded'
   const busy = snapshot.state === 'checking' || snapshot.state === 'downloading'
 
   const body = (
-    <>
+    <div data-update-state={snapshot.state}>
       {framed ? <h2 className="text-base font-semibold">Updates</h2> : null}
-      <p className={`${framed ? 'mt-1' : ''} text-sm text-muted`}>
-        Installed Windows builds check public GitHub Releases. <code className="text-xs">npm start</code> does not.
-      </p>
-      <p className="mt-3 text-sm text-muted" data-update-state={snapshot.state}>
-        {copy.body}
-      </p>
+      {snapshot.currentVersion ? (
+        <p className={`${framed ? 'mt-3' : ''} text-sm text-text`} data-update-current={snapshot.currentVersion}>
+          {snapshot.currentVersion}
+        </p>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
@@ -39,19 +53,26 @@ export const UpdateSettings = ({ framed = true }: { framed?: boolean }): JSX.Ele
         >
           Check for updates
         </button>
-        {snapshot.state === 'downloaded' ? (
+        {canDownload ? (
           <button
             type="button"
-            onClick={() => void api().installUpdate()}
-            className={chromeFillPillClass('you')}
+            onClick={() => void (snapshot.state === 'downloaded' ? api().installUpdate() : api().downloadUpdate())}
+            disabled={snapshot.state === 'downloading'}
+            className={`${chromeFillPillClass('you')} disabled:opacity-40`}
+            data-update-download={snapshot.state === 'downloaded' ? 'install' : 'fetch'}
           >
-            Restart to install
+            Download
           </button>
         ) : null}
       </div>
-    </>
+      {shownLatest ? (
+        <p className="mt-3 text-sm text-text" data-update-latest={shownLatest}>
+          {shownLatest}
+        </p>
+      ) : null}
+    </div>
   )
 
-  if (!framed) return <div>{body}</div>
+  if (!framed) return body
   return <section className="rounded-sm border border-line bg-card p-5">{body}</section>
 }

@@ -329,24 +329,20 @@ describe('Connect Replay arming', () => {
   ]
   const armed = { replay: true, sleeperConnected: true, espnConnected: true, sleeperUsername: 'sideline-demo', leagues: replayLeagues }
 
-  it('offers Arm Replay on the live hub, below the ESPN / Sleeper / TV cards and above settings', () => {
+  it('does not offer Replay on the hub', () => {
     const html = htmlOf()
-    expect(html).toContain('data-connect-replay="off"')
-    expect(html).toContain('Scripted Sunday slate for screenshots &amp; demos — fake leagues only')
-    expect(html).toContain('data-replay-toggle="arm"')
-    expect(html).toContain('Arm Replay')
-    expect(html).not.toContain('data-replay-toggle="disarm"')
-    expect(html.indexOf('data-connect-replay="off"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
-    expect(html.indexOf('data-connect-replay="off"')).toBeLessThan(html.indexOf('data-connect-footer="settings"'))
+    expect(html).not.toContain('data-connect-replay')
+    expect(html).not.toContain('Arm Replay')
+    expect(html).not.toContain('Disarm Replay')
+    expect(html).toContain('data-connect-updates="static"')
+    expect(html).not.toContain('<summary class="text-sm font-semibold text-muted">Updates</summary>')
   })
 
-  it('leads the armed hub with an honest Replay status and Disarm, and labels cards as fake leagues', () => {
+  it('labels armed cards as fake leagues without a Replay section', () => {
     const html = htmlOf(armed)
-    expect(html).toContain('data-connect-replay="armed"')
-    expect(html).toContain('Replay mode is on — scripted Week 3 Sunday')
-    expect(html).toContain('Disarm Replay')
-    expect(html).not.toContain('Arm Replay<')
-    expect(html.indexOf('data-connect-replay="armed"')).toBeLessThan(html.indexOf('data-connect-card="espn"'))
+    expect(html).not.toContain('data-connect-replay')
+    expect(html).not.toContain('Arm Replay')
+    expect(html).not.toContain('Disarm Replay')
     expect(html).toContain('Replay · 1 fake league')
     expect(html).toContain('Ready to pair')
   })

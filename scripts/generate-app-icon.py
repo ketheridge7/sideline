@@ -121,6 +121,8 @@ def main() -> None:
     if master.size[0] != master.size[1]:
         sys.exit(f"master must be square, got {master.size}")
     master.save(MASTER_PNG, format="PNG")
+    # Window and tray load this 256 PNG, not the installer ICO.
+    master.resize((256, 256), Image.Resampling.LANCZOS).save(BROADCAST_PNG, format="PNG")
     icos = [master.resize((size, size), Image.Resampling.LANCZOS) for size in ICO_SIZES]
     write_ico(BUILD / "icon.ico", icos)
     write_icns(BUILD / "icon.icns", master)

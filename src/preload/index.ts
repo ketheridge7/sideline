@@ -65,6 +65,7 @@ const api: SidelineApi = {
     return () => ipcRenderer.removeListener('sideline:update', listener)
   },
   checkForUpdates: () => ipcRenderer.invoke('sideline:checkForUpdates'),
+  downloadUpdate: () => ipcRenderer.invoke('sideline:downloadUpdate'),
   installUpdate: () => ipcRenderer.invoke('sideline:installUpdate'),
   getRuntimeInfo: () => ipcRenderer.invoke('sideline:getRuntimeInfo'),
   copyDiagnostics: () => ipcRenderer.invoke('sideline:copyDiagnostics'),

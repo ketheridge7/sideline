@@ -45,7 +45,7 @@ export function Hero() {
 
 function PlayIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+    <svg className="translate-y-px" width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
       <path d="M4 2.5v9l8-4.5-8-4.5Z" />
     </svg>
   );

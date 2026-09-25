@@ -58,7 +58,7 @@ Open the TV card. **Allow devices on this Wi-Fi to load the overlay** binds the 
 
 ## Overlay
 
-- Companion: **HUD** toggle in the top bar, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). **Edit layout** on Scoreboard when HUD is on (or `E`) opens Overlay Studio: five placements, click-select a team frame or the ticker, then nudge that block’s position/size. **Preset 4** stacks both teams on the same side. Cycle the HUD onto the next monitor with `Ctrl+Shift+M`. `[` / `]` cycle leagues in the companion. All of these are editable under Connect → Keyboard shortcuts.
+- Companion: **HUD** toggle in the top bar, or global hotkey `Ctrl+Shift+O` (`Cmd+Shift+O` on Mac). Turning HUD on opens Overlay Studio: five placements, click-select a team frame or the ticker, then nudge that block’s position/size. The edge control slides the studio to the window border and pulls it back out. **Preset 4** stacks both teams on the same side. Cycle the HUD onto the next monitor with `Ctrl+Shift+M`. `[` / `]` cycle leagues in the companion. All of these are editable under Connect → Keyboard shortcuts.
 - Default **Preset 1** is far-side frost rails (**you left, them right**), enlarged centered names and centered scores above each roster. Starter rows are a locked `POS | NAME | PTS` grid. Score ticks flash lime `+N` or alert red `-N` on the pts cell, then settle. **Save over Preset N** keeps the current layout on that slot.
 - Watch mode is click-through (`setIgnoreMouseEvents(true, { forward: true })`). Edit restores the mouse.
 - OBS Browser Source: `http://127.0.0.1:7333/overlay` (port increments if 7333 is taken)

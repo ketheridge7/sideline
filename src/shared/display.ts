@@ -162,22 +162,24 @@ export const sparklinePoints = (values: number[], width: number, height: number)
     .join(' ')
 }
 
-const chipFrom = (player: Player): ScorerChip => ({
+const chipFrom = (player: Player, mine: boolean): ScorerChip => ({
   playerId: player.playerId,
   name: player.name,
   position: player.position,
-  points: player.points ?? 0
+  points: player.points ?? 0,
+  mine
 })
 
 /** LEAGUES card chips: highest starter points, not who just ticked. */
 export const liveScorers = (matchup: Matchup | null, limit = 3): ScorerChip[] => {
   if (!matchup) return []
+  const mineIds = new Set(matchup.starters.map((player) => player.playerId))
   const roster = [...matchup.starters, ...matchup.oppStarters]
   return roster
     .filter((player) => typeof player.points === 'number' && player.points > 0)
     .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
     .slice(0, limit)
-    .map((player) => chipFrom(player))
+    .map((player) => chipFrom(player, mineIds.has(player.playerId)))
 }
 
 export type MatchupBoardExtra = {

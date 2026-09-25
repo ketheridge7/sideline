@@ -2,7 +2,6 @@ import { useEffect, useState, type JSX, type MouseEvent } from 'react'
 import {
   applyPreset,
   overwritePreset,
-  PRESET_HINTS,
   PRESET_LABELS,
   PRESET_PLACEMENTS,
   OVERLAY_PRESET_IDS,
@@ -21,12 +20,32 @@ import { toOverlayHud } from '@shared/types'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
 import { OverlayWidgetView } from '../overlay/Widgets'
 import studioPlateUrl from '../assets/studio-plate.jpg'
-import { chromePillClass } from './chrome'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
   return window.sideline
 }
+
+const EdgeChevrons = ({ direction }: { direction: 'left' | 'right' }): JSX.Element => (
+  <svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true" className="block">
+    {[0, 1, 2].map((index) => {
+      const x = 1 + index * 8.5
+      const path =
+        direction === 'right' ? `M${x} 0.75 L${x + 4.5} 8 L${x} 15.25` : `M${x + 4.5} 0.75 L${x} 8 L${x + 4.5} 15.25`
+      return (
+        <path
+          key={index}
+          d={path}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )
+    })}
+  </svg>
+)
 
 const PREVIEW_W = 1280
 const PREVIEW_H = 720
@@ -69,15 +88,14 @@ const Slider = ({
 
 export const OverlayStudio = ({
   state,
-  onClose,
   initialSelectedBlock = null
 }: {
   state: AppState
-  onClose: () => void
   initialSelectedBlock?: StudioBlockId | null
 }): JSX.Element => {
   const [draft, setDraft] = useState<OverlayLayout | null>(null)
   const [selected, setSelected] = useState<StudioBlockId | null>(initialSelectedBlock)
+  const [collapsed, setCollapsed] = useState(false)
   const layout = draft ?? state.overlayLayout
   const hud = toOverlayHud(state)
   const target = selected ? studioBlockBox(layout, selected) : null
@@ -108,12 +126,50 @@ export const OverlayStudio = ({
     setSelected(id)
   }
 
+  const handleEdge = (): void => {
+    setCollapsed((open) => !open)
+  }
+
   return (
-    <aside className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden border-l border-line bg-card">
+    <aside
+      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-l border-line bg-card transition-[width] duration-300 ease-in-out ${
+        collapsed ? 'w-11' : 'w-[280px]'
+      }`}
+      data-studio-collapsed={collapsed ? 'true' : 'false'}
+    >
+      {collapsed ? (
+        <button
+          type="button"
+          onClick={handleEdge}
+          aria-expanded={false}
+          aria-label="Expand overlay studio"
+          data-studio-edge=""
+          className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center gap-3 pt-2 text-text hover:text-lime"
+        >
+          <EdgeChevrons direction="left" />
+          <span className="font-cond text-base font-bold uppercase tracking-[0.14em] [writing-mode:vertical-rl]">
+            Overlay Studio
+          </span>
+        </button>
+      ) : null}
+      <div
+        className={`flex h-full w-[280px] min-w-[280px] flex-col transition-transform duration-300 ease-in-out ${
+          collapsed ? 'translate-x-[236px]' : 'translate-x-0'
+        }`}
+        inert={collapsed}
+        aria-hidden={collapsed}
+      >
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <h2 className="font-cond text-sm font-bold uppercase tracking-[0.16em] text-lime">Overlay Studio</h2>
-        <button type="button" onClick={onClose} className={chromePillClass(false, 'compact')}>
-          Close
+        <h2 className="font-cond text-base font-bold uppercase tracking-[0.14em] text-text">Overlay Studio</h2>
+        <button
+          type="button"
+          onClick={handleEdge}
+          aria-expanded
+          aria-label="Collapse overlay studio"
+          data-studio-edge=""
+          className="flex cursor-pointer items-center justify-center text-text hover:text-lime"
+        >
+          <EdgeChevrons direction="right" />
         </button>
       </div>
 
@@ -140,9 +196,6 @@ export const OverlayStudio = ({
               )
             })}
           </div>
-          <p className="text-xs text-muted">
-            {PRESET_LABELS[layout.presetId]} · {PRESET_PLACEMENTS[layout.presetId]}. {PRESET_HINTS[layout.presetId]}
-          </p>
         </div>
 
         <div
@@ -188,8 +241,10 @@ export const OverlayStudio = ({
                   }}
                 >
                   {widget.id === 'ticker.nfl' && hud.nflTicker.length === 0 ? (
-                    <div className="hud-type-ticker flex h-full items-center bg-black/55 px-[0.75em] text-muted">
-                      Ticker
+                    <div className="flex h-full w-full flex-col justify-end">
+                      <div className="hud-type-ticker flex w-full items-center bg-black/55 px-[0.75em] text-muted">
+                        Ticker
+                      </div>
                     </div>
                   ) : (
                     <OverlayWidgetView
@@ -278,6 +333,7 @@ export const OverlayStudio = ({
         >
           Save over {PRESET_LABELS[layout.presetId]}
         </button>
+      </div>
       </div>
     </aside>
   )

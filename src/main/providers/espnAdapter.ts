@@ -1413,12 +1413,12 @@ const overlayEspnPlayers = (
     const coerced = num(player.playerId)
     const pts = byId.get(player.playerId) ?? (coerced != null ? byId.get(String(coerced)) : undefined)
     if (preferLive) {
-      if (pts != null && (pts > 0 || hasPositiveChip)) return { ...player, points: pts }
+      if (pts != null && (pts > 0 || pts < 0 || hasPositiveChip)) return { ...player, points: pts }
       if (resetLiveZero) return { ...player, points: pts ?? 0 }
       return player
     }
     if (pts == null) return player
-    return { ...player, points: Math.max(pts, player.points ?? 0) }
+    return { ...player, points: pts }
   })
 }
 
@@ -1473,7 +1473,7 @@ export const overlayEspnMatchup = (
   const oppSide = mergeSide(iAmHome ? away : home, liveOpp)
   const myById = livePointsByPlayerId(mySide, displayWeek)
   const oppById = oppSide ? livePointsByPlayerId(oppSide, displayWeek) : new Map<string, number>()
-  if (!overlayStartersBelong(prev.starters, myById.keys())) return null
+  if (!overlayStartersBelong([...prev.starters, ...prev.bench], myById.keys())) return null
   const myLiveTotal = sideTotal(mySide, displayWeek, priorPeriods)
   const oppLiveTotal = oppSide ? sideTotal(oppSide, displayWeek, priorPeriods) : 0
   const mineHasLive = hasEspnLivePts(mySide, myById, displayWeek)

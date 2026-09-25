@@ -14,7 +14,7 @@ export const NflTicker = ({
   let crawl: string
   switch (variant) {
     case 'overlay':
-      shell = 'hud-type-ticker flex h-full min-h-0 items-center gap-[0.65em] overflow-hidden bg-black/55 px-[0.75em]'
+      shell = 'hud-type-ticker flex w-full shrink-0 items-center gap-[0.65em] overflow-hidden bg-black/55 px-[0.75em]'
       crawl = 'tape-crawl gap-[1.4em] pr-[1.4em] font-bold'
       break
     case 'companion':
@@ -27,7 +27,7 @@ export const NflTicker = ({
       crawl = _never
     }
   }
-  return (
+  const bar = (
     <div className={shell} data-nfl-ticker="on-air">
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className={crawl}>
@@ -41,4 +41,8 @@ export const NflTicker = ({
       </div>
     </div>
   )
+  if (variant === 'overlay') {
+    return <div className="flex h-full w-full flex-col justify-end">{bar}</div>
+  }
+  return bar
 }

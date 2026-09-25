@@ -6,7 +6,7 @@ type ButtonVariant = "lime" | "ghost" | "line";
 
 const variantClass: Record<ButtonVariant, string> = {
   lime: "bg-lime text-bg hover:bg-[#c8ff66]",
-  ghost: "border border-white/15 bg-white/5 text-text hover:border-you/50 hover:text-you",
+  ghost: "border border-white/15 bg-white/5 text-text hover:border-white",
   line: "border border-line text-muted hover:border-you hover:text-text",
 };
 
@@ -24,7 +24,7 @@ export function CtaLink({
   external?: boolean;
 }) {
   const classNames = cn(
-    "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-tight transition-colors",
+    "inline-flex items-center justify-center gap-2 rounded-full px-5 pt-2 pb-3 text-sm font-semibold tracking-tight transition-colors",
     variantClass[variant],
     className,
   );

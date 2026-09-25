@@ -25,7 +25,12 @@ export const HudTeamName = ({
   const color = muted ? 'text-muted' : toneClass(tone)
   if (surface === 'overlay') {
     return (
-      <div className={`hud-type-name ${color}`} data-hud="team-name" data-hud-side={side}>
+      <div
+        className={`hud-type-name ${color}`}
+        style={tone === 'them' && !muted ? { color: HUD_FROST_DIM } : undefined}
+        data-hud="team-name"
+        data-hud-side={side}
+      >
         <span>{name}</span>
       </div>
     )
@@ -50,7 +55,7 @@ export const HudTeamScore = ({
   tone: HudTone
   surface: HudSurface
 }): JSX.Element => {
-  const restColor = tone === 'you' ? HUD_FROST : HUD_FROST_DIM
+  const restColor = HUD_FROST
   const className =
     surface === 'overlay'
       ? 'hud-type-score w-full'

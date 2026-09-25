@@ -10,9 +10,9 @@ export function ProofStrip() {
         <Image
           src="/images/sleeper.png"
           alt="Sleeper"
-          width={72}
-          height={72}
-          style={{ width: 72, height: 72 }}
+          width={88}
+          height={88}
+          style={{ width: 88, height: 88 }}
         />
         <Image
           src="/images/espn-fantasy.png"

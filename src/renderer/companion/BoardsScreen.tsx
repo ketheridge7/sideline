@@ -29,10 +29,9 @@ const BoardCard = ({
   onPin: () => void
   onRemove?: () => void
 }): JSX.Element => {
-  const leadMine = board.myPoints >= board.oppPoints
   return (
     <article
-      className={`flex flex-col border bg-card p-4 ${selected ? 'border-you' : 'border-line'}`}
+      className={`flex h-full flex-col border bg-card p-4 ${selected ? 'border-you' : 'border-line'}`}
     >
       <div className="mb-3 flex items-center gap-2">
         <ProviderBadge provider={board.provider} stamp />
@@ -60,18 +59,14 @@ const BoardCard = ({
         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
           <div className="text-center">
             <div className="truncate text-[12px] font-medium text-lime">{board.myName}</div>
-            <div className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${leadMine ? 'text-you' : 'text-them'}`}>
+            <div className="font-cond text-4xl font-extrabold leading-none tabular-nums text-text">
               {formatScore(board.myPoints)}
             </div>
           </div>
           <div className="pb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Vs</div>
           <div className="text-center">
-            <div className="truncate text-[12px] font-medium text-muted">{board.oppName ?? 'BYE'}</div>
-            <div
-              className={`font-cond text-4xl font-extrabold leading-none tabular-nums ${
-                leadMine ? 'text-them' : 'text-you'
-              }`}
-            >
+            <div className="truncate text-[12px] font-medium text-them">{board.oppName ?? 'BYE'}</div>
+            <div className="font-cond text-4xl font-extrabold leading-none tabular-nums text-text">
               {formatScore(board.oppPoints)}
             </div>
           </div>
@@ -92,7 +87,11 @@ const BoardCard = ({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {board.lastScorers.map((chip) => (
-                <div key={chip.playerId} className="border border-line bg-bg px-1.5 py-1">
+                <div
+                  key={chip.playerId}
+                  className={`border bg-bg px-1.5 py-1 ${chip.mine ? 'border-lime' : 'border-text'}`}
+                  data-scorer-side={chip.mine ? 'mine' : 'opp'}
+                >
                   <div className="flex items-center gap-1">
                     <span className="font-cond text-[9px] font-bold uppercase text-muted">{chip.position}</span>
                     <span className="text-[11px]">{overlayName(chip.name)}</span>
@@ -110,7 +109,7 @@ const BoardCard = ({
         <button
           type="button"
           onClick={onRemove}
-          className="mt-3 cursor-pointer self-end text-[11px] uppercase tracking-wide text-muted hover:text-air"
+          className="mt-auto cursor-pointer self-end pt-3 text-[11px] uppercase tracking-wide text-muted hover:text-air"
         >
           Remove
         </button>

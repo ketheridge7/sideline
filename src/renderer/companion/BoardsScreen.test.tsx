@@ -15,8 +15,8 @@ const board: MatchupBoard = {
   myWinPct: 0.62,
   oppWinPct: 0.38,
   lastScorers: [
-    { playerId: '1', name: 'Jahmyr Gibbs', position: 'RB', points: 24.6 },
-    { playerId: '2', name: 'Josh Allen', position: 'QB', points: 18.2, delta: 6.4 }
+    { playerId: '1', name: 'Jahmyr Gibbs', position: 'RB', points: 24.6, mine: true },
+    { playerId: '2', name: 'Josh Allen', position: 'QB', points: 18.2, delta: 6.4, mine: false }
   ]
 }
 
@@ -38,6 +38,23 @@ describe('BoardsScreen', () => {
     expect(html).toContain('24.6')
     expect(html).toContain('18.2')
     expect(html).not.toContain('+6.4')
+    expect(html).toContain('data-scorer-side="mine"')
+    expect(html).toContain('border-lime')
+    expect(html).toContain('data-scorer-side="opp"')
+    expect(html).toContain('border-text')
+  })
+
+  it('keeps both team totals white and pins Remove when there are no top scorers', () => {
+    const html = renderBoards({
+      boards: [{ ...board, lastScorers: [] }]
+    })
+    expect(html).toContain('text-text">142.8')
+    expect(html).toContain('text-text">131.2')
+    expect(html).not.toContain('text-you">142.8')
+    expect(html).not.toContain('text-them">131.2')
+    expect(html).not.toContain('Top scorers')
+    expect(html).toContain('mt-auto')
+    expect(html).toContain('>Remove<')
   })
 
   it('marks a league card Syncing while launch refresh is in flight', () => {
@@ -52,8 +69,10 @@ describe('BoardsScreen', () => {
   it('puts Scoring tape on the right for all leagues', () => {
     const html = renderBoards()
     expect(html).toContain('data-scoring-tape="all-leagues"')
-    expect(html).toContain('Scoring tape')
-    expect(html).toContain('All leagues')
+    expect(html).toContain('League Scoring')
+    expect(html).toContain('text-base font-bold uppercase tracking-[0.14em]')
+    expect(html).not.toContain('All leagues')
+    expect(html).not.toContain('Scoring tape')
     expect(html).not.toContain('Live scoring')
     expect(html).not.toContain('Auto-refresh on')
     expect(html).not.toContain('View full play-by-play')
@@ -104,7 +123,7 @@ describe('BoardsScreen', () => {
     const html = renderBoards()
     expect(html).toContain('text-lime')
     expect(html).toContain('Gibbs Me Head')
-    expect(html).toContain('text-muted">The Other Guys')
+    expect(html).toContain('text-them">The Other Guys')
     expect(html).not.toMatch(/text-lime[^"]*">The Other Guys/)
     expect(html).toContain('bg-lime')
     expect(html).toContain('data-hud-win-pct-fill="mine"')
