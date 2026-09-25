@@ -4718,3 +4718,137 @@ describe('ESPN multi-week playoff matchup periods', () => {
     expect(matchup?.myPoints).toBe(124.6)
   })
 })
+
+describe('ESPN opponent total vs season points-for on league team rows', () => {
+  // Shaped like Dawg Pound week 3 (Thursday night): the boxscore has week-3 sides
+  // (mine pre-kickoff 0, opponent 14.52 live), while cached mTeam rows merged in
+  // by mergeEspnTeams carry season points-for in `points` (247.78 through week 2).
+  const stat = (appliedTotal: number) => [
+    { statSourceId: 1, statSplitTypeId: 1, scoringPeriodId: 3, appliedTotal: appliedTotal + 10 },
+    ...(appliedTotal > 0 ? [{ statSourceId: 0, statSplitTypeId: 1, scoringPeriodId: 3, appliedTotal }] : [])
+  ]
+  const entry = (playerId: number, lineupSlotId: number, teamId: number, pts: number, name: string) => ({
+    playerId,
+    lineupSlotId,
+    injuryStatus: 'NORMAL',
+    status: 'NORMAL',
+    playerPoolEntry: {
+      id: playerId,
+      onTeamId: teamId,
+      appliedStatTotal: pts,
+      status: 'ONTEAM',
+      player: { id: playerId, fullName: name, defaultPositionId: lineupSlotId === 0 ? 1 : 2, proTeamId: 9, stats: stat(pts) }
+    }
+  })
+  const boxscore = () => ({
+    gameId: 1,
+    id: 543268341,
+    scoringPeriodId: 3,
+    seasonId: 2026,
+    status: { currentMatchupPeriod: 3, latestScoringPeriod: 3 },
+    teams: [
+      { id: 3, abbrev: 'CC', name: 'Chasin Chips', record: { overall: { wins: 1, losses: 1, ties: 0 } } },
+      { id: 8, abbrev: 'TE', name: 'Team Etheridge', record: { overall: { wins: 1, losses: 1, ties: 0 } } }
+    ],
+    schedule: [
+      {
+        id: 17,
+        matchupPeriodId: 3,
+        winner: 'UNDECIDED',
+        home: {
+          teamId: 8,
+          totalPoints: 0,
+          totalPointsLive: 0,
+          totalProjectedPointsLive: 119.6,
+          pointsByScoringPeriod: { '3': 0 },
+          rosterForCurrentScoringPeriod: {
+            appliedStatTotal: 0,
+            entries: [entry(101, 0, 8, 0, 'Home QB'), entry(102, 2, 8, 0, 'Home RB'), entry(103, 20, 8, 3.4, 'Home Bench RB')]
+          }
+        },
+        away: {
+          teamId: 3,
+          totalPoints: 0,
+          totalPointsLive: 14.52,
+          totalProjectedPointsLive: 122.96,
+          pointsByScoringPeriod: { '3': 14.52 },
+          rosterForCurrentScoringPeriod: {
+            appliedStatTotal: 14.52,
+            entries: [entry(201, 0, 3, 7.52, 'Away QB'), entry(202, 16, 3, 7, 'Away D/ST'), entry(203, 2, 3, 0, 'Away RB')]
+          }
+        }
+      }
+    ]
+  })
+  const cachedTeams = [
+    {
+      id: 3,
+      abbrev: 'CC',
+      name: 'Chasin Chips',
+      owners: ['{AAAAAAAA-0000-0000-0000-000000000003}'],
+      points: 247.78,
+      pointsAdjusted: 0,
+      pointsDelta: 0,
+      record: { overall: { wins: 1, losses: 1, ties: 0, pointsFor: 247.78, pointsAgainst: 230.1 } }
+    },
+    {
+      id: 8,
+      abbrev: 'TE',
+      name: 'Team Etheridge',
+      owners: ['{AAAAAAAA-0000-0000-0000-000000000008}'],
+      points: 230.52,
+      pointsAdjusted: 0,
+      pointsDelta: 0,
+      record: { overall: { wins: 1, losses: 1, ties: 0, pointsFor: 230.52, pointsAgainst: 240.0 } }
+    }
+  ]
+
+  it('uses the opponent week total, not season points-for from merged team rows', () => {
+    const matchup = toEspnMatchup({
+      payload: mergeEspnTeams(boxscore(), cachedTeams),
+      cookies: null,
+      displayWeek: 3,
+      myTeamId: 8
+    })
+    expect(matchup?.myTeam.name).toBe('Team Etheridge')
+    expect(matchup?.oppTeam?.name).toBe('Chasin Chips')
+    expect(matchup?.myPoints).toBe(0)
+    expect(matchup?.oppPoints).toBe(14.52)
+    const oppStarterSum = (matchup?.oppStarters ?? []).reduce((sum, player) => sum + (player.points ?? 0), 0)
+    expect(oppStarterSum).toBeCloseTo(14.52, 2)
+  })
+
+  it('overlay keeps the opponent week total when the payload carries merged team rows', () => {
+    const payload = boxscore()
+    const home = payload.schedule[0].home
+    home.totalPointsLive = 21.3
+    home.pointsByScoringPeriod = { '3': 21.3 }
+    home.rosterForCurrentScoringPeriod.entries[0] = entry(101, 0, 8, 21.3, 'Home QB')
+    const merged = mergeEspnTeams(payload, cachedTeams)
+    expect(espnLivePayloadIsStub(merged)).toBe(false)
+    const prev = toEspnMatchup({ payload: mergeEspnTeams(boxscore(), cachedTeams), cookies: null, displayWeek: 3, myTeamId: 8 })
+    expect(prev?.oppPoints).toBe(14.52)
+    const overlaid = overlayEspnMatchup(prev!, merged, 3, true)
+    expect(overlaid?.myPoints).toBe(21.3)
+    expect(overlaid?.oppPoints).toBe(14.52)
+  })
+
+  it('keeps my live week total once my starters score, ignoring my season points-for', () => {
+    const payload = boxscore()
+    const home = payload.schedule[0].home
+    home.totalPointsLive = 21.3
+    home.pointsByScoringPeriod = { '3': 21.3 }
+    home.rosterForCurrentScoringPeriod.entries[0] = entry(101, 0, 8, 21.3, 'Home QB')
+    const matchup = toEspnMatchup({ payload: mergeEspnTeams(payload, cachedTeams), cookies: null, displayWeek: 3, myTeamId: 8 })
+    expect(matchup?.myPoints).toBe(21.3)
+    expect(matchup?.oppPoints).toBe(14.52)
+  })
+
+  it('still reads compact liveScoring team points', () => {
+    const merged = overlayLiveScoring(mergeEspnTeams(boxscore(), cachedTeams), {
+      liveScoring: { teams: { '3': { points: 16.02 }, '8': { points: 0 } } }
+    })
+    const matchup = toEspnMatchup({ payload: merged, cookies: null, displayWeek: 3, myTeamId: 8 })
+    expect(matchup?.oppPoints).toBe(16.02)
+  })
+})

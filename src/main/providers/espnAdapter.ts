@@ -556,11 +556,35 @@ const liveTeamPts = (row: Record<string, unknown> | null | undefined): number | 
 const looksLikeLiveTeamRow = (row: Record<string, unknown>): boolean =>
   liveTeamPts(row) != null || asPlayerRows(row.players).length > 0
 
+/**
+ * ESPN league team rows (mTeam / standings, and cached teams merged in by
+ * `mergeEspnTeams`) carry a `record` object and a season points-for total in
+ * `points` / `pointsAdjusted` / `pointsDelta`. That is never this week's live
+ * score, so it must not be read as a compact live team total.
+ */
+const withoutSeasonTeamPoints = (row: unknown): unknown => {
+  if (!isRecord(row) || !isRecord(row.record)) return row
+  const rest: Record<string, unknown> = { ...row }
+  delete rest.points
+  delete rest.pointsAdjusted
+  delete rest.pointsDelta
+  return rest
+}
+
+const leagueTeamsWithoutSeasonPoints = (teams: unknown): unknown => {
+  if (Array.isArray(teams)) return teams.map(withoutSeasonTeamPoints)
+  if (!isRecord(teams)) return teams
+  return Object.fromEntries(Object.entries(teams).map(([key, row]) => [key, withoutSeasonTeamPoints(row)]))
+}
+
 const liveScoringFromPayload = (payload: Record<string, unknown>): Record<string, unknown>[] => {
   if (Object.prototype.hasOwnProperty.call(payload, 'liveScoring')) {
     return liveScoringTeamRows(payload.liveScoring)
   }
-  const unwrapped = liveScoringTeamRows(payload)
+  // No explicit liveScoring blob: top-level `teams` may be league team rows whose
+  // `points` is season points-for (e.g. 247.78 through week 2), not a live total.
+  const body = payload.teams != null ? { ...payload, teams: leagueTeamsWithoutSeasonPoints(payload.teams) } : payload
+  const unwrapped = liveScoringTeamRows(body)
   return unwrapped.some(looksLikeLiveTeamRow) ? unwrapped : []
 }
 
