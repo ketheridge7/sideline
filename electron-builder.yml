@@ -44,7 +44,10 @@ publish:
   provider: github
   owner: ketheridge7
   repo: sideline
-  releaseType: release
+  # Draft only. Parallel uploads each create a release if none exists yet.
+  # .github/workflows/release.yml creates one draft first, then publishes it
+  # after latest.yml is stamped.
+  releaseType: draft
 npmRebuild: false
 # asar must stay on: onlyLoadAppFromAsar refuses an unpacked app directory.
 asar: true

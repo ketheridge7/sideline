@@ -130,15 +130,15 @@ Connect → **Check for updates**. On startup (packaged only) Sideline also chec
 1. Merge to `main`.
 2. Bump `version` in `package.json` (semver).
 3. Commit, tag `vX.Y.Z` to match that version, and push the tag — or on Windows run `npm run build:win:publish`.
-4. Publishing uploads `Sideline-Setup.exe`, `Sideline-Setup.exe.blockmap`, and `latest.yml` (its `path` is `Sideline-Setup.exe`) to a GitHub Release. The installer name does not include the version, so `https://github.com/ketheridge7/sideline/releases/latest/download/Sideline-Setup.exe` stays valid. `electron-updater` still picks the file from `path` and `sha512` in that release's `latest.yml`.
-5. `releaseType: release` publishes that Release immediately (not a draft) so `electron-updater` can read `/releases/latest`.
+4. The tag workflow creates **one draft** release for that tag, then `electron-builder` uploads into it (`releaseType: draft`). Uploading the installer and blockmap at the same time used to create a second release when none existed yet. `https://github.com/ketheridge7/sideline/releases/latest/download/Sideline-Setup.exe` stays valid because the installer name does not include the version. `electron-updater` still picks the file from `path` and `sha512` in that release's `latest.yml`.
+5. While the release is still a draft, the workflow writes `stagingPercentage` into `latest.yml` when `SIDELINE_STAGING_PERCENTAGE` is set, then `gh release edit --draft=false` publishes it. The job fails unless exactly one release for the tag contains `Sideline-Setup.exe`, `Sideline-Setup.exe.blockmap`, and `latest.yml`.
 6. Already-installed Sideline offers the update on the next check.
 
 During the NFL season, do not push a `v*` tag Thursday through Monday (Eastern).
 
 Set repository variable `SIDELINE_STAGING_PERCENTAGE` to an integer from 1 to 99 before a risky tag. The release workflow writes that into `latest.yml`. `electron-updater` then offers the build only to that share of installs (a stable per-machine roll). Leave the variable unset for a full rollout.
 
-Tag workflow (`.github/workflows/release.yml`) runs `npm run typecheck` and `npm test`, then builds NSIS on `windows-latest` when you push `v*`. It maps `GITHUB_TOKEN` to `GH_TOKEN` for electron-builder (`contents: write` on the same repo). No extra secret. Pull requests run the same typecheck and test job (`.github/workflows/ci.yml`).
+Tag workflow (`.github/workflows/release.yml`) runs `npm run typecheck` and `npm test`, creates the draft, builds NSIS on `windows-latest`, stamps `latest.yml`, then publishes. It maps `GITHUB_TOKEN` to `GH_TOKEN` for electron-builder and `gh` (`contents: write` on the same repo). No extra secret. A local `npm run build:win:publish` also uploads into a draft and does not publish it. Pull requests run the same typecheck and test job (`.github/workflows/ci.yml`).
 
 ### Publishing auth (maintainers only)
 
