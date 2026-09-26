@@ -17,10 +17,10 @@ Pinned frame (tick 0, `src/main/providers/replayWorld.ts`, mirrored in `site/lib
 
 | Slot | File in `site/public/images/` | What it shows | How it is made |
 | --- | --- | --- | --- |
-| A hero | `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `hud-shot.mjs` + board capture + `compose.py hero` |
+| A hero | `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `tv-field-plate.png` + `compose.py hero` |
 | B | `companion-board.jpg` | Scoreboard, benches closed (both lineups visible) | Window capture, 1440×900 |
 | — | `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1440×900 |
-| C | `frost-hud.jpg` | Frost HUD (preset 3, lower corners) on a living-room TV | `hud-shot.mjs` + `compose.py frost` |
+| C | `frost-hud.jpg` | Frost HUD over a Sunday broadcast: Ice Box and Hash Marks on the sidelines. | head-on plate + `compose.py frost` |
 | D | `overlay-studio.jpg` | Scoreboard with Overlay Studio, preview over the game plate | Window capture, 1440×900 |
 | E | `connect-hub.jpg` | ESPN / Sleeper / TV cards and the always-open Updates section (no Replay block) | Window capture, cropped to the hub |
 
@@ -30,6 +30,8 @@ The two living-room backdrops (`scripts/marketing/backdrops/`) are generated roo
 people in them. Only the screens are replaced, and only with real captures. The Studio
 preview plate (`src/renderer/assets/studio-plate.jpg`) is cropped from the same TV backdrop and
 ships in the app, so still D shows what the product actually renders.
+`tv-field-plate.png` is the hero TV picture. `overlay-headon-plate.png` is the full-bleed
+broadcast for `frost-hud.jpg`. Replace either file and rerun that `compose.py` shot.
 
 ## Capture checklist
 
@@ -55,17 +57,18 @@ ships in the app, so still D shows what the product actually renders.
    ```
 
    Use the desktop surface (regular density); the TV surface truncates ST. BROWN. `?preset=3`
-   freezes Overlay Studio preset 3 (lower corners) for the still without writing settings.
-   The bottom NFL strip uses a compact `hud-type-ticker`.
-   Hero uses the preset 1 render (`hud-preset1.png`) so the living-room TV stays far sides.
-   Slot C uses the preset 3 render. Both show the pinned digits (98.4 / 91.2 / +7.2).
-8. **Composite C and A** (Python 3 with Pillow and NumPy). `compose.py` flattens each TV
-   to the measured glass rectangle (no perspective warp), repairs the generated top-edge
-   trench, and supersamples at 2× before the 1600×900 JPEG:
+   freezes Overlay Studio preset 3 (lower corners) without writing settings. `?preset=1`
+   is far sides. The bottom NFL strip uses a compact `hud-type-ticker`.
+   Both stills show the pinned digits (98.4 / 91.2 / +7.2). `compose.py` renders the
+   overlay itself when `--hud` is omitted.
+8. **Composite C and A** (Python 3 with Pillow and NumPy). Hero flattens the TV glass
+   (no perspective warp) and supersamples at 2× before the 1600×900 JPEG. Frost-hud is
+   the head-on plate, cover-fit to the full frame, with preset 1 (left and right thirds)
+   on top — no room or bezel. Swap a plate at its filename and rerun that shot:
 
    ```bash
-   python3 scripts/marketing/compose.py frost --hud hud.png
-   python3 scripts/marketing/compose.py hero --hud hud-preset1.png --board board.png
+   python3 scripts/marketing/compose.py hero
+   python3 scripts/marketing/compose.py frost
    ```
 
 9. Update alt text in `site/lib/stills.ts` if anything changed, then

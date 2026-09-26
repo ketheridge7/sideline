@@ -4,20 +4,20 @@
 The backdrops in ./backdrops are generated rooms with no people in them. Only the
 screens are replaced, and only with real captures from `npm run replay:capture`:
 
-  frost   HUD render (hud-shot.mjs) on the TV       -> site/public/images/frost-hud.jpg
+  frost   head-on broadcast plate + HUD             -> site/public/images/frost-hud.jpg
   hero    field plate + HUD inside the existing TV  -> site/public/images/hero-living-room.jpg
 
-The TVs are straightened to axis-aligned glass before the HUD is placed, so the
-overlay sits flat (no 8-parameter perspective warp). The composite is built at 2x
-and downscaled so the 20px ticker stays sharp. See docs/marketing/stills.md.
+The hero TV is an axis-aligned glass (no perspective warp). Both stills are built
+at 2x and downscaled so the ticker stays sharp. See docs/marketing/stills.md.
 
-Hero keeps the published room (lime glow, laptop, chips, bezel) and replaces only
-the glass. The picture is scripts/marketing/backdrops/tv-field-plate.png, cover-fit,
-dimmed 10%, with the real overlay HUD (preset 3, lower corners) on top. Swap that
-plate in place and rerun:
+Hero keeps the published room and replaces only the glass from
+scripts/marketing/backdrops/tv-field-plate.png (cover-fit, dimmed 10%, preset 3).
+Frost-hud is the full frame: scripts/marketing/backdrops/overlay-headon-plate.png
+cover-fit, with the real overlay HUD (preset 1, far sides) on top. No room or bezel.
+Swap either plate in place and rerun that still:
 
   python3 scripts/marketing/compose.py hero
-  python3 scripts/marketing/compose.py frost --hud hud-tv.png
+  python3 scripts/marketing/compose.py frost
 """
 
 from __future__ import annotations
@@ -58,6 +58,11 @@ LAPTOP_DIM = 0.12
 # Hero TV picture. Drop-in replacement: same filename, then `compose.py hero`.
 FIELD_PLATE = BACKDROPS / "tv-field-plate.png"
 FIELD_DIM = 0.10
+# Head-on 50-yard broadcast. Drop-in replacement: same filename, then `compose.py frost`.
+HEADON_PLATE = BACKDROPS / "overlay-headon-plate.png"
+# Live overlay: preset 1 is far sides (left and right thirds). Preset 3 is lower corners.
+HERO_HUD_PRESET = "3"
+FROST_HUD_PRESET = "1"
 
 
 def perspective_coeffs(dst: Quad, src: Quad) -> list[float]:
@@ -210,10 +215,28 @@ def cover(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return resized.crop((left, top, left + tw, top + th))
 
 
-def render_hero_hud(out: Path) -> None:
-    """Capture preset 3 from the real overlay (render-hero-hud.mjs + hud-shot.mjs)."""
+def render_overlay_hud(out: Path, preset: str) -> None:
+    """Capture a Studio preset from the real overlay (render-hero-hud.mjs + hud-shot.mjs)."""
     script = Path(__file__).resolve().parent / "render-hero-hud.mjs"
-    subprocess.run(["node", str(script), str(out), "3"], cwd=ROOT, check=True)
+    subprocess.run(["node", str(script), str(out), preset], cwd=ROOT, check=True)
+
+
+def render_hero_hud(out: Path) -> None:
+    render_overlay_hud(out, HERO_HUD_PRESET)
+
+
+def broadcast_field(plate_path: Path, hud_path: Path) -> Image.Image:
+    """Full-bleed plate with the HUD placed flat. No TV, room, or bezel.
+
+    Cover-fit at 2x, composite the transparent overlay with Lanczos, then
+    downscale to 1600x900 so the ticker stays sharp.
+    """
+    if not plate_path.is_file():
+        raise SystemExit(f"missing field plate: {plate_path}")
+    work = (OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE)
+    field = cover(Image.open(plate_path).convert("RGB"), work).convert("RGBA")
+    paste_flat(field, Image.open(hud_path), (0, 0, work[0], work[1]))
+    return field.resize(OUT_SIZE, Image.LANCZOS).convert("RGB")
 
 
 def hero_field(room_path: Path, plate_path: Path, hud_path: Path) -> Image.Image:
@@ -254,15 +277,20 @@ def hero_field(room_path: Path, plate_path: Path, hud_path: Path) -> Image.Image
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("shot", choices=["frost", "hero"])
-    parser.add_argument("--hud", type=Path, help="transparent 1920x1080 HUD render (hud-shot.mjs). Hero renders one when omitted.")
-    parser.add_argument("--plate", type=Path, help=f"hero TV picture (default {FIELD_PLATE.name})")
+    parser.add_argument("--hud", type=Path, help="transparent 1920x1080 HUD render (hud-shot.mjs). Rendered from the overlay when omitted.")
+    parser.add_argument("--plate", type=Path, help="field plate (default depends on the shot)")
     parser.add_argument("--base", type=Path, help="published hero to keep outside the glass (default site hero)")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     if args.shot == "frost":
-        if not args.hud:
-            parser.error("frost needs --hud")
-        image = frost(args.hud)
+        plate = args.plate or HEADON_PLATE
+        if args.hud:
+            image = broadcast_field(plate, args.hud)
+        else:
+            with tempfile.TemporaryDirectory() as tmp:
+                hud = Path(tmp) / "hud.png"
+                render_overlay_hud(hud, FROST_HUD_PRESET)
+                image = broadcast_field(plate, hud)
         out = args.out or IMAGES / "frost-hud.jpg"
     else:
         plate = args.plate or FIELD_PLATE

@@ -1,7 +1,7 @@
 // Render the pinned Replay overlay to a transparent PNG the same way hud-shot.mjs does.
 // Serves the real overlay page and publishes tick-0 Replay state on /events, then captures
-// with scripts/marketing/hud-shot.mjs. Preset 3 (lower corners) keeps the team cards on
-// the grass, clear of the stands, for the living-room hero.
+// with scripts/marketing/hud-shot.mjs. Preset 3 (lower corners) is the hero TV. Preset 1
+// (far sides) is the full-bleed broadcast, panels in the left and right thirds.
 //
 //   node scripts/marketing/render-hero-hud.mjs [out.png] [preset]
 import { createServer } from 'vite'
