@@ -5,19 +5,26 @@ The backdrops in ./backdrops are generated rooms with no people in them. Only th
 screens are replaced, and only with real captures from `npm run replay:capture`:
 
   frost   HUD render (hud-shot.mjs) on the TV       -> site/public/images/frost-hud.jpg
-  hero    same HUD on the TV + Scoreboard on laptop  -> site/public/images/hero-living-room.jpg
+  hero    field plate + HUD inside the existing TV  -> site/public/images/hero-living-room.jpg
 
 The TVs are straightened to axis-aligned glass before the HUD is placed, so the
 overlay sits flat (no 8-parameter perspective warp). The composite is built at 2x
 and downscaled so the 20px ticker stays sharp. See docs/marketing/stills.md.
 
+Hero keeps the published room (lime glow, laptop, chips, bezel) and replaces only
+the glass. The picture is scripts/marketing/backdrops/tv-field-plate.png, cover-fit,
+dimmed 10%, with the real overlay HUD (preset 3, lower corners) on top. Swap that
+plate in place and rerun:
+
+  python3 scripts/marketing/compose.py hero
   python3 scripts/marketing/compose.py frost --hud hud-tv.png
-  python3 scripts/marketing/compose.py hero --hud hud-tv.png --board board.png
 """
 
 from __future__ import annotations
 
 import argparse
+import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +55,9 @@ HERO_CROP: Rect = (180, 28, 1100, 545)
 
 BROADCAST_DIM = 0.2
 LAPTOP_DIM = 0.12
+# Hero TV picture. Drop-in replacement: same filename, then `compose.py hero`.
+FIELD_PLATE = BACKDROPS / "tv-field-plate.png"
+FIELD_DIM = 0.10
 
 
 def perspective_coeffs(dst: Quad, src: Quad) -> list[float]:
@@ -175,20 +185,95 @@ def hero(hud: Path, board: Path) -> Image.Image:
     return render(room, HERO_CROP, HERO_GLASS, Image.open(hud), (HERO_LAPTOP, Image.open(board)))
 
 
+def supersampled_hero_glass() -> Rect:
+    """HERO_GLASS mapped into the 2x hero frame, matching render()."""
+    x0, y0, x1, y1 = HERO_CROP
+    work = (OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE)
+    sx, sy = work[0] / (x1 - x0), work[1] / (y1 - y0)
+    return scaled_rect(HERO_GLASS, sx, sy, x0, y0)
+
+
+def output_hero_glass() -> Rect:
+    """Axis-aligned glass in the published 1600x900 hero (half-open)."""
+    x0, y0, x1, y1 = supersampled_hero_glass()
+    return (x0 // SUPERSAMPLE, y0 // SUPERSAMPLE, (x1 + 1) // SUPERSAMPLE, (y1 + 1) // SUPERSAMPLE)
+
+
+def cover(image: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Scale so the image fills size, then center-crop."""
+    tw, th = size
+    sw, sh = image.size
+    scale = max(tw / sw, th / sh)
+    resized = image.resize((max(tw, round(sw * scale)), max(th, round(sh * scale))), Image.LANCZOS)
+    left = max(0, (resized.width - tw) // 2)
+    top = max(0, (resized.height - th) // 2)
+    return resized.crop((left, top, left + tw, top + th))
+
+
+def render_hero_hud(out: Path) -> None:
+    """Capture preset 3 from the real overlay (render-hero-hud.mjs + hud-shot.mjs)."""
+    script = Path(__file__).resolve().parent / "render-hero-hud.mjs"
+    subprocess.run(["node", str(script), str(out), "3"], cwd=ROOT, check=True)
+
+
+def hero_field(room_path: Path, plate_path: Path, hud_path: Path) -> Image.Image:
+    """Replace only the TV glass. Room, glow, laptop, chips, and bezel stay put.
+
+    The plate is cover-fit into the flattened glass, dimmed, then the HUD is
+    placed flat with Lanczos. Work happens at 2x and is downscaled, same as the
+    backdrop composite. The bezel is the pixels outside the glass, copied back
+    from the published hero so they stay on top of the new picture.
+    """
+    if not plate_path.is_file():
+        raise SystemExit(f"missing field plate: {plate_path}")
+    room = Image.open(room_path).convert("RGB")
+    if room.size != OUT_SIZE:
+        raise SystemExit(f"hero base must be {OUT_SIZE[0]}x{OUT_SIZE[1]}, got {room.size}")
+    tv = supersampled_hero_glass()
+    glass = output_hero_glass()
+    work = room.resize((OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE), Image.LANCZOS).convert("RGBA")
+    field = cover(Image.open(plate_path).convert("RGB"), (tv[2] - tv[0], tv[3] - tv[1]))
+    shaded = np.array(field).astype(np.float32)
+    shaded *= 1 - FIELD_DIM
+    field = Image.fromarray(np.clip(shaded, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+    work.paste(field, (tv[0], tv[1]))
+    paste_flat(work, Image.open(hud_path), tv)
+    down = work.resize(OUT_SIZE, Image.LANCZOS).convert("RGB")
+    x0, y0, x1, y1 = glass
+    patched = room.copy()
+    patched.paste(down.crop((x0, y0, x1, y1)), (x0, y0))
+    before = np.array(room)
+    after = np.array(patched)
+    outside = np.ones(before.shape[:2], dtype=bool)
+    outside[y0:y1, x0:x1] = False
+    if np.any(before[outside] != after[outside]):
+        raise SystemExit("hero composite changed pixels outside the TV glass")
+    return patched
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("shot", choices=["frost", "hero"])
-    parser.add_argument("--hud", type=Path, required=True, help="transparent 1920x1080 HUD render (hud-shot.mjs)")
-    parser.add_argument("--board", type=Path, help="1440x900 Scoreboard capture (hero only)")
+    parser.add_argument("--hud", type=Path, help="transparent 1920x1080 HUD render (hud-shot.mjs). Hero renders one when omitted.")
+    parser.add_argument("--plate", type=Path, help=f"hero TV picture (default {FIELD_PLATE.name})")
+    parser.add_argument("--base", type=Path, help="published hero to keep outside the glass (default site hero)")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     if args.shot == "frost":
+        if not args.hud:
+            parser.error("frost needs --hud")
         image = frost(args.hud)
         out = args.out or IMAGES / "frost-hud.jpg"
     else:
-        if not args.board:
-            parser.error("hero needs --board")
-        image = hero(args.hud, args.board)
+        plate = args.plate or FIELD_PLATE
+        base = args.base or IMAGES / "hero-living-room.jpg"
+        if args.hud:
+            image = hero_field(base, plate, args.hud)
+        else:
+            with tempfile.TemporaryDirectory() as tmp:
+                hud = Path(tmp) / "hud.png"
+                render_hero_hud(hud)
+                image = hero_field(base, plate, hud)
         out = args.out or IMAGES / "hero-living-room.jpg"
     image.convert("RGB").save(out, quality=90, optimize=True, progressive=True)
     print(f"wrote {out} {image.size}")
