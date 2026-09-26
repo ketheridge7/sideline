@@ -14,6 +14,10 @@ Hero keeps the published room and replaces only the glass from
 scripts/marketing/backdrops/tv-field-plate.png (cover-fit, dimmed 10%, preset 3).
 Frost-hud is the full frame: scripts/marketing/backdrops/overlay-headon-plate.png
 cover-fit, with the real overlay HUD (preset 1, far sides) on top. No room or bezel.
+The frost plate is graded before the HUD: side edges darken about 40% and fade
+out by 32% of the width, the stands darken about 20% down to the field wall,
+and the ticker band is left alone. The plate is zoomed from the top so the near
+20/30 numbers fall below the DEF row. The HUD stays on preset 1.
 Swap either plate in place and rerun that still:
 
   python3 scripts/marketing/compose.py hero
@@ -63,6 +67,19 @@ HEADON_PLATE = BACKDROPS / "overlay-headon-plate.png"
 # Live overlay: preset 1 is far sides (left and right thirds). Preset 3 is lower corners.
 HERO_HUD_PRESET = "3"
 FROST_HUD_PRESET = "1"
+# Frost plate grade only. The HUD is composited after this, still on preset 1.
+# Edges: 40% darker, smooth to 0 by 32% of the width (the center 50 stays bright).
+FROST_EDGE_DARK = 0.40
+FROST_EDGE_REACH = 0.32
+# Stands: 20% darker at the top, smooth to 0 at the field wall.
+FROST_STAND_DARK = 0.20
+# Preset 1 ticker (overlayLayout.ts). Plate pixels in this band are not graded.
+FROST_TICKER_TOP = 0.958
+# Near 20/30 glyphs on overlay-headon-plate.png start at about y=521/720 (72.4%).
+# Preset 1's DEF row ends at 81.2%. A 5% center zoom only slides that band to
+# ~74%, still through the row. Zooming 13% from the top drops it to ~82%.
+FROST_PLATE_SCALE = 1.13
+FROST_PLATE_ANCHOR_Y = 0.0
 
 
 def perspective_coeffs(dst: Quad, src: Quad) -> list[float]:
@@ -215,6 +232,74 @@ def cover(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return resized.crop((left, top, left + tw, top + th))
 
 
+def cover_anchored(
+    image: Image.Image, size: tuple[int, int], scale: float, anchor_y: float
+) -> Image.Image:
+    """Cover-fit, then zoom by `scale` and crop.
+
+    Horizontal crop stays centered. `anchor_y` places the vertical crop in the
+    leftover strip (0 keeps the top, so lower field markings move down).
+    """
+    tw, th = size
+    sw, sh = image.size
+    fit = max(tw / sw, th / sh) * scale
+    resized = image.resize((max(tw, round(sw * fit)), max(th, round(sh * fit))), Image.LANCZOS)
+    left = max(0, (resized.width - tw) // 2)
+    slack = max(0, resized.height - th)
+    top = min(slack, max(0, int(round(slack * anchor_y))))
+    return resized.crop((left, top, left + tw, top + th))
+
+
+def _smoothstep(t: np.ndarray) -> np.ndarray:
+    x = np.clip(t, 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
+
+
+def field_wall_fraction(rgb: np.ndarray) -> float:
+    """Where the stands give way to the field, as a fraction of frame height."""
+    height, width = rgb.shape[:2]
+    x0, x1 = int(width * 0.40), int(width * 0.60)
+    sl = rgb[:, x0:x1].astype(np.float32)
+    green = sl[:, :, 1].mean(axis=1)
+    blue = sl[:, :, 2].mean(axis=1)
+    rows = np.arange(height)
+    # The field reads yellow-green (green only a little above red) against a blue wall.
+    hit = np.where(
+        (rows >= int(height * 0.12))
+        & (rows < int(height * 0.55))
+        & (green > blue + 40)
+        & (green > 90)
+    )[0]
+    if hit.size == 0:
+        return 0.30
+    return float(hit[0] / height)
+
+
+def grade_frost_plate(field: Image.Image) -> Image.Image:
+    """Darken the side edges and the stands. Leave the ticker band untouched."""
+    original = np.array(field.convert("RGB"))
+    rgb = original.astype(np.float32)
+    height, width = rgb.shape[:2]
+    wall = field_wall_fraction(original)
+    ys = (np.arange(height) + 0.5) / height
+    xs = (np.arange(width) + 0.5) / width
+    edge = np.maximum(
+        1.0 - _smoothstep(xs / FROST_EDGE_REACH),
+        1.0 - _smoothstep((1.0 - xs) / FROST_EDGE_REACH),
+    )
+    # Ease the side shade out just above the ticker so the strip stays at the
+    # plate's own brightness and the join is not a hard line.
+    above_ticker = 1.0 - _smoothstep((ys - (FROST_TICKER_TOP - 0.02)) / 0.02)
+    edge_amt = (FROST_EDGE_DARK * edge)[None, :] * above_ticker[:, None]
+    stand = 1.0 - _smoothstep(ys / wall)
+    stand_amt = (FROST_STAND_DARK * stand)[:, None]
+    factor = (1.0 - edge_amt) * (1.0 - stand_amt)
+    rgb *= factor[:, :, None]
+    graded = np.clip(np.rint(rgb), 0, 255).astype(np.uint8)
+    graded[ys >= FROST_TICKER_TOP] = original[ys >= FROST_TICKER_TOP]
+    return Image.fromarray(graded, "RGB")
+
+
 def render_overlay_hud(out: Path, preset: str) -> None:
     """Capture a Studio preset from the real overlay (render-hero-hud.mjs + hud-shot.mjs)."""
     script = Path(__file__).resolve().parent / "render-hero-hud.mjs"
@@ -228,13 +313,20 @@ def render_hero_hud(out: Path) -> None:
 def broadcast_field(plate_path: Path, hud_path: Path) -> Image.Image:
     """Full-bleed plate with the HUD placed flat. No TV, room, or bezel.
 
-    Cover-fit at 2x, composite the transparent overlay with Lanczos, then
-    downscale to 1600x900 so the ticker stays sharp.
+    Cover-fit at 2x, grade the plate, composite the transparent overlay with
+    Lanczos, then downscale to 1600x900 so the ticker stays sharp. The HUD is
+    not moved off preset 1.
     """
     if not plate_path.is_file():
         raise SystemExit(f"missing field plate: {plate_path}")
     work = (OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE)
-    field = cover(Image.open(plate_path).convert("RGB"), work).convert("RGBA")
+    placed = cover_anchored(
+        Image.open(plate_path).convert("RGB"),
+        work,
+        FROST_PLATE_SCALE,
+        FROST_PLATE_ANCHOR_Y,
+    )
+    field = grade_frost_plate(placed).convert("RGBA")
     paste_flat(field, Image.open(hud_path), (0, 0, work[0], work[1]))
     return field.resize(OUT_SIZE, Image.LANCZOS).convert("RGB")
 

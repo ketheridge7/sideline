@@ -64,7 +64,10 @@ broadcast for `frost-hud.jpg`. Replace either file and rerun that `compose.py` s
 8. **Composite C and A** (Python 3 with Pillow and NumPy). Hero flattens the TV glass
    (no perspective warp) and supersamples at 2× before the 1600×900 JPEG. Frost-hud is
    the head-on plate, cover-fit to the full frame, with preset 1 (left and right thirds)
-   on top — no room or bezel. Swap a plate at its filename and rerun that shot:
+   on top — no room or bezel. Before the HUD is composited, `compose.py frost` darkens
+   the plate's side edges and stands and zooms the plate from the top so the near yard
+   numbers clear the DEF row. The ticker band and the preset 1 HUD are left as rendered.
+   Swap a plate at its filename and rerun that shot:
 
    ```bash
    python3 scripts/marketing/compose.py hero
