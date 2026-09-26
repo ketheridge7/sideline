@@ -19,7 +19,7 @@ const barlowCondensed = Barlow_Condensed({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000",
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://sideline-three.vercel.app",
   ),
   title: {
     default: `${SITE_NAME} — ${SITE_TAGLINE}`,
