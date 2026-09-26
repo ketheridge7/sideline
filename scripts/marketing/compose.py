@@ -4,20 +4,31 @@
 The backdrops in ./backdrops are generated rooms with no people in them. Only the
 screens are replaced, and only with real captures from `npm run replay:capture`:
 
-  frost   HUD render (hud-shot.mjs) on the TV       -> site/public/images/frost-hud.jpg
-  hero    same HUD on the TV + Scoreboard on laptop  -> site/public/images/hero-living-room.jpg
+  frost   head-on broadcast plate + HUD             -> site/public/images/frost-hud.jpg
+  hero    field plate + HUD inside the existing TV  -> site/public/images/hero-living-room.jpg
 
-The TVs are straightened to axis-aligned glass before the HUD is placed, so the
-overlay sits flat (no 8-parameter perspective warp). The composite is built at 2x
-and downscaled so the 20px ticker stays sharp. See docs/marketing/stills.md.
+The hero TV is an axis-aligned glass (no perspective warp). Both stills are built
+at 2x and downscaled so the ticker stays sharp. See docs/marketing/stills.md.
 
-  python3 scripts/marketing/compose.py frost --hud hud-tv.png
-  python3 scripts/marketing/compose.py hero --hud hud-tv.png --board board.png
+Hero keeps the published room and replaces only the glass from
+scripts/marketing/backdrops/tv-field-plate.png (cover-fit, dimmed 10%, preset 3).
+Frost-hud is the full frame: scripts/marketing/backdrops/overlay-headon-plate.png
+cover-fit, with the real overlay HUD (preset 1, far sides) on top. No room or bezel.
+The frost plate is graded before the HUD: side edges darken about 40% and fade
+out by 32% of the width, the stands darken about 20% down to the field wall,
+and the ticker band is left alone. The plate is zoomed from the top so the near
+20/30 numbers fall below the DEF row. The HUD stays on preset 1.
+Swap either plate in place and rerun that still:
+
+  python3 scripts/marketing/compose.py hero
+  python3 scripts/marketing/compose.py frost
 """
 
 from __future__ import annotations
 
 import argparse
+import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +59,27 @@ HERO_CROP: Rect = (180, 28, 1100, 545)
 
 BROADCAST_DIM = 0.2
 LAPTOP_DIM = 0.12
+# Hero TV picture. Drop-in replacement: same filename, then `compose.py hero`.
+FIELD_PLATE = BACKDROPS / "tv-field-plate.png"
+FIELD_DIM = 0.10
+# Head-on 50-yard broadcast. Drop-in replacement: same filename, then `compose.py frost`.
+HEADON_PLATE = BACKDROPS / "overlay-headon-plate.png"
+# Live overlay: preset 1 is far sides (left and right thirds). Preset 3 is lower corners.
+HERO_HUD_PRESET = "3"
+FROST_HUD_PRESET = "1"
+# Frost plate grade only. The HUD is composited after this, still on preset 1.
+# Edges: 40% darker, smooth to 0 by 32% of the width (the center 50 stays bright).
+FROST_EDGE_DARK = 0.40
+FROST_EDGE_REACH = 0.32
+# Stands: 20% darker at the top, smooth to 0 at the field wall.
+FROST_STAND_DARK = 0.20
+# Preset 1 ticker (overlayLayout.ts). Plate pixels in this band are not graded.
+FROST_TICKER_TOP = 0.958
+# Near 20/30 glyphs on overlay-headon-plate.png start at about y=521/720 (72.4%).
+# Preset 1's DEF row ends at 81.2%. A 5% center zoom only slides that band to
+# ~74%, still through the row. Zooming 13% from the top drops it to ~82%.
+FROST_PLATE_SCALE = 1.13
+FROST_PLATE_ANCHOR_Y = 0.0
 
 
 def perspective_coeffs(dst: Quad, src: Quad) -> list[float]:
@@ -175,20 +207,193 @@ def hero(hud: Path, board: Path) -> Image.Image:
     return render(room, HERO_CROP, HERO_GLASS, Image.open(hud), (HERO_LAPTOP, Image.open(board)))
 
 
+def supersampled_hero_glass() -> Rect:
+    """HERO_GLASS mapped into the 2x hero frame, matching render()."""
+    x0, y0, x1, y1 = HERO_CROP
+    work = (OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE)
+    sx, sy = work[0] / (x1 - x0), work[1] / (y1 - y0)
+    return scaled_rect(HERO_GLASS, sx, sy, x0, y0)
+
+
+def output_hero_glass() -> Rect:
+    """Axis-aligned glass in the published 1600x900 hero (half-open)."""
+    x0, y0, x1, y1 = supersampled_hero_glass()
+    return (x0 // SUPERSAMPLE, y0 // SUPERSAMPLE, (x1 + 1) // SUPERSAMPLE, (y1 + 1) // SUPERSAMPLE)
+
+
+def cover(image: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Scale so the image fills size, then center-crop."""
+    tw, th = size
+    sw, sh = image.size
+    scale = max(tw / sw, th / sh)
+    resized = image.resize((max(tw, round(sw * scale)), max(th, round(sh * scale))), Image.LANCZOS)
+    left = max(0, (resized.width - tw) // 2)
+    top = max(0, (resized.height - th) // 2)
+    return resized.crop((left, top, left + tw, top + th))
+
+
+def cover_anchored(
+    image: Image.Image, size: tuple[int, int], scale: float, anchor_y: float
+) -> Image.Image:
+    """Cover-fit, then zoom by `scale` and crop.
+
+    Horizontal crop stays centered. `anchor_y` places the vertical crop in the
+    leftover strip (0 keeps the top, so lower field markings move down).
+    """
+    tw, th = size
+    sw, sh = image.size
+    fit = max(tw / sw, th / sh) * scale
+    resized = image.resize((max(tw, round(sw * fit)), max(th, round(sh * fit))), Image.LANCZOS)
+    left = max(0, (resized.width - tw) // 2)
+    slack = max(0, resized.height - th)
+    top = min(slack, max(0, int(round(slack * anchor_y))))
+    return resized.crop((left, top, left + tw, top + th))
+
+
+def _smoothstep(t: np.ndarray) -> np.ndarray:
+    x = np.clip(t, 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
+
+
+def field_wall_fraction(rgb: np.ndarray) -> float:
+    """Where the stands give way to the field, as a fraction of frame height."""
+    height, width = rgb.shape[:2]
+    x0, x1 = int(width * 0.40), int(width * 0.60)
+    sl = rgb[:, x0:x1].astype(np.float32)
+    green = sl[:, :, 1].mean(axis=1)
+    blue = sl[:, :, 2].mean(axis=1)
+    rows = np.arange(height)
+    # The field reads yellow-green (green only a little above red) against a blue wall.
+    hit = np.where(
+        (rows >= int(height * 0.12))
+        & (rows < int(height * 0.55))
+        & (green > blue + 40)
+        & (green > 90)
+    )[0]
+    if hit.size == 0:
+        return 0.30
+    return float(hit[0] / height)
+
+
+def grade_frost_plate(field: Image.Image) -> Image.Image:
+    """Darken the side edges and the stands. Leave the ticker band untouched."""
+    original = np.array(field.convert("RGB"))
+    rgb = original.astype(np.float32)
+    height, width = rgb.shape[:2]
+    wall = field_wall_fraction(original)
+    ys = (np.arange(height) + 0.5) / height
+    xs = (np.arange(width) + 0.5) / width
+    edge = np.maximum(
+        1.0 - _smoothstep(xs / FROST_EDGE_REACH),
+        1.0 - _smoothstep((1.0 - xs) / FROST_EDGE_REACH),
+    )
+    # Ease the side shade out just above the ticker so the strip stays at the
+    # plate's own brightness and the join is not a hard line.
+    above_ticker = 1.0 - _smoothstep((ys - (FROST_TICKER_TOP - 0.02)) / 0.02)
+    edge_amt = (FROST_EDGE_DARK * edge)[None, :] * above_ticker[:, None]
+    stand = 1.0 - _smoothstep(ys / wall)
+    stand_amt = (FROST_STAND_DARK * stand)[:, None]
+    factor = (1.0 - edge_amt) * (1.0 - stand_amt)
+    rgb *= factor[:, :, None]
+    graded = np.clip(np.rint(rgb), 0, 255).astype(np.uint8)
+    graded[ys >= FROST_TICKER_TOP] = original[ys >= FROST_TICKER_TOP]
+    return Image.fromarray(graded, "RGB")
+
+
+def render_overlay_hud(out: Path, preset: str) -> None:
+    """Capture a Studio preset from the real overlay (render-hero-hud.mjs + hud-shot.mjs)."""
+    script = Path(__file__).resolve().parent / "render-hero-hud.mjs"
+    subprocess.run(["node", str(script), str(out), preset], cwd=ROOT, check=True)
+
+
+def render_hero_hud(out: Path) -> None:
+    render_overlay_hud(out, HERO_HUD_PRESET)
+
+
+def broadcast_field(plate_path: Path, hud_path: Path) -> Image.Image:
+    """Full-bleed plate with the HUD placed flat. No TV, room, or bezel.
+
+    Cover-fit at 2x, grade the plate, composite the transparent overlay with
+    Lanczos, then downscale to 1600x900 so the ticker stays sharp. The HUD is
+    not moved off preset 1.
+    """
+    if not plate_path.is_file():
+        raise SystemExit(f"missing field plate: {plate_path}")
+    work = (OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE)
+    placed = cover_anchored(
+        Image.open(plate_path).convert("RGB"),
+        work,
+        FROST_PLATE_SCALE,
+        FROST_PLATE_ANCHOR_Y,
+    )
+    field = grade_frost_plate(placed).convert("RGBA")
+    paste_flat(field, Image.open(hud_path), (0, 0, work[0], work[1]))
+    return field.resize(OUT_SIZE, Image.LANCZOS).convert("RGB")
+
+
+def hero_field(room_path: Path, plate_path: Path, hud_path: Path) -> Image.Image:
+    """Replace only the TV glass. Room, glow, laptop, chips, and bezel stay put.
+
+    The plate is cover-fit into the flattened glass, dimmed, then the HUD is
+    placed flat with Lanczos. Work happens at 2x and is downscaled, same as the
+    backdrop composite. The bezel is the pixels outside the glass, copied back
+    from the published hero so they stay on top of the new picture.
+    """
+    if not plate_path.is_file():
+        raise SystemExit(f"missing field plate: {plate_path}")
+    room = Image.open(room_path).convert("RGB")
+    if room.size != OUT_SIZE:
+        raise SystemExit(f"hero base must be {OUT_SIZE[0]}x{OUT_SIZE[1]}, got {room.size}")
+    tv = supersampled_hero_glass()
+    glass = output_hero_glass()
+    work = room.resize((OUT_SIZE[0] * SUPERSAMPLE, OUT_SIZE[1] * SUPERSAMPLE), Image.LANCZOS).convert("RGBA")
+    field = cover(Image.open(plate_path).convert("RGB"), (tv[2] - tv[0], tv[3] - tv[1]))
+    shaded = np.array(field).astype(np.float32)
+    shaded *= 1 - FIELD_DIM
+    field = Image.fromarray(np.clip(shaded, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+    work.paste(field, (tv[0], tv[1]))
+    paste_flat(work, Image.open(hud_path), tv)
+    down = work.resize(OUT_SIZE, Image.LANCZOS).convert("RGB")
+    x0, y0, x1, y1 = glass
+    patched = room.copy()
+    patched.paste(down.crop((x0, y0, x1, y1)), (x0, y0))
+    before = np.array(room)
+    after = np.array(patched)
+    outside = np.ones(before.shape[:2], dtype=bool)
+    outside[y0:y1, x0:x1] = False
+    if np.any(before[outside] != after[outside]):
+        raise SystemExit("hero composite changed pixels outside the TV glass")
+    return patched
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("shot", choices=["frost", "hero"])
-    parser.add_argument("--hud", type=Path, required=True, help="transparent 1920x1080 HUD render (hud-shot.mjs)")
-    parser.add_argument("--board", type=Path, help="1440x900 Scoreboard capture (hero only)")
+    parser.add_argument("--hud", type=Path, help="transparent 1920x1080 HUD render (hud-shot.mjs). Rendered from the overlay when omitted.")
+    parser.add_argument("--plate", type=Path, help="field plate (default depends on the shot)")
+    parser.add_argument("--base", type=Path, help="published hero to keep outside the glass (default site hero)")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     if args.shot == "frost":
-        image = frost(args.hud)
+        plate = args.plate or HEADON_PLATE
+        if args.hud:
+            image = broadcast_field(plate, args.hud)
+        else:
+            with tempfile.TemporaryDirectory() as tmp:
+                hud = Path(tmp) / "hud.png"
+                render_overlay_hud(hud, FROST_HUD_PRESET)
+                image = broadcast_field(plate, hud)
         out = args.out or IMAGES / "frost-hud.jpg"
     else:
-        if not args.board:
-            parser.error("hero needs --board")
-        image = hero(args.hud, args.board)
+        plate = args.plate or FIELD_PLATE
+        base = args.base or IMAGES / "hero-living-room.jpg"
+        if args.hud:
+            image = hero_field(base, plate, args.hud)
+        else:
+            with tempfile.TemporaryDirectory() as tmp:
+                hud = Path(tmp) / "hud.png"
+                render_hero_hud(hud)
+                image = hero_field(base, plate, hud)
         out = args.out or IMAGES / "hero-living-room.jpg"
     image.convert("RGB").save(out, quality=90, optimize=True, progressive=True)
     print(f"wrote {out} {image.size}")

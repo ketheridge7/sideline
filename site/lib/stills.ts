@@ -3,8 +3,9 @@ import { HERO_HUD } from "@/lib/demo";
 /**
  * Product stills (Designer spec MARKETING_REPLAY_SPEC §2). Every screen is a real
  * capture of the pinned Replay Sunday (`npm run replay:capture`): fake leagues,
- * fake managers, real NFL player names. The two living-room shots composite those
- * captures onto generated, people-free rooms (scripts/marketing/compose.py).
+ * fake managers, real NFL player names. The hero composites onto a generated,
+ * people-free room. frost-hud composites onto the head-on broadcast plate
+ * (scripts/marketing/compose.py).
  * Capture checklist: docs/marketing/stills.md.
  */
 export type ProductStill = {
@@ -38,7 +39,7 @@ export const PRODUCT_STILLS = {
   },
   overlay: {
     src: "/images/frost-hud.jpg",
-    alt: "Frost HUD, Overlay Studio preset 3 (lower corners), on a straight-on living-room TV — Ice Box and Hash Marks with the thin bottom ticker.",
+    alt: "Frost HUD over a Sunday broadcast: Ice Box and Hash Marks on the sidelines.",
     width: 1600,
     height: 900,
   },
