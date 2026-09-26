@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { WORDMARK_TEXT } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 
@@ -15,12 +16,11 @@ export function BrandMark({
   const mark = compact ? 28 : 36;
   return (
     <span className={cn("flex items-center gap-2", className)} data-wordmark="sideline" data-mark="broadcast-s">
-      <img
+      <Image
         src="/broadcast-s.svg"
         alt=""
         width={mark}
         height={mark}
-        draggable={false}
         aria-hidden="true"
         className="shrink-0"
         style={{ width: mark, height: mark }}

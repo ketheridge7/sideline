@@ -10,7 +10,7 @@ export function Hero() {
         <div className="absolute right-[18%] top-[22%] h-72 w-72 rounded-full bg-lime/8 blur-[90px]" />
       </div>
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-10 sm:px-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-8 lg:pb-20 lg:pt-6">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 pb-16 pt-8 sm:px-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-8 lg:pb-16 lg:pt-6">
         <div className="rise relative z-10 max-w-xl">
           <h1 className="text-[2.35rem] font-medium leading-[1.05] tracking-tight text-text sm:text-5xl lg:text-[3.4rem]">
             Your fantasy matchup.
