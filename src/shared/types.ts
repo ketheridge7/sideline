@@ -380,7 +380,11 @@ const sameLayout = (prev: OverlayLayout, next: OverlayLayout): boolean => {
     prev.groupedRails.opp !== next.groupedRails.opp ||
     prev.trackLock.mine !== next.trackLock.mine ||
     prev.trackLock.opp !== next.trackLock.opp ||
-    prev.fontColor !== next.fontColor ||
+    prev.textColors.all !== next.textColors.all ||
+    prev.textColors.playerName !== next.textColors.playerName ||
+    prev.textColors.teamName !== next.textColors.teamName ||
+    prev.textColors.teamScore !== next.textColors.teamScore ||
+    prev.textColors.playerScore !== next.textColors.playerScore ||
     prev.widgets.length !== next.widgets.length
   ) {
     return false
