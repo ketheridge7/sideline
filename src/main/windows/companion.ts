@@ -8,6 +8,7 @@ import {
   packagingWindowIconPath
 } from '../packagingIcon'
 import { runtime } from '../runtime'
+import { syncMinimizedLocalShortcuts } from '../shortcuts'
 import { loadRenderer } from './load'
 import { createRendererRecovery } from './rendererCrash'
 
@@ -34,7 +35,8 @@ export const createCompanionWindow = (): BrowserWindow => {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      backgroundThrottling: false
     }
   })
 
@@ -60,6 +62,16 @@ export const createCompanionWindow = (): BrowserWindow => {
     if (runtime.isQuitting()) return
     event.preventDefault()
     win.hide()
+  })
+
+  win.on('minimize', () => {
+    syncMinimizedLocalShortcuts(true)
+  })
+  win.on('restore', () => {
+    syncMinimizedLocalShortcuts(false)
+  })
+  win.on('show', () => {
+    if (!win.isMinimized()) syncMinimizedLocalShortcuts(false)
   })
 
   loadRenderer(win, 'companion')

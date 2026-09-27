@@ -74,10 +74,12 @@ export const HudTeamScore = ({
 
 export const LeadChip = ({
   delta,
-  surface
+  surface,
+  fontColor = null
 }: {
   delta: number
   surface: HudSurface
+  fontColor?: string | null
 }): JSX.Element => {
   const leading = delta > 0
   const trailing = delta < 0
@@ -86,9 +88,11 @@ export const LeadChip = ({
     surface === 'overlay'
       ? 'hud-type-delta flex h-full items-end tabular-nums'
       : 'text-center font-cond font-extrabold uppercase tracking-[0.14em] tabular-nums text-sm'
+  const label = formatDelta(delta)
+  const emphasized = surface === 'overlay' && Boolean(fontColor)
   return (
     <div className={`${sizeClass} ${deltaClass}`} data-hud="lead-chip">
-      {formatDelta(delta)}
+      {emphasized ? <span className="hud-delta-chip">{label}</span> : label}
     </div>
   )
 }

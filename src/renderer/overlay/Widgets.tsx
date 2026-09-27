@@ -90,7 +90,7 @@ export const OverlayWidgetView = ({
         />
       )
     case 'score.delta':
-      return <LeadChip delta={hud.delta} surface="overlay" />
+      return <LeadChip delta={hud.delta} surface="overlay" fontColor={ink} />
     case 'col.mine.name':
       return <HudRail players={hud.myStarters} you fontColor={ink} />
     case 'col.opp.name':

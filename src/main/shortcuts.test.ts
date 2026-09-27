@@ -4,6 +4,7 @@ import { join } from 'path'
 
 const registered = vi.hoisted(() => ({
   register: vi.fn((_accelerator: string, _handler: () => void) => true),
+  unregister: vi.fn(),
   unregisterAll: vi.fn()
 }))
 
@@ -16,6 +17,7 @@ vi.mock('electron', () => {
     app: { getPath: () => dir },
     globalShortcut: {
       register: registered.register,
+      unregister: registered.unregister,
       unregisterAll: registered.unregisterAll
     },
     BrowserWindow: class {},
@@ -33,7 +35,7 @@ vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
 import { app } from 'electron'
 import { applyHotkeys, currentState } from './poller'
 import { runtime } from './runtime'
-import { applyShortcut } from './shortcuts'
+import { applyShortcut, registerAppShortcuts, syncMinimizedLocalShortcuts } from './shortcuts'
 import { loadSettings, resetStoreForTests, saveSettings } from './store'
 
 const settingsPath = (): string => join(app.getPath('userData'), 'sideline-settings.json')
@@ -43,7 +45,9 @@ afterEach(() => {
   rmSync(settingsPath(), { force: true })
   registered.register.mockReset()
   registered.register.mockImplementation(() => true)
+  registered.unregister.mockReset()
   registered.unregisterAll.mockReset()
+  runtime.setCompanion(null)
 })
 
 describe('applyShortcut', () => {
@@ -94,6 +98,61 @@ describe('applyShortcut', () => {
     expect(saved.nextLeagueHotkey).toBe('CommandOrControl+Alt+]')
     expect(saved.prevLeagueHotkey).toBe('CommandOrControl+Alt+[')
     expect(saved.overlayDisplayHotkey).toBe('CommandOrControl+Shift+M')
+  })
+})
+
+describe('minimized local shortcuts', () => {
+  it('registers single keys while minimized and drops them on restore without focusing the window', () => {
+    const focus = vi.fn()
+    const show = vi.fn()
+    const restore = vi.fn()
+    runtime.setCompanion({
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      focus,
+      show,
+      restore,
+      webContents: { send: vi.fn() }
+    } as never)
+    const handlers = new Map<string, () => void>()
+    registered.register.mockImplementation((accelerator: string, handler: () => void) => {
+      handlers.set(accelerator, handler)
+      return true
+    })
+    registerAppShortcuts()
+    expect(handlers.has('CommandOrControl+Shift+O')).toBe(true)
+    expect(handlers.has('CommandOrControl+Shift+M')).toBe(true)
+    expect(handlers.has('CommandOrControl+Shift+E')).toBe(true)
+    expect(handlers.has(']')).toBe(false)
+    expect(handlers.has('[')).toBe(false)
+    registered.unregisterAll.mockClear()
+    handlers.clear()
+    syncMinimizedLocalShortcuts(true)
+    expect(registered.unregisterAll).not.toHaveBeenCalled()
+    expect([...handlers.keys()]).toEqual([']', '['])
+    handlers.get(']')?.()
+    handlers.get('[')?.()
+    expect(focus).not.toHaveBeenCalled()
+    expect(show).not.toHaveBeenCalled()
+    expect(restore).not.toHaveBeenCalled()
+    syncMinimizedLocalShortcuts(false)
+    expect(registered.unregister).toHaveBeenCalledWith(']')
+    expect(registered.unregister).toHaveBeenCalledWith('[')
+    expect(registered.unregister).not.toHaveBeenCalledWith('CommandOrControl+Shift+O')
+  })
+
+  it('re-registers single keys after a rebind while the companion stays minimized', () => {
+    runtime.setCompanion({
+      isDestroyed: () => false,
+      isMinimized: () => true,
+      webContents: { send: vi.fn() }
+    } as never)
+    const result = applyShortcut('overlay', 'CommandOrControl+Alt+O')
+    expect(result.ok).toBe(true)
+    const accelerators = registered.register.mock.calls.map((call) => call[0])
+    expect(accelerators).toContain('CommandOrControl+Alt+O')
+    expect(accelerators).toContain(']')
+    expect(accelerators).toContain('[')
   })
 })
 

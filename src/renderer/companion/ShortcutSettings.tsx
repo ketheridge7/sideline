@@ -71,7 +71,8 @@ export const ShortcutSettings = ({
       {framed ? <h2 className="text-base font-semibold">Keyboard shortcuts</h2> : null}
       <p className={`${framed ? 'mt-1' : ''} text-sm text-muted`}>
         Chorded shortcuts (Ctrl+Shift+…) work globally, including while a game is focused. Single keys like [ and ]
-        work in the companion when you are not typing in a field. Change captures the next key; Esc cancels.
+        work in the companion when you are not typing in a field, and while the companion is minimized. Change
+        captures the next key; Esc cancels.
       </p>
       <ul className="mt-4 grid gap-2">
         {SHORTCUT_ACTIONS.map((action) => (

@@ -134,6 +134,7 @@ describe('OverlayStudio font color', () => {
     expect(html).toContain('data-font-reset=""')
     expect(html).toMatch(/data-font-swatch="ice"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-font-swatch="ice"/)
     expect(html).toContain('disabled=""')
+    expect(html).not.toContain('hud-delta-chip')
   })
 
   it('marks Lime selected and keeps the lead chip on its own color in the preview', () => {
@@ -145,6 +146,7 @@ describe('OverlayStudio font color', () => {
     const tiedChip = leadChipTag(tied)
     expect(tiedChip).toContain('text-muted')
     expect(tiedChip).not.toContain('#B6FF3B')
+    expect(tied).toContain('hud-delta-chip')
 
     const leading = renderStudio({ ...layoutFromPreset('1'), fontColor: '#B6FF3B' }, null, {
       myTeam: { id: '1', name: 'Ice Box', owner: 'me', record: '1-0' },
@@ -160,5 +162,6 @@ describe('OverlayStudio font color', () => {
     expect(lead).toContain('text-lime')
     expect(lead).not.toContain('style=')
     expect(lead).not.toContain('#B6FF3B')
+    expect(leading).toContain('hud-delta-chip')
   })
 })

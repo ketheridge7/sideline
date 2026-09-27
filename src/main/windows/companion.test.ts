@@ -16,7 +16,8 @@ type FakeWindow = {
 const harness = vi.hoisted(() => ({
   window: null as FakeWindow | null,
   companion: null as FakeWindow | null,
-  quitting: false
+  quitting: false,
+  syncMinimized: vi.fn()
 }))
 
 vi.mock('electron', () => {
@@ -28,6 +29,7 @@ vi.mock('electron', () => {
     show = vi.fn()
     focus = vi.fn()
     hide = vi.fn()
+    isMinimized = vi.fn(() => false)
 
     constructor(opts: Record<string, unknown>) {
       this.opts = opts
@@ -62,6 +64,10 @@ vi.mock('../runtime', () => ({
 
 vi.mock('./load', () => ({ loadRenderer: vi.fn() }))
 
+vi.mock('../shortcuts', () => ({
+  syncMinimizedLocalShortcuts: (...args: unknown[]) => harness.syncMinimized(...args)
+}))
+
 import { loadRenderer } from './load'
 import { createCompanionWindow } from './companion'
 
@@ -80,6 +86,7 @@ describe('createCompanionWindow', () => {
     expect(String(win.opts.icon)).toMatch(/broadcast-s\.png$/)
     expect(win.opts.titleBarStyle).toBe('hidden')
     expect(win.opts.titleBarOverlay).toEqual({ ...COMPANION_TITLEBAR_OVERLAY })
+    expect((win.opts.webPreferences as { backgroundThrottling: boolean }).backgroundThrottling).toBe(false)
     expect(String(win.opts.title)).not.toMatch(/sideline/i)
     expect(win.setTitle).toHaveBeenCalledWith(NATIVE_WINDOW_TITLE)
     expect(loadRenderer).toHaveBeenCalledWith(win, 'companion')
@@ -92,6 +99,16 @@ describe('createCompanionWindow', () => {
     expect(handlers?.length).toBe(1)
     handlers?.[0]({ preventDefault })
     expect(preventDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps single-key shortcuts global only while minimized', () => {
+    const win = createCompanionWindow() as unknown as FakeWindow
+    win.handlers.get('minimize')?.[0]()
+    expect(harness.syncMinimized).toHaveBeenCalledWith(true)
+    win.handlers.get('restore')?.[0]()
+    expect(harness.syncMinimized).toHaveBeenLastCalledWith(false)
+    win.handlers.get('show')?.[0]()
+    expect(harness.syncMinimized).toHaveBeenLastCalledWith(false)
   })
 
   it('reuses an existing companion instead of opening a second window', () => {
