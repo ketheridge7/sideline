@@ -1,6 +1,7 @@
 import { DEFAULT_OVERLAY_PRESET, layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './overlayLayout'
 import {
   DEFAULT_SHORTCUTS,
+  migrateLegacyLeagueShortcuts,
   parseShortcutMap,
   shortcutSettingsPatch,
   type ShortcutMap
@@ -65,13 +66,13 @@ export const defaultSettings = (): Settings => ({
 
 const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
   parseShortcutMap(
-    {
+    migrateLegacyLeagueShortcuts({
       overlay: parsed.overlayHotkey,
       overlayEdit: parsed.overlayEditHotkey,
       overlayDisplay: parsed.overlayDisplayHotkey,
       nextLeague: parsed.nextLeagueHotkey,
       prevLeague: parsed.prevLeagueHotkey
-    },
+    }),
     DEFAULT_SHORTCUTS
   )
 

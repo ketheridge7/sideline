@@ -85,47 +85,8 @@ const registerOne = (accelerator: string, handler: () => void): boolean => {
   }
 }
 
-let captureActive = false
-let minimizedLocals: string[] = []
-
-const companionMinimized = (): boolean => {
-  const win = runtime.companion()
-  return Boolean(win && !win.isDestroyed() && win.isMinimized())
-}
-
-const unregisterMinimizedLocals = (): void => {
-  for (const accelerator of minimizedLocals) {
-    try {
-      globalShortcut.unregister(accelerator)
-    } catch {
-      // Already dropped by unregisterAll.
-    }
-  }
-  minimizedLocals = []
-}
-
-/**
- * Single keys such as [ and ] stay off the global table while the companion
- * can take focus, so they do not swallow typing in other apps. While that
- * window is minimized they are registered in the main process and the
- * handlers do not restore or focus it.
- */
-export const syncMinimizedLocalShortcuts = (minimized: boolean): void => {
-  unregisterMinimizedLocals()
-  if (!minimized || captureActive) return
-  const shortcuts = shortcutMapFromSettings(loadSettings())
-  for (const action of SHORTCUT_ACTIONS) {
-    const accelerator = shortcuts[action]
-    if (isGlobalAccelerator(accelerator) || minimizedLocals.includes(accelerator)) continue
-    if (!registerOne(accelerator, handlerFor(action))) continue
-    minimizedLocals.push(accelerator)
-  }
-}
-
 export const registerAppShortcuts = (): ShortcutRegistration => {
-  const minimized = companionMinimized()
   globalShortcut.unregisterAll()
-  minimizedLocals = []
   const shortcuts = shortcutMapFromSettings(loadSettings())
   const failed: ShortcutRegistration['failed'] = []
   for (const action of SHORTCUT_ACTIONS) {
@@ -133,15 +94,12 @@ export const registerAppShortcuts = (): ShortcutRegistration => {
     if (!isGlobalAccelerator(accelerator)) continue
     if (!registerOne(accelerator, handlerFor(action))) failed.push({ action, accelerator })
   }
-  if (minimized) syncMinimizedLocalShortcuts(true)
   return { failed }
 }
 
 export const setShortcutCapture = (active: boolean): void => {
-  captureActive = active
   if (active) {
     globalShortcut.unregisterAll()
-    minimizedLocals = []
     return
   }
   registerAppShortcuts()

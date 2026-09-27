@@ -72,11 +72,11 @@ Defaults (Windows-first; `Ctrl` is `Cmd` on Mac via `CommandOrControl`):
 | --- | --- |
 | Toggle HUD | `Ctrl+Shift+O` |
 | Cycle HUD to next display | `Ctrl+Shift+M` |
-| Next league | `]` |
-| Previous league | `[` |
+| Next league | `Ctrl+Shift+]` |
+| Previous league | `Ctrl+Shift+[` |
 | Edit HUD on the overlay | `Ctrl+Shift+E` |
 
-Chorded shortcuts are global (work even when Sideline is not focused). `[` / `]` work in the companion when you are not typing in a field. Connect → **Keyboard shortcuts** to change or reset them; Sideline will not bind the same key to two actions. One monitor: cycle-display is a no-op and shows a brief status.
+Chorded shortcuts are global (work even when Sideline is not focused). A binding without a modifier only works while Sideline is focused. Connect → **Keyboard shortcuts** to change or reset them; Sideline will not bind the same key to two actions. One monitor: cycle-display is a no-op and shows a brief status.
 
 Companion still has `O` (HUD), `E` (Studio panel), and `Esc` (close Studio) on the Scoreboard.
 

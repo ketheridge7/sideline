@@ -5,6 +5,8 @@ import {
   applyShortcutChange,
   DEFAULT_SHORTCUTS,
   formatAccelerator,
+  isGlobalAccelerator,
+  migrateLegacyLeagueShortcuts,
   nextLeagueKey,
   shortcutRegistrationError,
   nextOverlayDisplayId,
@@ -57,9 +59,27 @@ describe('applyShortcutChange', () => {
   })
 
   it('finds the action that owns an accelerator', () => {
-    expect(actionForAccelerator(DEFAULT_SHORTCUTS, ']')).toBe('nextLeague')
-    expect(shortcutConflict(DEFAULT_SHORTCUTS, 'nextLeague', ']')).toBeNull()
+    expect(actionForAccelerator(DEFAULT_SHORTCUTS, 'CommandOrControl+Shift+]')).toBe('nextLeague')
+    expect(shortcutConflict(DEFAULT_SHORTCUTS, 'nextLeague', 'CommandOrControl+Shift+]')).toBeNull()
+    expect(isGlobalAccelerator(DEFAULT_SHORTCUTS.nextLeague)).toBe(true)
+    expect(isGlobalAccelerator(DEFAULT_SHORTCUTS.prevLeague)).toBe(true)
+    expect(isGlobalAccelerator(']')).toBe(false)
+    expect(isGlobalAccelerator('L')).toBe(false)
+    expect(formatAccelerator('CommandOrControl+Shift+]')).toBe('Ctrl+Shift+]')
     expect(formatAccelerator('CommandOrControl+Shift+O')).toBe('Ctrl+Shift+O')
+  })
+
+  it('migrates only the legacy default brackets', () => {
+    expect(migrateLegacyLeagueShortcuts({ nextLeague: ']', prevLeague: '[' })).toEqual({
+      nextLeague: 'CommandOrControl+Shift+]',
+      prevLeague: 'CommandOrControl+Shift+['
+    })
+    const custom = migrateLegacyLeagueShortcuts({ nextLeague: 'L', prevLeague: ']' })
+    expect(custom.nextLeague).toBe('L')
+    expect(custom.prevLeague).toBe(']')
+    const swapped = migrateLegacyLeagueShortcuts({ nextLeague: '[', prevLeague: 'K' })
+    expect(swapped.nextLeague).toBe('[')
+    expect(swapped.prevLeague).toBe('K')
   })
 
   it('keeps letter M as a key and explains a failed registration', () => {

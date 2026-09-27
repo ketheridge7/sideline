@@ -61,8 +61,8 @@ describe('hydrateSettings', () => {
 
   it('hydrates shortcut defaults and heals a colliding persisted accelerator', () => {
     expect(defaultSettings().overlayDisplayHotkey).toBe('CommandOrControl+Shift+M')
-    expect(defaultSettings().nextLeagueHotkey).toBe(']')
-    expect(defaultSettings().prevLeagueHotkey).toBe('[')
+    expect(defaultSettings().nextLeagueHotkey).toBe('CommandOrControl+Shift+]')
+    expect(defaultSettings().prevLeagueHotkey).toBe('CommandOrControl+Shift+[')
     const healed = hydrateSettings({
       overlayHotkey: 'CommandOrControl+Shift+O',
       overlayDisplayHotkey: 'CommandOrControl+Shift+O',
@@ -71,9 +71,21 @@ describe('hydrateSettings', () => {
     })
     expect(healed.overlayHotkey).toBe('CommandOrControl+Shift+O')
     expect(healed.overlayDisplayHotkey).toBe('CommandOrControl+Shift+M')
-    expect(healed.nextLeagueHotkey).toBe(']')
-    expect(healed.prevLeagueHotkey).toBe('[')
+    expect(healed.nextLeagueHotkey).toBe('CommandOrControl+Shift+]')
+    expect(healed.prevLeagueHotkey).toBe('CommandOrControl+Shift+[')
     expect(healed.overlayEditHotkey).toBe('CommandOrControl+Shift+E')
+  })
+
+  it('migrates the old bracket league defaults and leaves a custom binding', () => {
+    const migrated = hydrateSettings({ nextLeagueHotkey: ']', prevLeagueHotkey: '[' })
+    expect(migrated.nextLeagueHotkey).toBe('CommandOrControl+Shift+]')
+    expect(migrated.prevLeagueHotkey).toBe('CommandOrControl+Shift+[')
+    const custom = hydrateSettings({ nextLeagueHotkey: 'L', prevLeagueHotkey: 'CommandOrControl+Alt+[' })
+    expect(custom.nextLeagueHotkey).toBe('L')
+    expect(custom.prevLeagueHotkey).toBe('CommandOrControl+Alt+[')
+    const swapped = hydrateSettings({ nextLeagueHotkey: '[', prevLeagueHotkey: ']' })
+    expect(swapped.nextLeagueHotkey).toBe('[')
+    expect(swapped.prevLeagueHotkey).toBe(']')
   })
 
   it('keeps a custom Cycle HUD display accelerator instead of merging the default back over it', () => {

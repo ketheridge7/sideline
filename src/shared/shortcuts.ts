@@ -13,9 +13,15 @@ export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number]
 export const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
   overlay: 'CommandOrControl+Shift+O',
   overlayDisplay: 'CommandOrControl+Shift+M',
-  nextLeague: ']',
-  prevLeague: '[',
+  nextLeague: 'CommandOrControl+Shift+]',
+  prevLeague: 'CommandOrControl+Shift+[',
   overlayEdit: 'CommandOrControl+Shift+E'
+}
+
+/** Single-key league defaults from before they became chords. Custom bindings are not these. */
+export const LEGACY_LEAGUE_SHORTCUTS: Pick<ShortcutMap, 'nextLeague' | 'prevLeague'> = {
+  nextLeague: ']',
+  prevLeague: '['
 }
 
 export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
@@ -99,7 +105,15 @@ const CODE_KEYS: Record<string, string> = {
   Plus: 'Plus'
 }
 
+/** A chord includes a modifier. Bare keys stay companion-window-only so they do not swallow typing elsewhere. */
 export const isGlobalAccelerator = (accelerator: string): boolean => accelerator.includes('+')
+
+export const migrateLegacyLeagueShortcuts = (parsed: Partial<ShortcutMap> | undefined): Partial<ShortcutMap> => {
+  const next: Partial<ShortcutMap> = { ...parsed }
+  if (next.nextLeague === LEGACY_LEAGUE_SHORTCUTS.nextLeague) next.nextLeague = DEFAULT_SHORTCUTS.nextLeague
+  if (next.prevLeague === LEGACY_LEAGUE_SHORTCUTS.prevLeague) next.prevLeague = DEFAULT_SHORTCUTS.prevLeague
+  return next
+}
 
 export const formatAccelerator = (accelerator: string): string =>
   accelerator.replaceAll('CommandOrControl', 'Ctrl').replaceAll('Command', 'Ctrl').replaceAll('Control', 'Ctrl')

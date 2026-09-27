@@ -97,7 +97,7 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 
 ## Companion Board
 
-- Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `[` `]` still cycle. SL / ES health pips sit to the right of the **My leagues** header, not in the top bar.
+- Left rail: pinned leagues as a live watchlist (name, two scores, sparkline or delta, selected ice bar). `Ctrl+Shift+[` / `Ctrl+Shift+]` still cycle. SL / ES health pips sit to the right of the **My leagues** header, not in the top bar.
 - Center: one head-to-head (you left / them right, readable team names, dominant totals, lead bar / delta), slot-aligned starters as pos | name | pts, no framed card around the data.
 - Right rail: **Scoring tape**. Scoreboard = Scoring tape · This matchup. Leagues/Boards = Scoring tape · All leagues (same name, same right-hand placement). Quiet empty state if history is thin. Replay may emit short scripted notes (`TD`, `FUM`, `INJ`); live mode never invents play-by-play. Injuries land on tape only after a baseline exists (no cold-open injury dump).
 - Leagues matchup cards: **Top scorers** chips are highest starter points, not “who just scored.”
@@ -106,7 +106,7 @@ SCOREBOARD and the overlay HUD share `HudTeamName` / `HudTeamScore` / `LeadChip`
 - SCOREBOARD: you-side Starters / Bench headers and Chance to win · Est. win% header + you fill/label use solid lime `#B6FF3B`; opponent chrome stays warm silver. The +/- chip next to the team total uses that same lime when ahead (alert red when behind) on SCOREBOARD and the overlay, Replay and live. Turning HUD on opens Overlay Studio beside the companion. The studio’s edge control slides the panel to the window border and pulls it back out. Turning HUD off removes the studio.
 - Overlay Studio: lime title + active preset box (same family as TopBar pills / my name). Five presets, click-to-select team frames and ticker, position/size sliders for the selected block, save/overwrite. Mini HUD preview. No HUD on/off control — TopBar HUD pill / hotkey owns visibility.
 
-Keyboard: `[` `]` channels, `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).
+Keyboard: `Ctrl+Shift+]` / `Ctrl+Shift+[` channels (global), `Ctrl+Shift+O` HUD (global), `Ctrl+Shift+M` next display (global; no-op on one monitor), `Ctrl+Shift+E` overlay edit (global), companion `O` HUD / `E` Studio / `Esc` close Studio. A binding without a modifier only works while Sideline is focused. Remap under Connect → Keyboard shortcuts (`sideline-settings.json`).
 
 ---
 
