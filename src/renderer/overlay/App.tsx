@@ -143,13 +143,13 @@ export const OverlayApp = (): JSX.Element => {
         if (widget.hidden) return null
         const fill = smokeFill(surface, widget.opacity)
         const active = canEdit && selected === widget.id
-        const fontClass = hudWidgetFontClass(layout.fontColor)
+        const fontClass = hudWidgetFontClass(layout.textColors)
         return (
           <div
             key={widget.id}
             className={`hud-widget hud-frost absolute ${fontClass} ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
             data-density={resolveDensity(surface, widget.density)}
-            data-hud-font={layout.fontColor ?? 'default'}
+            data-hud-font={layout.textColors.all ?? 'default'}
             style={{
               left: `${widget.x}%`,
               top: `${widget.y}%`,
@@ -158,7 +158,7 @@ export const OverlayApp = (): JSX.Element => {
               background: hudWidgetFill(fill),
               outline: active ? '1px dashed #A6E6A0' : 'none',
               textShadow: HUD_TEXT_SHADOW,
-              ...hudWidgetFontStyle(layout.fontColor)
+              ...hudWidgetFontStyle(layout.textColors)
             }}
             onPointerDown={(event) => startDrag(event, widget.id, false)}
           >
@@ -168,7 +168,7 @@ export const OverlayApp = (): JSX.Element => {
               surface={surface}
               density={widget.density}
               showCrawler={layout.showCrawler}
-              fontColor={layout.fontColor}
+              textColors={layout.textColors}
             />
             {active ? (
               <button

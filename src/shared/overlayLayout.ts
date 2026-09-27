@@ -59,9 +59,58 @@ export type OverlayLayout = {
   groupedRails: { mine: boolean; opp: boolean }
   trackLock: { mine: boolean; opp: boolean }
   showCrawler: boolean
-  /** Null keeps the Sunday Tape ink (lime you-name, frost scores, white rows). */
-  fontColor: string | null
+  /**
+   * Text ink for the HUD and TV overlay.
+   * A null role uses `all`. A null `all` keeps Sunday Tape defaults (Ice):
+   * lime you-name, silver them-name, frost scores, white player rows.
+   * The old single `fontColor` migrates into `all`.
+   */
+  textColors: HudTextColors
 }
+
+export const HUD_TEXT_ROLES = ['playerName', 'teamName', 'teamScore', 'playerScore'] as const
+
+export type HudTextRole = (typeof HUD_TEXT_ROLES)[number]
+
+export type HudTextHighlight = HudTextRole | 'all'
+
+export type HudTextColors = {
+  all: string | null
+  playerName: string | null
+  teamName: string | null
+  teamScore: string | null
+  playerScore: string | null
+}
+
+export const EMPTY_HUD_TEXT_COLORS: HudTextColors = {
+  all: null,
+  playerName: null,
+  teamName: null,
+  teamScore: null,
+  playerScore: null
+}
+
+export const HUD_TEXT_ROLE_LABELS: Record<HudTextRole, string> = {
+  playerName: 'Player names',
+  teamName: 'Team names',
+  teamScore: 'Team scores',
+  playerScore: 'Player scores'
+}
+
+/** Role override, then `all`, then null (Ice defaults at paint time). */
+export const resolveHudTextColor = (colors: HudTextColors, role: HudTextRole): string | null =>
+  colors[role] ?? colors.all
+
+export const hudTextColorsCustom = (colors: HudTextColors): boolean =>
+  colors.all != null || HUD_TEXT_ROLES.some((role) => colors[role] != null)
+
+const copyHudTextColors = (colors: HudTextColors): HudTextColors => ({
+  all: colors.all,
+  playerName: colors.playerName,
+  teamName: colors.teamName,
+  teamScore: colors.teamScore,
+  playerScore: colors.playerScore
+})
 
 export const HUD_FONT_SWATCHES = [
   { id: 'ice', label: 'Ice', color: null },
@@ -248,7 +297,7 @@ const layout = (
   groupedRails,
   trackLock: { mine: true, opp: true },
   showCrawler: presetShowsCrawler(presetId),
-  fontColor: null
+  textColors: copyHudTextColors(EMPTY_HUD_TEXT_COLORS)
 })
 
 const hide = (
@@ -510,12 +559,59 @@ const parseSlots = (raw: unknown): OverlayLayout['slots'] => {
   return slots
 }
 
+/** Backdrop the HUD floats on. A hint only — choices are never blocked. */
+export const HUD_TEXT_BACKDROP = '#07080A'
+
+const FAINT_HUD_CONTRAST = 2.5
+
+const srgbChannel = (channel: number): number => {
+  const value = channel / 255
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+}
+
+const relativeLuminance = (hex: string): number => {
+  const parsed = parseHudFontColor(hex)
+  if (!parsed) return 0
+  const r = srgbChannel(parseInt(parsed.slice(1, 3), 16))
+  const g = srgbChannel(parseInt(parsed.slice(3, 5), 16))
+  const b = srgbChannel(parseInt(parsed.slice(5, 7), 16))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+export const hudContrastRatio = (foreground: string, background = HUD_TEXT_BACKDROP): number => {
+  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background))
+  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background))
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+export const hudColorIsFaint = (color: string | null): boolean =>
+  color != null && hudContrastRatio(color) < FAINT_HUD_CONTRAST
+
+/**
+ * Reads `textColors`, or folds the pre-split `fontColor` into `all`.
+ * Junk hex values become null so that role falls through.
+ */
+export const parseHudTextColors = (raw: unknown, legacyFontColor?: unknown): HudTextColors => {
+  const legacy = parseHudFontColor(legacyFontColor)
+  const rec = asRecord(raw)
+  if (!rec) return { ...EMPTY_HUD_TEXT_COLORS, all: legacy }
+  const all = Object.prototype.hasOwnProperty.call(rec, 'all') ? parseHudFontColor(rec.all) : legacy
+  return {
+    all,
+    playerName: parseHudFontColor(rec.playerName),
+    teamName: parseHudFontColor(rec.teamName),
+    teamScore: parseHudFontColor(rec.teamScore),
+    playerScore: parseHudFontColor(rec.playerScore)
+  }
+}
+
 export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
   const rec = asRecord(raw)
   if (!rec) return layoutFromPreset(DEFAULT_OVERLAY_PRESET)
   const slots = parseSlots(rec.slots)
+  const textColors = parseHudTextColors(rec.textColors, rec.fontColor)
   if (overlayLayoutDidMigrate(rec)) {
-    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots, fontColor: parseHudFontColor(rec.fontColor) }
+    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots, textColors }
   }
   const presetId = parsePresetId(rec.presetId)
   const base = layoutFromPreset(presetId)
@@ -535,7 +631,7 @@ export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
       opp: typeof track?.opp === 'boolean' ? track.opp : base.trackLock.opp
     },
     showCrawler: typeof rec.showCrawler === 'boolean' ? rec.showCrawler : base.showCrawler,
-    fontColor: parseHudFontColor(rec.fontColor)
+    textColors
   }
 }
 
@@ -613,14 +709,14 @@ export const resizeWidget = (
 
 export const applyPreset = (presetId: OverlayPresetId, current?: OverlayLayout): OverlayLayout => {
   const slots = current?.slots ?? {}
-  const fontColor = current?.fontColor ?? null
+  const textColors = copyHudTextColors(current?.textColors ?? EMPTY_HUD_TEXT_COLORS)
   const factory = layoutFromPreset(presetId)
   const saved = slots[presetId]
-  if (!saved) return { ...factory, slots, fontColor, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
+  if (!saved) return { ...factory, slots, textColors, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
   return {
     ...factory,
     slots,
-    fontColor,
+    textColors,
     schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
     widgets: coalesceRailColumns(mergeWidgets(factory.widgets, saved))
   }
