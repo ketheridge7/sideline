@@ -1,50 +1,45 @@
-import type { ToastPayload } from './types'
-
 export type UpdateStatus =
   | { state: 'idle' }
   | { state: 'disabled'; reason: 'dev' }
   | { state: 'checking' }
   | { state: 'available'; version: string }
   | { state: 'not-available'; version: string }
-  | { state: 'downloading'; percent: number }
+  | { state: 'downloading'; percent: number; version: string }
   | { state: 'downloaded'; version: string }
+  | { state: 'countdown'; version: string; seconds: number }
+  | { state: 'installing'; version: string }
   | { state: 'error'; message: string }
 
 export type UpdateSnapshot = UpdateStatus & {
   currentVersion: string
 }
 
-export const UPDATE_TOAST_PREFIX = 'sideline:update'
+export const UPDATE_RESTART_SECONDS = 10
 
-export const updateStatusCopy = (status: UpdateStatus, currentVersion: string): { title: string; body: string } => {
+export const updateBannerText = (version: string, seconds: number): string =>
+  `Updating Sideline to v${version} — restarting in ${seconds}s`
+
+export const updateSettingsLabel = (status: UpdateStatus): string => {
   switch (status.state) {
     case 'idle':
-      return {
-        title: 'Updates',
-        body: currentVersion ? `This build is ${currentVersion}. Not checked yet.` : 'Not checked yet.'
-      }
+      return ''
     case 'disabled':
-      return {
-        title: 'Updates',
-        body: currentVersion
-          ? `This build is ${currentVersion}. Installed Windows builds check GitHub Releases. Dev (npm start) skips this.`
-          : 'Installed Windows builds check GitHub Releases. Dev (npm start) skips this.'
-      }
+      return 'Updates are available in the installed app'
     case 'checking':
-      return { title: 'Updates', body: 'Checking GitHub Releases…' }
+      return 'Checking'
     case 'available':
-      return { title: 'Update available', body: `Sideline ${status.version} is downloading.` }
+      return 'Downloading 0%'
     case 'not-available':
-      return { title: 'Updates', body: `Sideline ${status.version} is up to date.` }
+      return 'Up to date'
     case 'downloading':
-      return { title: 'Downloading update', body: `Sideline download ${Math.round(status.percent)}%.` }
+      return `Downloading ${Math.round(status.percent)}%`
     case 'downloaded':
-      return {
-        title: 'Update ready',
-        body: `Sideline ${status.version} is ready. Connect → Restart to install.`
-      }
+    case 'countdown':
+      return 'Ready (restart)'
+    case 'installing':
+      return 'Restarting'
     case 'error':
-      return { title: 'Update check failed', body: status.message }
+      return status.message
     default: {
       const _never: never = status
       return _never
@@ -52,31 +47,23 @@ export const updateStatusCopy = (status: UpdateStatus, currentVersion: string): 
   }
 }
 
-export const shouldToastUpdate = (status: UpdateStatus, userInitiated: boolean): boolean => {
-  switch (status.state) {
-    case 'available':
-    case 'downloaded':
-      return true
-    case 'not-available':
-    case 'error':
-    case 'disabled':
-      return userInitiated
-    case 'idle':
-    case 'checking':
-    case 'downloading':
-      return false
-    default: {
-      const _never: never = status
-      return _never
-    }
+export const presentUpdateError = (error: unknown): string => {
+  const raw =
+    error instanceof Error && error.message
+      ? error.message
+      : typeof error === 'string' && error
+        ? error
+        : 'Update check failed'
+  if (/\b404\b/.test(raw)) return 'No update feed found (404).'
+  if (
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ECONNRESET|offline|network|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|getaddrinfo/i.test(
+      raw
+    )
+  ) {
+    return 'Offline. Could not reach GitHub Releases.'
   }
+  return raw
 }
 
-export const updateToast = (status: UpdateStatus, currentVersion: string): ToastPayload => {
-  const copy = updateStatusCopy(status, currentVersion)
-  return {
-    id: `${UPDATE_TOAST_PREFIX}-${status.state}`,
-    title: copy.title,
-    body: copy.body
-  }
-}
+/** Automatic checks stay quiet. The settings row shows offline and 404 only after Check for updates. */
+export const shouldSurfaceUpdateError = (userInitiated: boolean): boolean => userInitiated

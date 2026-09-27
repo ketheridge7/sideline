@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { COMPANION_TITLEBAR_OVERLAY, NATIVE_WINDOW_TITLE, packagingWindowIconPath } from '../packagingIcon'
+import type { SavedWindowPlacement } from '../windowPlacement'
 
 type FakeWindow = {
   opts: Record<string, unknown>
@@ -13,10 +14,38 @@ type FakeWindow = {
   handlers: Map<string, Array<(...args: unknown[]) => void>>
 }
 
+const emptyPlacements = (): {
+  companion: SavedWindowPlacement | null
+  overlay: SavedWindowPlacement | null
+} => ({ companion: null, overlay: null })
+
+const legacyPlacement = (rect: { x: number; y: number; width: number; height: number }): SavedWindowPlacement => ({
+  v: 1,
+  displayId: -1,
+  displayBounds: { x: 0, y: 0, width: 0, height: 0 },
+  displayWorkArea: { x: 0, y: 0, width: 0, height: 0 },
+  scaleFactor: 1,
+  anchorX: 0,
+  anchorY: 0,
+  width: rect.width,
+  height: rect.height,
+  anchorSpace: 'workArea',
+  legacyRect: rect
+})
+
 const harness = vi.hoisted(() => ({
   window: null as FakeWindow | null,
   companion: null as FakeWindow | null,
-  quitting: false
+  quitting: false,
+  quittingForUpdate: false,
+  settings: {
+    windowPlacements: {
+      companion: null as SavedWindowPlacement | null,
+      overlay: null as SavedWindowPlacement | null
+    },
+    overlayDisplayId: null as number | null,
+    overlayOpen: false
+  }
 }))
 
 const primaryDisplay = {
@@ -82,10 +111,7 @@ vi.mock('electron', () => {
 })
 
 vi.mock('../store', () => ({
-  loadSettings: () => ({
-    windowPlacements: { companion: null, overlay: null },
-    overlayDisplayId: null
-  }),
+  loadSettings: () => harness.settings,
   saveSettings: vi.fn()
 }))
 
@@ -95,7 +121,9 @@ vi.mock('../runtime', () => ({
     setCompanion: (win: FakeWindow | null) => {
       harness.companion = win
     },
-    isQuitting: () => harness.quitting
+    isQuitting: () => harness.quitting,
+    isQuittingForUpdate: () => harness.quittingForUpdate,
+    noteCompanionReady: vi.fn()
   }
 }))
 
@@ -109,6 +137,8 @@ afterEach(() => {
   harness.window = null
   harness.companion = null
   harness.quitting = false
+  harness.quittingForUpdate = false
+  harness.settings = { windowPlacements: emptyPlacements(), overlayDisplayId: null, overlayOpen: false }
   resetPlacementHostForTests()
   vi.mocked(loadRenderer).mockClear()
 })
@@ -139,6 +169,38 @@ describe('createCompanionWindow', () => {
     expect(handlers?.length).toBe(1)
     handlers?.[0]({ preventDefault })
     expect(preventDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides on close and lets an update quit replace the window', () => {
+    const win = createCompanionWindow() as unknown as FakeWindow
+    const preventDefault = vi.fn()
+    win.handlers.get('close')?.[0]?.({ preventDefault })
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(win.hide).toHaveBeenCalledTimes(1)
+
+    harness.quittingForUpdate = true
+    preventDefault.mockClear()
+    win.hide.mockClear()
+    win.handlers.get('close')?.[0]?.({ preventDefault })
+    expect(preventDefault).not.toHaveBeenCalled()
+    expect(win.hide).not.toHaveBeenCalled()
+  })
+
+  it('restores a saved companion placement and clamps one parked off every display', () => {
+    harness.settings.windowPlacements = {
+      companion: legacyPlacement({ x: 10, y: 20, width: 1200, height: 800 }),
+      overlay: null
+    }
+    const restored = createCompanionWindow() as unknown as FakeWindow
+    expect(restored.opts).toMatchObject({ x: 10, y: 20, width: 1200, height: 800 })
+
+    harness.companion = null
+    harness.settings.windowPlacements = {
+      companion: legacyPlacement({ x: 9000, y: 9000, width: 1200, height: 800 }),
+      overlay: null
+    }
+    const fallback = createCompanionWindow() as unknown as FakeWindow
+    expect(fallback.opts).toMatchObject({ x: 720, y: 240, width: 1200, height: 800 })
   })
 
   it('reuses an existing companion instead of opening a second window', () => {

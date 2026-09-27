@@ -145,14 +145,50 @@ select {
   line-height: 1;
 }
 
-.hud-widget.hud-font-custom .hud-type-name,
-.hud-widget.hud-font-custom .hud-type-score,
-.hud-widget.hud-font-custom .hud-type-player,
-.hud-widget.hud-font-custom .hud-type-pos,
-.hud-widget.hud-font-custom .hud-type-ticker,
-.hud-widget.hud-frost.hud-font-custom .hud-type-player,
+.hud-widget.hud-font-custom .hud-type-name {
+  color: var(--hud-team-name);
+}
+
+.hud-widget.hud-font-custom .hud-type-score {
+  color: var(--hud-team-score);
+}
+
+.hud-widget.hud-frost.hud-font-custom .hud-type-player {
+  color: var(--hud-player-name);
+}
+
 .hud-widget.hud-frost.hud-font-custom .hud-type-pts {
-  color: var(--hud-font);
+  color: var(--hud-player-score);
+}
+
+.studio-preview[data-studio-highlight='all'] [data-text-role],
+.studio-preview[data-studio-highlight='playerName'] [data-text-role='playerName'],
+.studio-preview[data-studio-highlight='teamName'] [data-text-role='teamName'],
+.studio-preview[data-studio-highlight='teamScore'] [data-text-role='teamScore'],
+.studio-preview[data-studio-highlight='playerScore'] [data-text-role='playerScore'] {
+  outline: 10px solid #b6ff3b;
+  outline-offset: 3px;
+  background-color: rgba(182, 255, 59, 0.22);
+}
+
+.studio-customize > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.studio-customize > summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-customize > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 0.9em;
+  color: #b6ff3b;
+}
+
+.studio-customize[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 .hud-widget[data-density='compact'] {

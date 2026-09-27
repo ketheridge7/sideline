@@ -33,6 +33,7 @@ export const HudTeamName = ({
         style={ink ? { color: ink } : undefined}
         data-hud="team-name"
         data-hud-side={side}
+        data-text-role="teamName"
       >
         <span>{name}</span>
       </div>
@@ -66,7 +67,12 @@ export const HudTeamScore = ({
       ? 'hud-type-score w-full'
       : 'mt-1 font-cond text-7xl font-extrabold leading-none'
   return (
-    <span className="contents" data-hud="team-score" data-hud-side={tone === 'you' ? 'mine' : 'opp'}>
+    <span
+      className={surface === 'overlay' ? 'block h-full w-full' : 'contents'}
+      data-hud="team-score"
+      data-hud-side={tone === 'you' ? 'mine' : 'opp'}
+      data-text-role={surface === 'overlay' ? 'teamScore' : undefined}
+    >
       <ScoreTick value={value} restColor={restColor} align="center" className={className} />
     </span>
   )
@@ -75,11 +81,12 @@ export const HudTeamScore = ({
 export const LeadChip = ({
   delta,
   surface,
-  fontColor = null
+  plate = false
 }: {
   delta: number
   surface: HudSurface
-  fontColor?: string | null
+  /** Dark plate + outline. The chip ink stays the semantic lead color. */
+  plate?: boolean
 }): JSX.Element => {
   const leading = delta > 0
   const trailing = delta < 0
@@ -89,7 +96,7 @@ export const LeadChip = ({
       ? 'hud-type-delta flex h-full items-end tabular-nums'
       : 'text-center font-cond font-extrabold uppercase tracking-[0.14em] tabular-nums text-sm'
   const label = formatDelta(delta)
-  const emphasized = surface === 'overlay' && Boolean(fontColor)
+  const emphasized = surface === 'overlay' && plate
   return (
     <div className={`${sizeClass} ${deltaClass}`} data-hud="lead-chip">
       {emphasized ? <span className="hud-delta-chip">{label}</span> : label}

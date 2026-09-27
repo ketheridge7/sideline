@@ -23,6 +23,9 @@ win:
   icon: build/icon.ico
   # Unsigned personal builds. Authenticode signing is an optional follow-up.
 nsis:
+  # oneClick + per-user + no elevation: quitAndInstall(/S) can replace files
+  # without a UAC prompt. Existing 1.0.x installs are already this shape, so
+  # keep it. Assisted or per-machine would break hands-off updates.
   oneClick: true
   perMachine: false
   allowElevation: false

@@ -13,11 +13,15 @@ const api = (): NonNullable<Window['sideline']> => {
 export const TopBar = ({
   state,
   screen,
-  onScreen
+  onScreen,
+  updateReady = false,
+  onInstallUpdate
 }: {
   state: AppState
   screen: Screen
   onScreen: (screen: Screen) => void
+  updateReady?: boolean
+  onInstallUpdate?: () => void
 }): JSX.Element => {
   const handleOverlay = (): void => {
     void api().toggleOverlay()
@@ -65,6 +69,16 @@ export const TopBar = ({
           )
         })}
         <div className="ml-2 flex items-center gap-1.5">
+          {updateReady ? (
+            <button
+              type="button"
+              onClick={() => onInstallUpdate?.()}
+              className="no-drag inline-flex cursor-pointer items-center rounded-full bg-lime/10 px-2.5 py-1 text-xs font-medium text-lime ring-1 ring-lime"
+              data-update-pill="ready"
+            >
+              Update ready, restart
+            </button>
+          ) : null}
           <button
             type="button"
             role="switch"

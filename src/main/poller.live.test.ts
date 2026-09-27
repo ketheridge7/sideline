@@ -14,7 +14,7 @@ vi.mock('electron', () => {
     BrowserWindow: class {},
     session: {
       fromPartition: () => ({
-        cookies: { get: async () => [] },
+        cookies: { get: async () => [], remove: async () => undefined },
         clearStorageData: async () => undefined
       })
     }
@@ -488,61 +488,72 @@ describe('poller live tick order', () => {
   })
 
   it('does not refetch Sleeper /matchups after GET /user on a true-cold HUD', async () => {
-    const dir = app.getPath('userData')
-    const leagueId = '123456789'
-    saveSettings({
-      sleeperUsername: 'tester',
-      sleeperUserId: null,
-      selectedLeagueKey: leagueKey('sleeper', leagueId),
-      espnLeagueIds: [],
-      pinnedLeagueKeys: []
-    })
-    writeNfl(dir)
-    const hudPath = join(dir, 'sideline-last-hud.json')
-    if (existsSync(hudPath)) unlinkSync(hudPath)
-    warmupPollerCaches()
-
-    const urls: string[] = []
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) => {
-        urls.push(url)
-        if (url.includes('/user/tester')) {
-          await new Promise((resolve) => setTimeout(resolve, 80))
-          return jsonOk({ user_id: 'me', username: 'tester' })
-        }
-        if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
-        if (url.includes('/rosters')) {
-          return jsonOk([
-            { roster_id: 1, owner_id: 'me', settings: { wins: 1, losses: 0 } },
-            { roster_id: 2, owner_id: 'them', settings: { wins: 0, losses: 1 } }
-          ])
-        }
-        if (url.includes('/league/') && url.includes('/users')) {
-          return jsonOk([
-            { user_id: 'me', display_name: 'Me', metadata: { team_name: 'Mine' } },
-            { user_id: 'them', display_name: 'You', metadata: { team_name: 'Yours' } }
-          ])
-        }
-        if (url.includes('/state/nfl')) {
-          return jsonOk({
-            week: 1,
-            display_week: 1,
-            season: '2026',
-            league_season: '2026',
-            season_type: 'regular'
-          })
-        }
-        if (url.includes('/leagues/')) return jsonOk([])
-        if (url.includes('scoreboard')) return jsonOk({ events: [] })
-        return jsonOk([])
+    const bucketMs = 3_000
+    let now = Math.floor(Date.now() / bucketMs) * bucketMs + bucketMs - 10
+    const coldBust = String(Math.floor(now / bucketMs))
+    const dateNow = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      const dir = app.getPath('userData')
+      const leagueId = '123456789'
+      saveSettings({
+        sleeperUsername: 'tester',
+        sleeperUserId: null,
+        selectedLeagueKey: leagueKey('sleeper', leagueId),
+        espnLeagueIds: [],
+        pinnedLeagueKeys: []
       })
-    )
+      writeNfl(dir)
+      const hudPath = join(dir, 'sideline-last-hud.json')
+      if (existsSync(hudPath)) unlinkSync(hudPath)
+      warmupPollerCaches()
 
-    await refresh({ waitForBoards: true })
-    await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
-    expect(urls.filter((url) => url.includes('/matchups/'))).toHaveLength(1)
-    expect(urls.some((url) => url.includes('/user/tester'))).toBe(true)
+      const urls: string[] = []
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => {
+          urls.push(url)
+          if (url.includes('/user/tester')) {
+            await new Promise((resolve) => setTimeout(resolve, 80))
+            now += 80
+            return jsonOk({ user_id: 'me', username: 'tester' })
+          }
+          if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+          if (url.includes('/rosters')) {
+            return jsonOk([
+              { roster_id: 1, owner_id: 'me', settings: { wins: 1, losses: 0 } },
+              { roster_id: 2, owner_id: 'them', settings: { wins: 0, losses: 1 } }
+            ])
+          }
+          if (url.includes('/league/') && url.includes('/users')) {
+            return jsonOk([
+              { user_id: 'me', display_name: 'Me', metadata: { team_name: 'Mine' } },
+              { user_id: 'them', display_name: 'You', metadata: { team_name: 'Yours' } }
+            ])
+          }
+          if (url.includes('/state/nfl')) {
+            return jsonOk({
+              week: 1,
+              display_week: 1,
+              season: '2026',
+              league_season: '2026',
+              season_type: 'regular'
+            })
+          }
+          if (url.includes('/leagues/')) return jsonOk([])
+          if (url.includes('scoreboard')) return jsonOk({ events: [] })
+          return jsonOk([])
+        })
+      )
+
+      await refresh({ waitForBoards: true })
+      await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
+      const matchupUrls = urls.filter((url) => url.includes('/matchups/'))
+      expect(matchupUrls).toHaveLength(1)
+      expect(new URL(matchupUrls[0]).searchParams.get('_')).toBe(coldBust)
+      expect(urls.some((url) => url.includes('/user/tester'))).toBe(true)
+    } finally {
+      dateNow.mockRestore()
+    }
   })
 
   it('does not refetch selected Sleeper /matchups when rest prefetch already has that league', async () => {

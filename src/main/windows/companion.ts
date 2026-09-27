@@ -9,6 +9,7 @@ import {
 } from '../packagingIcon'
 import { runtime } from '../runtime'
 import { loadSettings } from '../store'
+import { windowClosePlan } from '../updateQuit'
 import { COMPANION_CONSTRAINTS, initialWindowBounds } from '../windowPlacement'
 import { loadRenderer } from './load'
 import { attachBrowserWindowPlacement, snapshotDisplays } from './placementHost'
@@ -55,7 +56,7 @@ export const createCompanionWindow = (): BrowserWindow => {
 
   const recovery = createRendererRecovery({
     role: 'companion',
-    quitting: () => runtime.isQuitting(),
+    quitting: () => runtime.isQuitting() || runtime.isQuittingForUpdate(),
     isDestroyed: () => win.isDestroyed(),
     reload: () => {
       if (!win.isDestroyed()) win.webContents.reload()
@@ -70,12 +71,17 @@ export const createCompanionWindow = (): BrowserWindow => {
   })
 
   win.on('close', (event) => {
-    if (runtime.isQuitting()) return
+    if (windowClosePlan(runtime.isQuitting(), runtime.isQuittingForUpdate()) === 'close') return
     event.preventDefault()
     win.hide()
   })
 
   attachBrowserWindowPlacement(win, 'companion')
+
+  win.once('ready-to-show', () => {
+    runtime.noteCompanionReady()
+  })
+
   loadRenderer(win, 'companion')
   runtime.setCompanion(win)
   return win

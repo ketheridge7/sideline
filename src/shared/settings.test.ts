@@ -35,6 +35,32 @@ describe('hydrateSettings', () => {
     expect(hydrateSettings({ sleeperLeagueIds: [] }).sleeperLeagueIds).toEqual([])
   })
 
+  it('migrates a saved font color into all text without dropping role overrides', () => {
+    const migrated = hydrateSettings({
+      overlayLayout: {
+        schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
+        presetId: '2',
+        fontColor: '#b6ff3b'
+      } as never
+    })
+    expect(migrated.overlayLayout.textColors.all).toBe('#B6FF3B')
+    expect(migrated.overlayLayout.textColors.playerName).toBeNull()
+    expect(migrated.overlayLayout.textColors.teamName).toBeNull()
+    expect(migrated.overlayLayout.presetId).toBe('2')
+    const kept = hydrateSettings({
+      overlayLayout: {
+        schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
+        presetId: '3',
+        fontColor: '#FFFFFF',
+        textColors: { all: '#E8E4DC', playerScore: '#b6ff3b', teamName: 'nope' }
+      } as never
+    })
+    expect(kept.overlayLayout.textColors.all).toBe('#E8E4DC')
+    expect(kept.overlayLayout.textColors.playerScore).toBe('#B6FF3B')
+    expect(kept.overlayLayout.textColors.teamName).toBeNull()
+    expect(kept.overlayLayout.textColors.playerName).toBeNull()
+  })
+
   it('auto-heals a stale overlay layout to Preset 1 and keeps slots 1–5', () => {
     const next = hydrateSettings({
       overlayLayout: {
@@ -104,6 +130,44 @@ describe('hydrateSettings', () => {
     const again = hydrateSettings(saved)
     expect(again.overlayDisplayHotkey).toBe('CommandOrControl+Shift+K')
     expect(again.overlayHotkey).toBe('CommandOrControl+Alt+O')
+  })
+
+  it('keeps HUD visibility and migrates absolute companion bounds into a placement', () => {
+    expect(defaultSettings().overlayOpen).toBe(false)
+    expect(defaultSettings().windowPlacements).toEqual({ companion: null, overlay: null })
+    const saved = hydrateSettings({
+      overlayOpen: true,
+      companionBounds: { x: 12, y: 24, width: 1280, height: 800 }
+    })
+    expect(saved.overlayOpen).toBe(true)
+    expect(saved.windowPlacements.companion?.legacyRect).toEqual({ x: 12, y: 24, width: 1280, height: 800 })
+    expect(saved.windowPlacements.companion?.anchorSpace).toBe('workArea')
+    expect('companionBounds' in saved).toBe(false)
+    expect(
+      hydrateSettings({ overlayOpen: false, companionBounds: { x: 1, y: 2, width: 100, height: 100 } }).windowPlacements
+        .companion
+    ).toBeNull()
+    expect(hydrateSettings({}).overlayOpen).toBe(false)
+    const kept = hydrateSettings({
+      companionBounds: { x: 12, y: 24, width: 1280, height: 800 },
+      windowPlacements: {
+        companion: {
+          v: 1,
+          displayId: 2,
+          displayBounds: { x: 1920, y: 0, width: 2048, height: 1152 },
+          displayWorkArea: { x: 1920, y: 0, width: 2048, height: 1112 },
+          scaleFactor: 1.25,
+          anchorX: 1,
+          anchorY: 1,
+          width: 1440,
+          height: 900,
+          anchorSpace: 'workArea'
+        },
+        overlay: null
+      }
+    })
+    expect(kept.windowPlacements.companion?.displayId).toBe(2)
+    expect(kept.windowPlacements.companion?.legacyRect).toBeUndefined()
   })
 
   it('does not treat the display key M as the Meta modifier', () => {

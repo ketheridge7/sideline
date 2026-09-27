@@ -123,7 +123,7 @@ Packaged builds flip Electron fuses (`electron-builder.yml`), including cookie e
 
 Installed Windows builds check **public GitHub Releases** (`ketheridge7/sideline`) via `electron-updater`. People running the installed app do **not** need a GitHub token. `npm start` / `electron-vite` never talks to the updater.
 
-Connect → **Check for updates**. On startup (packaged only) Sideline also checks once. A toast appears when an update is available or finished downloading. **Restart to install** runs the NSIS installer (`quitAndInstall`).
+Connect → **Check for updates** shows Checking, Up to date, Downloading N%, Ready (restart), or an error. Packaged builds also check a few seconds after the window is ready, then every 4 hours, and download in the background with no dialogs. When the download finishes, a banner counts down 10 seconds and relaunches through a silent NSIS install (`quitAndInstall(true, true)`). **Later** waits until the next quit. `npm start` does not check; it says updates are available in the installed app.
 
 ### Ship a release
 

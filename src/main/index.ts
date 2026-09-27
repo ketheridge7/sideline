@@ -1,6 +1,7 @@
-import { app, globalShortcut, net } from 'electron'
+import { app, BrowserWindow, globalShortcut, net } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { bindAppFetch, bindEspnFetch } from './http'
+import { espnSignInPreviewEnabled, previewEspnFetch, seedEspnSignInPreview } from './espnSignInPreview'
 import { espnSession } from './windows/espnLogin'
 import { registerIpc } from './ipc'
 import { appendLog, bindLogDir, installProcessLogging, userDataLogDir } from './log'
@@ -10,14 +11,17 @@ import { releaseLanPowerSave } from './powerSave'
 import { runtime } from './runtime'
 import { isLanOverlayToken } from '@shared/settings'
 import { shortcutRegistrationError } from '@shared/shortcuts'
-import { bindLanTokenPersistence, startOverlayServer, publishOverlay } from './server'
+import { bindLanTokenPersistence, shutdownOverlayServerForQuit, startOverlayServer, publishOverlay } from './server'
 import { loadSettings, saveSettings } from './store'
 import { registerAppShortcuts } from './shortcuts'
 import { runStartup, startupErrorMessage } from './startup'
-import { createTray } from './tray'
-import { startAutoUpdater } from './updater'
+import { persistSessionForRelaunch, restoreOverlayFromSettings } from './sessionRestore'
+import { createTray, destroyTray } from './tray'
+import { handleBeforeQuit } from './updateQuit'
+import { armUpdatePreviewShot } from './updatePreviewShot'
+import { noteCompanionReady, startAutoUpdater } from './updater'
 import { createCompanionWindow } from './windows/companion'
-import { flushTrackedPlacements, listenForDisplayChanges } from './windows/placementHost'
+import { listenForDisplayChanges } from './windows/placementHost'
 
 installProcessLogging()
 
@@ -44,13 +48,34 @@ const bindPersistedLanToken = (): void => {
   })
 }
 
-app.whenReady().then(() => {
+const beginUpdateQuit = (): void => {
+  runtime.setQuittingForUpdate(true)
+  persistSessionForRelaunch()
+  destroyTray()
+  shutdownOverlayServerForQuit()
+  app.releaseSingleInstanceLock()
+}
+
+app.whenReady().then(async () => {
   if (!gotLock) return
   listenForDisplayChanges()
   bindLogDir(userDataLogDir())
+  runtime.setOnCompanionReady(noteCompanionReady)
+  runtime.setBeginUpdateQuit(beginUpdateQuit)
   bindPersistedLanToken()
   bindAppFetch((url, init) => net.fetch(url, init))
-  bindEspnFetch((url, init) => espnSession().fetch(url, init))
+  if (espnSignInPreviewEnabled()) {
+    try {
+      await seedEspnSignInPreview()
+    } catch (error) {
+      console.error('[sideline] ESPN sign-in preview seed failed', error)
+    }
+    bindEspnFetch((url, init) =>
+      previewEspnFetch(url, init, (nextUrl, nextInit) => espnSession().fetch(nextUrl, nextInit))
+    )
+  } else {
+    bindEspnFetch((url, init) => espnSession().fetch(url, init))
+  }
   electronApp.setAppUserModelId('com.sideline.app')
 
   if (process.platform === 'darwin') {
@@ -99,6 +124,8 @@ app.whenReady().then(() => {
       app.quit()
     }
   })
+  restoreOverlayFromSettings()
+  armUpdatePreviewShot(() => runtime.companion())
 })
 
 app.on('activate', () => {
@@ -106,14 +133,25 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', () => {
-  flushTrackedPlacements()
-  runtime.setQuitting(true)
-  releaseLanPowerSave()
-  globalShortcut.unregisterAll()
+  handleBeforeQuit({
+    quittingForUpdate: runtime.isQuittingForUpdate(),
+    setQuitting: () => runtime.setQuitting(true),
+    persistSession: persistSessionForRelaunch,
+    destroyTray,
+    shutdownOverlayServer: shutdownOverlayServerForQuit,
+    releaseSingleInstanceLock: () => {
+      app.releaseSingleInstanceLock()
+    },
+    releasePowerSave: releaseLanPowerSave,
+    unregisterShortcuts: () => {
+      globalShortcut.unregisterAll()
+    },
+    windows: BrowserWindow.getAllWindows()
+  })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && runtime.isQuitting()) {
+  if (process.platform !== 'darwin' && (runtime.isQuitting() || runtime.isQuittingForUpdate())) {
     app.quit()
   }
 })

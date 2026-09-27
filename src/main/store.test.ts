@@ -106,6 +106,29 @@ describe('settings store', () => {
     expect(loaded.windowPlacements.overlay).toBeNull()
   })
 
+  it('rewrites a pre-placement companionBounds rect into windowPlacements', () => {
+    writeFileSync(
+      settingsPath(),
+      JSON.stringify({
+        overlayOpen: true,
+        companionBounds: { x: 12, y: 24, width: 1280, height: 800 }
+      }),
+      'utf8'
+    )
+    const loaded = loadSettings()
+    expect(loaded.overlayOpen).toBe(true)
+    expect(loaded.windowPlacements.companion?.legacyRect).toEqual({ x: 12, y: 24, width: 1280, height: 800 })
+    expect('companionBounds' in loaded).toBe(false)
+    const disk = JSON.parse(readFileSync(settingsPath(), 'utf8')) as {
+      companionBounds?: unknown
+      overlayOpen: boolean
+      windowPlacements: { companion: { legacyRect: { x: number; y: number; width: number; height: number } } }
+    }
+    expect(disk.companionBounds).toBeUndefined()
+    expect(disk.overlayOpen).toBe(true)
+    expect(disk.windowPlacements.companion.legacyRect).toEqual({ x: 12, y: 24, width: 1280, height: 800 })
+  })
+
   it('treats a missing settings file as defaults without a notice', () => {
     rmSync(settingsPath(), { force: true })
     resetStoreForTests()

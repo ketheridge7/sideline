@@ -1,12 +1,11 @@
 import { useEffect, useState, type JSX, type MouseEvent } from 'react'
 import {
   applyPreset,
-  HUD_FONT_SWATCHES,
   overwritePreset,
-  parseHudFontColor,
   PRESET_LABELS,
   PRESET_PLACEMENTS,
   OVERLAY_PRESET_IDS,
+  type HudTextHighlight,
   type OverlayLayout,
   type OverlayPresetId
 } from '@shared/overlayLayout'
@@ -22,6 +21,7 @@ import { toOverlayHud } from '@shared/types'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
 import { hudWidgetFontClass, hudWidgetFontStyle } from '../overlay/fontColor'
 import { OverlayWidgetView } from '../overlay/Widgets'
+import { StudioTextColors } from './StudioTextColors'
 import studioPlateUrl from '../assets/studio-plate.jpg'
 
 const api = (): NonNullable<Window['sideline']> => {
@@ -71,7 +71,7 @@ const Slider = ({
   disabled?: boolean
   onChange: (value: number) => void
 }): JSX.Element => (
-  <label className="grid gap-1 text-xs uppercase tracking-wide text-muted">
+  <label className="grid gap-0.5 text-[10px] uppercase tracking-wide text-muted">
     <span className="flex items-center justify-between">
       {label}
       <span className="tabular-nums text-text">{Math.round(value)}</span>
@@ -99,6 +99,7 @@ export const OverlayStudio = ({
   const [draft, setDraft] = useState<OverlayLayout | null>(null)
   const [selected, setSelected] = useState<StudioBlockId | null>(initialSelectedBlock)
   const [collapsed, setCollapsed] = useState(false)
+  const [highlight, setHighlight] = useState<HudTextHighlight | null>(null)
   const layout = draft ?? state.overlayLayout
   const hud = toOverlayHud(state)
   const target = selected ? studioBlockBox(layout, selected) : null
@@ -176,34 +177,17 @@ export const OverlayStudio = ({
         </button>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-3 overflow-auto p-3 text-sm">
-        <div className="grid gap-1">
-          <span className="text-xs uppercase tracking-wide text-muted">Preset</span>
-          <div className="studio-presets" data-active-preset={layout.presetId}>
-            {OVERLAY_PRESET_IDS.map((id) => {
-              const active = layout.presetId === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  data-preset={id}
-                  onClick={() => handlePreset(id)}
-                  className={`cursor-pointer border px-1 py-1.5 font-cond text-sm font-bold ${
-                    active ? 'studio-preset-active border-lime bg-lime/15 text-lime' : 'border-line text-muted'
-                  }`}
-                  aria-pressed={active}
-                  aria-label={`${PRESET_LABELS[id]}, ${PRESET_PLACEMENTS[id]}`}
-                >
-                  {id}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-auto px-2.5 py-2 text-sm">
+        <StudioTextColors
+          colors={layout.textColors}
+          onChange={(textColors) => save({ ...layout, textColors })}
+          onHighlight={setHighlight}
+        />
 
         <div
-          className="relative aspect-video overflow-hidden bg-[#0c2418]"
+          className="studio-preview relative aspect-video overflow-hidden bg-[#0c2418]"
           data-studio-preview="hud"
+          data-studio-highlight={highlight ?? 'none'}
           onClick={handlePreviewClick}
         >
           <div
@@ -231,9 +215,9 @@ export const OverlayStudio = ({
               return (
                 <div
                   key={widget.id}
-                  className={`hud-widget hud-frost pointer-events-none absolute overflow-visible ${hudWidgetFontClass(layout.fontColor)}`}
+                  className={`hud-widget hud-frost pointer-events-none absolute overflow-visible ${hudWidgetFontClass(layout.textColors)}`}
                   data-density={resolveDensity('desktop', widget.density)}
-                  data-hud-font={layout.fontColor ?? 'default'}
+                  data-hud-font={layout.textColors.all ?? 'default'}
                   style={{
                     left: `${widget.x}%`,
                     top: `${widget.y}%`,
@@ -241,7 +225,7 @@ export const OverlayStudio = ({
                     height: `${widget.h}%`,
                     background: hudWidgetFill(fill),
                     textShadow: HUD_TEXT_SHADOW,
-                    ...hudWidgetFontStyle(layout.fontColor)
+                    ...hudWidgetFontStyle(layout.textColors)
                   }}
                 >
                   {widget.id === 'ticker.nfl' && hud.nflTicker.length === 0 ? (
@@ -257,7 +241,7 @@ export const OverlayStudio = ({
                       surface="desktop"
                       density={widget.density}
                       showCrawler={layout.showCrawler}
-                      fontColor={layout.fontColor}
+                      textColors={layout.textColors}
                     />
                   )}
                 </div>
@@ -292,103 +276,77 @@ export const OverlayStudio = ({
           </div>
         </div>
 
-        <p className="text-xs text-muted" data-studio-slider-target={selected ?? 'none'}>
-          {selected
-            ? `Moving ${STUDIO_BLOCK_LABELS[selected]}`
-            : 'Click your team, their team, or the ticker. Sliders move that block only.'}
-        </p>
-
-        <Slider
-          label="Position X"
-          value={target?.x ?? 0}
-          min={0}
-          max={96}
-          disabled={!selected}
-          onChange={(x) => handleBox({ x })}
-        />
-        <Slider
-          label="Position Y"
-          value={target?.y ?? 0}
-          min={0}
-          max={96}
-          disabled={!selected}
-          onChange={(y) => handleBox({ y })}
-        />
-        <Slider
-          label="Width"
-          value={target?.w ?? 0}
-          min={selected === 'ticker' ? 24 : 8}
-          max={100}
-          disabled={!selected}
-          onChange={(w) => handleBox({ w })}
-        />
-        <Slider
-          label="Height"
-          value={target?.h ?? 0}
-          min={selected === 'ticker' ? 4 : 12}
-          max={90}
-          disabled={!selected}
-          onChange={(h) => handleBox({ h })}
-        />
-
-        <div className="grid gap-1.5" data-studio-font={layout.fontColor ?? 'default'}>
-          <span className="text-xs uppercase tracking-wide text-muted">Font color</span>
-          <div className="grid grid-cols-5 gap-1">
-            {HUD_FONT_SWATCHES.map((swatch) => {
-              const active = (layout.fontColor ?? null) === swatch.color
+        <section className="grid gap-1" data-studio-section="layout">
+          <h3 className="font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Layout</h3>
+          <div className="studio-presets" data-active-preset={layout.presetId}>
+            {OVERLAY_PRESET_IDS.map((id) => {
+              const active = layout.presetId === id
               return (
                 <button
-                  key={swatch.id}
+                  key={id}
                   type="button"
-                  data-font-swatch={swatch.id}
-                  aria-pressed={active}
-                  aria-label={swatch.label}
-                  onClick={() => save({ ...layout, fontColor: swatch.color })}
-                  className={`grid cursor-pointer justify-items-center gap-1 border px-0.5 py-1 ${
-                    active ? 'border-lime text-lime' : 'border-line text-muted'
+                  data-preset={id}
+                  onClick={() => handlePreset(id)}
+                  className={`cursor-pointer border px-1 py-1 font-cond text-sm font-bold ${
+                    active ? 'studio-preset-active border-lime bg-lime/15 text-lime' : 'border-line text-muted'
                   }`}
+                  aria-pressed={active}
+                  aria-label={`${PRESET_LABELS[id]}, ${PRESET_PLACEMENTS[id]}`}
                 >
-                  <span
-                    className="h-4 w-full border border-line"
-                    style={{ background: swatch.color ?? '#F4F6F8' }}
-                  />
-                  <span className="font-cond text-[10px] font-bold uppercase tracking-wide">{swatch.label}</span>
+                  {id}
                 </button>
               )
             })}
           </div>
-          <label className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted">
-            Custom
-            <input
-              type="color"
-              aria-label="Custom font color"
-              data-font-custom=""
-              value={layout.fontColor ?? '#F4F6F8'}
-              onChange={(event) => {
-                const next = parseHudFontColor(event.target.value)
-                if (next) save({ ...layout, fontColor: next })
-              }}
-              className="h-6 w-10 cursor-pointer border border-line bg-transparent"
-            />
-          </label>
           <button
             type="button"
-            data-font-reset=""
-            disabled={layout.fontColor == null}
-            onClick={() => save({ ...layout, fontColor: null })}
-            className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text disabled:opacity-40"
+            onClick={() => save(overwritePreset(layout))}
+            className="cursor-pointer border border-line px-2 py-1 text-[10px] uppercase tracking-wide text-muted hover:text-text"
           >
-            Reset to default
+            Save over {PRESET_LABELS[layout.presetId]}
           </button>
-        </div>
+        </section>
 
-        <button
-          type="button"
-          onClick={() => save(overwritePreset(layout))}
-          className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text"
-        >
-          Save over {PRESET_LABELS[layout.presetId]}
-        </button>
+        <section className="grid gap-1" data-studio-section="size">
+          <h3 className="font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Size</h3>
+          <p className="text-[10px] leading-snug text-muted" data-studio-slider-target={selected ?? 'none'}>
+            {selected
+              ? `Moving ${STUDIO_BLOCK_LABELS[selected]}`
+              : 'Click your team, their team, or the ticker. Sliders move that block only.'}
+          </p>
+          <Slider
+            label="Position X"
+            value={target?.x ?? 0}
+            min={0}
+            max={96}
+            disabled={!selected}
+            onChange={(x) => handleBox({ x })}
+          />
+          <Slider
+            label="Position Y"
+            value={target?.y ?? 0}
+            min={0}
+            max={96}
+            disabled={!selected}
+            onChange={(y) => handleBox({ y })}
+          />
+          <Slider
+            label="Width"
+            value={target?.w ?? 0}
+            min={selected === 'ticker' ? 24 : 8}
+            max={100}
+            disabled={!selected}
+            onChange={(w) => handleBox({ w })}
+          />
+          <Slider
+            label="Height"
+            value={target?.h ?? 0}
+            min={selected === 'ticker' ? 4 : 12}
+            max={90}
+            disabled={!selected}
+            onChange={(h) => handleBox({ h })}
+          />
+        </section>
       </div>
       </div>
     </aside>
