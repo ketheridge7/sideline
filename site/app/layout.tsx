@@ -52,10 +52,11 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png", sizes: "1024x1024" },
     ],
-    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
   },
 };
 
