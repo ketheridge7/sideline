@@ -1,4 +1,4 @@
-import { app, globalShortcut, net } from 'electron'
+import { app, BrowserWindow, globalShortcut, net } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { bindAppFetch, bindEspnFetch } from './http'
 import { espnSession } from './windows/espnLogin'
@@ -10,12 +10,15 @@ import { releaseLanPowerSave } from './powerSave'
 import { runtime } from './runtime'
 import { isLanOverlayToken } from '@shared/settings'
 import { shortcutRegistrationError } from '@shared/shortcuts'
-import { bindLanTokenPersistence, startOverlayServer, publishOverlay } from './server'
+import { bindLanTokenPersistence, shutdownOverlayServerForQuit, startOverlayServer, publishOverlay } from './server'
 import { loadSettings, saveSettings } from './store'
 import { registerAppShortcuts } from './shortcuts'
 import { runStartup, startupErrorMessage } from './startup'
-import { createTray } from './tray'
-import { startAutoUpdater } from './updater'
+import { persistSessionForRelaunch, restoreOverlayFromSettings } from './sessionRestore'
+import { createTray, destroyTray } from './tray'
+import { handleBeforeQuit } from './updateQuit'
+import { armUpdatePreviewShot } from './updatePreviewShot'
+import { noteCompanionReady, startAutoUpdater } from './updater'
 import { createCompanionWindow } from './windows/companion'
 
 installProcessLogging()
@@ -43,9 +46,19 @@ const bindPersistedLanToken = (): void => {
   })
 }
 
+const beginUpdateQuit = (): void => {
+  runtime.setQuittingForUpdate(true)
+  persistSessionForRelaunch()
+  destroyTray()
+  shutdownOverlayServerForQuit()
+  app.releaseSingleInstanceLock()
+}
+
 app.whenReady().then(() => {
   if (!gotLock) return
   bindLogDir(userDataLogDir())
+  runtime.setOnCompanionReady(noteCompanionReady)
+  runtime.setBeginUpdateQuit(beginUpdateQuit)
   bindPersistedLanToken()
   bindAppFetch((url, init) => net.fetch(url, init))
   bindEspnFetch((url, init) => espnSession().fetch(url, init))
@@ -97,6 +110,8 @@ app.whenReady().then(() => {
       app.quit()
     }
   })
+  restoreOverlayFromSettings()
+  armUpdatePreviewShot(() => runtime.companion())
 })
 
 app.on('activate', () => {
@@ -104,13 +119,25 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', () => {
-  runtime.setQuitting(true)
-  releaseLanPowerSave()
-  globalShortcut.unregisterAll()
+  handleBeforeQuit({
+    quittingForUpdate: runtime.isQuittingForUpdate(),
+    setQuitting: () => runtime.setQuitting(true),
+    persistSession: persistSessionForRelaunch,
+    destroyTray,
+    shutdownOverlayServer: shutdownOverlayServerForQuit,
+    releaseSingleInstanceLock: () => {
+      app.releaseSingleInstanceLock()
+    },
+    releasePowerSave: releaseLanPowerSave,
+    unregisterShortcuts: () => {
+      globalShortcut.unregisterAll()
+    },
+    windows: BrowserWindow.getAllWindows()
+  })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && runtime.isQuitting()) {
+  if (process.platform !== 'darwin' && (runtime.isQuitting() || runtime.isQuittingForUpdate())) {
     app.quit()
   }
 })

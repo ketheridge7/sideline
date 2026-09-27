@@ -86,7 +86,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   applyOverlayBounds(win)
   const recovery = createRendererRecovery({
     role: 'overlay',
-    quitting: () => runtime.isQuitting(),
+    quitting: () => runtime.isQuitting() || runtime.isQuittingForUpdate(),
     isDestroyed: () => win.isDestroyed(),
     reload: () => {
       if (!win.isDestroyed()) win.webContents.reload()

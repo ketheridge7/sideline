@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
 import { appendLog } from '../log'
+import { initialCompanionBounds } from '../companionBounds'
 import {
   bindEmptyNativeTitle,
   COMPANION_TITLEBAR_OVERLAY,
@@ -8,6 +9,7 @@ import {
   packagingWindowIconPath
 } from '../packagingIcon'
 import { runtime } from '../runtime'
+import { windowClosePlan } from '../updateQuit'
 import { loadRenderer } from './load'
 import { createRendererRecovery } from './rendererCrash'
 
@@ -19,9 +21,11 @@ export const createCompanionWindow = (): BrowserWindow => {
     return existing
   }
 
+  const restored = initialCompanionBounds()
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: restored?.width ?? 1440,
+    height: restored?.height ?? 900,
+    ...(restored ? { x: restored.x, y: restored.y } : {}),
     minWidth: 1100,
     minHeight: 700,
     title: NATIVE_WINDOW_TITLE,
@@ -42,7 +46,7 @@ export const createCompanionWindow = (): BrowserWindow => {
 
   const recovery = createRendererRecovery({
     role: 'companion',
-    quitting: () => runtime.isQuitting(),
+    quitting: () => runtime.isQuitting() || runtime.isQuittingForUpdate(),
     isDestroyed: () => win.isDestroyed(),
     reload: () => {
       if (!win.isDestroyed()) win.webContents.reload()
@@ -57,9 +61,13 @@ export const createCompanionWindow = (): BrowserWindow => {
   })
 
   win.on('close', (event) => {
-    if (runtime.isQuitting()) return
+    if (windowClosePlan(runtime.isQuitting(), runtime.isQuittingForUpdate()) === 'close') return
     event.preventDefault()
     win.hide()
+  })
+
+  win.once('ready-to-show', () => {
+    runtime.noteCompanionReady()
   })
 
   loadRenderer(win, 'companion')

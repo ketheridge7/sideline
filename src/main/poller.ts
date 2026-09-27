@@ -3914,9 +3914,14 @@ const schedule = (live: boolean, elapsedMs: number, gen: number): void => {
   }, nextPollDelayMs(interval, elapsedMs))
 }
 
+export const flushHudForRelaunch = (): void => {
+  if (lastHudMem) writeLastHud(lastHudMem)
+}
+
 export const warmupPollerCaches = (): void => {
   if (!isReplayMode()) {
     const settings = loadSettings()
+    overlayVisible = settings.overlayOpen
     const stripped = stripReplayLeagueKeys(settings)
     if (
       stripped.selectedLeagueKey !== settings.selectedLeagueKey ||
@@ -4048,6 +4053,7 @@ export const warmupPollerCaches = (): void => {
       }),
       ...hotkeysAtPublish(settings, loadSettings()),
       overlayLayout: settings.overlayLayout,
+      overlayVisible,
       lastUpdated: Date.now(),
       ...lanFields()
     }
