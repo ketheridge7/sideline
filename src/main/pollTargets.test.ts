@@ -2595,6 +2595,25 @@ describe('espnConnectedPlan', () => {
     expect(espnConnectedPlan({ replay: true, hasCookies: false, lastConnected: false })).toBe(true)
   })
 
+  it('drops lastConnected after an explicit sign-out until cookies exist again', () => {
+    expect(
+      espnConnectedPlan({
+        replay: false,
+        hasCookies: false,
+        lastConnected: true,
+        sessionCleared: true
+      })
+    ).toBe(false)
+    expect(
+      espnConnectedPlan({
+        replay: false,
+        hasCookies: true,
+        lastConnected: false,
+        sessionCleared: true
+      })
+    ).toBe(true)
+  })
+
   it('does not treat leftover cookies as healthy after a 401', () => {
     expect(
       espnConnectedPlan({

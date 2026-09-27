@@ -87,7 +87,7 @@ import { backoffNoticePlan, settingsFileNotice, startupErrorNotice, statusErrorP
 import { syncLanPowerSave } from './powerSave'
 import { overlayLanState } from './server'
 import { leagueSettingsRevision, loadSettings, saveSettings } from './store'
-import { readEspnCookies } from './windows/espnLogin'
+import { clearEspnCookies, ESPN_SIGNIN_CLOSED, ESPN_SIGNIN_NO_COOKIES, readEspnCookies } from './windows/espnLogin'
 import { cacheFresh, espnDiscoverySwrPlan, espnHudCookiePlan, espnHudLikelyPrivate, espnLeagueIdsToDiscover, espnLeaguesCachePlan, espnScoreKickOrder, liveScorePriority, sleeperIdentityPriority, sleeperIdentityTimeoutMs, hudScoreFetchTimeoutMs, espnLiveFullSwrPlan, espnDeferredBoxscoreDrainPlan, espnScoreRefreshKey, espnBoxscoreSwrFreshPlan, espnBoxscoreRecoverStale, backgroundGetPriority, espnFullSwrPaintPlan, espnHudFromScorePlan, espnOverlayPtsPlan, espnBoxscoreSwrPtsPlan, espnScoreOnLiveFail, espnScoreOverlayPlan, espnTeamIdFromMatchup, espnTeamIdOf, espnTeamFetchKey, espnTeamIdLookupPlan, espnLiveOverlayCachePlan, espnLiveDiskHydratePlan, espnTeamsHydrateAfterScorePlan, espnTeamsKickPlan, espnTxCookieRetryPlan, espnTxKickOrder, espnUncachedDiscoveryPlan, espnLeaguesRememberPlan, espnCookieRetryAfterScorePlan, gamedayLiveTick, calendarFallbackLive, restSettleSchedulePlan, holdForSelectedLive, isLiveLeagueId, isLiveLeagueKey, mapSettledLimit, mergeProviderLeagues, leaguesForBoards, nextSleeperLeagueIdsOnConnect, nflCalendarSeed, calendarNflFallback, nflWeekShifted, peekSettled, recentLiveCallMs, restConcurrency, restScoreTimeoutMs, restScoreFetchPriority, restLeaguesToPrefetch, restMatchupFlightKey, restHudJoinPlan, restPrefetchColdPlan, seedScoreboardState, selectedFallbackPlan, firstListHudPlan, firstListHudKickPlan, restPrefetchGate, companionStatePlan, companionFlagsUnchanged, companionBoardsUnchanged, overlayHudPushPlan, nflScoreboardKickPlan, nflScoreboardSettleOrder, leagueListSettlePlan, nflStateSwrPlan, nflTickStartPlan, espnCookieSwrPlan, restTxKickPlan, sleeperFatSwrPlan, sleeperFatSwrPartsPlan, sleeperCdnBustToken, sleeperMatchupsHoldKey, sleeperIdentityHoldKey, sleeperMatchupsReusePlan, sleeperMatchupsRestJoinHudPlan, espnCompactLiveHoldKey, espnHoldStaleKeys, espnCompactLiveJoinPlan, sleeperLeaguesLoadPlan, sleeperLeaguesSwrPlan, leagueListFetchPlan, matchupsDiskHydratePlan, playerDumpDiskPlan, afterSelectedSettlePlan, sleeperRestNameHydratePlan, sleeperRosterOverlayPlan, sleeperOverlayRosterSwrPlan, sleeperHudScorePlan, sleeperOverlayMissPlan, sleeperRosterDiskPlan, sleeperScoreNamePlan, sleeperTxNamePlan, sleeperPrevMatchup, sleeperUserSwrPlan, sleeperUserFetchJoinPlan, sleeperUserFromSettings, sleeperUserHudPlan, splitHotCold, stripReplayLeagueKeys, stubLeagueFromKey, hudHintKey, pickSelectedLeagueKey, warmupLeaguesFromDisk, warmupMatchupFromDisk, warmupNflCachePlan, weekShiftKickOrder, lastHudDiskPlan, liveDiskPersistPlan, broadcastOrderPlan, earlyDiskHudPlan, matchupsPersistPlan, liveMatchupsPersistPlan, matchupsPersistSig, settleMatchupPlan, seedHudMatchupPlan, refreshJoinPlan, espnConnectedPlan, espnCookiePrimePlan, settleSelectedKeyPlan, restPrefetchAwaitPlan, confirmNflWeekSourcePlan, nflFromEspnScoringPeriod, espnMatchupPeriodsKickPlan, sleeperProjectionKindPlan, type LastHudSnapshot } from './pollTargets'
 import { readEspnLeaguesDisk, readEspnMatchupPeriodsDisk, writeEspnMatchupPeriodsDisk, readEspnScoresDisk, readEspnTeamsDisk, readLastHud, readMatchupsDisk, readNflDisk, readNflDiskStale, readSleeperLeaguesDisk, readSleeperRostersDisk, writeEspnLeaguesDisk, writeEspnScoresDisk, writeEspnTeamsDisk, writeLastHud, writeMatchupsDisk, writeNflDisk, writeSleeperLeaguesDisk, writeSleeperRostersDisk, clearLastHud } from './nflCache'
 
@@ -97,6 +97,16 @@ let sleeperUserVerified = false
 const pendingRosterSwr = new Set<string>()
 const pendingEspnFullSwr = new Set<string>()
 let espnNeedsRelogin = false
+/** True after sign-out or a failed login until a fresh espn_s2 + SWID pair is primed. */
+let espnSessionCleared = false
+let espnDiscoveryError: string | null = null
+
+const espnDiscoveryFailure = (error: unknown): string => {
+  if (error instanceof EspnHttpError && (error.status === 401 || error.status === 403)) {
+    return 'ESPN refused the session while listing leagues. Sign in again, or paste a league ID under Advanced.'
+  }
+  return 'Could not reach ESPN to list leagues. Check your connection, or paste a league ID under Advanced.'
+}
 const markEspnHttpAuth = (error: unknown): void => {
   if (error instanceof EspnHttpError && (error.status === 401 || error.status === 403)) {
     espnNeedsRelogin = true
@@ -104,6 +114,7 @@ const markEspnHttpAuth = (error: unknown): void => {
 }
 const markEspnSessionHealthy = (): void => {
   espnNeedsRelogin = false
+  espnSessionCleared = false
 }
 let launchWeekConfirmPending = true
 const refreshingLeagueKeys = new Set<string>()
@@ -671,6 +682,8 @@ const kickEspnCookieSwr = (liveTick = false): void => {
 
 export const invalidateEspnSession = (): void => {
   espnNeedsRelogin = true
+  espnSessionCleared = true
+  espnDiscoveryError = null
   espnCookieCache = null
   espnCookieInFlight = null
   espnLeaguesCache = null
@@ -697,11 +710,17 @@ export const invalidateEspnSession = (): void => {
     lastHudSig = ''
     clearLastHud()
   }
+  const selectedWasEspn = lastState.selectedLeagueKey?.startsWith('espn:') === true
+  // Drop ESPN leagues and the selected key so the next refresh cannot restore them
+  // from the HUD hint. Leave espnConnected / espnNeedsRelogin on lastState: broadcast
+  // diffs against that snapshot, and pre-writing the new flags makes the companion
+  // skip sideline:state (tick or boards only), so Connect stays on the old label.
   lastState = {
     ...lastState,
-    espnConnected: false,
-    espnNeedsRelogin: true,
-    matchup: lastState.selectedLeagueKey?.startsWith('espn:') ? null : lastState.matchup
+    leagues: lastState.leagues.filter((league) => league.provider !== 'espn'),
+    boards: lastState.boards.filter((board) => !board.key.startsWith('espn:')),
+    selectedLeagueKey: selectedWasEspn ? null : lastState.selectedLeagueKey,
+    matchup: selectedWasEspn ? null : lastState.matchup
   }
 }
 
@@ -1409,10 +1428,14 @@ const loadEspnLeaguesFresh = async (
 ): Promise<League[]> => {
   const gen = espnDiscoveryGen
   const knownIds = espnLeagueIdsToDiscover(loadSettings().espnLeagueIds, loadSettings().selectedLeagueKey)
+  let fanError: unknown = null
   const fanPromise = cookies
     ? probeFanLeagues(cookies, BACKGROUND_FETCH)
         .then((payload) => leaguesFromFanPayload(payload, nfl.leagueSeason, nfl.displayWeek))
-        .catch(() => [] as League[])
+        .catch((error: unknown) => {
+          fanError = error
+          return [] as League[]
+        })
     : Promise.resolve([] as League[])
   const knownPromise = Promise.all(knownIds.map((id) => loadEspnLeague(id, nfl, cookies)))
   const [probed, knownLeagues] = await Promise.all([fanPromise, knownPromise])
@@ -1425,6 +1448,7 @@ const loadEspnLeaguesFresh = async (
   }
   const found = [...byId.values()]
   if (gen !== espnDiscoveryGen) return found
+  espnDiscoveryError = found.length === 0 && fanError ? espnDiscoveryFailure(fanError) : null
   const remember = espnLeaguesRememberPlan({
     foundCount: found.length,
     hasCookies: Boolean(cookies)
@@ -1674,7 +1698,8 @@ const sleeperMatchup = async (
   league: League,
   nfl: NflState,
   hud = false,
-  liveTick = false
+  liveTick = false,
+  cacheBust?: string
 ): Promise<Matchup | null> => {
   if (isReplayMode()) return replayMatchup(league)
   if (!sleeperUser) {
@@ -1700,7 +1725,7 @@ const sleeperMatchup = async (
   })
   const matchupOpts = {
     ...(hud ? SCORE_FETCH : restScoreFetch(liveTick)),
-    cacheBust: sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
+    cacheBust: cacheBust ?? sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
   }
   const identityPriority = sleeperIdentityPriority(hud, liveTick)
   const identityOpts = {
@@ -2528,7 +2553,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           replay,
           hasCookies: Boolean(cookies),
           lastConnected: lastState.espnConnected,
-          unauthorized: espnNeedsRelogin
+          unauthorized: espnNeedsRelogin,
+          sessionCleared: espnSessionCleared
         }),
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         overlayPort: runtime.overlayPort(),
@@ -2595,6 +2621,9 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const earlySleeperPromise =
       hintLeague?.provider === 'sleeper'
         ? (async () => {
+            // One bust for this HUD load. GET /user can cross the 3s CDN bucket
+            // after /matchups has already settled; a fresh bust would kick a second GET.
+            const hudBust = sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
             const plan = sleeperUserHudPlan({
               sleeperHud: true,
               hasUser: Boolean(sleeperUser),
@@ -2604,7 +2633,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
               case 'now':
                 break
               case 'await-user':
-                void sleeperMatchup(hintLeague, nflState, true, liveTick).catch(() => null)
+                void sleeperMatchup(hintLeague, nflState, true, liveTick, hudBust).catch(() => null)
                 await ensureSleeperUser(true, liveTick)
                 break
               default: {
@@ -2612,7 +2641,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
                 void _never
               }
             }
-            return sleeperMatchup(hintLeague, nflState, true, liveTick)
+            return sleeperMatchup(hintLeague, nflState, true, liveTick, hudBust)
           })().catch(() => null)
         : Promise.resolve(null)
 
@@ -2873,11 +2902,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           })
         }
         if (league.provider === 'sleeper') {
-          return sleeperMatchup(league, weekNfl, hud, liveTick).then((loaded) => {
+          const bust = sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
+          return sleeperMatchup(league, weekNfl, hud, liveTick, bust).then((loaded) => {
             if (loaded || sleeperUser) return loaded
             return ensureSleeperUser(hud, liveTick).then((user) => {
               if (!user) return null
-              return sleeperMatchup(league, weekNfl, hud, liveTick)
+              return sleeperMatchup(league, weekNfl, hud, liveTick, bust)
             })
           })
         }
@@ -2939,16 +2969,17 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         if (!nextHint) return Promise.resolve()
         switch (nextHint.provider) {
           case 'sleeper': {
+            const bust = sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
             const kick = (user: SleeperUser | null): Promise<void> => {
               if (!user) return Promise.resolve()
-              return sleeperMatchup(nextHint, fresh, true, liveTick)
+              return sleeperMatchup(nextHint, fresh, true, liveTick, bust)
                 .then((loaded) => {
                   paintSelectedLive(nextHint, loaded)
                 })
                 .catch(() => undefined)
             }
             if (sleeperUser) return kick(sleeperUser)
-            void sleeperMatchup(nextHint, fresh, true, liveTick).catch(() => undefined)
+            void sleeperMatchup(nextHint, fresh, true, liveTick, bust).catch(() => undefined)
             return ensureSleeperUser(true, liveTick).then(kick)
           }
           case 'espn':
@@ -3617,7 +3648,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           replay,
           hasCookies: Boolean(cookies),
           lastConnected: lastState.espnConnected,
-          unauthorized: espnNeedsRelogin
+          unauthorized: espnNeedsRelogin,
+          sessionCleared: espnSessionCleared
         }),
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         nfl,
@@ -3886,7 +3918,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         replay,
         hasCookies: Boolean(espnCookieCache?.cookies),
         lastConnected: lastState.espnConnected,
-        unauthorized: espnNeedsRelogin
+        unauthorized: espnNeedsRelogin,
+        sessionCleared: espnSessionCleared
       }),
       espnNeedsRelogin,
       overlayPort: runtime.overlayPort(),
@@ -3914,9 +3947,14 @@ const schedule = (live: boolean, elapsedMs: number, gen: number): void => {
   }, nextPollDelayMs(interval, elapsedMs))
 }
 
+export const flushHudForRelaunch = (): void => {
+  if (lastHudMem) writeLastHud(lastHudMem)
+}
+
 export const warmupPollerCaches = (): void => {
   if (!isReplayMode()) {
     const settings = loadSettings()
+    overlayVisible = settings.overlayOpen
     const stripped = stripReplayLeagueKeys(settings)
     if (
       stripped.selectedLeagueKey !== settings.selectedLeagueKey ||
@@ -4048,6 +4086,7 @@ export const warmupPollerCaches = (): void => {
       }),
       ...hotkeysAtPublish(settings, loadSettings()),
       overlayLayout: settings.overlayLayout,
+      overlayVisible,
       lastUpdated: Date.now(),
       ...lanFields()
     }
@@ -4131,6 +4170,8 @@ export const resetPollerForTests = (): void => {
   matchupsDiskWeek = null
   liveTape = []
   espnNeedsRelogin = false
+  espnSessionCleared = false
+  espnDiscoveryError = null
   resetSleeperProjectionsCache()
   resetHostBackoff()
 }
@@ -4190,6 +4231,49 @@ export const disconnectSleeper = async (): Promise<void> => {
 
 export const markEspnRelogin = (needed: boolean): void => {
   espnNeedsRelogin = needed
+}
+
+/**
+ * Sign-in used to leave espnNeedsRelogin set, which hid the league checklist until a
+ * scoreboard fetch cleared it. First-time sign-in has no league to score, so Connect
+ * stayed on "Cookies expired". A saved espn_s2 + SWID pair is a session; 401s later
+ * can still raise the flag.
+ */
+export const completeEspnSignIn = async (login: {
+  ok: boolean
+  error?: string
+}): Promise<{ ok: boolean; error?: string }> => {
+  invalidateEspnSession()
+  if (!login.ok) {
+    markEspnRelogin(true)
+    await refresh({ waitForBoards: true })
+    return { ok: false, error: login.error ?? ESPN_SIGNIN_CLOSED }
+  }
+  const cookies = await primeEspnCookies()
+  if (!cookies) {
+    markEspnRelogin(true)
+    await refresh({ waitForBoards: true })
+    return { ok: false, error: ESPN_SIGNIN_NO_COOKIES }
+  }
+  espnSessionCleared = false
+  markEspnRelogin(false)
+  await refresh({ waitForBoards: true })
+  return { ok: true }
+}
+
+export const disconnectEspn = async (): Promise<void> => {
+  await clearEspnCookies()
+  invalidateEspnSession()
+  const settings = loadSettings()
+  const selected = settings.selectedLeagueKey
+  const parsed = selected ? parseLeagueKey(selected) : null
+  saveSettings({
+    espnLeagueIds: [],
+    pinnedLeagueKeys: settings.pinnedLeagueKeys.filter((key) => !key.startsWith('espn:')),
+    selectedLeagueKey: parsed?.provider === 'espn' ? null : selected
+  })
+  markEspnRelogin(false)
+  await refresh({ waitForBoards: true })
 }
 
 export const addEspnLeagueId = async (leagueId: string): Promise<{ ok: boolean; error?: string }> => {
@@ -4292,6 +4376,9 @@ export const listDiscoverableLeagues = async (provider: Provider): Promise<Disco
       const leagues = isReplayMode()
         ? currentState().leagues.filter((row) => row.provider === 'espn')
         : (espnLeaguesCache?.leagues ?? [])
+      if (!isReplayMode() && leagues.length === 0 && espnDiscoveryError) {
+        return { ok: false, leagues, selectedIds: loadSettings().espnLeagueIds, error: espnDiscoveryError }
+      }
       return { ok: true, leagues, selectedIds: loadSettings().espnLeagueIds }
     }
     default: {

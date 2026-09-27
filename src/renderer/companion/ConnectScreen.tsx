@@ -176,6 +176,11 @@ const useLeaguePicker = (
   return { checkedIds, toggle, selectedIds: leagues.map((row) => row.id).filter((id) => checkedIds.has(id)) }
 }
 
+export const espnSignInFeedback = (result: { ok: boolean; error?: string }): string =>
+  result.ok
+    ? 'ESPN session saved. Pick your leagues below.'
+    : result.error?.trim() || 'ESPN sign-in failed.'
+
 export const leaguesToAdd = (discovered: League[], connectedIds: readonly string[]): League[] => {
   const connected = new Set(connectedIds)
   return discovered.filter((row) => !connected.has(row.id))
@@ -419,6 +424,7 @@ export const ConnectScreen = ({
   const [message, setMessage] = useState<string | null>(null)
   const [discovered, setDiscovered] = useState<League[]>(discoverable ?? [])
   const [discovering, setDiscovering] = useState(false)
+  const [espnBusy, setEspnBusy] = useState(false)
 
   useEffect(() => {
     if (state.sleeperUsername) setUsername(state.sleeperUsername)
@@ -480,16 +486,38 @@ export const ConnectScreen = ({
   }
 
   const handleEspn = async (): Promise<void> => {
-    const result = await api().signInEspn()
-    setMessage(result.ok ? 'ESPN session saved.' : 'ESPN sign-in closed before cookies were found.')
+    if (espnBusy) return
+    setEspnBusy(true)
+    setMessage('Opening ESPN sign-in…')
+    try {
+      const result = await api().signInEspn()
+      setMessage(espnSignInFeedback(result))
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'ESPN sign-in failed.')
+    } finally {
+      setEspnBusy(false)
+    }
+  }
+
+  const handleEspnSignOut = async (): Promise<void> => {
+    try {
+      await api().disconnectEspn()
+      setMessage('Signed out of ESPN.')
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Could not sign out of ESPN.')
+    }
   }
 
   const handlePaste = async (): Promise<void> => {
-    const result = await api().addEspnLeague(leagueId)
-    setMessage(result.ok ? 'ESPN league added.' : result.error ?? 'Could not add league')
-    if (result.ok) {
-      setLeagueId('')
-      onOpenBoards?.()
+    try {
+      const result = await api().addEspnLeague(leagueId)
+      setMessage(result.ok ? 'ESPN league added.' : result.error ?? 'Could not add league')
+      if (result.ok) {
+        setLeagueId('')
+        onOpenBoards?.()
+      }
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Could not add league')
     }
   }
 
@@ -544,7 +572,7 @@ export const ConnectScreen = ({
           onSignOut={
             !state.replay && (state.espnConnected || state.espnNeedsRelogin)
               ? () => {
-                  void api().disconnectEspn()
+                  void handleEspnSignOut()
                 }
               : undefined
           }
@@ -626,11 +654,17 @@ export const ConnectScreen = ({
         ESPN access is unofficial, uses your own login, and is for personal companion use only.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={() => void handleEspn()} className={chromeFillPillClass('espn')}>
-          Sign in with ESPN
+        <button
+          type="button"
+          onClick={() => void handleEspn()}
+          disabled={espnBusy}
+          className={chromeFillPillClass('espn')}
+          data-espn-signin={espnBusy ? 'busy' : 'idle'}
+        >
+          {espnBusy ? 'Waiting for ESPN…' : 'Sign in with ESPN'}
         </button>
         {state.espnConnected || state.espnNeedsRelogin ? (
-          <button type="button" onClick={() => void api().disconnectEspn()} className={chromePillClass(false, 'control')}>
+          <button type="button" onClick={() => void handleEspnSignOut()} className={chromePillClass(false, 'control')}>
             Sign out
           </button>
         ) : null}

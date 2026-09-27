@@ -13,6 +13,8 @@ import { BoardsScreen } from './BoardsScreen'
 import { ConnectScreen } from './ConnectScreen'
 import { OverlayStudio } from './OverlayStudio'
 import { TopBar, type Screen } from './TopBar'
+import { UpdateCountdownBanner } from './UpdateCountdownBanner'
+import { useUpdateStatus } from './useUpdateStatus'
 
 const HISTORY = 12
 const STATUS_TOAST = 'sideline:'
@@ -63,6 +65,7 @@ const pushHistory = (
 export const App = (): JSX.Element => {
   const state = useSideline()
   const toasts = useToasts()
+  const update = useUpdateStatus()
   const [screen, setScreen] = useState<Screen>('board')
   const [history, setHistory] = useState<Record<string, number[]>>({})
   const ready = state.sleeperConnected || state.espnConnected || state.replay
@@ -106,7 +109,13 @@ export const App = (): JSX.Element => {
 
   return (
     <div className="relative flex h-full flex-col bg-bg text-text">
-      <TopBar state={state} screen={ready ? screen : 'connect'} onScreen={(next) => setScreen(next)} />
+      <TopBar
+        state={state}
+        screen={ready ? screen : 'connect'}
+        onScreen={(next) => setScreen(next)}
+        updateReady={update.state === 'downloaded'}
+        onInstallUpdate={() => void api().installUpdate()}
+      />
       {state.error ? (
         <div className="border-b border-air/40 bg-air/10 px-5 py-2 text-sm text-air">{state.error}</div>
       ) : null}
@@ -137,6 +146,14 @@ export const App = (): JSX.Element => {
         </main>
         {state.overlayVisible ? <OverlayStudio state={state} /> : null}
       </div>
+      {update.state === 'countdown' ? (
+        <UpdateCountdownBanner
+          version={update.version}
+          seconds={update.seconds}
+          onRestart={() => void api().installUpdate()}
+          onLater={() => void api().dismissUpdateCountdown()}
+        />
+      ) : null}
       {statusToast ? (
         <div
           className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-line bg-card px-3 py-2 text-xs text-muted"

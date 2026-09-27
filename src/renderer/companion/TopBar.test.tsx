@@ -38,6 +38,22 @@ describe('TopBar', () => {
     expect(on.match(/data-chrome="pill"/g)?.length).toBe(4)
   })
 
+  it('shows an update-ready pill that is separate from the nav pills', () => {
+    const html = renderToStaticMarkup(
+      <TopBar
+        state={emptyAppState()}
+        screen="board"
+        onScreen={() => undefined}
+        updateReady
+        onInstallUpdate={() => undefined}
+      />
+    )
+    expect(html).toContain('data-update-pill="ready"')
+    expect(html).toContain('Update ready, restart')
+    expect(html.match(/data-chrome="pill"/g)?.length).toBe(4)
+    expect(renderTop()).not.toContain('data-update-pill')
+  })
+
   it('mirrors overlayVisible on the HUD switch', () => {
     expect(renderTop()).toContain('aria-checked="false"')
     const onState = emptyAppState()

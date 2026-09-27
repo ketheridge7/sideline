@@ -67,6 +67,7 @@ const api: SidelineApi = {
   checkForUpdates: () => ipcRenderer.invoke('sideline:checkForUpdates'),
   downloadUpdate: () => ipcRenderer.invoke('sideline:downloadUpdate'),
   installUpdate: () => ipcRenderer.invoke('sideline:installUpdate'),
+  dismissUpdateCountdown: () => ipcRenderer.invoke('sideline:dismissUpdateCountdown'),
   getRuntimeInfo: () => ipcRenderer.invoke('sideline:getRuntimeInfo'),
   copyDiagnostics: () => ipcRenderer.invoke('sideline:copyDiagnostics'),
   openExternal: (url) => ipcRenderer.invoke('sideline:openExternal', url)

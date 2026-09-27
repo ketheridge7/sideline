@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { overlayLayoutDidMigrate } from '@shared/overlayLayout'
-import { defaultSettings, hydrateSettings, type Settings } from '@shared/settings'
+import { defaultSettings, hydrateSettings, settingsHadLegacyCompanionBounds, type Settings } from '@shared/settings'
 import { writeAtomicSync } from './atomicFile'
 import { reportSettingsNotice, settingsFileNotice } from './notices'
 
@@ -82,7 +82,7 @@ export const loadSettings = (): Settings => {
     cache = defaultSettings()
     return cache
   }
-  if (parsed && overlayLayoutDidMigrate(parsed.overlayLayout)) {
+  if (parsed && (overlayLayoutDidMigrate(parsed.overlayLayout) || settingsHadLegacyCompanionBounds(parsed))) {
     try {
       persist(cache)
     } catch {

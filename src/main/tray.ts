@@ -7,6 +7,12 @@ import { toggleOverlay } from './windows/overlay'
 
 let tray: Tray | null = null
 
+export const destroyTray = (): void => {
+  if (!tray) return
+  tray.destroy()
+  tray = null
+}
+
 export const createTray = (): Tray => {
   if (tray) return tray
   tray = new Tray(nativeImage.createFromPath(packagingWindowIconPath()).resize({ width: 16, height: 16 }))

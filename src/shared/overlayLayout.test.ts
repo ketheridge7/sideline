@@ -8,8 +8,11 @@ import {
   layoutFromPreset,
   overlayLayoutDidMigrate,
   overwritePreset,
+  hudColorIsFaint,
   parseHudFontColor,
+  parseHudTextColors,
   parseOverlayLayout,
+  resolveHudTextColor,
   parsePresetId,
   patchWidget,
   presetShowsCrawler,
@@ -238,8 +241,9 @@ describe('parseOverlayLayout', () => {
     expect(clear.widgets.find((row) => row.id === 'score.mine')?.opacity).toBe(0)
   })
 
-  it('keeps a font color across parse, preset switches, and drops junk', () => {
-    expect(layoutFromPreset('1').fontColor).toBeNull()
+  it('migrates a single font color into all and keeps it across presets', () => {
+    expect(layoutFromPreset('1').textColors.all).toBeNull()
+    expect(layoutFromPreset('1').textColors.playerName).toBeNull()
     expect(parseHudFontColor('#b6ff3b')).toBe('#B6FF3B')
     expect(parseHudFontColor('lime')).toBeNull()
     expect(parseHudFontColor('#FFF')).toBeNull()
@@ -248,14 +252,47 @@ describe('parseOverlayLayout', () => {
       presetId: '1',
       fontColor: '#b6ff3b'
     })
-    expect(colored.fontColor).toBe('#B6FF3B')
+    expect(colored.textColors).toEqual({
+      all: '#B6FF3B',
+      playerName: null,
+      teamName: null,
+      teamScore: null,
+      playerScore: null
+    })
+    expect(resolveHudTextColor(colored.textColors, 'playerName')).toBe('#B6FF3B')
+    expect(resolveHudTextColor(colored.textColors, 'teamScore')).toBe('#B6FF3B')
     const switched = applyPreset('4', colored)
     expect(switched.presetId).toBe('4')
-    expect(switched.fontColor).toBe('#B6FF3B')
+    expect(switched.textColors.all).toBe('#B6FF3B')
     const saved = overwritePreset(switched)
-    expect(saved.fontColor).toBe('#B6FF3B')
-    expect(applyPreset('1', saved).fontColor).toBe('#B6FF3B')
-    expect(parseOverlayLayout({ ...colored, fontColor: 'nope' }).fontColor).toBeNull()
+    expect(saved.textColors.all).toBe('#B6FF3B')
+    expect(applyPreset('1', saved).textColors.all).toBe('#B6FF3B')
+    expect(parseOverlayLayout({ ...colored, fontColor: 'nope' }).textColors.all).toBe('#B6FF3B')
+    expect(parseOverlayLayout({ schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION, fontColor: 'nope' }).textColors.all).toBeNull()
+  })
+
+  it('uses a role override before all, and all before Ice', () => {
+    const colors = parseHudTextColors(
+      { all: '#FFFFFF', playerName: '#b6ff3b', teamScore: 'nope', playerScore: '#e8e4dc' },
+      '#111111'
+    )
+    expect(colors.all).toBe('#FFFFFF')
+    expect(colors.playerName).toBe('#B6FF3B')
+    expect(colors.teamName).toBeNull()
+    expect(colors.teamScore).toBeNull()
+    expect(colors.playerScore).toBe('#E8E4DC')
+    expect(resolveHudTextColor(colors, 'playerName')).toBe('#B6FF3B')
+    expect(resolveHudTextColor(colors, 'teamName')).toBe('#FFFFFF')
+    expect(resolveHudTextColor(colors, 'teamScore')).toBe('#FFFFFF')
+    expect(resolveHudTextColor(colors, 'playerScore')).toBe('#E8E4DC')
+    const ice = parseHudTextColors({ all: null, playerScore: '#FFFFFF' })
+    expect(resolveHudTextColor(ice, 'playerName')).toBeNull()
+    expect(resolveHudTextColor(ice, 'playerScore')).toBe('#FFFFFF')
+    expect(hudColorIsFaint('#07080A')).toBe(true)
+    expect(hudColorIsFaint('#111111')).toBe(true)
+    expect(hudColorIsFaint('#B6FF3B')).toBe(false)
+    expect(hudColorIsFaint('#F4F6F8')).toBe(false)
+    expect(hudColorIsFaint(null)).toBe(false)
   })
 })
 
