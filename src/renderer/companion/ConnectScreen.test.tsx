@@ -5,6 +5,7 @@ import {
   ConnectScreen,
   LeagueChecklist,
   copyDiagnosticsFromConnect,
+  espnSignInFeedback,
   leaguesToAdd,
   reportBugFromConnect,
   type ConnectPath
@@ -270,6 +271,16 @@ describe('ConnectScreen first-run help', () => {
     expect(tv).not.toContain('sideload')
     expect(tv).not.toContain('adb ')
     expect(tv).not.toContain('APK')
+  })
+})
+
+describe('ESPN sign-in feedback', () => {
+  it('names the failure instead of a generic closed-window line', () => {
+    expect(espnSignInFeedback({ ok: true })).toContain('Pick your leagues')
+    expect(espnSignInFeedback({ ok: false, error: 'Could not open ESPN sign-in. Check your connection and try again.' })).toContain(
+      'Check your connection'
+    )
+    expect(espnSignInFeedback({ ok: false })).toBe('ESPN sign-in failed.')
   })
 })
 
