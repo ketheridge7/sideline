@@ -12,7 +12,7 @@ vi.mock('electron', () => {
     BrowserWindow: class {},
     session: {
       fromPartition: () => ({
-        cookies: { get: async () => [] },
+        cookies: { get: async () => [], remove: async () => undefined },
         clearStorageData: async () => undefined
       })
     }
@@ -26,15 +26,22 @@ const espnAuth = vi.hoisted(() => ({
 }))
 
 vi.mock('./windows/espnLogin', () => ({
-  readEspnCookies: async () => espnAuth.cookies
+  readEspnCookies: async () => espnAuth.cookies,
+  clearEspnCookies: async () => {
+    espnAuth.cookies = null
+  },
+  ESPN_SIGNIN_CLOSED: 'ESPN sign-in was closed before espn_s2 and SWID were saved.',
+  ESPN_SIGNIN_NO_COOKIES: 'ESPN sign-in finished, but Sideline could not read espn_s2 and SWID. Try again.'
 }))
 
 import { app } from 'electron'
 import { loadSettings, saveSettings } from './store'
 import {
   addEspnLeagueId,
+  completeEspnSignIn,
   connectSleeper,
   currentState,
+  disconnectEspn,
   listDiscoverableLeagues,
   refresh,
   resetPollerForTests,
@@ -230,5 +237,154 @@ describe('poller connect league selection', () => {
     } finally {
       releaseFirst()
     }
+  })
+
+  it('keeps a saved ESPN session connected and lists leagues before any scoreboard', async () => {
+    const dir = app.getPath('userData')
+    writeNfl(dir)
+    espnAuth.cookies = { espn_s2: 'fresh-s2', SWID: '{22222222-2222-2222-2222-222222222222}' }
+    saveSettings({ espnLeagueIds: [], sleeperUsername: null, sleeperUserId: null, sleeperLeagueIds: null })
+    warmupPollerCaches()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/apis/v2/fans/')) {
+          return jsonOk({
+            favoriteLeagues: [
+              { leagueId: '111', leagueName: 'Gridiron Gurus', sport: 'ffl' },
+              { leagueId: '222', leagueName: 'Dawg Pound', sport: 'ffl' }
+            ]
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        return jsonOk({ teams: [], schedule: [] })
+      })
+    )
+
+    const signedIn = await completeEspnSignIn({ ok: true })
+    expect(signedIn).toEqual({ ok: true })
+    expect(currentState().espnConnected).toBe(true)
+    expect(currentState().espnNeedsRelogin).toBe(false)
+    expect(loadSettings().espnLeagueIds).toEqual([])
+
+    const listed = await listDiscoverableLeagues('espn')
+    expect(listed.ok).toBe(true)
+    expect(listed.leagues.map((row) => row.name).sort()).toEqual(['Dawg Pound', 'Gridiron Gurus'])
+
+    const pasted = await addEspnLeagueId('333')
+    expect(pasted.ok).toBe(true)
+    expect(loadSettings().espnLeagueIds).toEqual(['333'])
+    expect(currentState().leagues.some((row) => row.provider === 'espn' && row.id === '333')).toBe(true)
+  })
+
+  it('signs out and can sign in again without sticking on needs re-login', async () => {
+    const dir = app.getPath('userData')
+    writeNfl(dir)
+    espnAuth.cookies = { espn_s2: 'fresh-s2', SWID: '{22222222-2222-2222-2222-222222222222}' }
+    saveSettings({ espnLeagueIds: ['333'], selectedLeagueKey: 'espn:333' })
+    warmupPollerCaches()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/apis/v2/fans/')) {
+          return jsonOk({ favoriteLeagues: [{ leagueId: '111', leagueName: 'Gridiron Gurus', sport: 'ffl' }] })
+        }
+        if (url.includes('/leagues/333')) {
+          return jsonOk({ id: 333, settings: { name: 'Pasted' }, teams: [], schedule: [] })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        return jsonOk({ teams: [], schedule: [] })
+      })
+    )
+
+    expect((await completeEspnSignIn({ ok: true })).ok).toBe(true)
+    await disconnectEspn()
+    expect(espnAuth.cookies).toBeNull()
+    expect(loadSettings().espnLeagueIds).toEqual([])
+    expect(loadSettings().selectedLeagueKey).toBeNull()
+    expect(currentState().espnConnected).toBe(false)
+    expect(currentState().espnNeedsRelogin).toBe(false)
+
+    espnAuth.cookies = { espn_s2: 'again-s2', SWID: '{33333333-3333-3333-3333-333333333333}' }
+    const again = await completeEspnSignIn({ ok: true })
+    expect(again).toEqual({ ok: true })
+    expect(currentState().espnNeedsRelogin).toBe(false)
+    expect(currentState().espnConnected).toBe(true)
+    const listed = await listDiscoverableLeagues('espn')
+    expect(listed.leagues.map((row) => row.id)).toEqual(['111'])
+  })
+
+  it('tells the user when sign-in closes before cookies exist', async () => {
+    const dir = app.getPath('userData')
+    writeNfl(dir)
+    espnAuth.cookies = null
+    warmupPollerCaches()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonOk({ events: [], teams: [], schedule: [] }))
+    )
+    const closed = await completeEspnSignIn({ ok: false, error: 'window closed' })
+    expect(closed).toEqual({ ok: false, error: 'window closed' })
+    expect(currentState().espnConnected).toBe(false)
+    expect(currentState().espnNeedsRelogin).toBe(true)
+  })
+
+  it('surfaces an ESPN league-list failure instead of an empty silent picker', async () => {
+    const dir = app.getPath('userData')
+    writeNfl(dir)
+    espnAuth.cookies = { espn_s2: 'fresh-s2', SWID: '{22222222-2222-2222-2222-222222222222}' }
+    saveSettings({ espnLeagueIds: [] })
+    warmupPollerCaches()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/apis/v2/fans/')) {
+          return {
+            ok: false,
+            status: 401,
+            headers: { get: () => 'application/json' },
+            text: async () => '{"message":"nope"}',
+            json: async () => ({ message: 'nope' })
+          }
+        }
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk({ teams: [], schedule: [] })
+      })
+    )
+    const signedIn = await completeEspnSignIn({ ok: true })
+    expect(signedIn.ok).toBe(true)
+    const listed = await listDiscoverableLeagues('espn')
+    expect(listed.ok).toBe(false)
+    expect(listed.leagues).toEqual([])
+    expect(listed.error).toContain('refused the session')
   })
 })

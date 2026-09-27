@@ -1,6 +1,7 @@
 import { app, globalShortcut, net } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { bindAppFetch, bindEspnFetch } from './http'
+import { espnSignInPreviewEnabled, previewEspnFetch, seedEspnSignInPreview } from './espnSignInPreview'
 import { espnSession } from './windows/espnLogin'
 import { registerIpc } from './ipc'
 import { appendLog, bindLogDir, installProcessLogging, userDataLogDir } from './log'
@@ -42,12 +43,23 @@ const bindPersistedLanToken = (): void => {
   })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (!gotLock) return
   bindLogDir(userDataLogDir())
   bindPersistedLanToken()
   bindAppFetch((url, init) => net.fetch(url, init))
-  bindEspnFetch((url, init) => espnSession().fetch(url, init))
+  if (espnSignInPreviewEnabled()) {
+    try {
+      await seedEspnSignInPreview()
+    } catch (error) {
+      console.error('[sideline] ESPN sign-in preview seed failed', error)
+    }
+    bindEspnFetch((url, init) =>
+      previewEspnFetch(url, init, (nextUrl, nextInit) => espnSession().fetch(nextUrl, nextInit))
+    )
+  } else {
+    bindEspnFetch((url, init) => espnSession().fetch(url, init))
+  }
   electronApp.setAppUserModelId('com.sideline.app')
 
   if (process.platform === 'darwin') {

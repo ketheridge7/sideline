@@ -1,18 +1,18 @@
 import { app, ipcMain } from 'electron'
-import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, connectSleeper, currentState, disconnectSleeper, invalidateEspnSession, listDiscoverableLeagues, markEspnRelogin, primeEspnCookies, refresh, removeEspnLeagueId, removeSleeperLeagueId, setOverlayVisible, setSelectedLeagueIds } from './poller'
+import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, completeEspnSignIn, connectSleeper, currentState, disconnectEspn, disconnectSleeper, listDiscoverableLeagues, refresh, removeEspnLeagueId, removeSleeperLeagueId, setOverlayVisible, setSelectedLeagueIds } from './poller'
 import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
-import { parseLeagueKey, parseProvider } from '@shared/types'
+import { parseProvider } from '@shared/types'
 import { collectBugReportRuntime, copyDiagnostics, openExternalUrl } from './bugReport'
 import { DEMO_LOCKED_MESSAGE, demoDevHint, demoRelaunchArgs, demoSwitchPlan } from './demoMode'
 import { isReplayMode } from './providers/replay'
 import { clearStartupError, reportStartupError } from './notices'
 import { startupErrorMessage } from './startup'
-import { loadSettings, saveSettings } from './store'
+import { saveSettings } from './store'
 import { applyShortcut, cycleHudDisplay, cycleLeague, resetShortcut, setShortcutCapture } from './shortcuts'
 import { createCompanionWindow } from './windows/companion'
-import { clearEspnCookies, openEspnLogin } from './windows/espnLogin'
+import { openEspnLogin } from './windows/espnLogin'
 import { checkForUpdates, downloadUpdate, getUpdateStatus, installUpdate } from './updater'
 import { setOverlayDisplayId, setOverlayEditMode, toggleOverlay } from './windows/overlay'
 
@@ -54,31 +54,15 @@ export const registerIpc = (): void => {
   })
   ipcMain.handle('sideline:signInEspn', async () => {
     if (isReplayMode()) return demoLocked()
-    const result = await openEspnLogin()
-    // Login always clears persist:espn first, so drop the in-memory session
-    // whether the window finished or the user closed it.
-    invalidateEspnSession()
-    if (result.ok) {
-      const cookies = await primeEspnCookies()
-      if (!cookies) markEspnRelogin(true)
-    } else {
-      markEspnRelogin(true)
+    try {
+      return await completeEspnSignIn(await openEspnLogin())
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'ESPN sign-in failed.' }
     }
-    await refresh({ waitForBoards: true })
-    return result
   })
   ipcMain.handle('sideline:disconnectEspn', async () => {
     if (isReplayMode()) return
-    await clearEspnCookies()
-    invalidateEspnSession()
-    const selected = loadSettings().selectedLeagueKey
-    const parsed = selected ? parseLeagueKey(selected) : null
-    saveSettings({
-      espnLeagueIds: [],
-      selectedLeagueKey: parsed?.provider === 'espn' ? null : selected
-    })
-    markEspnRelogin(false)
-    await refresh({ waitForBoards: true })
+    await disconnectEspn()
   })
   ipcMain.handle('sideline:addEspnLeague', (_event, leagueId: string) =>
     isReplayMode() ? demoLocked() : addEspnLeagueId(leagueId)
