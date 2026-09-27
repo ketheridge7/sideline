@@ -43,6 +43,32 @@ describe('hydrateSettings', () => {
     expect(hydrateSettings({ sleeperLeagueIds: [] }).sleeperLeagueIds).toEqual([])
   })
 
+  it('migrates a saved font color into all text without dropping role overrides', () => {
+    const migrated = hydrateSettings({
+      overlayLayout: {
+        schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
+        presetId: '2',
+        fontColor: '#b6ff3b'
+      } as never
+    })
+    expect(migrated.overlayLayout.textColors.all).toBe('#B6FF3B')
+    expect(migrated.overlayLayout.textColors.playerName).toBeNull()
+    expect(migrated.overlayLayout.textColors.teamName).toBeNull()
+    expect(migrated.overlayLayout.presetId).toBe('2')
+    const kept = hydrateSettings({
+      overlayLayout: {
+        schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
+        presetId: '3',
+        fontColor: '#FFFFFF',
+        textColors: { all: '#E8E4DC', playerScore: '#b6ff3b', teamName: 'nope' }
+      } as never
+    })
+    expect(kept.overlayLayout.textColors.all).toBe('#E8E4DC')
+    expect(kept.overlayLayout.textColors.playerScore).toBe('#B6FF3B')
+    expect(kept.overlayLayout.textColors.teamName).toBeNull()
+    expect(kept.overlayLayout.textColors.playerName).toBeNull()
+  })
+
   it('auto-heals a stale overlay layout to Preset 1 and keeps slots 1–5', () => {
     const next = hydrateSettings({
       overlayLayout: {

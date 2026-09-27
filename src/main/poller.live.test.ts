@@ -14,7 +14,7 @@ vi.mock('electron', () => {
     BrowserWindow: class {},
     session: {
       fromPartition: () => ({
-        cookies: { get: async () => [] },
+        cookies: { get: async () => [], remove: async () => undefined },
         clearStorageData: async () => undefined
       })
     }

@@ -124,21 +124,33 @@ describe('OverlayStudio block selection', () => {
 describe('OverlayStudio font color', () => {
   it('offers Ice as the default and a reset that is idle until a color is chosen', () => {
     const html = renderStudio(layoutFromPreset('1'))
-    expect(html).toContain('Font color')
+    expect(html).toContain('Text colors')
+    expect(html).toContain('All text')
+    expect(html).toContain('data-studio-section="text"')
+    expect(html).toContain('data-studio-section="layout"')
+    expect(html).toContain('data-studio-section="size"')
+    expect(html.indexOf('data-studio-section="text"')).toBeLessThan(html.indexOf('data-studio-section="layout"'))
     expect(html).toContain('data-studio-font="default"')
     expect(html).toContain('data-font-swatch="ice"')
     expect(html).toContain('data-font-swatch="lime"')
     expect(html).toContain('aria-label="Lime"')
     expect(html).toContain('data-font-custom=""')
-    expect(html).toContain('Reset to default')
+    expect(html).toContain('Customize each')
+    expect(html).toContain('Same as All')
+    expect(html).toContain('Reset all colors')
     expect(html).toContain('data-font-reset=""')
+    expect(html).toContain('data-font-reset-all=""')
+    expect(html).toContain('data-studio-highlight="none"')
     expect(html).toMatch(/data-font-swatch="ice"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-font-swatch="ice"/)
     expect(html).toContain('disabled=""')
     expect(html).not.toContain('hud-delta-chip')
   })
 
   it('marks Lime selected and keeps the lead chip on its own color in the preview', () => {
-    const tied = renderStudio({ ...layoutFromPreset('1'), fontColor: '#B6FF3B' })
+    const tied = renderStudio({
+      ...layoutFromPreset('1'),
+      textColors: { ...layoutFromPreset('1').textColors, all: '#B6FF3B' }
+    })
     expect(tied).toContain('data-studio-font="#B6FF3B"')
     expect(tied).toMatch(/data-font-swatch="lime"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-font-swatch="lime"/)
     expect(tied).toContain('data-hud-font="#B6FF3B"')
@@ -148,7 +160,10 @@ describe('OverlayStudio font color', () => {
     expect(tiedChip).not.toContain('#B6FF3B')
     expect(tied).toContain('hud-delta-chip')
 
-    const leading = renderStudio({ ...layoutFromPreset('1'), fontColor: '#B6FF3B' }, null, {
+    const leading = renderStudio({
+      ...layoutFromPreset('1'),
+      textColors: { ...layoutFromPreset('1').textColors, all: '#B6FF3B' }
+    }, null, {
       myTeam: { id: '1', name: 'Ice Box', owner: 'me', record: '1-0' },
       oppTeam: { id: '2', name: 'Them', owner: 'them', record: '0-1' },
       myPoints: 98.4,
@@ -163,5 +178,45 @@ describe('OverlayStudio font color', () => {
     expect(lead).not.toContain('style=')
     expect(lead).not.toContain('#B6FF3B')
     expect(leading).toContain('hud-delta-chip')
+  })
+
+  it('paints a role override in the preview and warns when a color disappears on the HUD', () => {
+    const layout = layoutFromPreset('1')
+    const html = renderStudio(
+      {
+        ...layout,
+        textColors: {
+          all: '#111111',
+          playerName: '#B6FF3B',
+          teamName: null,
+          teamScore: '#FFFFFF',
+          playerScore: null
+        }
+      },
+      null,
+      {
+        myTeam: { id: '1', name: 'Ice Box', owner: 'me', record: '1-0' },
+        oppTeam: { id: '2', name: 'Them', owner: 'them', record: '0-1' },
+        myPoints: 98.4,
+        oppPoints: 91.2,
+        starters: [{ playerId: 'cmc', name: 'Christian McCaffrey', position: 'RB', nflTeam: 'SF', points: 18.4 }],
+        bench: [],
+        oppStarters: [{ playerId: 'kittle', name: 'George Kittle', position: 'TE', nflTeam: 'SF', points: 4.2 }],
+        oppBench: []
+      }
+    )
+    expect(html).toContain('data-contrast-hint="all"')
+    expect(html).toContain('Hard to see on the HUD')
+    expect(html).toContain('data-text-inherit="playerName">#B6FF3B')
+    expect(html).toContain('data-text-inherit="teamName">Same as All')
+    expect(html).toContain('data-text-inherit="playerScore">Same as All')
+    expect(html).toContain('data-text-role="playerName"')
+    expect(html).toContain('data-text-role="teamScore"')
+    const name = html.match(/data-lineup-col="name"[^>]*>/)?.[0] ?? ''
+    const pos = html.match(/data-lineup-col="pos"[^>]*>/)?.[0] ?? ''
+    expect(name).toContain('#B6FF3B')
+    expect(pos).not.toContain('#B6FF3B')
+    expect(pos).not.toContain('#111111')
+    expect(html).toContain('color:#FFFFFF')
   })
 })

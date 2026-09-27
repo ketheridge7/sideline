@@ -19,13 +19,22 @@ import { LastTickMark, ScoreTick } from './ScoreTick'
 export const HudRail = ({
   players,
   you,
-  fontColor = null
+  playerNameColor = null,
+  playerScoreColor = null
 }: {
   players: Player[]
   you?: boolean
-  fontColor?: string | null
+  playerNameColor?: string | null
+  playerScoreColor?: string | null
 }): JSX.Element => (
-  <StarterColumn players={players} you={you} hud compact fontColor={fontColor} />
+  <StarterColumn
+    players={players}
+    you={you}
+    hud
+    compact
+    playerNameColor={playerNameColor}
+    playerScoreColor={playerScoreColor}
+  />
 )
 
 export const BoardRosterColumn = ({
@@ -166,14 +175,16 @@ const StarterColumn = ({
   hud,
   compact,
   rows,
-  fontColor = null
+  playerNameColor = null,
+  playerScoreColor = null
 }: {
   players: Player[]
   you?: boolean
   hud?: boolean
   compact?: boolean
   rows?: number
-  fontColor?: string | null
+  playerNameColor?: string | null
+  playerScoreColor?: string | null
 }): JSX.Element => {
   const count = Math.max(rows ?? players.length, 1)
   return (
@@ -188,7 +199,8 @@ const StarterColumn = ({
           compact={compact}
           you={you}
           hud={hud}
-          fontColor={fontColor}
+          playerNameColor={playerNameColor}
+          playerScoreColor={playerScoreColor}
         />
       ))}
     </div>
@@ -202,7 +214,8 @@ export const LineupRow = ({
   you,
   hud,
   fixed,
-  fontColor = null
+  playerNameColor = null,
+  playerScoreColor = null
 }: {
   player?: Player
   compact?: boolean
@@ -210,7 +223,8 @@ export const LineupRow = ({
   you?: boolean
   hud?: boolean
   fixed?: boolean
-  fontColor?: string | null
+  playerNameColor?: string | null
+  playerScoreColor?: string | null
 }): JSX.Element => {
   const rowClass = hud
     ? 'lineup-row hud-rail-row'
@@ -234,13 +248,18 @@ export const LineupRow = ({
   const ptsClass = hud
     ? 'hud-type-pts w-full'
     : `w-full font-cond font-bold ${compact ? (tv ? 'text-lg' : 'text-[13px]') : 'text-xl'}`
-  const ink = hud && fontColor ? { color: fontColor } : undefined
+  const nameInk = hud && playerNameColor ? { color: playerNameColor } : undefined
   return (
     <div className={rowClass} data-lineup-row={you ? 'mine' : 'opp'}>
-      <span className={`lineup-row-pos ${posClass}`} data-lineup-col="pos" style={ink}>
+      <span className={`lineup-row-pos ${posClass}`} data-lineup-col="pos">
         {lineupPositionLabel(player.position)}
       </span>
-      <span className={`lineup-row-name ${nameClass}`} data-lineup-col="name" style={ink}>
+      <span
+        className={`lineup-row-name ${nameClass}`}
+        data-lineup-col="name"
+        data-text-role={hud ? 'playerName' : undefined}
+        style={nameInk}
+      >
         {name}
         {injury ? <span className="ml-1 text-[10px] font-semibold uppercase text-air">{injury}</span> : null}
         {!compact && player.lastPlay ? (
@@ -250,11 +269,11 @@ export const LineupRow = ({
           <span className="ml-1.5 text-[10px] uppercase tracking-wide text-muted">{team}</span>
         ) : null}
       </span>
-      <span className="lineup-row-pts" data-lineup-col="pts">
+      <span className="lineup-row-pts" data-lineup-col="pts" data-text-role={hud ? 'playerScore' : undefined}>
         {!compact ? <LastTickMark value={player.points} /> : null}
         <ScoreTick
           value={player.points}
-          restColor={hud && fontColor ? fontColor : HUD_FROST}
+          restColor={hud && playerScoreColor ? playerScoreColor : HUD_FROST}
           align="right"
           className={ptsClass}
         />
