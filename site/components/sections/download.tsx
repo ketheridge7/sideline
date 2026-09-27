@@ -25,7 +25,7 @@ export function DownloadSection() {
             </CtaLink>
           </div>
           <p className="mt-4 text-sm text-muted">
-            Windows 10/11 · v1.0.1 ·{" "}
+            Windows 10/11 · v1.0.2 ·{" "}
             <a href={RELEASES_URL} className="text-text hover:text-lime" target="_blank" rel="noopener noreferrer">
               All releases
             </a>
