@@ -16,7 +16,12 @@ type FakeWindow = {
 const harness = vi.hoisted(() => ({
   window: null as FakeWindow | null,
   companion: null as FakeWindow | null,
-  quitting: false
+  quitting: false,
+  quittingForUpdate: false,
+  settings: {
+    companionBounds: null as null | { x: number; y: number; width: number; height: number },
+    overlayOpen: false
+  }
 }))
 
 vi.mock('electron', () => {
@@ -45,10 +50,23 @@ vi.mock('electron', () => {
       list.push(handler)
       this.handlers.set(event, list)
     }
+
+    once(event: string, handler: (...args: unknown[]) => void): void {
+      this.on(event, handler)
+    }
   }
 
-  return { BrowserWindow }
+  return {
+    BrowserWindow,
+    screen: {
+      getAllDisplays: () => [{ id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 } }]
+    }
+  }
 })
+
+vi.mock('../store', () => ({
+  loadSettings: () => harness.settings
+}))
 
 vi.mock('../runtime', () => ({
   runtime: {
@@ -56,7 +74,9 @@ vi.mock('../runtime', () => ({
     setCompanion: (win: FakeWindow | null) => {
       harness.companion = win
     },
-    isQuitting: () => harness.quitting
+    isQuitting: () => harness.quitting,
+    isQuittingForUpdate: () => harness.quittingForUpdate,
+    noteCompanionReady: vi.fn()
   }
 }))
 
@@ -69,6 +89,8 @@ afterEach(() => {
   harness.window = null
   harness.companion = null
   harness.quitting = false
+  harness.quittingForUpdate = false
+  harness.settings = { companionBounds: null, overlayOpen: false }
   vi.mocked(loadRenderer).mockClear()
 })
 
@@ -92,6 +114,34 @@ describe('createCompanionWindow', () => {
     expect(handlers?.length).toBe(1)
     handlers?.[0]({ preventDefault })
     expect(preventDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides on close and lets an update quit replace the window', () => {
+    const win = createCompanionWindow() as unknown as FakeWindow
+    const preventDefault = vi.fn()
+    win.handlers.get('close')?.[0]?.({ preventDefault })
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(win.hide).toHaveBeenCalledTimes(1)
+
+    harness.quittingForUpdate = true
+    preventDefault.mockClear()
+    win.hide.mockClear()
+    win.handlers.get('close')?.[0]?.({ preventDefault })
+    expect(preventDefault).not.toHaveBeenCalled()
+    expect(win.hide).not.toHaveBeenCalled()
+  })
+
+  it('restores on-screen companion bounds and ignores a window parked off every display', () => {
+    harness.settings.companionBounds = { x: 10, y: 20, width: 1200, height: 800 }
+    const restored = createCompanionWindow() as unknown as FakeWindow
+    expect(restored.opts).toMatchObject({ x: 10, y: 20, width: 1200, height: 800 })
+
+    harness.companion = null
+    harness.settings.companionBounds = { x: 9000, y: 9000, width: 1200, height: 800 }
+    const fallback = createCompanionWindow() as unknown as FakeWindow
+    expect(fallback.opts.x).toBeUndefined()
+    expect(fallback.opts.width).toBe(1440)
+    expect(fallback.opts.height).toBe(900)
   })
 
   it('reuses an existing companion instead of opening a second window', () => {

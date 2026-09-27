@@ -7,11 +7,31 @@ let overlay: BrowserWindow | null = null
 let overlayPort = 7333
 let publishHud: ((hud: OverlayHudState) => void) | null = null
 let quitting = false
+let quittingForUpdate = false
+let onCompanionReady: (() => void) | null = null
+let onBeginUpdateQuit: (() => void) | null = null
 
 export const runtime = {
   isQuitting: () => quitting,
   setQuitting: (value: boolean) => {
     quitting = value
+  },
+  isQuittingForUpdate: () => quittingForUpdate,
+  setQuittingForUpdate: (value: boolean) => {
+    quittingForUpdate = value
+    if (value) quitting = true
+  },
+  setOnCompanionReady: (fn: () => void) => {
+    onCompanionReady = fn
+  },
+  noteCompanionReady: () => {
+    onCompanionReady?.()
+  },
+  setBeginUpdateQuit: (fn: () => void) => {
+    onBeginUpdateQuit = fn
+  },
+  beginUpdateQuit: () => {
+    onBeginUpdateQuit?.()
   },
   companion: () => companion,
   setCompanion: (win: BrowserWindow | null) => {

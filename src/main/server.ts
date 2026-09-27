@@ -270,6 +270,10 @@ export const setOverlayLanEnabled = async (
   return boundPort
 }
 
+export const shutdownOverlayServerForQuit = (): void => {
+  void stopOverlayServer()
+}
+
 export const stopOverlayServer = async (): Promise<void> => {
   await closeServer()
   // A process stop keeps the saved token so a paired TV survives a PC restart.

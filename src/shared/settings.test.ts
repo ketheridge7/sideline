@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { OVERLAY_LAYOUT_SCHEMA_VERSION } from './overlayLayout'
-import { defaultSettings, hotkeysAtPublish, hydrateSettings, isLanOverlayToken, sanitizeLeagueIds } from './settings'
+import {
+  companionBoundsOnScreen,
+  defaultSettings,
+  hotkeysAtPublish,
+  hydrateSettings,
+  isLanOverlayToken,
+  sanitizeLeagueIds,
+  sessionPatchForRelaunch
+} from './settings'
 
 describe('sanitizeLeagueIds', () => {
   it('keeps unique numeric ids and drops junk', () => {
@@ -130,6 +138,27 @@ describe('hydrateSettings', () => {
     const again = hydrateSettings(saved)
     expect(again.overlayDisplayHotkey).toBe('CommandOrControl+Shift+K')
     expect(again.overlayHotkey).toBe('CommandOrControl+Alt+O')
+  })
+
+  it('remembers overlay and companion bounds for an update relaunch', () => {
+    expect(defaultSettings().overlayOpen).toBe(false)
+    expect(defaultSettings().companionBounds).toBeNull()
+    const saved = hydrateSettings({
+      overlayOpen: true,
+      companionBounds: { x: 12, y: 24, width: 1280, height: 800 }
+    })
+    expect(saved.overlayOpen).toBe(true)
+    expect(saved.companionBounds).toEqual({ x: 12, y: 24, width: 1280, height: 800 })
+    expect(hydrateSettings({ overlayOpen: false, companionBounds: { x: 1, y: 2, width: 100, height: 100 } }).companionBounds).toBeNull()
+    expect(hydrateSettings({}).overlayOpen).toBe(false)
+    const display = { x: 0, y: 0, width: 1920, height: 1080 }
+    expect(companionBoundsOnScreen(saved.companionBounds!, [display])).toBe(true)
+    expect(companionBoundsOnScreen({ x: 4000, y: 4000, width: 1280, height: 800 }, [display])).toBe(false)
+    expect(sessionPatchForRelaunch({ x: 12, y: 24, width: 1280, height: 800 }, true)).toEqual({
+      overlayOpen: true,
+      companionBounds: { x: 12, y: 24, width: 1280, height: 800 }
+    })
+    expect(sessionPatchForRelaunch(null, false)).toEqual({ overlayOpen: false })
   })
 
   it('does not treat the display key M as the Meta modifier', () => {
