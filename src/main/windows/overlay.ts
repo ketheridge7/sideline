@@ -2,10 +2,12 @@ import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { nextOverlayDisplayId } from '@shared/shortcuts'
 import { appendLog } from '../log'
-import { loadSettings, saveSettings } from '../store'
 import { setOverlayEditMode as setPollerEditMode } from '../poller'
 import { runtime } from '../runtime'
+import { loadSettings, saveSettings } from '../store'
+import { capturePlacement, initialWindowBounds, migrateOverlayDisplayId, OVERLAY_CONSTRAINTS } from '../windowPlacement'
 import { loadRenderer } from './load'
+import { attachBrowserWindowPlacement, reapplyPlacement, snapshotDisplays } from './placementHost'
 import { createRendererRecovery } from './rendererCrash'
 
 let editMode = false
@@ -16,14 +18,10 @@ export const applyOverlayChrome = (win: BrowserWindow): void => {
   win.setFullScreenable(false)
 }
 
-const overlayDisplay = (): Electron.Display => {
-  const id = loadSettings().overlayDisplayId
-  const displays = screen.getAllDisplays()
-  return displays.find((row) => row.id === id) ?? screen.getPrimaryDisplay()
-}
-
 export const applyOverlayBounds = (win: BrowserWindow): void => {
-  win.setBounds(overlayDisplay().bounds)
+  if (reapplyPlacement('overlay')) return
+  if (win.isDestroyed()) return
+  attachBrowserWindowPlacement(win, 'overlay')
 }
 
 export const applyOverlayInput = (win: BrowserWindow): void => {
@@ -55,7 +53,13 @@ export const createOverlayWindow = (): BrowserWindow => {
   if (existing && !existing.isDestroyed()) return existing
 
   const isMac = process.platform === 'darwin'
-  const bounds = overlayDisplay().bounds
+  const settings = loadSettings()
+  const bounds = initialWindowBounds(
+    'overlay',
+    { placements: settings.windowPlacements, overlayDisplayId: settings.overlayDisplayId },
+    snapshotDisplays(),
+    OVERLAY_CONSTRAINTS
+  )
 
   const win = new BrowserWindow({
     x: bounds.x,
@@ -83,7 +87,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   })
 
   applyOverlayChrome(win)
-  applyOverlayBounds(win)
+  attachBrowserWindowPlacement(win, 'overlay')
   const recovery = createRendererRecovery({
     role: 'overlay',
     quitting: () => runtime.isQuitting(),
@@ -125,7 +129,19 @@ export const toggleOverlay = (): boolean => {
 }
 
 export const setOverlayDisplayId = (id: number | null): void => {
-  saveSettings({ overlayDisplayId: id })
+  const displays = snapshotDisplays()
+  const settings = loadSettings()
+  const display = id == null ? null : (displays.find((row) => row.id === id) ?? null)
+  const placement = display
+    ? capturePlacement(display.bounds, displays, { anchorSpace: 'bounds', fill: true })
+    : migrateOverlayDisplayId(id)
+  saveSettings({
+    overlayDisplayId: placement?.displayId ?? null,
+    windowPlacements: {
+      companion: settings.windowPlacements.companion,
+      overlay: placement
+    }
+  })
   const win = runtime.overlay()
   if (win && !win.isDestroyed()) applyOverlayBounds(win)
 }

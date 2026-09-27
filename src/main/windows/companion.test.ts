@@ -19,6 +19,13 @@ const harness = vi.hoisted(() => ({
   quitting: false
 }))
 
+const primaryDisplay = {
+  id: 1,
+  bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+  workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+  scaleFactor: 1
+}
+
 vi.mock('electron', () => {
   class BrowserWindow {
     opts: Record<string, unknown>
@@ -28,6 +35,9 @@ vi.mock('electron', () => {
     show = vi.fn()
     focus = vi.fn()
     hide = vi.fn()
+    setBounds = vi.fn()
+    setPosition = vi.fn()
+    setSize = vi.fn()
 
     constructor(opts: Record<string, unknown>) {
       this.opts = opts
@@ -38,6 +48,15 @@ vi.mock('electron', () => {
       return this.destroyed
     }
 
+    getBounds(): { x: number; y: number; width: number; height: number } {
+      return {
+        x: Number(this.opts.x ?? 0),
+        y: Number(this.opts.y ?? 0),
+        width: Number(this.opts.width ?? 0),
+        height: Number(this.opts.height ?? 0)
+      }
+    }
+
     webContents = { on: vi.fn(), reload: vi.fn() }
 
     on(event: string, handler: (...args: unknown[]) => void): void {
@@ -45,10 +64,30 @@ vi.mock('electron', () => {
       list.push(handler)
       this.handlers.set(event, list)
     }
+
+    once(event: string, handler: (...args: unknown[]) => void): void {
+      this.on(event, handler)
+    }
   }
 
-  return { BrowserWindow }
+  return {
+    BrowserWindow,
+    screen: {
+      getAllDisplays: () => [primaryDisplay],
+      getPrimaryDisplay: () => primaryDisplay,
+      on: vi.fn(),
+      removeListener: vi.fn()
+    }
+  }
 })
+
+vi.mock('../store', () => ({
+  loadSettings: () => ({
+    windowPlacements: { companion: null, overlay: null },
+    overlayDisplayId: null
+  }),
+  saveSettings: vi.fn()
+}))
 
 vi.mock('../runtime', () => ({
   runtime: {
@@ -64,11 +103,13 @@ vi.mock('./load', () => ({ loadRenderer: vi.fn() }))
 
 import { loadRenderer } from './load'
 import { createCompanionWindow } from './companion'
+import { resetPlacementHostForTests } from './placementHost'
 
 afterEach(() => {
   harness.window = null
   harness.companion = null
   harness.quitting = false
+  resetPlacementHostForTests()
   vi.mocked(loadRenderer).mockClear()
 })
 
@@ -79,6 +120,12 @@ describe('createCompanionWindow', () => {
     expect(win.opts.icon).toBe(packagingWindowIconPath())
     expect(String(win.opts.icon)).toMatch(/broadcast-s\.png$/)
     expect(win.opts.titleBarStyle).toBe('hidden')
+    expect(win.opts.x).toBe(240)
+    expect(win.opts.y).toBe(70)
+    expect(win.opts.width).toBe(1440)
+    expect(win.opts.height).toBe(900)
+    expect(win.opts.minWidth).toBe(1100)
+    expect(win.opts.minHeight).toBe(700)
     expect(win.opts.titleBarOverlay).toEqual({ ...COMPANION_TITLEBAR_OVERLAY })
     expect(String(win.opts.title)).not.toMatch(/sideline/i)
     expect(win.setTitle).toHaveBeenCalledWith(NATIVE_WINDOW_TITLE)

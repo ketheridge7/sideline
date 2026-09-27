@@ -1,3 +1,4 @@
+import { emptyWindowPlacements, parseWindowPlacements, type WindowPlacements } from '../main/windowPlacement'
 import { DEFAULT_OVERLAY_PRESET, layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './overlayLayout'
 import {
   DEFAULT_SHORTCUTS,
@@ -25,6 +26,8 @@ export type Settings = {
   lanOverlayEnabled: boolean
   /** 16 lowercase hex chars. Null when LAN overlay is off. */
   lanOverlayToken: string | null
+  /** Companion and HUD positions relative to a display. Null slots use the legacy fallback. */
+  windowPlacements: WindowPlacements
 }
 
 export type SettingsHotkeys = Pick<
@@ -61,7 +64,8 @@ export const defaultSettings = (): Settings => ({
   nextLeagueHotkey: DEFAULT_SHORTCUTS.nextLeague,
   prevLeagueHotkey: DEFAULT_SHORTCUTS.prevLeague,
   lanOverlayEnabled: false,
-  lanOverlayToken: null
+  lanOverlayToken: null,
+  windowPlacements: emptyWindowPlacements()
 })
 
 const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
@@ -93,6 +97,7 @@ export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
     overlayLayout: parseOverlayLayout(parsed.overlayLayout ?? base.overlayLayout),
     overlayDisplayId: typeof parsed.overlayDisplayId === 'number' ? parsed.overlayDisplayId : null,
     lanOverlayToken: isLanOverlayToken(parsed.lanOverlayToken) ? parsed.lanOverlayToken : null,
+    windowPlacements: parseWindowPlacements(parsed.windowPlacements),
     ...shortcutSettingsPatch(shortcuts)
   }
 }

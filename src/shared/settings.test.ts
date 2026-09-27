@@ -111,6 +111,29 @@ describe('hydrateSettings', () => {
     expect(saved.overlayDisplayHotkey).toBe('CommandOrControl+Alt+M')
     expect(saved.overlayHotkey).toBe('CommandOrControl+Shift+O')
   })
+
+  it('keeps a display-relative placement and drops a malformed one', () => {
+    const companion = {
+      v: 1 as const,
+      displayId: 2,
+      displayBounds: { x: 1920, y: 0, width: 2048, height: 1152 },
+      displayWorkArea: { x: 1920, y: 0, width: 2048, height: 1112 },
+      scaleFactor: 1.25,
+      anchorX: 1,
+      anchorY: 1,
+      width: 1440,
+      height: 900,
+      anchorSpace: 'workArea' as const
+    }
+    const next = hydrateSettings({
+      overlayDisplayId: 2,
+      windowPlacements: { companion, overlay: { nope: true } as never }
+    })
+    expect(next.overlayDisplayId).toBe(2)
+    expect(next.windowPlacements.companion).toEqual(companion)
+    expect(next.windowPlacements.overlay).toBeNull()
+    expect(defaultSettings().windowPlacements).toEqual({ companion: null, overlay: null })
+  })
 })
 
 describe('hotkeysAtPublish', () => {

@@ -17,6 +17,7 @@ import { runStartup, startupErrorMessage } from './startup'
 import { createTray } from './tray'
 import { startAutoUpdater } from './updater'
 import { createCompanionWindow } from './windows/companion'
+import { flushTrackedPlacements, listenForDisplayChanges } from './windows/placementHost'
 
 installProcessLogging()
 
@@ -45,6 +46,7 @@ const bindPersistedLanToken = (): void => {
 
 app.whenReady().then(() => {
   if (!gotLock) return
+  listenForDisplayChanges()
   bindLogDir(userDataLogDir())
   bindPersistedLanToken()
   bindAppFetch((url, init) => net.fetch(url, init))
@@ -104,6 +106,7 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', () => {
+  flushTrackedPlacements()
   runtime.setQuitting(true)
   releaseLanPowerSave()
   globalShortcut.unregisterAll()
