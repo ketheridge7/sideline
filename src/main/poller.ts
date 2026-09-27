@@ -1698,7 +1698,8 @@ const sleeperMatchup = async (
   league: League,
   nfl: NflState,
   hud = false,
-  liveTick = false
+  liveTick = false,
+  cacheBust?: string
 ): Promise<Matchup | null> => {
   if (isReplayMode()) return replayMatchup(league)
   if (!sleeperUser) {
@@ -1724,7 +1725,7 @@ const sleeperMatchup = async (
   })
   const matchupOpts = {
     ...(hud ? SCORE_FETCH : restScoreFetch(liveTick)),
-    cacheBust: sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
+    cacheBust: cacheBust ?? sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
   }
   const identityPriority = sleeperIdentityPriority(hud, liveTick)
   const identityOpts = {
@@ -2620,6 +2621,9 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const earlySleeperPromise =
       hintLeague?.provider === 'sleeper'
         ? (async () => {
+            // One bust for this HUD load. GET /user can cross the 3s CDN bucket
+            // after /matchups has already settled; a fresh bust would kick a second GET.
+            const hudBust = sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
             const plan = sleeperUserHudPlan({
               sleeperHud: true,
               hasUser: Boolean(sleeperUser),
@@ -2629,7 +2633,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
               case 'now':
                 break
               case 'await-user':
-                void sleeperMatchup(hintLeague, nflState, true, liveTick).catch(() => null)
+                void sleeperMatchup(hintLeague, nflState, true, liveTick, hudBust).catch(() => null)
                 await ensureSleeperUser(true, liveTick)
                 break
               default: {
@@ -2637,7 +2641,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
                 void _never
               }
             }
-            return sleeperMatchup(hintLeague, nflState, true, liveTick)
+            return sleeperMatchup(hintLeague, nflState, true, liveTick, hudBust)
           })().catch(() => null)
         : Promise.resolve(null)
 
@@ -2898,11 +2902,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           })
         }
         if (league.provider === 'sleeper') {
-          return sleeperMatchup(league, weekNfl, hud, liveTick).then((loaded) => {
+          const bust = sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
+          return sleeperMatchup(league, weekNfl, hud, liveTick, bust).then((loaded) => {
             if (loaded || sleeperUser) return loaded
             return ensureSleeperUser(hud, liveTick).then((user) => {
               if (!user) return null
-              return sleeperMatchup(league, weekNfl, hud, liveTick)
+              return sleeperMatchup(league, weekNfl, hud, liveTick, bust)
             })
           })
         }
@@ -2964,16 +2969,17 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         if (!nextHint) return Promise.resolve()
         switch (nextHint.provider) {
           case 'sleeper': {
+            const bust = sleeperCdnBustToken(Date.now(), LIVE_POLL_MS)
             const kick = (user: SleeperUser | null): Promise<void> => {
               if (!user) return Promise.resolve()
-              return sleeperMatchup(nextHint, fresh, true, liveTick)
+              return sleeperMatchup(nextHint, fresh, true, liveTick, bust)
                 .then((loaded) => {
                   paintSelectedLive(nextHint, loaded)
                 })
                 .catch(() => undefined)
             }
             if (sleeperUser) return kick(sleeperUser)
-            void sleeperMatchup(nextHint, fresh, true, liveTick).catch(() => undefined)
+            void sleeperMatchup(nextHint, fresh, true, liveTick, bust).catch(() => undefined)
             return ensureSleeperUser(true, liveTick).then(kick)
           }
           case 'espn':
