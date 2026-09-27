@@ -60,6 +60,23 @@ describe('settings store', () => {
     expect(readFileSync(`${settingsPath()}.bak`, 'utf8')).toContain('ada')
   })
 
+  it('round-trips a custom Cycle HUD display accelerator through save and load', () => {
+    saveSettings({
+      overlayHotkey: 'CommandOrControl+Alt+O',
+      overlayEditHotkey: 'CommandOrControl+Alt+E',
+      overlayDisplayHotkey: 'CommandOrControl+Alt+M',
+      nextLeagueHotkey: 'CommandOrControl+Alt+]',
+      prevLeagueHotkey: 'CommandOrControl+Alt+['
+    })
+    resetStoreForTests()
+    const loaded = loadSettings()
+    expect(loaded.overlayDisplayHotkey).toBe('CommandOrControl+Alt+M')
+    expect(loaded.overlayHotkey).toBe('CommandOrControl+Alt+O')
+    expect(loaded.overlayEditHotkey).toBe('CommandOrControl+Alt+E')
+    expect(loaded.nextLeagueHotkey).toBe('CommandOrControl+Alt+]')
+    expect(loaded.prevLeagueHotkey).toBe('CommandOrControl+Alt+[')
+  })
+
   it('treats a missing settings file as defaults without a notice', () => {
     rmSync(settingsPath(), { force: true })
     resetStoreForTests()

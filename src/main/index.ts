@@ -9,6 +9,7 @@ import { applyLanOverlay, startPoller, warmupPollerCaches, publishWarmupState } 
 import { releaseLanPowerSave } from './powerSave'
 import { runtime } from './runtime'
 import { isLanOverlayToken } from '@shared/settings'
+import { shortcutRegistrationError } from '@shared/shortcuts'
 import { bindLanTokenPersistence, startOverlayServer, publishOverlay } from './server'
 import { loadSettings, saveSettings } from './store'
 import { registerAppShortcuts } from './shortcuts'
@@ -72,7 +73,16 @@ app.whenReady().then(() => {
     createCompanionWindow: () => {
       createCompanionWindow()
     },
-    registerAppShortcuts,
+    registerAppShortcuts: () => {
+      const { failed } = registerAppShortcuts()
+      const first = failed[0]
+      if (!first) return
+      runtime.sendToast({
+        id: 'sideline:shortcut',
+        title: 'Shortcut',
+        body: shortcutRegistrationError(first.accelerator)
+      })
+    },
     startAutoUpdater,
     startPoller,
     onStepFailed: (step, error) => {

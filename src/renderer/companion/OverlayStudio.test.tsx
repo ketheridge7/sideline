@@ -2,15 +2,17 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { applyPreset, layoutFromPreset, overwritePreset } from '@shared/overlayLayout'
 import { applyStudioSlider, studioBlockBox } from '@shared/overlayStudioBlocks'
-import { emptyAppState } from '@shared/types'
+import { emptyAppState, type Matchup } from '@shared/types'
 import { OverlayStudio } from './OverlayStudio'
 
 const renderStudio = (
   overlayLayout = layoutFromPreset('1'),
-  selected: 'mine' | 'opp' | 'ticker' | null = null
+  selected: 'mine' | 'opp' | 'ticker' | null = null,
+  matchup: Matchup | null = null
 ): string => {
   const state = emptyAppState()
   state.overlayLayout = overlayLayout
+  state.matchup = matchup
   state.nflTicker = [
     { id: 'g1', away: 'KC', awayScore: 14, home: 'SF', homeScore: 10, clock: 'Q2 4:12', final: false }
   ]
@@ -18,6 +20,9 @@ const renderStudio = (
     <OverlayStudio state={state} initialSelectedBlock={selected} />
   )
 }
+
+const leadChipTag = (html: string): string =>
+  html.match(/<div class="[^"]*" data-hud="lead-chip">/)?.[0] ?? ''
 
 const pressedPreset = (html: string): string | null => {
   const match = html.match(/data-preset="([1-5])"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-preset="([1-5])"/)
@@ -113,5 +118,50 @@ describe('OverlayStudio block selection', () => {
     expect(html).toContain('border-lime')
     expect(html).toContain('bg-lime/15')
     expect(html).not.toContain('border-you bg-you/15 text-you')
+  })
+})
+
+describe('OverlayStudio font color', () => {
+  it('offers Ice as the default and a reset that is idle until a color is chosen', () => {
+    const html = renderStudio(layoutFromPreset('1'))
+    expect(html).toContain('Font color')
+    expect(html).toContain('data-studio-font="default"')
+    expect(html).toContain('data-font-swatch="ice"')
+    expect(html).toContain('data-font-swatch="lime"')
+    expect(html).toContain('aria-label="Lime"')
+    expect(html).toContain('data-font-custom=""')
+    expect(html).toContain('Reset to default')
+    expect(html).toContain('data-font-reset=""')
+    expect(html).toMatch(/data-font-swatch="ice"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-font-swatch="ice"/)
+    expect(html).toContain('disabled=""')
+    expect(html).not.toContain('hud-delta-chip')
+  })
+
+  it('marks Lime selected and keeps the lead chip on its own color in the preview', () => {
+    const tied = renderStudio({ ...layoutFromPreset('1'), fontColor: '#B6FF3B' })
+    expect(tied).toContain('data-studio-font="#B6FF3B"')
+    expect(tied).toMatch(/data-font-swatch="lime"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-font-swatch="lime"/)
+    expect(tied).toContain('data-hud-font="#B6FF3B"')
+    expect(tied).toContain('style="color:#B6FF3B"')
+    const tiedChip = leadChipTag(tied)
+    expect(tiedChip).toContain('text-muted')
+    expect(tiedChip).not.toContain('#B6FF3B')
+    expect(tied).toContain('hud-delta-chip')
+
+    const leading = renderStudio({ ...layoutFromPreset('1'), fontColor: '#B6FF3B' }, null, {
+      myTeam: { id: '1', name: 'Ice Box', owner: 'me', record: '1-0' },
+      oppTeam: { id: '2', name: 'Them', owner: 'them', record: '0-1' },
+      myPoints: 98.4,
+      oppPoints: 91.2,
+      starters: [],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    })
+    const lead = leadChipTag(leading)
+    expect(lead).toContain('text-lime')
+    expect(lead).not.toContain('style=')
+    expect(lead).not.toContain('#B6FF3B')
+    expect(leading).toContain('hud-delta-chip')
   })
 })

@@ -263,6 +263,12 @@ describe('overlayHudUnchanged', () => {
       }
     })
     expect(overlayHudUnchanged(first, ticked)).toBe(false)
+    const tinted = toOverlayHud({
+      ...state,
+      overlayLayout: { ...state.overlayLayout, fontColor: '#B6FF3B' }
+    })
+    expect(overlayHudUnchanged(first, tinted)).toBe(false)
+    expect(overlayHudUnchanged(tinted, { ...tinted })).toBe(true)
   })
 })
 

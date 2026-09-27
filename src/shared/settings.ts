@@ -1,6 +1,7 @@
 import { DEFAULT_OVERLAY_PRESET, layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './overlayLayout'
 import {
   DEFAULT_SHORTCUTS,
+  migrateLegacyLeagueShortcuts,
   parseShortcutMap,
   shortcutSettingsPatch,
   type ShortcutMap
@@ -65,13 +66,13 @@ export const defaultSettings = (): Settings => ({
 
 const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
   parseShortcutMap(
-    {
+    migrateLegacyLeagueShortcuts({
       overlay: parsed.overlayHotkey,
       overlayEdit: parsed.overlayEditHotkey,
       overlayDisplay: parsed.overlayDisplayHotkey,
       nextLeague: parsed.nextLeagueHotkey,
       prevLeague: parsed.prevLeagueHotkey
-    },
+    }),
     DEFAULT_SHORTCUTS
   )
 
@@ -103,3 +104,11 @@ export const settingsHotkeys = (settings: SettingsHotkeys): SettingsHotkeys => (
   nextLeagueHotkey: settings.nextLeagueHotkey,
   prevLeagueHotkey: settings.prevLeagueHotkey
 })
+
+/**
+ * Accelerators to paint when a poll finishes.
+ * `kickoff` is the settings object copied when that refresh started. Publishing
+ * it puts a rebind that landed mid-poll back on the previous combo. `latest` wins.
+ */
+export const hotkeysAtPublish = (_kickoff: SettingsHotkeys, latest: SettingsHotkeys): SettingsHotkeys =>
+  settingsHotkeys(latest)

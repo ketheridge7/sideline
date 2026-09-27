@@ -4,6 +4,7 @@ import {
   acceleratorFromEvent,
   DEFAULT_SHORTCUTS,
   formatAccelerator,
+  isGlobalAccelerator,
   SHORTCUT_ACTIONS,
   SHORTCUT_LABELS,
   shortcutMapFromSettings,
@@ -70,8 +71,8 @@ export const ShortcutSettings = ({
     <>
       {framed ? <h2 className="text-base font-semibold">Keyboard shortcuts</h2> : null}
       <p className={`${framed ? 'mt-1' : ''} text-sm text-muted`}>
-        Chorded shortcuts (Ctrl+Shift+…) work globally, including while a game is focused. Single keys like [ and ]
-        work in the companion when you are not typing in a field. Change captures the next key; Esc cancels.
+        Chorded shortcuts (Ctrl+Shift+…) work globally, including while a game is focused. Bindings without a
+        modifier only work while Sideline is focused. Change captures the next key; Esc cancels.
       </p>
       <ul className="mt-4 grid gap-2">
         {SHORTCUT_ACTIONS.map((action) => (
@@ -103,10 +104,19 @@ export const ShortcutSettings = ({
             >
               Reset
             </button>
+            {!isGlobalAccelerator(shortcuts[action]) ? (
+              <span className="basis-full text-[10px] uppercase tracking-wide text-muted" data-shortcut-local="">
+                Only while Sideline is focused
+              </span>
+            ) : null}
           </li>
         ))}
       </ul>
-      {error ? <p className="mt-3 text-sm text-air">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 text-sm text-air" role="alert" data-shortcut-error="">
+          {error}
+        </p>
+      ) : null}
     </>
   )
 

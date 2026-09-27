@@ -6,7 +6,7 @@ import { transactionKindLabel } from '@shared/transactionKind'
 import { matchupHasLineup, toMatchupBoard, upsertMatchupBoard, weekShiftClearedBoard, weekShiftClearedMatchup, type MatchupBoardExtra } from '@shared/display'
 import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionsToTape, withTickDeltas } from '@shared/tape'
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
-import { settingsHotkeys } from '@shared/settings'
+import { hotkeysAtPublish, settingsHotkeys } from '@shared/settings'
 import { finalNflTeams } from '@shared/winPct'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 import { hostsInBackoff, recentFetchTimings, resetHostBackoff } from './http'
@@ -289,8 +289,9 @@ export const applyLanOverlay = (): void => {
 }
 
 export const applyHotkeys = (): void => {
-  lastState = { ...lastState, ...settingsHotkeys(loadSettings()) }
-  broadcast(lastState)
+  // Broadcast a new object. Assigning lastState first makes companionFlagsUnchanged
+  // compare the state to itself, so the shortcuts UI never hears the rebind.
+  broadcast({ ...lastState, ...settingsHotkeys(loadSettings()) })
 }
 
 const broadcast = (state: AppState): void => {
@@ -2532,7 +2533,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         overlayPort: runtime.overlayPort(),
         overlayVisible,
-        ...settingsHotkeys(settings),
+        ...hotkeysAtPublish(settings, loadSettings()),
         overlayEditMode,
         overlayLayout: loadSettings().overlayLayout,
         lastToast,
@@ -3629,7 +3630,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         nflTicker,
         overlayPort: runtime.overlayPort(),
         overlayVisible,
-        ...settingsHotkeys(settings),
+        ...hotkeysAtPublish(settings, loadSettings()),
         overlayEditMode,
         overlayLayout: loadSettings().overlayLayout,
         lastToast,
@@ -4045,7 +4046,7 @@ export const warmupPollerCaches = (): void => {
           espnBoardExtra(league)
         )
       }),
-      ...settingsHotkeys(settings),
+      ...hotkeysAtPublish(settings, loadSettings()),
       overlayLayout: settings.overlayLayout,
       lastUpdated: Date.now(),
       ...lanFields()

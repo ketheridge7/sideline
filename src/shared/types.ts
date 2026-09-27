@@ -275,8 +275,8 @@ export const emptyAppState = (): AppState => ({
   overlayHotkey: 'CommandOrControl+Shift+O',
   overlayEditHotkey: 'CommandOrControl+Shift+E',
   overlayDisplayHotkey: 'CommandOrControl+Shift+M',
-  nextLeagueHotkey: ']',
-  prevLeagueHotkey: '[',
+  nextLeagueHotkey: 'CommandOrControl+Shift+]',
+  prevLeagueHotkey: 'CommandOrControl+Shift+[',
   overlayEditMode: false,
   overlayLayout: layoutFromPreset(DEFAULT_OVERLAY_PRESET),
   lastToast: null,
@@ -380,6 +380,7 @@ const sameLayout = (prev: OverlayLayout, next: OverlayLayout): boolean => {
     prev.groupedRails.opp !== next.groupedRails.opp ||
     prev.trackLock.mine !== next.trackLock.mine ||
     prev.trackLock.opp !== next.trackLock.opp ||
+    prev.fontColor !== next.fontColor ||
     prev.widgets.length !== next.widgets.length
   ) {
     return false

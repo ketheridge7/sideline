@@ -12,17 +12,20 @@ import type { OverlaySurface } from './subscribe'
 const BenchList = ({
   players,
   density,
-  align
+  align,
+  fontColor
 }: {
   players: Player[]
   density: Density
   align: 'left' | 'right'
+  fontColor: string | null
 }): JSX.Element => (
   <div className={`flex h-full flex-col justify-end gap-0.5 ${align === 'right' ? 'items-end' : ''}`}>
     {players.slice(0, 8).map((player) => (
       <div
         key={player.playerId}
         className={`truncate font-cond uppercase text-muted ${density === 'large' ? 'text-sm' : 'text-[11px]'}`}
+        style={fontColor ? { color: fontColor } : undefined}
       >
         {overlayName(player.name)}
       </div>
@@ -35,15 +38,18 @@ export const OverlayWidgetView = ({
   hud,
   surface,
   density,
-  showCrawler
+  showCrawler,
+  fontColor = null
 }: {
   id: OverlayWidgetId
   hud: OverlayHudState
   surface: OverlaySurface
   density: OverlayDensity
   showCrawler: boolean
+  fontColor?: string | null
 }): JSX.Element => {
   const resolved = resolveDensity(surface, density)
+  const ink = fontColor ?? null
   switch (id) {
     case 'meta.league':
       return (
@@ -60,9 +66,9 @@ export const OverlayWidgetView = ({
     case 'meta.live':
       return <></>
     case 'team.mine.name':
-      return <HudTeamName name={hud.myName} tone="you" surface="overlay" />
+      return <HudTeamName name={hud.myName} tone="you" surface="overlay" fontColor={ink} />
     case 'team.opp.name':
-      return <HudTeamName name={hud.oppName} tone="them" surface="overlay" />
+      return <HudTeamName name={hud.oppName} tone="them" surface="overlay" fontColor={ink} />
     case 'score.mine':
       return (
         <HudTeamScore
@@ -70,6 +76,7 @@ export const OverlayWidgetView = ({
           value={hud.myPoints}
           tone="you"
           surface="overlay"
+          fontColor={ink}
         />
       )
     case 'score.opp':
@@ -79,14 +86,15 @@ export const OverlayWidgetView = ({
           value={hud.oppPoints}
           tone="them"
           surface="overlay"
+          fontColor={ink}
         />
       )
     case 'score.delta':
-      return <LeadChip delta={hud.delta} surface="overlay" />
+      return <LeadChip delta={hud.delta} surface="overlay" fontColor={ink} />
     case 'col.mine.name':
-      return <HudRail players={hud.myStarters} you />
+      return <HudRail players={hud.myStarters} you fontColor={ink} />
     case 'col.opp.name':
-      return <HudRail players={hud.oppStarters} />
+      return <HudRail players={hud.oppStarters} fontColor={ink} />
     case 'col.mine.pos':
     case 'col.mine.nfl':
     case 'col.mine.pts':
@@ -95,9 +103,9 @@ export const OverlayWidgetView = ({
     case 'col.opp.pts':
       return <></>
     case 'bench.mine':
-      return <BenchList players={hud.myBench} density={resolved} align="left" />
+      return <BenchList players={hud.myBench} density={resolved} align="left" fontColor={ink} />
     case 'bench.opp':
-      return <BenchList players={hud.oppBench} density={resolved} align="right" />
+      return <BenchList players={hud.oppBench} density={resolved} align="right" fontColor={ink} />
     case 'toast.slot': {
       const events: TapeEvent[] =
         hud.tape.length > 0
