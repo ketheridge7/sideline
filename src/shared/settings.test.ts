@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { OVERLAY_LAYOUT_SCHEMA_VERSION } from './overlayLayout'
-import {
-  companionBoundsOnScreen,
-  defaultSettings,
-  hotkeysAtPublish,
-  hydrateSettings,
-  isLanOverlayToken,
-  sanitizeLeagueIds,
-  sessionPatchForRelaunch
-} from './settings'
+import { defaultSettings, hotkeysAtPublish, hydrateSettings, isLanOverlayToken, sanitizeLeagueIds } from './settings'
 
 describe('sanitizeLeagueIds', () => {
   it('keeps unique numeric ids and drops junk', () => {
@@ -140,31 +132,71 @@ describe('hydrateSettings', () => {
     expect(again.overlayHotkey).toBe('CommandOrControl+Alt+O')
   })
 
-  it('remembers overlay and companion bounds for an update relaunch', () => {
+  it('keeps HUD visibility and migrates absolute companion bounds into a placement', () => {
     expect(defaultSettings().overlayOpen).toBe(false)
-    expect(defaultSettings().companionBounds).toBeNull()
+    expect(defaultSettings().windowPlacements).toEqual({ companion: null, overlay: null })
     const saved = hydrateSettings({
       overlayOpen: true,
       companionBounds: { x: 12, y: 24, width: 1280, height: 800 }
     })
     expect(saved.overlayOpen).toBe(true)
-    expect(saved.companionBounds).toEqual({ x: 12, y: 24, width: 1280, height: 800 })
-    expect(hydrateSettings({ overlayOpen: false, companionBounds: { x: 1, y: 2, width: 100, height: 100 } }).companionBounds).toBeNull()
+    expect(saved.windowPlacements.companion?.legacyRect).toEqual({ x: 12, y: 24, width: 1280, height: 800 })
+    expect(saved.windowPlacements.companion?.anchorSpace).toBe('workArea')
+    expect('companionBounds' in saved).toBe(false)
+    expect(
+      hydrateSettings({ overlayOpen: false, companionBounds: { x: 1, y: 2, width: 100, height: 100 } }).windowPlacements
+        .companion
+    ).toBeNull()
     expect(hydrateSettings({}).overlayOpen).toBe(false)
-    const display = { x: 0, y: 0, width: 1920, height: 1080 }
-    expect(companionBoundsOnScreen(saved.companionBounds!, [display])).toBe(true)
-    expect(companionBoundsOnScreen({ x: 4000, y: 4000, width: 1280, height: 800 }, [display])).toBe(false)
-    expect(sessionPatchForRelaunch({ x: 12, y: 24, width: 1280, height: 800 }, true)).toEqual({
-      overlayOpen: true,
-      companionBounds: { x: 12, y: 24, width: 1280, height: 800 }
+    const kept = hydrateSettings({
+      companionBounds: { x: 12, y: 24, width: 1280, height: 800 },
+      windowPlacements: {
+        companion: {
+          v: 1,
+          displayId: 2,
+          displayBounds: { x: 1920, y: 0, width: 2048, height: 1152 },
+          displayWorkArea: { x: 1920, y: 0, width: 2048, height: 1112 },
+          scaleFactor: 1.25,
+          anchorX: 1,
+          anchorY: 1,
+          width: 1440,
+          height: 900,
+          anchorSpace: 'workArea'
+        },
+        overlay: null
+      }
     })
-    expect(sessionPatchForRelaunch(null, false)).toEqual({ overlayOpen: false })
+    expect(kept.windowPlacements.companion?.displayId).toBe(2)
+    expect(kept.windowPlacements.companion?.legacyRect).toBeUndefined()
   })
 
   it('does not treat the display key M as the Meta modifier', () => {
     const saved = hydrateSettings({ overlayDisplayHotkey: 'CommandOrControl+Alt+M' })
     expect(saved.overlayDisplayHotkey).toBe('CommandOrControl+Alt+M')
     expect(saved.overlayHotkey).toBe('CommandOrControl+Shift+O')
+  })
+
+  it('keeps a display-relative placement and drops a malformed one', () => {
+    const companion = {
+      v: 1 as const,
+      displayId: 2,
+      displayBounds: { x: 1920, y: 0, width: 2048, height: 1152 },
+      displayWorkArea: { x: 1920, y: 0, width: 2048, height: 1112 },
+      scaleFactor: 1.25,
+      anchorX: 1,
+      anchorY: 1,
+      width: 1440,
+      height: 900,
+      anchorSpace: 'workArea' as const
+    }
+    const next = hydrateSettings({
+      overlayDisplayId: 2,
+      windowPlacements: { companion, overlay: { nope: true } as never }
+    })
+    expect(next.overlayDisplayId).toBe(2)
+    expect(next.windowPlacements.companion).toEqual(companion)
+    expect(next.windowPlacements.overlay).toBeNull()
+    expect(defaultSettings().windowPlacements).toEqual({ companion: null, overlay: null })
   })
 })
 

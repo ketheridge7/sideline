@@ -1,5 +1,7 @@
-import { BrowserWindow, session, type Cookie } from 'electron'
+import { BrowserWindow, screen, session, type Cookie } from 'electron'
 import { pickEspnCookies, type EspnCookies } from '../providers/espnClient'
+import { runtime } from '../runtime'
+import { boundsForAnchor, displayContaining, displaysFromElectron, ESPN_LOGIN_SIZE } from '../windowPlacement'
 import {
   espnLoginPollPlan,
   espnLoginPopupAction,
@@ -56,6 +58,17 @@ export const clearEspnCookies = async (): Promise<void> => {
   })
 }
 
+const loginBounds = (): { x: number; y: number; width: number; height: number } | null => {
+  const all = screen.getAllDisplays()
+  if (all.length === 0) return null
+  const displays = displaysFromElectron(all, screen.getPrimaryDisplay().id)
+  const companion = runtime.companion()
+  const home = companion && !companion.isDestroyed() ? displayContaining(companion.getBounds(), displays) : null
+  const display = home ?? displays.find((row) => row.primary) ?? displays[0]
+  if (!display) return null
+  return boundsForAnchor('center', display, ESPN_LOGIN_SIZE)
+}
+
 export type EspnLoginResult = { ok: boolean; error?: string }
 
 const applyEspnLoginUserAgent = (contents: Electron.WebContents): void => {
@@ -79,11 +92,13 @@ const openEspnLoginOnce = async (): Promise<EspnLoginResult> => {
   // espn_s2 + SWID pair cannot instantly dismiss the window.
   await clearEspnCookies()
   const preexisting = await readEspnCookies()
+  const placed = loginBounds()
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
-      width: 980,
-      height: 760,
+      width: placed?.width ?? ESPN_LOGIN_SIZE.width,
+      height: placed?.height ?? ESPN_LOGIN_SIZE.height,
+      ...(placed ? { x: placed.x, y: placed.y } : {}),
       title: 'Sign in to ESPN',
       autoHideMenuBar: true,
       webPreferences: {

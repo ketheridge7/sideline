@@ -1,15 +1,15 @@
-import { sessionPatchForRelaunch } from '@shared/settings'
 import { flushHudForRelaunch, setOverlayVisible } from './poller'
 import { runtime } from './runtime'
 import { loadSettings, saveSettings } from './store'
 import { applyOverlayBounds, applyOverlayChrome, applyOverlayInput, createOverlayWindow } from './windows/overlay'
+import { flushTrackedPlacements } from './windows/placementHost'
 
+/** Save HUD visibility and the current display-relative placement before quit or an update relaunch. */
 export const persistSessionForRelaunch = (): void => {
-  const companion = runtime.companion()
+  flushTrackedPlacements()
   const overlay = runtime.overlay()
-  const bounds = companion && !companion.isDestroyed() ? companion.getBounds() : null
   const overlayOpen = Boolean(overlay && !overlay.isDestroyed() && overlay.isVisible())
-  saveSettings(sessionPatchForRelaunch(bounds, overlayOpen))
+  saveSettings({ overlayOpen })
   flushHudForRelaunch()
 }
 

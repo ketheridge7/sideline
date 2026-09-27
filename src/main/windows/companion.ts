@@ -1,7 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
 import { appendLog } from '../log'
-import { initialCompanionBounds } from '../companionBounds'
 import {
   bindEmptyNativeTitle,
   COMPANION_TITLEBAR_OVERLAY,
@@ -9,8 +8,11 @@ import {
   packagingWindowIconPath
 } from '../packagingIcon'
 import { runtime } from '../runtime'
+import { loadSettings } from '../store'
 import { windowClosePlan } from '../updateQuit'
+import { COMPANION_CONSTRAINTS, initialWindowBounds } from '../windowPlacement'
 import { loadRenderer } from './load'
+import { attachBrowserWindowPlacement, snapshotDisplays } from './placementHost'
 import { createRendererRecovery } from './rendererCrash'
 
 export const createCompanionWindow = (): BrowserWindow => {
@@ -21,13 +23,21 @@ export const createCompanionWindow = (): BrowserWindow => {
     return existing
   }
 
-  const restored = initialCompanionBounds()
+  const settings = loadSettings()
+  const bounds = initialWindowBounds(
+    'companion',
+    { placements: settings.windowPlacements, overlayDisplayId: settings.overlayDisplayId },
+    snapshotDisplays(),
+    COMPANION_CONSTRAINTS
+  )
+
   const win = new BrowserWindow({
-    width: restored?.width ?? 1440,
-    height: restored?.height ?? 900,
-    ...(restored ? { x: restored.x, y: restored.y } : {}),
-    minWidth: 1100,
-    minHeight: 700,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: Math.min(COMPANION_CONSTRAINTS.minWidth, bounds.width),
+    minHeight: Math.min(COMPANION_CONSTRAINTS.minHeight, bounds.height),
     title: NATIVE_WINDOW_TITLE,
     icon: packagingWindowIconPath(),
     backgroundColor: '#07080A',
@@ -65,6 +75,8 @@ export const createCompanionWindow = (): BrowserWindow => {
     event.preventDefault()
     win.hide()
   })
+
+  attachBrowserWindowPlacement(win, 'companion')
 
   win.once('ready-to-show', () => {
     runtime.noteCompanionReady()

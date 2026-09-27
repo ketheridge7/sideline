@@ -21,6 +21,7 @@ import { handleBeforeQuit } from './updateQuit'
 import { armUpdatePreviewShot } from './updatePreviewShot'
 import { noteCompanionReady, startAutoUpdater } from './updater'
 import { createCompanionWindow } from './windows/companion'
+import { listenForDisplayChanges } from './windows/placementHost'
 
 installProcessLogging()
 
@@ -57,6 +58,7 @@ const beginUpdateQuit = (): void => {
 
 app.whenReady().then(async () => {
   if (!gotLock) return
+  listenForDisplayChanges()
   bindLogDir(userDataLogDir())
   runtime.setOnCompanionReady(noteCompanionReady)
   runtime.setBeginUpdateQuit(beginUpdateQuit)

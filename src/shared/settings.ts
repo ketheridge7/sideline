@@ -1,3 +1,9 @@
+import {
+  COMPANION_CONSTRAINTS,
+  emptyWindowPlacements,
+  parseWindowPlacements,
+  type WindowPlacements
+} from '../main/windowPlacement'
 import { DEFAULT_OVERLAY_PRESET, layoutFromPreset, parseOverlayLayout, type OverlayLayout } from './overlayLayout'
 import {
   DEFAULT_SHORTCUTS,
@@ -25,47 +31,34 @@ export type Settings = {
   lanOverlayEnabled: boolean
   /** 16 lowercase hex chars. Null when LAN overlay is off. */
   lanOverlayToken: string | null
-  /** Restored after a silent update relaunch. */
+  /** Companion and HUD positions relative to a display. Null slots use the legacy fallback. */
+  windowPlacements: WindowPlacements
+  /** Restored after a quit or silent update relaunch. Position lives in windowPlacements. */
   overlayOpen: boolean
-  companionBounds: CompanionBounds | null
 }
 
-export type CompanionBounds = { x: number; y: number; width: number; height: number }
+export type StoredSettings = Partial<Settings> & {
+  /** Absolute DIP rect written by the pre-placement update relaunch. Migrated, then dropped. */
+  companionBounds?: unknown
+}
 
-const COMPANION_MIN_WIDTH = 1100
-const COMPANION_MIN_HEIGHT = 700
-
-export const parseCompanionBounds = (value: unknown): CompanionBounds | null => {
-  if (!value || typeof value !== 'object') return null
-  const row = value as Record<string, unknown>
-  const x = row.x
-  const y = row.y
-  const width = row.width
-  const height = row.height
-  if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number') {
-    return null
+const migrateLegacyCompanionBounds = (placements: WindowPlacements, legacy: unknown): WindowPlacements => {
+  if (placements.companion) return placements
+  const migrated = parseWindowPlacements({ companion: legacy, overlay: null }).companion
+  if (!migrated?.legacyRect) return placements
+  if (
+    migrated.legacyRect.width < COMPANION_CONSTRAINTS.minWidth ||
+    migrated.legacyRect.height < COMPANION_CONSTRAINTS.minHeight
+  ) {
+    return placements
   }
-  if (![x, y, width, height].every((n) => Number.isFinite(n))) return null
-  if (width < COMPANION_MIN_WIDTH || height < COMPANION_MIN_HEIGHT) return null
-  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) }
+  return { companion: migrated, overlay: placements.overlay }
 }
 
-export const companionBoundsOnScreen = (
-  bounds: CompanionBounds,
-  displays: ReadonlyArray<Pick<CompanionBounds, 'x' | 'y' | 'width' | 'height'>>
-): boolean =>
-  displays.some((display) => {
-    const overlapW = Math.min(bounds.x + bounds.width, display.x + display.width) - Math.max(bounds.x, display.x)
-    const overlapH = Math.min(bounds.y + bounds.height, display.y + display.height) - Math.max(bounds.y, display.y)
-    return overlapW >= 80 && overlapH >= 80
-  })
-
-export const sessionPatchForRelaunch = (
-  bounds: unknown,
-  overlayOpen: boolean
-): Pick<Settings, 'overlayOpen'> & Partial<Pick<Settings, 'companionBounds'>> => {
-  const parsed = parseCompanionBounds(bounds)
-  return parsed ? { overlayOpen, companionBounds: parsed } : { overlayOpen }
+/** True when a settings file still has the absolute companion rect from the update-relaunch build. */
+export const settingsHadLegacyCompanionBounds = (raw: unknown): boolean => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+  return (raw as { companionBounds?: unknown }).companionBounds != null
 }
 
 export type SettingsHotkeys = Pick<
@@ -103,8 +96,8 @@ export const defaultSettings = (): Settings => ({
   prevLeagueHotkey: DEFAULT_SHORTCUTS.prevLeague,
   lanOverlayEnabled: false,
   lanOverlayToken: null,
-  overlayOpen: false,
-  companionBounds: null
+  windowPlacements: emptyWindowPlacements(),
+  overlayOpen: false
 })
 
 const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
@@ -122,12 +115,13 @@ const shortcutsFromParsed = (parsed: Partial<Settings>): ShortcutMap =>
 export const isLanOverlayToken = (value: unknown): value is string =>
   typeof value === 'string' && /^[0-9a-f]{16}$/.test(value)
 
-export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
+export const hydrateSettings = (parsed: StoredSettings): Settings => {
   const base = defaultSettings()
   const shortcuts = shortcutsFromParsed(parsed)
+  const { companionBounds: legacyCompanionBounds, windowPlacements: rawPlacements, ...rest } = parsed
   return {
     ...base,
-    ...parsed,
+    ...rest,
     sleeperUserId: typeof parsed.sleeperUserId === 'string' && parsed.sleeperUserId ? parsed.sleeperUserId : null,
     sleeperLeagueIds: Array.isArray(parsed.sleeperLeagueIds)
       ? sanitizeLeagueIds(parsed.sleeperLeagueIds)
@@ -136,8 +130,8 @@ export const hydrateSettings = (parsed: Partial<Settings>): Settings => {
     overlayLayout: parseOverlayLayout(parsed.overlayLayout ?? base.overlayLayout),
     overlayDisplayId: typeof parsed.overlayDisplayId === 'number' ? parsed.overlayDisplayId : null,
     lanOverlayToken: isLanOverlayToken(parsed.lanOverlayToken) ? parsed.lanOverlayToken : null,
+    windowPlacements: migrateLegacyCompanionBounds(parseWindowPlacements(rawPlacements), legacyCompanionBounds),
     overlayOpen: parsed.overlayOpen === true,
-    companionBounds: parseCompanionBounds(parsed.companionBounds),
     ...shortcutSettingsPatch(shortcuts)
   }
 }
