@@ -1,7 +1,9 @@
 import { useEffect, useState, type JSX, type MouseEvent } from 'react'
 import {
   applyPreset,
+  HUD_FONT_SWATCHES,
   overwritePreset,
+  parseHudFontColor,
   PRESET_LABELS,
   PRESET_PLACEMENTS,
   OVERLAY_PRESET_IDS,
@@ -18,6 +20,7 @@ import {
 import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
+import { hudWidgetFontClass, hudWidgetFontStyle } from '../overlay/fontColor'
 import { OverlayWidgetView } from '../overlay/Widgets'
 import studioPlateUrl from '../assets/studio-plate.jpg'
 
@@ -228,16 +231,17 @@ export const OverlayStudio = ({
               return (
                 <div
                   key={widget.id}
-                  className="hud-widget hud-frost pointer-events-none absolute overflow-visible"
+                  className={`hud-widget hud-frost pointer-events-none absolute overflow-visible ${hudWidgetFontClass(layout.fontColor)}`}
                   data-density={resolveDensity('desktop', widget.density)}
+                  data-hud-font={layout.fontColor ?? 'default'}
                   style={{
                     left: `${widget.x}%`,
                     top: `${widget.y}%`,
                     width: `${widget.w}%`,
                     height: `${widget.h}%`,
                     background: hudWidgetFill(fill),
-                    color: '#F4F6F8',
-                    textShadow: HUD_TEXT_SHADOW
+                    textShadow: HUD_TEXT_SHADOW,
+                    ...hudWidgetFontStyle(layout.fontColor)
                   }}
                 >
                   {widget.id === 'ticker.nfl' && hud.nflTicker.length === 0 ? (
@@ -253,6 +257,7 @@ export const OverlayStudio = ({
                       surface="desktop"
                       density={widget.density}
                       showCrawler={layout.showCrawler}
+                      fontColor={layout.fontColor}
                     />
                   )}
                 </div>
@@ -325,6 +330,57 @@ export const OverlayStudio = ({
           disabled={!selected}
           onChange={(h) => handleBox({ h })}
         />
+
+        <div className="grid gap-1.5" data-studio-font={layout.fontColor ?? 'default'}>
+          <span className="text-xs uppercase tracking-wide text-muted">Font color</span>
+          <div className="grid grid-cols-5 gap-1">
+            {HUD_FONT_SWATCHES.map((swatch) => {
+              const active = (layout.fontColor ?? null) === swatch.color
+              return (
+                <button
+                  key={swatch.id}
+                  type="button"
+                  data-font-swatch={swatch.id}
+                  aria-pressed={active}
+                  aria-label={swatch.label}
+                  onClick={() => save({ ...layout, fontColor: swatch.color })}
+                  className={`grid cursor-pointer justify-items-center gap-1 border px-0.5 py-1 ${
+                    active ? 'border-lime text-lime' : 'border-line text-muted'
+                  }`}
+                >
+                  <span
+                    className="h-4 w-full border border-line"
+                    style={{ background: swatch.color ?? '#F4F6F8' }}
+                  />
+                  <span className="font-cond text-[10px] font-bold uppercase tracking-wide">{swatch.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <label className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted">
+            Custom
+            <input
+              type="color"
+              aria-label="Custom font color"
+              data-font-custom=""
+              value={layout.fontColor ?? '#F4F6F8'}
+              onChange={(event) => {
+                const next = parseHudFontColor(event.target.value)
+                if (next) save({ ...layout, fontColor: next })
+              }}
+              className="h-6 w-10 cursor-pointer border border-line bg-transparent"
+            />
+          </label>
+          <button
+            type="button"
+            data-font-reset=""
+            disabled={layout.fontColor == null}
+            onClick={() => save({ ...layout, fontColor: null })}
+            className="cursor-pointer border border-line px-2 py-1.5 text-xs uppercase tracking-wide text-muted hover:text-text disabled:opacity-40"
+          >
+            Reset to default
+          </button>
+        </div>
 
         <button
           type="button"

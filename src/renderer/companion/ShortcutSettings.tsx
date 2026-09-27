@@ -106,7 +106,11 @@ export const ShortcutSettings = ({
           </li>
         ))}
       </ul>
-      {error ? <p className="mt-3 text-sm text-air">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 text-sm text-air" role="alert" data-shortcut-error="">
+          {error}
+        </p>
+      ) : null}
     </>
   )
 

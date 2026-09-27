@@ -12,6 +12,7 @@ import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, toOverlayHud } from '@shared/types'
 import { OverlayWidgetView } from './Widgets'
 import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from './density'
+import { hudWidgetFontClass, hudWidgetFontStyle } from './fontColor'
 import {
   canvasInsetPct,
   overlayAllowsEdit,
@@ -142,11 +143,13 @@ export const OverlayApp = (): JSX.Element => {
         if (widget.hidden) return null
         const fill = smokeFill(surface, widget.opacity)
         const active = canEdit && selected === widget.id
+        const fontClass = hudWidgetFontClass(layout.fontColor)
         return (
           <div
             key={widget.id}
-            className={`hud-widget hud-frost absolute ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
+            className={`hud-widget hud-frost absolute ${fontClass} ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
             data-density={resolveDensity(surface, widget.density)}
+            data-hud-font={layout.fontColor ?? 'default'}
             style={{
               left: `${widget.x}%`,
               top: `${widget.y}%`,
@@ -154,8 +157,8 @@ export const OverlayApp = (): JSX.Element => {
               height: `${widget.h}%`,
               background: hudWidgetFill(fill),
               outline: active ? '1px dashed #A6E6A0' : 'none',
-              color: '#F4F6F8',
-              textShadow: HUD_TEXT_SHADOW
+              textShadow: HUD_TEXT_SHADOW,
+              ...hudWidgetFontStyle(layout.fontColor)
             }}
             onPointerDown={(event) => startDrag(event, widget.id, false)}
           >
@@ -165,6 +168,7 @@ export const OverlayApp = (): JSX.Element => {
               surface={surface}
               density={widget.density}
               showCrawler={layout.showCrawler}
+              fontColor={layout.fontColor}
             />
             {active ? (
               <button

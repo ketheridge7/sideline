@@ -138,6 +138,16 @@ select {
   color: #ffffff;
 }
 
+.hud-widget.hud-font-custom .hud-type-name,
+.hud-widget.hud-font-custom .hud-type-score,
+.hud-widget.hud-font-custom .hud-type-player,
+.hud-widget.hud-font-custom .hud-type-pos,
+.hud-widget.hud-font-custom .hud-type-ticker,
+.hud-widget.hud-frost.hud-font-custom .hud-type-player,
+.hud-widget.hud-frost.hud-font-custom .hud-type-pts {
+  color: var(--hud-font);
+}
+
 .hud-widget[data-density='compact'] {
   --hud-name: clamp(18px, 72cqh, 32px);
   --hud-score: clamp(26px, 78cqh, 52px);

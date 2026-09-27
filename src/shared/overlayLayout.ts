@@ -59,6 +59,27 @@ export type OverlayLayout = {
   groupedRails: { mine: boolean; opp: boolean }
   trackLock: { mine: boolean; opp: boolean }
   showCrawler: boolean
+  /** Null keeps the Sunday Tape ink (lime you-name, frost scores, white rows). */
+  fontColor: string | null
+}
+
+export const HUD_FONT_SWATCHES = [
+  { id: 'ice', label: 'Ice', color: null },
+  { id: 'white', label: 'White', color: '#FFFFFF' },
+  { id: 'lime', label: 'Lime', color: '#B6FF3B' },
+  { id: 'frost', label: 'Frost', color: '#F8FBFF' },
+  { id: 'silver', label: 'Silver', color: '#E8E4DC' }
+] as const
+
+export type HudFontSwatchId = (typeof HUD_FONT_SWATCHES)[number]['id']
+
+const HUD_FONT_COLOR = /^#[0-9A-F]{6}$/
+
+/** #RRGGBB only. Anything else, including a missing value, is the default ink. */
+export const parseHudFontColor = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const next = value.trim().toUpperCase()
+  return HUD_FONT_COLOR.test(next) ? next : null
 }
 
 export type HudGroupBox = {
@@ -226,7 +247,8 @@ const layout = (
   slots: {},
   groupedRails,
   trackLock: { mine: true, opp: true },
-  showCrawler: presetShowsCrawler(presetId)
+  showCrawler: presetShowsCrawler(presetId),
+  fontColor: null
 })
 
 const hide = (
@@ -493,7 +515,7 @@ export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
   if (!rec) return layoutFromPreset(DEFAULT_OVERLAY_PRESET)
   const slots = parseSlots(rec.slots)
   if (overlayLayoutDidMigrate(rec)) {
-    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots }
+    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots, fontColor: parseHudFontColor(rec.fontColor) }
   }
   const presetId = parsePresetId(rec.presetId)
   const base = layoutFromPreset(presetId)
@@ -512,7 +534,8 @@ export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
       mine: typeof track?.mine === 'boolean' ? track.mine : base.trackLock.mine,
       opp: typeof track?.opp === 'boolean' ? track.opp : base.trackLock.opp
     },
-    showCrawler: typeof rec.showCrawler === 'boolean' ? rec.showCrawler : base.showCrawler
+    showCrawler: typeof rec.showCrawler === 'boolean' ? rec.showCrawler : base.showCrawler,
+    fontColor: parseHudFontColor(rec.fontColor)
   }
 }
 
@@ -590,12 +613,14 @@ export const resizeWidget = (
 
 export const applyPreset = (presetId: OverlayPresetId, current?: OverlayLayout): OverlayLayout => {
   const slots = current?.slots ?? {}
+  const fontColor = current?.fontColor ?? null
   const factory = layoutFromPreset(presetId)
   const saved = slots[presetId]
-  if (!saved) return { ...factory, slots, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
+  if (!saved) return { ...factory, slots, fontColor, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
   return {
     ...factory,
     slots,
+    fontColor,
     schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
     widgets: coalesceRailColumns(mergeWidgets(factory.widgets, saved))
   }

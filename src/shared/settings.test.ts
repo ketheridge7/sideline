@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { OVERLAY_LAYOUT_SCHEMA_VERSION } from './overlayLayout'
-import { defaultSettings, hydrateSettings, isLanOverlayToken, sanitizeLeagueIds } from './settings'
+import { defaultSettings, hotkeysAtPublish, hydrateSettings, isLanOverlayToken, sanitizeLeagueIds } from './settings'
 
 describe('sanitizeLeagueIds', () => {
   it('keeps unique numeric ids and drops junk', () => {
@@ -74,5 +74,46 @@ describe('hydrateSettings', () => {
     expect(healed.nextLeagueHotkey).toBe(']')
     expect(healed.prevLeagueHotkey).toBe('[')
     expect(healed.overlayEditHotkey).toBe('CommandOrControl+Shift+E')
+  })
+
+  it('keeps a custom Cycle HUD display accelerator instead of merging the default back over it', () => {
+    const saved = hydrateSettings({
+      overlayHotkey: 'CommandOrControl+Alt+O',
+      overlayEditHotkey: 'CommandOrControl+Alt+E',
+      overlayDisplayHotkey: 'CommandOrControl+Shift+K',
+      nextLeagueHotkey: 'CommandOrControl+Alt+]',
+      prevLeagueHotkey: 'CommandOrControl+Alt+['
+    })
+    expect(saved.overlayDisplayHotkey).toBe('CommandOrControl+Shift+K')
+    expect(saved.overlayHotkey).toBe('CommandOrControl+Alt+O')
+    expect(saved.overlayEditHotkey).toBe('CommandOrControl+Alt+E')
+    expect(saved.nextLeagueHotkey).toBe('CommandOrControl+Alt+]')
+    expect(saved.prevLeagueHotkey).toBe('CommandOrControl+Alt+[')
+    const again = hydrateSettings(saved)
+    expect(again.overlayDisplayHotkey).toBe('CommandOrControl+Shift+K')
+    expect(again.overlayHotkey).toBe('CommandOrControl+Alt+O')
+  })
+
+  it('does not treat the display key M as the Meta modifier', () => {
+    const saved = hydrateSettings({ overlayDisplayHotkey: 'CommandOrControl+Alt+M' })
+    expect(saved.overlayDisplayHotkey).toBe('CommandOrControl+Alt+M')
+    expect(saved.overlayHotkey).toBe('CommandOrControl+Shift+O')
+  })
+})
+
+describe('hotkeysAtPublish', () => {
+  it('paints the accelerator saved during a poll, not the copy from when the poll started', () => {
+    const kickoff = defaultSettings()
+    const latest = {
+      ...kickoff,
+      overlayDisplayHotkey: 'CommandOrControl+Shift+K',
+      nextLeagueHotkey: 'CommandOrControl+Alt+]'
+    }
+    const painted = hotkeysAtPublish(kickoff, latest)
+    expect(painted.overlayDisplayHotkey).toBe('CommandOrControl+Shift+K')
+    expect(painted.nextLeagueHotkey).toBe('CommandOrControl+Alt+]')
+    expect(painted.overlayHotkey).toBe(kickoff.overlayHotkey)
+    expect(painted.overlayEditHotkey).toBe(kickoff.overlayEditHotkey)
+    expect(painted.prevLeagueHotkey).toBe(kickoff.prevLeagueHotkey)
   })
 })

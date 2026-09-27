@@ -8,6 +8,7 @@ import {
   layoutFromPreset,
   overlayLayoutDidMigrate,
   overwritePreset,
+  parseHudFontColor,
   parseOverlayLayout,
   parsePresetId,
   patchWidget,
@@ -235,6 +236,26 @@ describe('parseOverlayLayout', () => {
       widgets: [{ id: 'score.mine', opacity: -1 }]
     })
     expect(clear.widgets.find((row) => row.id === 'score.mine')?.opacity).toBe(0)
+  })
+
+  it('keeps a font color across parse, preset switches, and drops junk', () => {
+    expect(layoutFromPreset('1').fontColor).toBeNull()
+    expect(parseHudFontColor('#b6ff3b')).toBe('#B6FF3B')
+    expect(parseHudFontColor('lime')).toBeNull()
+    expect(parseHudFontColor('#FFF')).toBeNull()
+    const colored = parseOverlayLayout({
+      schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
+      presetId: '1',
+      fontColor: '#b6ff3b'
+    })
+    expect(colored.fontColor).toBe('#B6FF3B')
+    const switched = applyPreset('4', colored)
+    expect(switched.presetId).toBe('4')
+    expect(switched.fontColor).toBe('#B6FF3B')
+    const saved = overwritePreset(switched)
+    expect(saved.fontColor).toBe('#B6FF3B')
+    expect(applyPreset('1', saved).fontColor).toBe('#B6FF3B')
+    expect(parseOverlayLayout({ ...colored, fontColor: 'nope' }).fontColor).toBeNull()
   })
 })
 

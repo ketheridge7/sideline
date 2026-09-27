@@ -6,6 +6,7 @@ import {
   DEFAULT_SHORTCUTS,
   formatAccelerator,
   nextLeagueKey,
+  shortcutRegistrationError,
   nextOverlayDisplayId,
   normalizeAccelerator,
   parseShortcutMap,
@@ -59,6 +60,14 @@ describe('applyShortcutChange', () => {
     expect(actionForAccelerator(DEFAULT_SHORTCUTS, ']')).toBe('nextLeague')
     expect(shortcutConflict(DEFAULT_SHORTCUTS, 'nextLeague', ']')).toBeNull()
     expect(formatAccelerator('CommandOrControl+Shift+O')).toBe('Ctrl+Shift+O')
+  })
+
+  it('keeps letter M as a key and explains a failed registration', () => {
+    expect(normalizeAccelerator('CommandOrControl+Shift+M')).toBe('CommandOrControl+Shift+M')
+    expect(normalizeAccelerator('CommandOrControl+Alt+M')).toBe('CommandOrControl+Alt+M')
+    expect(shortcutRegistrationError('CommandOrControl+Shift+K')).toBe(
+      "Couldn't register Ctrl+Shift+K. It may be taken by the operating system or another app."
+    )
   })
 })
 

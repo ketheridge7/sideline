@@ -7,6 +7,7 @@ import {
   nextLeagueKey,
   SHORTCUT_ACTIONS,
   shortcutMapFromSettings,
+  shortcutRegistrationError,
   shortcutSettingsPatch,
   type ShortcutAction
 } from '@shared/shortcuts'
@@ -72,18 +73,28 @@ const handlerFor = (action: ShortcutAction): (() => void) => {
   }
 }
 
-export const registerAppShortcuts = (): void => {
+export type ShortcutRegistration = {
+  failed: Array<{ action: ShortcutAction; accelerator: string }>
+}
+
+const registerOne = (accelerator: string, handler: () => void): boolean => {
+  try {
+    return globalShortcut.register(accelerator, handler)
+  } catch {
+    return false
+  }
+}
+
+export const registerAppShortcuts = (): ShortcutRegistration => {
   globalShortcut.unregisterAll()
   const shortcuts = shortcutMapFromSettings(loadSettings())
+  const failed: ShortcutRegistration['failed'] = []
   for (const action of SHORTCUT_ACTIONS) {
     const accelerator = shortcuts[action]
     if (!isGlobalAccelerator(accelerator)) continue
-    try {
-      globalShortcut.register(accelerator, handlerFor(action))
-    } catch {
-      // Invalid accelerators stay persisted so Settings can show and reset them.
-    }
+    if (!registerOne(accelerator, handlerFor(action))) failed.push({ action, accelerator })
   }
+  return { failed }
 }
 
 export const setShortcutCapture = (active: boolean): void => {
@@ -105,8 +116,15 @@ export const applyShortcut = (
   const result = applyShortcutChange(current, action, accelerator)
   if (!result.ok) return { ok: false, error: result.error }
   saveSettings(shortcutSettingsPatch(result.shortcuts))
+  const registered = registerAppShortcuts()
+  const failed = registered.failed.find((row) => row.action === action)
+  if (failed) {
+    saveSettings(shortcutSettingsPatch(current))
+    registerAppShortcuts()
+    applyHotkeys()
+    return { ok: false, error: shortcutRegistrationError(failed.accelerator) }
+  }
   applyHotkeys()
-  registerAppShortcuts()
   return { ok: true }
 }
 

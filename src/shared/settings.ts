@@ -103,3 +103,11 @@ export const settingsHotkeys = (settings: SettingsHotkeys): SettingsHotkeys => (
   nextLeagueHotkey: settings.nextLeagueHotkey,
   prevLeagueHotkey: settings.prevLeagueHotkey
 })
+
+/**
+ * Accelerators to paint when a poll finishes.
+ * `kickoff` is the settings object copied when that refresh started. Publishing
+ * it puts a rebind that landed mid-poll back on the previous combo. `latest` wins.
+ */
+export const hotkeysAtPublish = (_kickoff: SettingsHotkeys, latest: SettingsHotkeys): SettingsHotkeys =>
+  settingsHotkeys(latest)

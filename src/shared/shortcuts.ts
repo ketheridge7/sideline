@@ -104,6 +104,9 @@ export const isGlobalAccelerator = (accelerator: string): boolean => accelerator
 export const formatAccelerator = (accelerator: string): string =>
   accelerator.replaceAll('CommandOrControl', 'Ctrl').replaceAll('Command', 'Ctrl').replaceAll('Control', 'Ctrl')
 
+export const shortcutRegistrationError = (accelerator: string): string =>
+  `Couldn't register ${formatAccelerator(accelerator)}. It may be taken by the operating system or another app.`
+
 const normalizeKey = (raw: string): string | null => {
   const trimmed = raw.trim()
   if (!trimmed) return null

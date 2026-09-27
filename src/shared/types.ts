@@ -380,6 +380,7 @@ const sameLayout = (prev: OverlayLayout, next: OverlayLayout): boolean => {
     prev.groupedRails.opp !== next.groupedRails.opp ||
     prev.trackLock.mine !== next.trackLock.mine ||
     prev.trackLock.opp !== next.trackLock.opp ||
+    prev.fontColor !== next.fontColor ||
     prev.widgets.length !== next.widgets.length
   ) {
     return false
