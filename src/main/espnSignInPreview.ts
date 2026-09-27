@@ -31,18 +31,28 @@ export const seedEspnSignInPreview = async (): Promise<void> => {
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 
+const json = (body: unknown): Response =>
+  new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
+
 /** Serves two football leagues for the fan API so Connect can show a post-login checklist. */
 export const previewEspnFetch = async (url: string, init: RequestInit | undefined, fallback: FetchLike): Promise<Response> => {
   if (url.includes('/apis/v2/fans/')) {
-    return new Response(
-      JSON.stringify({
-        favoriteLeagues: [
-          { leagueId: '111', leagueName: 'Gridiron Gurus', sport: 'ffl' },
-          { leagueId: '222', leagueName: 'Dawg Pound', sport: 'ffl' }
-        ]
-      }),
-      { status: 200, headers: { 'content-type': 'application/json' } }
-    )
+    return json({
+      favoriteLeagues: [
+        { leagueId: '111', leagueName: 'Gridiron Gurus', sport: 'ffl' },
+        { leagueId: '222', leagueName: 'Dawg Pound', sport: 'ffl' }
+      ]
+    })
+  }
+  const leagueId = url.match(/\/leagues\/(\d+)/)?.[1]
+  if (leagueId && url.includes('/apis/v3/games/ffl/')) {
+    return json({
+      id: Number(leagueId),
+      scoringPeriodId: 1,
+      settings: { name: `Preview League ${leagueId}` },
+      teams: [],
+      schedule: []
+    })
   }
   return fallback(url, init)
 }

@@ -183,9 +183,12 @@ export const espnConnectedPlan = (opts: {
   hasCookies: boolean
   lastConnected: boolean
   unauthorized?: boolean
+  /** Sign-out and a closed login window drop the session. Ignore lastConnected so a cookie miss after that is not treated as still signed in. */
+  sessionCleared?: boolean
 }): boolean => {
   if (opts.replay) return true
   if (opts.unauthorized) return false
+  if (opts.sessionCleared && !opts.hasCookies) return false
   return opts.hasCookies || opts.lastConnected
 }
 

@@ -37,5 +37,12 @@ describe('espn sign-in preview', () => {
     const other = await previewEspnFetch('https://lm-api-reads.fantasy.espn.com/x', undefined, fallback)
     expect(other.status).toBe(200)
     expect(await other.text()).toBe('ok')
+    const pasted = await previewEspnFetch(
+      'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/2026/segments/0/leagues/333?view=mSettings',
+      undefined,
+      fallback
+    )
+    const league = (await pasted.json()) as { settings: { name: string } }
+    expect(league.settings.name).toBe('Preview League 333')
   })
 })

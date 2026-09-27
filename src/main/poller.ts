@@ -97,6 +97,8 @@ let sleeperUserVerified = false
 const pendingRosterSwr = new Set<string>()
 const pendingEspnFullSwr = new Set<string>()
 let espnNeedsRelogin = false
+/** True after sign-out or a failed login until a fresh espn_s2 + SWID pair is primed. */
+let espnSessionCleared = false
 let espnDiscoveryError: string | null = null
 
 const espnDiscoveryFailure = (error: unknown): string => {
@@ -112,6 +114,7 @@ const markEspnHttpAuth = (error: unknown): void => {
 }
 const markEspnSessionHealthy = (): void => {
   espnNeedsRelogin = false
+  espnSessionCleared = false
 }
 let launchWeekConfirmPending = true
 const refreshingLeagueKeys = new Set<string>()
@@ -678,6 +681,7 @@ const kickEspnCookieSwr = (liveTick = false): void => {
 
 export const invalidateEspnSession = (): void => {
   espnNeedsRelogin = true
+  espnSessionCleared = true
   espnDiscoveryError = null
   espnCookieCache = null
   espnCookieInFlight = null
@@ -706,13 +710,15 @@ export const invalidateEspnSession = (): void => {
     clearLastHud()
   }
   const selectedWasEspn = lastState.selectedLeagueKey?.startsWith('espn:') === true
+  // Drop ESPN leagues and the selected key so the next refresh cannot restore them
+  // from the HUD hint. Leave espnConnected / espnNeedsRelogin on lastState: broadcast
+  // diffs against that snapshot, and pre-writing the new flags makes the companion
+  // skip sideline:state (tick or boards only), so Connect stays on the old label.
   lastState = {
     ...lastState,
     leagues: lastState.leagues.filter((league) => league.provider !== 'espn'),
     boards: lastState.boards.filter((board) => !board.key.startsWith('espn:')),
     selectedLeagueKey: selectedWasEspn ? null : lastState.selectedLeagueKey,
-    espnConnected: false,
-    espnNeedsRelogin: true,
     matchup: selectedWasEspn ? null : lastState.matchup
   }
 }
@@ -2545,7 +2551,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           replay,
           hasCookies: Boolean(cookies),
           lastConnected: lastState.espnConnected,
-          unauthorized: espnNeedsRelogin
+          unauthorized: espnNeedsRelogin,
+          sessionCleared: espnSessionCleared
         }),
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         overlayPort: runtime.overlayPort(),
@@ -3634,7 +3641,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           replay,
           hasCookies: Boolean(cookies),
           lastConnected: lastState.espnConnected,
-          unauthorized: espnNeedsRelogin
+          unauthorized: espnNeedsRelogin,
+          sessionCleared: espnSessionCleared
         }),
         espnNeedsRelogin: replay ? false : espnNeedsRelogin,
         nfl,
@@ -3903,7 +3911,8 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         replay,
         hasCookies: Boolean(espnCookieCache?.cookies),
         lastConnected: lastState.espnConnected,
-        unauthorized: espnNeedsRelogin
+        unauthorized: espnNeedsRelogin,
+        sessionCleared: espnSessionCleared
       }),
       espnNeedsRelogin,
       overlayPort: runtime.overlayPort(),
@@ -4148,6 +4157,7 @@ export const resetPollerForTests = (): void => {
   matchupsDiskWeek = null
   liveTape = []
   espnNeedsRelogin = false
+  espnSessionCleared = false
   espnDiscoveryError = null
   resetSleeperProjectionsCache()
   resetHostBackoff()
@@ -4232,6 +4242,7 @@ export const completeEspnSignIn = async (login: {
     await refresh({ waitForBoards: true })
     return { ok: false, error: ESPN_SIGNIN_NO_COOKIES }
   }
+  espnSessionCleared = false
   markEspnRelogin(false)
   await refresh({ waitForBoards: true })
   return { ok: true }

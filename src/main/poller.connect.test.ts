@@ -35,6 +35,7 @@ vi.mock('./windows/espnLogin', () => ({
 }))
 
 import { app } from 'electron'
+import { runtime } from './runtime'
 import { loadSettings, saveSettings } from './store'
 import {
   addEspnLeagueId,
@@ -318,7 +319,13 @@ describe('poller connect league selection', () => {
     )
 
     expect((await completeEspnSignIn({ ok: true })).ok).toBe(true)
+    const sendState = vi.spyOn(runtime, 'sendState')
     await disconnectEspn()
+    await Promise.resolve()
+    const signedOut = sendState.mock.calls.at(-1)?.[0]
+    expect(signedOut?.espnConnected).toBe(false)
+    expect(signedOut?.espnNeedsRelogin).toBe(false)
+    sendState.mockRestore()
     expect(espnAuth.cookies).toBeNull()
     expect(loadSettings().espnLeagueIds).toEqual([])
     expect(loadSettings().selectedLeagueKey).toBeNull()
@@ -343,10 +350,16 @@ describe('poller connect league selection', () => {
       'fetch',
       vi.fn(async () => jsonOk({ events: [], teams: [], schedule: [] }))
     )
+    const sendState = vi.spyOn(runtime, 'sendState')
     const closed = await completeEspnSignIn({ ok: false, error: 'window closed' })
+    await Promise.resolve()
     expect(closed).toEqual({ ok: false, error: 'window closed' })
     expect(currentState().espnConnected).toBe(false)
     expect(currentState().espnNeedsRelogin).toBe(true)
+    const pushed = sendState.mock.calls.at(-1)?.[0]
+    expect(pushed?.espnNeedsRelogin).toBe(true)
+    expect(pushed?.espnConnected).toBe(false)
+    sendState.mockRestore()
   })
 
   it('surfaces an ESPN league-list failure instead of an empty silent picker', async () => {
