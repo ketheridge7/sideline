@@ -95,6 +95,13 @@ const tabIcon = (tab: StudioTab): ReactNode => {
 
 const PANEL_W = { normal: 300, wide: 560 } as const
 const COLLAPSED_W = 44
+/** Wide never takes more than this share of the window, so the board keeps room for its scores. */
+const WIDE_MAX_SHARE = 0.3
+
+const widePanelWidth = (windowWidth: number): number =>
+  Math.round(Math.max(PANEL_W.normal, Math.min(PANEL_W.wide, windowWidth * WIDE_MAX_SHARE)))
+
+const windowWidth = (): number => (typeof window === 'undefined' ? 1920 : window.innerWidth)
 const PANEL_PAD = 12
 /** Main echoes every save back as a new state. Ignore echoes this soon after a local edit. */
 const ECHO_GRACE_MS = 700
@@ -125,6 +132,7 @@ export const OverlayStudio = ({
   const [tab, setTab] = useState<StudioTab>(initialTab)
   const [plate, setPlate] = useState<PreviewPlate>('game')
   const [wide, setWide] = useState(initialWide)
+  const [viewportW, setViewportW] = useState(windowWidth)
   const [notice, setNotice] = useState<string | null>(null)
   const lastLocalAt = useRef(0)
   const pending = useRef<OverlayLayout | null>(null)
@@ -132,7 +140,15 @@ export const OverlayStudio = ({
   const gestureSeq = useRef(0)
   const layout = history.present
   const hud = toOverlayHud(state)
-  const panelW = wide ? PANEL_W.wide : PANEL_W.normal
+  const panelW = wide ? widePanelWidth(viewportW) : PANEL_W.normal
+
+  useEffect(() => {
+    if (!wide) return
+    const onResize = (): void => setViewportW(window.innerWidth)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [wide])
 
   useEffect(() => {
     if (Date.now() - lastLocalAt.current < ECHO_GRACE_MS) return
