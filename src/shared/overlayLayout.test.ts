@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_HUD_DISPLAY, DEFAULT_HUD_STYLE } from './hudStyle'
 import {
   applyPreset,
+  clearPresetSlot,
   coalesceRailColumns,
   coversLiveVideo,
   dragIdsFor,
@@ -15,6 +17,9 @@ import {
   resolveHudTextColor,
   parsePresetId,
   patchWidget,
+  presetBaseline,
+  presetHasSavedSlot,
+  presetIsModified,
   presetShowsCrawler,
   setHudGroupBox,
   translateWidgets,
@@ -354,5 +359,90 @@ describe('coalesceRailColumns', () => {
     expect(next.find((row) => row.id === 'col.mine.pts')?.hidden).toBe(true)
     expect(next.find((row) => row.id === 'col.mine.name')?.x).toBe(1)
     expect(next.find((row) => row.id === 'col.mine.name')?.w).toBe(18)
+  })
+})
+
+describe('studio look migration', () => {
+  const savedBeforeLooks = () => {
+    const base = patchWidget(layoutFromPreset('2'), 'team.mine.name', { x: 7, y: 9 })
+    const { style: _style, display: _display, library: _library, ...rest } = base
+    return {
+      ...rest,
+      textColors: { all: null, playerName: null, teamName: '#FFFFFF', teamScore: null, playerScore: null }
+    }
+  }
+
+  it('keeps geometry and text colors from settings saved before looks existed', () => {
+    const raw = JSON.parse(JSON.stringify(savedBeforeLooks())) as unknown
+    const parsed = parseOverlayLayout(raw)
+    expect(parsed.presetId).toBe('2')
+    expect(parsed.widgets.find((row) => row.id === 'team.mine.name')).toMatchObject({ x: 7, y: 9 })
+    expect(parsed.textColors.teamName).toBe('#FFFFFF')
+    expect(parsed.style).toEqual(DEFAULT_HUD_STYLE)
+    expect(parsed.display).toEqual(DEFAULT_HUD_DISPLAY)
+    expect(parsed.library).toEqual({ savedThemes: [], recentColors: [] })
+    expect(overlayLayoutDidMigrate(raw)).toBe(false)
+  })
+
+  it('still reads the legacy single font color', () => {
+    const { textColors: _colors, ...rest } = savedBeforeLooks()
+    expect(parseOverlayLayout({ ...rest, fontColor: '#8ecaff' }).textColors.all).toBe('#8ECAFF')
+  })
+
+  it('round-trips a styled layout', () => {
+    const styled = {
+      ...layoutFromPreset('1'),
+      style: { ...DEFAULT_HUD_STYLE, backdrop: 'glass' as const, radius: 16, font: 'stadium' as const },
+      display: { ...DEFAULT_HUD_DISPLAY, ticker: false, size: 'large' as const },
+      library: { savedThemes: [], recentColors: ['#FFB547'] }
+    }
+    const parsed = parseOverlayLayout(JSON.parse(JSON.stringify(styled)))
+    expect(parsed.style).toEqual(styled.style)
+    expect(parsed.display).toEqual(styled.display)
+    expect(parsed.library.recentColors).toEqual(['#FFB547'])
+  })
+
+  it('keeps the look through a geometry reset from an old schema', () => {
+    const parsed = parseOverlayLayout({ schemaVersion: 1, style: { backdrop: 'solid' }, display: { rails: false } })
+    expect(parsed.style.backdrop).toBe('solid')
+    expect(parsed.display.rails).toBe(false)
+  })
+
+  it('carries the look across preset switches', () => {
+    const styled = { ...layoutFromPreset('1'), style: { ...DEFAULT_HUD_STYLE, backdrop: 'smoke' as const } }
+    const next = applyPreset('4', styled)
+    expect(next.presetId).toBe('4')
+    expect(next.style.backdrop).toBe('smoke')
+    expect(next.display).toEqual(styled.display)
+  })
+})
+
+describe('preset edits', () => {
+  it('flags drift from the preset and clears once saved over it', () => {
+    const layout = layoutFromPreset('1')
+    expect(presetIsModified(layout)).toBe(false)
+    const moved = translateWidgets(layout, ['team.mine.name'], 5, 0)
+    expect(presetIsModified(moved)).toBe(true)
+    const saved = overwritePreset(moved)
+    expect(presetHasSavedSlot(saved, '1')).toBe(true)
+    expect(presetIsModified(saved)).toBe(false)
+  })
+
+  it('drops a saved slot and snaps the live preset back to factory', () => {
+    const saved = overwritePreset(translateWidgets(layoutFromPreset('1'), ['team.mine.name'], 5, 0))
+    const cleared = clearPresetSlot(saved, '1')
+    expect(presetHasSavedSlot(cleared, '1')).toBe(false)
+    expect(cleared.widgets).toEqual(layoutFromPreset('1').widgets)
+    expect(clearPresetSlot(cleared, '1')).toBe(cleared)
+    const other = clearPresetSlot({ ...saved, slots: { ...saved.slots, '3': layoutFromPreset('3').widgets } }, '3')
+    expect(other.widgets).toEqual(saved.widgets)
+    expect(presetHasSavedSlot(other, '1')).toBe(true)
+  })
+
+  it('reports the saved slot as the baseline', () => {
+    const saved = overwritePreset(translateWidgets(layoutFromPreset('1'), ['team.mine.name'], 5, 0))
+    expect(presetBaseline(saved).find((row) => row.id === 'team.mine.name')?.x).toBe(
+      saved.widgets.find((row) => row.id === 'team.mine.name')?.x
+    )
   })
 })
