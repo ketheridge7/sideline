@@ -17,8 +17,23 @@ const ROLE_VAR: Record<HudTextRole, string> = {
   playerScore: '--hud-player-score'
 }
 
-export const hudWidgetFontClass = (colors: HudTextColors): string =>
-  hudTextColorsCustom(colors) ? 'hud-font-custom' : ''
+const ROLE_CLASS: Record<HudTextRole, string> = {
+  playerName: 'hud-ink-player-name',
+  teamName: 'hud-ink-team-name',
+  teamScore: 'hud-ink-team-score',
+  playerScore: 'hud-ink-player-score'
+}
+
+/**
+ * `hud-font-custom` marks a widget with any custom ink. Each role that actually resolves
+ * to a color also gets its own class, so an unset role keeps its Sunday Tape color
+ * instead of reading an empty variable.
+ */
+export const hudWidgetFontClass = (colors: HudTextColors): string => {
+  if (!hudTextColorsCustom(colors)) return ''
+  const roles = HUD_TEXT_ROLES.filter((role) => resolveHudTextColor(colors, role) != null).map((role) => ROLE_CLASS[role])
+  return ['hud-font-custom', ...roles].join(' ')
+}
 
 /**
  * The widget itself stays on the default ice ink so position tags, the lead chip,

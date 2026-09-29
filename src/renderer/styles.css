@@ -145,19 +145,19 @@ select {
   line-height: 1;
 }
 
-.hud-widget.hud-font-custom .hud-type-name {
+.hud-widget.hud-ink-team-name .hud-type-name {
   color: var(--hud-team-name);
 }
 
-.hud-widget.hud-font-custom .hud-type-score {
+.hud-widget.hud-ink-team-score .hud-type-score {
   color: var(--hud-team-score);
 }
 
-.hud-widget.hud-frost.hud-font-custom .hud-type-player {
+.hud-widget.hud-frost.hud-ink-player-name .hud-type-player {
   color: var(--hud-player-name);
 }
 
-.hud-widget.hud-frost.hud-font-custom .hud-type-pts {
+.hud-widget.hud-frost.hud-ink-player-score .hud-type-pts {
   color: var(--hud-player-score);
 }
 
