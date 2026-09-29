@@ -403,6 +403,11 @@ select {
   letter-spacing: -0.04em;
 }
 
+/* Monospace digits run wider than the condensed faces the score box and lead chip were fitted to. */
+.hud-canvas[data-hud-typeface='scoreboard'] .hud-type-score {
+  font-size: calc(var(--hud-score, 36px) * 0.8);
+}
+
 .hud-canvas[data-hud-typeface='studio'] .hud-type-name {
   letter-spacing: 0.02em;
 }
