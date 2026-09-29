@@ -115,3 +115,98 @@ export const applyStudioSlider = (
   if (!selected) return layout
   return setStudioBlockBox(layout, selected, { ...studioBlockBox(layout, selected), ...patch })
 }
+
+/** Moves a block without resizing it. Unlike the X/Y sliders, the far edge stops at the canvas border. */
+export const translateStudioBlock = (
+  layout: OverlayLayout,
+  id: StudioBlockId,
+  from: HudGroupBox,
+  dx: number,
+  dy: number
+): OverlayLayout =>
+  setStudioBlockBox(layout, id, {
+    ...from,
+    x: clamp(from.x + dx, 0, Math.max(0, 100 - from.w)),
+    y: clamp(from.y + dy, 0, Math.max(0, 100 - from.h))
+  })
+
+export const nudgeStudioBlock = (layout: OverlayLayout, id: StudioBlockId, dx: number, dy: number): OverlayLayout =>
+  translateStudioBlock(layout, id, studioBlockBox(layout, id), dx, dy)
+
+export const otherTeamBlock = (id: StudioBlockId): StudioBlockId | null => {
+  switch (id) {
+    case 'mine':
+      return 'opp'
+    case 'opp':
+      return 'mine'
+    case 'ticker':
+      return null
+    default: {
+      const _never: never = id
+      return _never
+    }
+  }
+}
+
+/** Copies one team frame onto the other, flipped across the vertical center line. */
+export const mirrorStudioBlock = (layout: OverlayLayout, from: StudioBlockId): OverlayLayout => {
+  const to = otherTeamBlock(from)
+  if (!to) return layout
+  const box = studioBlockBox(layout, from)
+  return setStudioBlockBox(layout, to, { ...box, x: clamp(100 - box.x - box.w, 0, 100) })
+}
+
+/** Puts one block back where the active preset button would put it. */
+export const resetStudioBlock = (
+  layout: OverlayLayout,
+  id: StudioBlockId,
+  baseline: OverlayWidgetInstance[]
+): OverlayLayout => {
+  const ids = new Set(idsForStudioBlock(id))
+  const byId = new Map(baseline.map((row) => [row.id, row]))
+  return {
+    ...layout,
+    widgets: layout.widgets.map((row) => {
+      const base = byId.get(row.id)
+      return ids.has(row.id) && base ? { ...base } : row
+    })
+  }
+}
+
+const RAIL_WIDGET_IDS = new Set<OverlayWidgetId>(['col.mine.name', 'col.opp.name'])
+
+/** Widgets as they paint, after the Studio's ticker / lead / rails toggles. */
+export const displayWidgets = (layout: OverlayLayout): OverlayWidgetInstance[] => {
+  const { ticker, lead, rails } = layout.display
+  if (ticker && lead && rails) return layout.widgets
+  return layout.widgets.map((row) => {
+    if (row.hidden) return row
+    if (!ticker && row.id === 'ticker.nfl') return { ...row, hidden: true }
+    if (!lead && row.id === 'score.delta') return { ...row, hidden: true }
+    if (!rails && RAIL_WIDGET_IDS.has(row.id)) return { ...row, hidden: true }
+    return row
+  })
+}
+
+export type HudPlate = { side: 'mine' | 'opp'; box: HudGroupBox }
+
+/** Canvas-percent breathing room between a plate edge and the type it backs. */
+export const HUD_PLATE_PAD = { x: 0.7, y: 1.1 } as const
+
+/** One plate per team frame, sized to the visible widgets plus a little padding. */
+export const hudPlateBoxes = (layout: OverlayLayout): HudPlate[] => {
+  const widgets = displayWidgets(layout)
+  const plates: HudPlate[] = []
+  for (const side of ['mine', 'opp'] as const) {
+    const ids = new Set(idsForStudioBlock(side))
+    const rows = widgets.filter((row) => ids.has(row.id) && !row.hidden && row.id !== 'meta.live')
+    if (rows.length === 0) continue
+    const box = boxForWidgets(rows)
+    const x = clamp(box.x - HUD_PLATE_PAD.x, 0, 100)
+    const y = clamp(box.y - HUD_PLATE_PAD.y, 0, 100)
+    const right = clamp(box.x + box.w + HUD_PLATE_PAD.x, 0, 100)
+    const bottom = clamp(box.y + box.h + HUD_PLATE_PAD.y, 0, 100)
+    plates.push({ side, box: { x, y, w: right - x, h: bottom - y } })
+  }
+  return plates
+}

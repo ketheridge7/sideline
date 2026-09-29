@@ -171,26 +171,6 @@ select {
   background-color: rgba(182, 255, 59, 0.22);
 }
 
-.studio-customize > summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.studio-customize > summary::-webkit-details-marker {
-  display: none;
-}
-
-.studio-customize > summary::before {
-  content: "▸";
-  display: inline-block;
-  width: 0.9em;
-  color: #b6ff3b;
-}
-
-.studio-customize[open] > summary::before {
-  transform: rotate(90deg);
-}
-
 .hud-widget[data-density='compact'] {
   --hud-name: clamp(18px, 72cqh, 32px);
   --hud-score: clamp(26px, 78cqh, 52px);
@@ -224,7 +204,7 @@ select {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-family: var(--font-cond);
+  font-family: var(--hud-font, var(--font-cond));
   font-size: var(--hud-name, 24px);
   font-weight: 800;
   line-height: 0.95;
@@ -248,7 +228,7 @@ select {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-family: var(--font-cond);
+  font-family: var(--hud-font, var(--font-cond));
   font-size: var(--hud-score, 36px);
   font-weight: 800;
   line-height: 0.92;
@@ -269,7 +249,7 @@ select {
 }
 
 .hud-type-delta {
-  font-family: var(--font-cond);
+  font-family: var(--hud-font, var(--font-cond));
   font-size: var(--hud-delta, 14px);
   font-weight: 700;
   line-height: 1;
@@ -278,7 +258,7 @@ select {
 }
 
 .hud-type-ticker {
-  font-family: var(--font-cond);
+  font-family: var(--hud-font, var(--font-cond));
   font-size: 20px;
   font-weight: 800;
   line-height: 1;
@@ -293,23 +273,6 @@ select {
   height: 100%;
   min-width: 0;
   min-height: 0;
-}
-
-.studio-presets {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.25rem;
-}
-
-.studio-presets button[aria-pressed="true"],
-.studio-preset-active {
-  border-color: #b6ff3b;
-  background: rgba(182, 255, 59, 0.16);
-  color: #b6ff3b;
-}
-
-.studio-block-idle:hover {
-  outline: 8px solid rgba(166, 230, 160, 0.55) !important;
 }
 
 .lineup-row {
@@ -360,7 +323,7 @@ select {
 .hud-type-pos,
 .hud-type-player,
 .hud-type-pts {
-  font-family: var(--font-cond);
+  font-family: var(--hud-font, var(--font-cond));
   line-height: 1;
   text-transform: uppercase;
 }
@@ -409,6 +372,300 @@ select {
   display: flex;
   align-items: center;
   transition: opacity 200ms ease;
+}
+
+/* ---------- HUD look (plates, typefaces) ---------- */
+
+.hud-canvas {
+  container-type: size;
+}
+
+.hud-plate {
+  pointer-events: none;
+  transition:
+    background 220ms ease,
+    box-shadow 220ms ease,
+    border-radius 220ms ease;
+}
+
+.hud-canvas:not([data-hud-backdrop='none']) .hud-type-ticker {
+  background: var(--hud-ticker-bg);
+}
+
+.hud-canvas[data-hud-typeface='scoreboard'] .hud-type-name,
+.hud-canvas[data-hud-typeface='scoreboard'] .hud-type-player,
+.hud-canvas[data-hud-typeface='scoreboard'] .hud-type-ticker {
+  letter-spacing: -0.02em;
+}
+
+.hud-canvas[data-hud-typeface='scoreboard'] .hud-type-score,
+.hud-canvas[data-hud-typeface='scoreboard'] .hud-type-pts {
+  letter-spacing: -0.04em;
+}
+
+.hud-canvas[data-hud-typeface='studio'] .hud-type-name {
+  letter-spacing: 0.02em;
+}
+
+.hud-canvas[data-hud-typeface='stadium'] .hud-type-name,
+.hud-canvas[data-hud-typeface='stadium'] .hud-type-player {
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Overlay Studio ---------- */
+
+/* Single-column grids in the Studio must not grow past the panel for a long nowrap line.
+   Base layer, so grid-cols-* utilities still win. */
+@layer base {
+  .studio-shell .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.studio-shell {
+  --studio-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(182, 255, 59, 0.06), transparent 60%),
+    linear-gradient(180deg, #0f1115 0%, #0b0d10 100%);
+}
+
+.studio-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #2a313b transparent;
+}
+
+.studio-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01));
+  border-radius: 12px;
+}
+
+.studio-tab {
+  position: relative;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.studio-tab-indicator {
+  transition:
+    transform 260ms var(--studio-ease),
+    width 260ms var(--studio-ease);
+}
+
+.studio-panel-enter {
+  animation: studio-panel-in 220ms var(--studio-ease) both;
+}
+
+@keyframes studio-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.studio-press {
+  transition:
+    transform 140ms var(--studio-ease),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 200ms ease,
+    opacity 160ms ease;
+}
+
+.studio-press:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.studio-press:disabled {
+  cursor: not-allowed;
+}
+
+.studio-preset-card {
+  transition:
+    transform 180ms var(--studio-ease),
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 220ms ease;
+}
+
+.studio-preset-card:hover {
+  transform: translateY(-1px);
+}
+
+.studio-preset-active {
+  border-color: #b6ff3b;
+  background: rgba(182, 255, 59, 0.12);
+  color: #b6ff3b;
+  box-shadow:
+    0 0 0 1px rgba(182, 255, 59, 0.35),
+    0 6px 22px -10px rgba(182, 255, 59, 0.55);
+}
+
+.studio-glow {
+  box-shadow:
+    0 0 0 1px rgba(182, 255, 59, 0.5),
+    0 8px 26px -12px rgba(182, 255, 59, 0.6);
+}
+
+/* Range: slim track, lime fill up to the thumb via --fill. */
+.studio-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.studio-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.studio-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #b6ff3b 0%, #b6ff3b var(--fill, 0%), #262c35 var(--fill, 0%), #262c35 100%);
+}
+
+.studio-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: #f4f6f8;
+  box-shadow:
+    0 0 0 3px rgba(182, 255, 59, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.6);
+  transition:
+    transform 140ms var(--studio-ease),
+    box-shadow 160ms ease;
+}
+
+.studio-range:hover:not(:disabled)::-webkit-slider-thumb,
+.studio-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 5px rgba(182, 255, 59, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.studio-range:focus-visible {
+  outline: none;
+}
+
+.studio-number {
+  -moz-appearance: textfield;
+}
+
+.studio-number::-webkit-outer-spin-button,
+.studio-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.studio-checker {
+  background-color: #2a2f37;
+  background-image:
+    linear-gradient(45deg, #1b1f25 25%, transparent 25%),
+    linear-gradient(-45deg, #1b1f25 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1b1f25 75%),
+    linear-gradient(-45deg, transparent 75%, #1b1f25 75%);
+  background-size: 8px 8px;
+  background-position:
+    0 0,
+    0 4px,
+    4px -4px,
+    -4px 0;
+}
+
+.studio-preview {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 18px 40px -22px rgba(0, 0, 0, 0.9);
+}
+
+.studio-preview[data-studio-dragging='false'] .hud-widget,
+.studio-preview[data-studio-dragging='false'] .hud-plate,
+.studio-preview[data-studio-dragging='false'] [data-studio-block] {
+  transition:
+    left 280ms var(--studio-ease),
+    top 280ms var(--studio-ease),
+    width 280ms var(--studio-ease),
+    height 280ms var(--studio-ease),
+    background 220ms ease,
+    box-shadow 220ms ease,
+    border-radius 220ms ease;
+}
+
+.studio-block {
+  border-radius: 6px;
+  transition: box-shadow 160ms ease;
+}
+
+.studio-block-idle:hover {
+  box-shadow:
+    0 0 0 3px rgba(166, 230, 160, 0.7),
+    inset 0 0 0 999px rgba(166, 230, 160, 0.06);
+}
+
+.studio-block-active {
+  box-shadow:
+    0 0 0 var(--studio-outline, 12px) #b6ff3b,
+    0 0 0 calc(var(--studio-outline, 12px) * 2.4) rgba(182, 255, 59, 0.22);
+}
+
+.studio-block-active.studio-block-dragging {
+  cursor: grabbing;
+}
+
+.studio-sv {
+  background-image:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, transparent);
+}
+
+.studio-hue {
+  background: linear-gradient(90deg, #f00, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00);
+}
+
+.studio-pop {
+  animation: studio-pop-in 200ms var(--studio-ease) both;
+  transform-origin: top center;
+}
+
+@keyframes studio-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.studio-toast {
+  animation: studio-toast-in 240ms var(--studio-ease) both;
+}
+
+@keyframes studio-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .bench-social-popover {

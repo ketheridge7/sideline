@@ -1,5 +1,6 @@
 import type { OverlayLayout } from './overlayLayout'
 import { DEFAULT_OVERLAY_PRESET, layoutFromPreset } from './overlayLayout'
+import { sameHudDisplay, sameHudStyle, sameStudioLibrary } from './hudStyle'
 import type { TransactionKind } from './transactionKind'
 import type { WinPctSource } from './winPct'
 
@@ -385,6 +386,9 @@ const sameLayout = (prev: OverlayLayout, next: OverlayLayout): boolean => {
     prev.textColors.teamName !== next.textColors.teamName ||
     prev.textColors.teamScore !== next.textColors.teamScore ||
     prev.textColors.playerScore !== next.textColors.playerScore ||
+    !sameHudStyle(prev.style, next.style) ||
+    !sameHudDisplay(prev.display, next.display) ||
+    !sameStudioLibrary(prev.library, next.library) ||
     prev.widgets.length !== next.widgets.length
   ) {
     return false

@@ -1,3 +1,23 @@
+import {
+  copyHudTextColors,
+  EMPTY_HUD_TEXT_COLORS,
+  parseHudTextColors,
+  type HudTextColors
+} from './hudText'
+import {
+  DEFAULT_HUD_DISPLAY,
+  DEFAULT_HUD_STYLE,
+  emptyStudioLibrary,
+  parseHudDisplay,
+  parseHudStyle,
+  parseStudioLibrary,
+  type HudDisplay,
+  type HudStyle,
+  type StudioLibrary
+} from './hudStyle'
+
+export * from './hudText'
+
 export const OVERLAY_WIDGET_IDS = [
   'meta.league',
   'meta.week',
@@ -66,69 +86,12 @@ export type OverlayLayout = {
    * The old single `fontColor` migrates into `all`.
    */
   textColors: HudTextColors
-}
-
-export const HUD_TEXT_ROLES = ['playerName', 'teamName', 'teamScore', 'playerScore'] as const
-
-export type HudTextRole = (typeof HUD_TEXT_ROLES)[number]
-
-export type HudTextHighlight = HudTextRole | 'all'
-
-export type HudTextColors = {
-  all: string | null
-  playerName: string | null
-  teamName: string | null
-  teamScore: string | null
-  playerScore: string | null
-}
-
-export const EMPTY_HUD_TEXT_COLORS: HudTextColors = {
-  all: null,
-  playerName: null,
-  teamName: null,
-  teamScore: null,
-  playerScore: null
-}
-
-export const HUD_TEXT_ROLE_LABELS: Record<HudTextRole, string> = {
-  playerName: 'Player names',
-  teamName: 'Team names',
-  teamScore: 'Team scores',
-  playerScore: 'Player scores'
-}
-
-/** Role override, then `all`, then null (Ice defaults at paint time). */
-export const resolveHudTextColor = (colors: HudTextColors, role: HudTextRole): string | null =>
-  colors[role] ?? colors.all
-
-export const hudTextColorsCustom = (colors: HudTextColors): boolean =>
-  colors.all != null || HUD_TEXT_ROLES.some((role) => colors[role] != null)
-
-const copyHudTextColors = (colors: HudTextColors): HudTextColors => ({
-  all: colors.all,
-  playerName: colors.playerName,
-  teamName: colors.teamName,
-  teamScore: colors.teamScore,
-  playerScore: colors.playerScore
-})
-
-export const HUD_FONT_SWATCHES = [
-  { id: 'ice', label: 'Ice', color: null },
-  { id: 'white', label: 'White', color: '#FFFFFF' },
-  { id: 'lime', label: 'Lime', color: '#B6FF3B' },
-  { id: 'frost', label: 'Frost', color: '#F8FBFF' },
-  { id: 'silver', label: 'Silver', color: '#E8E4DC' }
-] as const
-
-export type HudFontSwatchId = (typeof HUD_FONT_SWATCHES)[number]['id']
-
-const HUD_FONT_COLOR = /^#[0-9A-F]{6}$/
-
-/** #RRGGBB only. Anything else, including a missing value, is the default ink. */
-export const parseHudFontColor = (value: unknown): string | null => {
-  if (typeof value !== 'string') return null
-  const next = value.trim().toUpperCase()
-  return HUD_FONT_COLOR.test(next) ? next : null
+  /** Plates, edge, typeface, glyph shadow. Missing on older saves; defaults are the Sunday Tape look. */
+  style: HudStyle
+  /** Type size and which blocks paint. Follows the user across presets. */
+  display: HudDisplay
+  /** Studio memory: saved themes and recent colors. Never painted. */
+  library: StudioLibrary
 }
 
 export type HudGroupBox = {
@@ -297,7 +260,10 @@ const layout = (
   groupedRails,
   trackLock: { mine: true, opp: true },
   showCrawler: presetShowsCrawler(presetId),
-  textColors: copyHudTextColors(EMPTY_HUD_TEXT_COLORS)
+  textColors: copyHudTextColors(EMPTY_HUD_TEXT_COLORS),
+  style: { ...DEFAULT_HUD_STYLE },
+  display: { ...DEFAULT_HUD_DISPLAY },
+  library: emptyStudioLibrary()
 })
 
 const hide = (
@@ -559,59 +525,18 @@ const parseSlots = (raw: unknown): OverlayLayout['slots'] => {
   return slots
 }
 
-/** Backdrop the HUD floats on. A hint only — choices are never blocked. */
-export const HUD_TEXT_BACKDROP = '#07080A'
-
-const FAINT_HUD_CONTRAST = 2.5
-
-const srgbChannel = (channel: number): number => {
-  const value = channel / 255
-  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-}
-
-const relativeLuminance = (hex: string): number => {
-  const parsed = parseHudFontColor(hex)
-  if (!parsed) return 0
-  const r = srgbChannel(parseInt(parsed.slice(1, 3), 16))
-  const g = srgbChannel(parseInt(parsed.slice(3, 5), 16))
-  const b = srgbChannel(parseInt(parsed.slice(5, 7), 16))
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-
-export const hudContrastRatio = (foreground: string, background = HUD_TEXT_BACKDROP): number => {
-  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background))
-  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background))
-  return (lighter + 0.05) / (darker + 0.05)
-}
-
-export const hudColorIsFaint = (color: string | null): boolean =>
-  color != null && hudContrastRatio(color) < FAINT_HUD_CONTRAST
-
-/**
- * Reads `textColors`, or folds the pre-split `fontColor` into `all`.
- * Junk hex values become null so that role falls through.
- */
-export const parseHudTextColors = (raw: unknown, legacyFontColor?: unknown): HudTextColors => {
-  const legacy = parseHudFontColor(legacyFontColor)
-  const rec = asRecord(raw)
-  if (!rec) return { ...EMPTY_HUD_TEXT_COLORS, all: legacy }
-  const all = Object.prototype.hasOwnProperty.call(rec, 'all') ? parseHudFontColor(rec.all) : legacy
-  return {
-    all,
-    playerName: parseHudFontColor(rec.playerName),
-    teamName: parseHudFontColor(rec.teamName),
-    teamScore: parseHudFontColor(rec.teamScore),
-    playerScore: parseHudFontColor(rec.playerScore)
-  }
-}
-
 export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
   const rec = asRecord(raw)
   if (!rec) return layoutFromPreset(DEFAULT_OVERLAY_PRESET)
   const slots = parseSlots(rec.slots)
   const textColors = parseHudTextColors(rec.textColors, rec.fontColor)
+  const look = {
+    style: parseHudStyle(rec.style),
+    display: parseHudDisplay(rec.display),
+    library: parseStudioLibrary(rec.library)
+  }
   if (overlayLayoutDidMigrate(rec)) {
-    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots, textColors }
+    return { ...layoutFromPreset(DEFAULT_OVERLAY_PRESET), slots, textColors, ...look }
   }
   const presetId = parsePresetId(rec.presetId)
   const base = layoutFromPreset(presetId)
@@ -631,7 +556,8 @@ export const parseOverlayLayout = (raw: unknown): OverlayLayout => {
       opp: typeof track?.opp === 'boolean' ? track.opp : base.trackLock.opp
     },
     showCrawler: typeof rec.showCrawler === 'boolean' ? rec.showCrawler : base.showCrawler,
-    textColors
+    textColors,
+    ...look
   }
 }
 
@@ -710,13 +636,19 @@ export const resizeWidget = (
 export const applyPreset = (presetId: OverlayPresetId, current?: OverlayLayout): OverlayLayout => {
   const slots = current?.slots ?? {}
   const textColors = copyHudTextColors(current?.textColors ?? EMPTY_HUD_TEXT_COLORS)
+  const look = {
+    style: { ...(current?.style ?? DEFAULT_HUD_STYLE) },
+    display: { ...(current?.display ?? DEFAULT_HUD_DISPLAY) },
+    library: current?.library ?? emptyStudioLibrary()
+  }
   const factory = layoutFromPreset(presetId)
   const saved = slots[presetId]
-  if (!saved) return { ...factory, slots, textColors, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
+  if (!saved) return { ...factory, slots, textColors, ...look, schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION }
   return {
     ...factory,
     slots,
     textColors,
+    ...look,
     schemaVersion: OVERLAY_LAYOUT_SCHEMA_VERSION,
     widgets: coalesceRailColumns(mergeWidgets(factory.widgets, saved))
   }
@@ -734,6 +666,44 @@ export const overwritePreset = (
     [presetId]: layout.widgets.map((row) => ({ ...row }))
   }
 })
+
+const GEOMETRY_EPSILON = 0.05
+
+const sameGeometry = (left: OverlayWidgetInstance[], right: OverlayWidgetInstance[]): boolean => {
+  const byId = new Map(right.map((row) => [row.id, row]))
+  return left.every((row) => {
+    const other = byId.get(row.id)
+    if (!other) return false
+    if (row.hidden !== other.hidden) return false
+    if (row.hidden) return true
+    return (
+      Math.abs(row.x - other.x) < GEOMETRY_EPSILON &&
+      Math.abs(row.y - other.y) < GEOMETRY_EPSILON &&
+      Math.abs(row.w - other.w) < GEOMETRY_EPSILON &&
+      Math.abs(row.h - other.h) < GEOMETRY_EPSILON
+    )
+  })
+}
+
+/** Geometry a preset button restores: the saved slot, else the factory map. */
+export const presetBaseline = (layout: OverlayLayout, presetId: OverlayPresetId = layout.presetId): OverlayWidgetInstance[] =>
+  applyPreset(presetId, layout).widgets
+
+/** True when the live widgets drifted from what the active preset button would restore. */
+export const presetIsModified = (layout: OverlayLayout): boolean =>
+  !sameGeometry(layout.widgets, presetBaseline(layout))
+
+export const presetHasSavedSlot = (layout: OverlayLayout, presetId: OverlayPresetId): boolean =>
+  Boolean(layout.slots[presetId])
+
+/** Drops a saved slot so the preset goes back to factory geometry. Re-applies it if it is live. */
+export const clearPresetSlot = (layout: OverlayLayout, presetId: OverlayPresetId): OverlayLayout => {
+  if (!layout.slots[presetId]) return layout
+  const slots = { ...layout.slots }
+  delete slots[presetId]
+  const next = { ...layout, slots }
+  return presetId === layout.presetId ? applyPreset(presetId, next) : next
+}
 
 export const hudGroupBox = (layout: OverlayLayout): HudGroupBox => {
   const vis = layout.widgets.filter((row) => !row.hidden)

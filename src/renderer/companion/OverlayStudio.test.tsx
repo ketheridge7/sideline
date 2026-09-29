@@ -129,7 +129,7 @@ describe('OverlayStudio font color', () => {
     expect(html).toContain('data-studio-section="text"')
     expect(html).toContain('data-studio-section="layout"')
     expect(html).toContain('data-studio-section="size"')
-    expect(html.indexOf('data-studio-section="text"')).toBeLessThan(html.indexOf('data-studio-section="layout"'))
+    expect(html.indexOf('data-studio-tab="layout"')).toBeLessThan(html.indexOf('data-studio-tab="text"'))
     expect(html).toContain('data-studio-font="default"')
     expect(html).toContain('data-font-swatch="ice"')
     expect(html).toContain('data-font-swatch="lime"')
