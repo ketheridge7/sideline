@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { CtaLink } from "@/components/ui";
-import { cn } from "@/lib/cn";
 import { DOWNLOAD_URL } from "@/lib/constants";
 
 export function StickyDownload() {
@@ -10,28 +9,50 @@ export function StickyDownload() {
 
   useEffect(() => {
     const hero = document.getElementById("top");
-    if (!hero) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setVisible(!entry.isIntersecting),
+    const download = document.getElementById("download");
+    const narrowQuery = window.matchMedia("(max-width: 767px)");
+    let pastHero = false;
+    let downloadOnScreen = false;
+    let narrow = narrowQuery.matches;
+
+    const update = () => setVisible(narrow && pastHero && !downloadOnScreen);
+
+    const heroObserver = new IntersectionObserver(
+      ([entry]) => {
+        pastHero = !entry.isIntersecting;
+        update();
+      },
       { threshold: 0.15 },
     );
-    observer.observe(hero);
-    return () => observer.disconnect();
+    const downloadObserver = new IntersectionObserver(
+      ([entry]) => {
+        downloadOnScreen = entry.isIntersecting;
+        update();
+      },
+      { threshold: 0.2 },
+    );
+    if (hero) heroObserver.observe(hero);
+    if (download) downloadObserver.observe(download);
+
+    const onNarrow = () => {
+      narrow = narrowQuery.matches;
+      update();
+    };
+    narrowQuery.addEventListener("change", onNarrow);
+    update();
+
+    return () => {
+      heroObserver.disconnect();
+      downloadObserver.disconnect();
+      narrowQuery.removeEventListener("change", onNarrow);
+    };
   }, []);
 
+  if (!visible) return null;
+
   return (
-    <div
-      className={cn(
-        "pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-4 transition duration-500 motion-reduce:transition-none",
-        visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
-      )}
-      aria-hidden={!visible}
-    >
-      <CtaLink
-        href={DOWNLOAD_URL}
-        external
-        className="pointer-events-auto px-4 py-2 text-[13px] shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
-      >
+    <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center p-4">
+      <CtaLink href={DOWNLOAD_URL} external sameTab className="px-4 py-2 text-[13px] shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
         Download for Windows
       </CtaLink>
     </div>

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
+import { ISSUES_URL, REPO_URL, supportHref } from "@/lib/constants";
 import { WORDMARK_TEXT } from "@/lib/brand";
-import { REPO_URL } from "@/lib/constants";
 
 export function SiteFooter() {
+  const support = supportHref();
   return (
-    <footer className="border-t border-line pb-24">
+    <footer className="border-t border-line pb-28 md:pb-0">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div>
           <Link href="/" aria-label={`${WORDMARK_TEXT} home`}>
@@ -25,6 +26,17 @@ export function SiteFooter() {
           <Link href="/docs" className="hover:text-text">
             Docs
           </Link>
+          <Link href="/privacy" className="hover:text-text">
+            Privacy
+          </Link>
+          <a href={ISSUES_URL} className="hover:text-text" target="_blank" rel="noopener noreferrer">
+            Contact
+          </a>
+          {support ? (
+            <a href={support} className="hover:text-text" target="_blank" rel="noopener noreferrer">
+              Support Sideline
+            </a>
+          ) : null}
           <a href={REPO_URL} className="hover:text-text" target="_blank" rel="noopener noreferrer">
             GitHub
           </a>

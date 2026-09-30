@@ -1,6 +1,6 @@
 import os from 'node:os'
 import { app, clipboard, shell } from 'electron'
-import { isAllowedBugReportUrl, type BugReportRuntime } from '@shared/bugReport'
+import { isAllowedExternalUrl, type BugReportRuntime } from '@shared/bugReport'
 import { buildDiagnosticsText } from '@shared/diagnostics'
 import { readRecentLog } from './log'
 
@@ -24,7 +24,7 @@ export const copyDiagnostics = (): { ok: true } | { ok: false; error: string } =
 export const openExternalUrl = async (
   url: unknown
 ): Promise<{ ok: true } | { ok: false; error: string }> => {
-  if (!isAllowedBugReportUrl(url)) return { ok: false, error: 'Blocked URL' }
+  if (!isAllowedExternalUrl(url)) return { ok: false, error: 'Blocked URL' }
   await shell.openExternal(url)
   return { ok: true }
 }

@@ -20,20 +20,25 @@ export function ProductStill({
     <figure className={className}>
       <div className={cn("overflow-hidden rounded-xl border border-line bg-card", frameClassName)}>
         <Image
+          src={image.mobileSrc}
+          alt={image.alt}
+          width={image.mobileWidth}
+          height={image.mobileHeight}
+          sizes="100vw"
+          preload={preload}
+          className="h-auto w-full lg:hidden"
+        />
+        <Image
           src={image.src}
           alt={image.alt}
           width={image.width}
           height={image.height}
           preload={preload}
           sizes={sizes}
-          className="h-auto w-full"
+          className="hidden h-auto w-full lg:block"
         />
       </div>
-      {image.caption ? (
-        <figcaption className="mt-2 text-right font-cond text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
-          {image.caption}
-        </figcaption>
-      ) : null}
+      <figcaption className="mt-3 text-sm leading-relaxed text-muted">{image.caption}</figcaption>
     </figure>
   );
 }

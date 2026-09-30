@@ -9,6 +9,15 @@ export const demoRequested = (env: Env, argv: readonly string[]): boolean =>
 /** Marketing captures hold Replay on its pinned frame so every still shows the same Sunday (`npm run replay:capture`). */
 export const holdRequested = (env: Env): boolean => env.SIDELINE_REPLAY_HOLD === '1'
 
+/**
+ * Hides Replay chrome (chip, "fake leagues" labels, the scoreboard Replay line) for marketing
+ * stills. Off unless `SIDELINE_CAPTURE=1` or `--sideline-capture` is passed. Never a user control.
+ */
+export const CAPTURE_FLAG = '--sideline-capture'
+
+export const captureQuietRequested = (env: Env, argv: readonly string[]): boolean =>
+  env.SIDELINE_CAPTURE === '1' || argv.includes(CAPTURE_FLAG)
+
 export type DemoSwitchPlan = 'noop' | 'dev-hint' | 'relaunch'
 
 /**

@@ -10,10 +10,13 @@ const api = (): NonNullable<Window['sideline']> => {
 
 export const UpdateSettings = ({
   framed = true,
-  initialSnapshot
+  initialSnapshot,
+  hideDevNote = false
 }: {
   framed?: boolean
   initialSnapshot?: UpdateSnapshot
+  /** Marketing captures omit the dev-only "installed app" sentence. */
+  hideDevNote?: boolean
 }): JSX.Element => {
   const live = useUpdateStatus()
   const snapshot = initialSnapshot ?? live
@@ -41,7 +44,7 @@ export const UpdateSettings = ({
         >
           Check for updates
         </button>
-        {snapshot.state === 'disabled' ? (
+        {snapshot.state === 'disabled' && !hideDevNote ? (
           <p className="text-sm text-muted" data-update-note="dev">
             {label}
           </p>

@@ -8,6 +8,7 @@ import { injuryTapeFromDiff, mergeSessionTape, scoreTapeFromDiff, transactionsTo
 import { emptyScoreMemory, stabilizeMatchup, type MatchupScoreMemory } from '@shared/scoreStability'
 import { hotkeysAtPublish, settingsHotkeys } from '@shared/settings'
 import { finalNflTeams } from '@shared/winPct'
+import { captureQuietRequested } from './demoMode'
 import { isLikelyLive, LIVE_POLL_MS, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 import { hostsInBackoff, recentFetchTimings, resetHostBackoff } from './http'
 import { getPlayerMap, hydratePlayerMapFromDisk, peekPlayerDumpReady, peekPlayerMap } from './providers/playerCache'
@@ -132,7 +133,10 @@ const prevPlayerPts = new Map<string, number>()
 const scoreDisplayByKey = new Map<string, MatchupScoreMemory>()
 const prevInjury = new Map<string, string>()
 let liveTape: TapeEvent[] = []
-let lastState: AppState = emptyAppState()
+let lastState: AppState = {
+  ...emptyAppState(),
+  captureQuiet: captureQuietRequested(process.env, process.argv)
+}
 let lastPushedHud: OverlayHudState | null = null
 let inFlight: Promise<AppState> | null = null
 let inFlightSelectedKey: string | null = null
@@ -3668,6 +3672,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         lastToast,
         ...lanFields(),
         replay,
+        captureQuiet: captureQuietRequested(process.env, process.argv),
         lastUpdated: Date.now(),
         pollMs: Date.now() - started,
         liveCallMs: recentLiveCallMs(recentFetchTimings()),
@@ -4067,6 +4072,7 @@ export const warmupPollerCaches = (): void => {
     }
     lastState = {
       ...emptyAppState(),
+      captureQuiet: captureQuietRequested(process.env, process.argv),
       sleeperConnected: Boolean(settings.sleeperUsername),
       sleeperUsername: settings.sleeperUsername,
       espnConnected: Boolean(espnCookieCache?.cookies),

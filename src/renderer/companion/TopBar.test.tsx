@@ -144,6 +144,16 @@ describe('TopBar', () => {
     expect(renderTop()).not.toContain('data-replay-chip')
   })
 
+  it('hides the Replay chip during a marketing capture', () => {
+    const state = emptyAppState()
+    state.replay = true
+    state.captureQuiet = true
+    const html = renderTop(state)
+    expect(html).not.toContain('data-replay-chip')
+    expect(html).not.toContain('>Replay<')
+    expect(html).not.toContain('fake leagues')
+  })
+
   it('does not paint a decorative Live pip when polling', () => {
     const state = emptyAppState()
     state.pollingLive = true

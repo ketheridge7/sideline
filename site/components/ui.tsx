@@ -16,22 +16,29 @@ export function CtaLink({
   variant = "lime",
   className,
   external,
+  sameTab = false,
 }: {
   href: string;
   children: ReactNode;
   variant?: ButtonVariant;
   className?: string;
   external?: boolean;
+  /** Installer links stay in this tab. Other external links open a new one. */
+  sameTab?: boolean;
 }) {
   const classNames = cn(
-    "inline-flex items-center justify-center gap-2 rounded-full px-5 pt-2 pb-3 text-sm font-semibold tracking-tight transition-colors",
+    "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-tight transition-colors",
     variantClass[variant],
     className,
   );
 
   if (external) {
     return (
-      <a href={href} className={classNames} target="_blank" rel="noopener noreferrer">
+      <a
+        href={href}
+        className={classNames}
+        {...(sameTab ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+      >
         {children}
       </a>
     );
@@ -54,9 +61,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 
 export function SectionEyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="font-cond text-4xl font-extrabold uppercase leading-none tracking-[0.06em] text-lime sm:text-5xl">
-      {children}
-    </p>
+    <p className="font-cond text-xs font-bold uppercase tracking-[0.22em] text-lime">{children}</p>
   );
 }
 
@@ -70,7 +75,7 @@ export function SectionTitle({
   return (
     <h2
       className={cn(
-        "mt-3 max-w-3xl text-xl font-medium leading-snug tracking-tight text-text sm:text-2xl",
+        "mt-3 max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-text sm:text-4xl",
         className,
       )}
     >

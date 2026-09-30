@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import { resolveSupportUrl } from '@shared/support'
 import type { UpdateSnapshot } from '@shared/updater'
 import type { SidelineApi } from './index.d'
 
@@ -70,7 +71,8 @@ const api: SidelineApi = {
   dismissUpdateCountdown: () => ipcRenderer.invoke('sideline:dismissUpdateCountdown'),
   getRuntimeInfo: () => ipcRenderer.invoke('sideline:getRuntimeInfo'),
   copyDiagnostics: () => ipcRenderer.invoke('sideline:copyDiagnostics'),
-  openExternal: (url) => ipcRenderer.invoke('sideline:openExternal', url)
+  openExternal: (url) => ipcRenderer.invoke('sideline:openExternal', url),
+  supportUrl: resolveSupportUrl(process.env.SIDELINE_SUPPORT_URL) ?? ''
 }
 
 contextBridge.exposeInMainWorld('sideline', api)

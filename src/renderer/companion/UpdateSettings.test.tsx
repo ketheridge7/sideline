@@ -26,6 +26,19 @@ describe('UpdateSettings', () => {
     expect(html).toContain('Check for updates')
   })
 
+  it('keeps the version and drops the dev note for a marketing capture', () => {
+    const html = renderToStaticMarkup(
+      <UpdateSettings
+        framed={false}
+        hideDevNote
+        initialSnapshot={snap({ state: 'disabled', reason: 'dev', currentVersion: '1.0.3' })}
+      />
+    )
+    expect(html).toContain('v1.0.3')
+    expect(html).not.toContain('data-update-note="dev"')
+    expect(html).not.toContain('installed app')
+  })
+
   it('reports checking, up to date, download progress, ready, and errors', () => {
     const checking = renderToStaticMarkup(
       <UpdateSettings initialSnapshot={snap({ state: 'checking', currentVersion: '1.0.1' })} />

@@ -1,30 +1,34 @@
 import type { Metadata } from "next";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
-import { Kbd } from "@/components/ui";
+import { CtaLink, Kbd } from "@/components/ui";
 import { DOWNLOAD_URL } from "@/lib/constants";
 import { SHORTCUTS } from "@/lib/demo";
+import { fetchLatestRelease, formatInstallerSize } from "@/lib/release";
 
 export const metadata: Metadata = {
   title: "Connect & shortcuts",
   description:
     "Connect Sleeper and ESPN, HUD shortcuts, OBS localhost overlay, and optional TV pairing for Sideline.",
+  alternates: { canonical: "/docs" },
 };
 
-export default function DocsPage() {
+export default async function DocsPage() {
+  const release = await fetchLatestRelease();
+  const version = release ? `v${release.version}` : null;
+  const size = release?.installerBytes ? formatInstallerSize(release.installerBytes) : "about 90 MB";
+
   return (
     <>
       <SiteNav />
       <main id="main" className="mx-auto max-w-3xl px-5 py-16 sm:px-6">
-        <p className="font-cond text-4xl font-extrabold uppercase leading-none tracking-[0.06em] text-lime sm:text-5xl">
-          Docs
-        </p>
-        <h1 className="mt-3 max-w-3xl text-xl font-medium leading-snug tracking-tight text-text sm:text-2xl">
+        <p className="font-cond text-xs font-bold uppercase tracking-[0.22em] text-lime">Docs</p>
+        <h1 className="mt-3 max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-text sm:text-4xl">
           Connect, shortcuts, overlay
         </h1>
 
         <section className="mt-14">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">Sleeper</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-text">Sleeper</h2>
           <ol className="mt-4 grid list-decimal gap-2 pl-5 text-sm leading-relaxed text-muted">
             <li>
               In the Sleeper app or on sleeper.com, find your{" "}
@@ -41,7 +45,7 @@ export default function DocsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">ESPN</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-text">ESPN</h2>
           <ol className="mt-4 grid list-decimal gap-2 pl-5 text-sm leading-relaxed text-muted">
             <li>
               Click <strong className="font-medium text-text">Sign in with ESPN</strong>.
@@ -59,9 +63,7 @@ export default function DocsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">
-            Keyboard shortcuts
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight text-text">Keyboard shortcuts</h2>
           <div className="mt-4 overflow-hidden border border-line">
             <table className="w-full text-left text-sm">
               <thead className="bg-card font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
@@ -85,29 +87,30 @@ export default function DocsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">
-            OBS / localhost overlay
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight text-text">OBS / localhost overlay</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Browser Source: <code className="text-text">http://127.0.0.1:7333/overlay</code>
           </p>
         </section>
 
         <section className="mt-12">
-          <h2 className="font-cond text-2xl font-bold uppercase tracking-[0.08em] text-lime">
-            TV / LAN pairing
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight text-text">TV / LAN pairing</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Connect → Allow devices on this Wi-Fi. Enter the 6-digit code on the TV, or open the
             phone URL.
           </p>
         </section>
 
-        <p className="mt-14 text-sm">
-          <a href={DOWNLOAD_URL} className="text-lime hover:underline" target="_blank" rel="noopener noreferrer">
+        <div className="mt-14">
+          <CtaLink href={DOWNLOAD_URL} external sameTab>
             Download for Windows
-          </a>
-        </p>
+          </CtaLink>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
+            Windows 10/11 · per-user install
+            {version ? ` · ${version}` : ""} · {size}. The build is unsigned, so SmartScreen
+            may say “Windows protected your PC.” Choose More info, then Run anyway.
+          </p>
+        </div>
       </main>
       <SiteFooter />
     </>

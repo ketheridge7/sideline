@@ -71,7 +71,7 @@ export const BoardScreen = ({
     espnNeedsRelogin: state.espnNeedsRelogin,
     matchup
   })
-  const showReplay = boardUx === 'healthy-lineup' && state.replay
+  const showReplay = boardUx === 'healthy-lineup' && state.replay && !state.captureQuiet
   const showLineups = boardUx === 'healthy-lineup'
   const selectedRefreshing = Boolean(
     state.selectedLeagueKey &&
