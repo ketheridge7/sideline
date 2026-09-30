@@ -44,7 +44,7 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid #a6e6a0;
+  outline: 2px solid #b6ff3b;
   outline-offset: 3px;
 }
 
@@ -80,6 +80,10 @@ body {
   animation: fade 1s ease both;
 }
 
+.section-rise {
+  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .hero-room {
   background:
     radial-gradient(ellipse 42% 55% at 12% 78%, rgba(232, 168, 86, 0.14), transparent 58%),
@@ -94,7 +98,8 @@ body {
   }
 
   .rise,
-  .fade {
+  .fade,
+  .section-rise {
     animation: none !important;
   }
 }

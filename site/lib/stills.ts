@@ -1,59 +1,84 @@
 import { HERO_HUD } from "@/lib/demo";
 
 /**
- * Product stills (Designer spec MARKETING_REPLAY_SPEC §2). Every screen is a real
- * capture of the pinned Replay Sunday (`npm run replay:capture`): fake leagues,
- * fake managers, real NFL player names. The hero composites onto a generated,
- * people-free room. frost-hud composites onto the head-on broadcast plate
- * (scripts/marketing/compose.py).
- * Capture checklist: docs/marketing/stills.md.
+ * Product stills. Companion, leagues, studio, and connect are window captures of
+ * the pinned Replay Sunday with Replay chrome hidden (`SIDELINE_CAPTURE=1`).
+ * Hero and frost-hud are the real HUD composited on the head-on broadcast plate.
+ * Mobile files are crops of those stills for a 390px column.
  */
 export type ProductStill = {
   src: string;
+  mobileSrc: string;
   alt: string;
   width: number;
   height: number;
-  caption?: string;
+  mobileWidth: number;
+  mobileHeight: number;
+  caption: string;
 };
 
 const { you, them } = HERO_HUD;
 
 export const PRODUCT_STILLS = {
   hero: {
-    src: "/images/hero-living-room.jpg",
-    alt: `Sunday living room: flat frost HUD on the TV, thin bottom ticker, and the companion Scoreboard on a laptop — ${you.team} ${you.score}, ${them.team} ${them.score}.`,
+    src: "/images/hero-broadcast.jpg",
+    mobileSrc: "/images/hero-broadcast-mobile.jpg",
+    alt: `Sideline HUD on a Sunday broadcast: ${you.team} ${you.score}, ${them.team} ${them.score}, with both starting lineups on the lower corners.`,
     width: 1600,
     height: 900,
+    mobileWidth: 1600,
+    mobileHeight: 480,
+    caption: "The HUD on the broadcast. Sample Week 3, Ice Box 98.4–Hash Marks 91.2.",
   },
   companion: {
     src: "/images/companion-board.jpg",
-    alt: "Sideline Scoreboard in Replay: Matchup Scoring, Ice Box vs Hash Marks with both benches closed, scoring tape, and the league watchlist.",
+    mobileSrc: "/images/companion-board-mobile.jpg",
+    alt: "Sideline Scoreboard: Ice Box 98.4 versus Hash Marks 91.2, both starting lineups, the scoring tape, and the league watchlist.",
     width: 1440,
     height: 900,
+    mobileWidth: 964,
+    mobileHeight: 812,
+    caption: "Scoreboard. One matchup, both lineups, and the watchlist.",
   },
   leagues: {
     src: "/images/leagues-board.jpg",
-    alt: "Sideline Leagues in Replay: six matchups under League Scoring, neutral scores, outlined top-scorer chips, and the all-leagues tape. Sleeper cards show team names only.",
+    mobileSrc: "/images/leagues-board-mobile.jpg",
+    alt: "Sideline Leagues: six matchups under League Scoring, with top scorers and the all-leagues tape.",
     width: 1440,
     height: 900,
+    mobileWidth: 1200,
+    mobileHeight: 564,
+    caption: "Every league on one grid.",
   },
   overlay: {
     src: "/images/frost-hud.jpg",
-    alt: "Frost HUD over a Sunday broadcast: Ice Box and Hash Marks on the sidelines.",
+    mobileSrc: "/images/frost-hud-mobile.jpg",
+    alt: "Frost HUD over a Sunday broadcast: Ice Box and Hash Marks on the far sidelines, with a scoring ticker along the bottom.",
     width: 1600,
     height: 900,
+    mobileWidth: 780,
+    mobileHeight: 900,
+    caption: "Far-sides preset. Scores sit off the play.",
   },
   studio: {
     src: "/images/overlay-studio.jpg",
-    alt: "Scoreboard with Overlay Studio open beside it: five placements and a live HUD preview over the game plate. No separate Edit-layout control.",
+    mobileSrc: "/images/overlay-studio-mobile.jpg",
+    alt: "Scoreboard with Overlay Studio open: five HUD placements and a live preview over the game.",
     width: 1440,
     height: 900,
+    mobileWidth: 304,
+    mobileHeight: 860,
+    caption: "Overlay Studio. Pick a placement, then nudge it.",
   },
   connect: {
     src: "/images/connect-hub.jpg",
-    alt: "Connect hub in Replay: ESPN, Sleeper, and TV cards, with Updates open underneath. No Replay panel.",
+    mobileSrc: "/images/connect-hub-mobile.jpg",
+    alt: "Connect hub: ESPN and Sleeper league lists, a TV pairing card, and the updates section.",
     width: 1440,
-    height: 700,
+    height: 760,
+    mobileWidth: 1040,
+    mobileHeight: 648,
+    caption: "Sleeper is a username. ESPN is your own sign-in.",
   },
 } as const satisfies Record<string, ProductStill>;
 

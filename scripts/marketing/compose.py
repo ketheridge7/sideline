@@ -5,7 +5,7 @@ The backdrops in ./backdrops are generated rooms with no people in them. Only th
 screens are replaced, and only with real captures from `npm run replay:capture`:
 
   frost   head-on broadcast plate + HUD             -> site/public/images/frost-hud.jpg
-  hero    field plate + HUD inside the existing TV  -> site/public/images/hero-living-room.jpg
+  hero    head-on plate + HUD, no room              -> site/public/images/hero-broadcast.jpg
 
 The hero TV is an axis-aligned glass (no perspective warp). Both stills are built
 at 2x and downscaled so the ticker stays sharp. See docs/marketing/stills.md.
@@ -385,16 +385,15 @@ def main() -> None:
                 image = broadcast_field(plate, hud)
         out = args.out or IMAGES / "frost-hud.jpg"
     else:
-        plate = args.plate or FIELD_PLATE
-        base = args.base or IMAGES / "hero-living-room.jpg"
+        plate = args.plate or HEADON_PLATE
         if args.hud:
-            image = hero_field(base, plate, args.hud)
+            image = broadcast_field(plate, args.hud)
         else:
             with tempfile.TemporaryDirectory() as tmp:
                 hud = Path(tmp) / "hud.png"
-                render_hero_hud(hud)
-                image = hero_field(base, plate, hud)
-        out = args.out or IMAGES / "hero-living-room.jpg"
+                render_overlay_hud(hud, HERO_HUD_PRESET)
+                image = broadcast_field(plate, hud)
+        out = args.out or IMAGES / "hero-broadcast.jpg"
     image.convert("RGB").save(out, quality=90, optimize=True, progressive=True)
     print(f"wrote {out} {image.size}")
 

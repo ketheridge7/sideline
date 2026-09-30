@@ -17,7 +17,7 @@ Pinned frame (tick 0, `src/main/providers/replayWorld.ts`, mirrored in `site/lib
 
 | Slot | File in `site/public/images/` | What it shows | How it is made |
 | --- | --- | --- | --- |
-| A hero | `hero-living-room.jpg` | HUD on the TV + Scoreboard on a laptop | `tv-field-plate.png` + `compose.py hero` |
+| A hero | `hero-broadcast.jpg` | HUD on the head-on broadcast, no room | head-on plate + `compose.py hero` (preset 3) |
 | B | `companion-board.jpg` | Scoreboard, benches closed (both lineups visible) | Window capture, 1440×900 |
 | — | `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1440×900 |
 | C | `frost-hud.jpg` | Frost HUD over a Sunday broadcast: Ice Box and Hash Marks on the sidelines. | head-on plate + `compose.py frost` |
@@ -36,8 +36,8 @@ broadcast for `frost-hud.jpg`. Replace either file and rerun that `compose.py` s
 ## Capture checklist
 
 1. `npm install`, then `npm run replay:capture`. Replay is armed and **held** on the pinned frame
-   (`SIDELINE_REPLAY_HOLD=1`), so every still shows the same Sunday. The small REPLAY chip and
-   caption stay visible on purpose (spec §4).
+   (`SIDELINE_REPLAY_HOLD=1`) and marketing chrome is hidden (`SIDELINE_CAPTURE=1`): no Replay chip,
+   no “fake leagues” label, no scoreboard Replay line. That flag is off for every normal launch.
 2. Size the companion window to **1440×900** (Windows: PowerToys FancyZones or a window sizer;
    Linux: `xdotool search --name Sideline windowsize 1440 900`).
 3. **B** — Scoreboard with **both benches closed**, so both lineups show (Designer sign-off,

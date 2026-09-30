@@ -80,6 +80,24 @@ describe('replay poller', () => {
     expect(currentState().tape.some((row) => row.player === 'Gibbs DET' && row.delta === 1.1)).toBe(true)
   })
 
+  it('keeps marketing capture quiet through a replay publish', async () => {
+    process.env.SIDELINE_CAPTURE = '1'
+    process.env.SIDELINE_REPLAY_HOLD = '1'
+    try {
+      await refresh({ waitForBoards: true })
+      expect(currentState().replay).toBe(true)
+      expect(currentState().captureQuiet).toBe(true)
+    } finally {
+      delete process.env.SIDELINE_CAPTURE
+      delete process.env.SIDELINE_REPLAY_HOLD
+    }
+  })
+
+  it('leaves capture quiet off for a normal replay', async () => {
+    await refresh({ waitForBoards: true })
+    expect(currentState().captureQuiet).toBe(false)
+  })
+
   it('holds the pinned frame for marketing captures', async () => {
     process.env.SIDELINE_REPLAY_HOLD = '1'
     try {

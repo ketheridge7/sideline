@@ -1,3 +1,5 @@
+import { isAllowedSupportUrl } from './support'
+
 export const BUG_REPORT_REPO = 'ketheridge7/sideline'
 export const BUG_REPORT_TEMPLATE = 'bug_report.yml'
 export const BUG_REPORT_NEW_ISSUE_PATH = `/${BUG_REPORT_REPO}/issues/new`
@@ -78,6 +80,9 @@ export const buildBugReportUrl = (info: BugReportDiagnostics): string => {
   params.set('diagnostics', buildBugReportDiagnostics(info))
   return `https://github.com${BUG_REPORT_NEW_ISSUE_PATH}?${params.toString()}`
 }
+
+export const isAllowedExternalUrl = (url: unknown): url is string =>
+  isAllowedBugReportUrl(url) || isAllowedSupportUrl(url)
 
 export const isAllowedBugReportUrl = (url: unknown): url is string => {
   if (typeof url !== 'string' || url.length === 0 || url.length > 8000) return false

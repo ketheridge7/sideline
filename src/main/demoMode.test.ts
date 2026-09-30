@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { DEMO_FLAG, DEMO_LOCKED_MESSAGE, demoDevHint, demoRelaunchArgs, demoRequested, demoSwitchPlan, holdRequested } from './demoMode'
+import {
+  CAPTURE_FLAG,
+  DEMO_FLAG,
+  DEMO_LOCKED_MESSAGE,
+  captureQuietRequested,
+  demoDevHint,
+  demoRelaunchArgs,
+  demoRequested,
+  demoSwitchPlan,
+  holdRequested
+} from './demoMode'
 
 describe('demoMode', () => {
   it('arms from npm run replay or the --sideline-replay flag', () => {
@@ -18,6 +28,14 @@ describe('demoMode', () => {
   it('holds the pinned frame only for explicit marketing captures', () => {
     expect(holdRequested({ SIDELINE_REPLAY_HOLD: '1' })).toBe(true)
     expect(holdRequested({ SIDELINE_REPLAY: '1' })).toBe(false)
+  })
+
+  it('hides Replay chrome only for an explicit marketing capture', () => {
+    expect(captureQuietRequested({}, ['Sideline.exe'])).toBe(false)
+    expect(captureQuietRequested({ SIDELINE_REPLAY: '1' }, ['Sideline.exe'])).toBe(false)
+    expect(captureQuietRequested({ SIDELINE_CAPTURE: '1' }, ['Sideline.exe'])).toBe(true)
+    expect(captureQuietRequested({}, ['Sideline.exe', CAPTURE_FLAG])).toBe(true)
+    expect(captureQuietRequested({ SIDELINE_CAPTURE: '0' }, ['Sideline.exe'])).toBe(false)
   })
 
   it('relaunches to switch, never flips demo inside a live process, and hints on a dev server', () => {

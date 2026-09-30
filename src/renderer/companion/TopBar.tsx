@@ -34,7 +34,7 @@ export const TopBar = ({
           Week {state.nfl.displayWeek}
         </span>
       ) : null}
-      {state.replay ? (
+      {state.replay && !state.captureQuiet ? (
         <button
           type="button"
           onClick={() => onScreen('connect')}

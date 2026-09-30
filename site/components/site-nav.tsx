@@ -21,11 +21,16 @@ export function SiteNav() {
 
   useEffect(() => {
     if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   return (
@@ -51,7 +56,7 @@ export function SiteNav() {
           ))}
         </nav>
         <div className="hidden md:block">
-          <CtaLink href={DOWNLOAD_URL} external className="px-4 py-2 text-[13px]">
+          <CtaLink href={DOWNLOAD_URL} external sameTab className="px-4 py-2 text-[13px]">
             Download for Windows
           </CtaLink>
         </div>
@@ -60,9 +65,10 @@ export function SiteNav() {
           className="inline-flex h-10 w-10 items-center justify-center border border-line text-text md:hidden"
           aria-expanded={open}
           aria-controls="mobile-nav"
+          aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className="sr-only">Menu</span>
+          <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
           <span className="flex flex-col gap-1.5" aria-hidden="true">
             <span className={cn("h-px w-4 bg-text transition", open && "translate-y-[3.5px] rotate-45")} />
             <span className={cn("h-px w-4 bg-text transition", open && "-translate-y-[3.5px] -rotate-45")} />
@@ -82,7 +88,7 @@ export function SiteNav() {
                 {link.label}
               </Link>
             ))}
-            <CtaLink href={DOWNLOAD_URL} external className="mt-2">
+            <CtaLink href={DOWNLOAD_URL} external sameTab className="mt-2">
               Download for Windows
             </CtaLink>
           </div>

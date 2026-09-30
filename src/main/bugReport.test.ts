@@ -57,6 +57,19 @@ describe('openExternalUrl', () => {
     })
     expect(openExternal).not.toHaveBeenCalled()
   })
+
+  it('opens an allowed Stripe Payment Link and rejects a lookalike host', async () => {
+    await expect(openExternalUrl('https://buy.stripe.com/test_example')).resolves.toEqual({ ok: true })
+    expect(openExternal).toHaveBeenCalledWith('https://buy.stripe.com/test_example')
+    openExternal.mockClear()
+    await expect(openExternalUrl('https://donate.stripe.com/example')).resolves.toEqual({ ok: true })
+    await expect(openExternalUrl('https://buy.stripe.com.evil.test/test_example')).resolves.toEqual({
+      ok: false,
+      error: 'Blocked URL'
+    })
+    expect(openExternal).toHaveBeenCalledTimes(1)
+    expect(openExternal).toHaveBeenCalledWith('https://donate.stripe.com/example')
+  })
 })
 
 describe('copyDiagnostics', () => {

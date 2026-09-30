@@ -7,19 +7,21 @@ import {
   copyDiagnosticsFromConnect,
   espnSignInFeedback,
   leaguesToAdd,
+  openSupportFromConnect,
   reportBugFromConnect,
   type ConnectPath
 } from './ConnectScreen'
 
 const htmlOf = (
   overrides: Partial<ReturnType<typeof emptyAppState>> = {},
-  opts: { path?: ConnectPath; discoverable?: League[] } = {}
+  opts: { path?: ConnectPath; discoverable?: League[]; supportUrl?: string | null } = {}
 ): string =>
   renderToStaticMarkup(
     <ConnectScreen
       state={{ ...emptyAppState(), ...overrides }}
       initialPath={opts.path}
       discoverable={opts.discoverable}
+      supportUrl={opts.supportUrl}
     />
   )
 
@@ -71,6 +73,27 @@ describe('ConnectScreen hub', () => {
     expect(html).toContain('Copy diagnostics')
     expect(html).toContain('data-connect-report="diagnostics"')
     expect(html.indexOf('data-connect-report="diagnostics"')).toBeGreaterThan(html.indexOf('data-connect-report="bug"'))
+    expect(html).not.toContain('Support Sideline')
+    expect(html).not.toContain('data-connect-support')
+  })
+
+  it('hides Support Sideline when no Payment Link is configured', () => {
+    expect(htmlOf()).not.toContain('Support Sideline')
+    expect(htmlOf({}, { supportUrl: '' })).not.toContain('Support Sideline')
+    expect(htmlOf({}, { supportUrl: 'https://example.com/pay' })).not.toContain('Support Sideline')
+  })
+
+  it('shows Support Sideline beside the other footer actions when a Stripe link is set', async () => {
+    const html = htmlOf({}, { supportUrl: 'https://buy.stripe.com/test_example' })
+    expect(html).toContain('Support Sideline')
+    expect(html).toContain('data-connect-support="sideline"')
+    expect(html.indexOf('data-connect-support="sideline"')).toBeGreaterThan(html.indexOf('data-connect-report="diagnostics"'))
+    const openExternal = vi.fn(async () => ({ ok: true as const }))
+    await openSupportFromConnect({ openExternal }, 'https://buy.stripe.com/test_example')
+    expect(openExternal).toHaveBeenCalledWith('https://buy.stripe.com/test_example')
+    openExternal.mockClear()
+    await openSupportFromConnect({ openExternal }, 'https://example.com/pay')
+    expect(openExternal).not.toHaveBeenCalled()
   })
 
   it('copies diagnostics from the control next to Report a bug', async () => {
@@ -363,6 +386,14 @@ describe('Connect Replay arming', () => {
     expect(html).not.toContain('Disarm Replay')
     expect(html).toContain('Replay · 1 fake league')
     expect(html).toContain('Ready to pair')
+  })
+
+  it('uses connected labels and hides the dev update note during a marketing capture', () => {
+    const html = htmlOf({ ...armed, captureQuiet: true })
+    expect(html).not.toContain('fake league')
+    expect(html).not.toContain('>Replay<')
+    expect(html).toContain('Connected · 1 league')
+    expect(html).not.toContain('Updates are available in the installed app')
   })
 
   it('never offers Sign out, Add leagues, or Remove on real accounts while Replay is armed', () => {

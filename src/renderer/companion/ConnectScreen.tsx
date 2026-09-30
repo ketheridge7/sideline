@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { submitBugReport } from '@shared/bugReport'
+import { isAllowedSupportUrl } from '@shared/support'
 import type { AppState, League, Provider } from '@shared/types'
 import { chromeFillPillClass, chromePillClass } from './chrome'
 import { ShortcutSettings } from './ShortcutSettings'
@@ -20,6 +21,15 @@ export const reportBugFromConnect = async (
     if (!result.ok) throw new Error(result.error ?? 'Could not open GitHub')
     return result
   })
+}
+
+export const openSupportFromConnect = async (
+  sideline: Pick<NonNullable<Window['sideline']>, 'openExternal'>,
+  url: string
+): Promise<void> => {
+  if (!isAllowedSupportUrl(url)) return
+  const result = await sideline.openExternal(url)
+  if (!result.ok) throw new Error(result.error ?? 'Could not open support link')
 }
 
 export const copyDiagnosticsFromConnect = async (
@@ -69,14 +79,20 @@ const connectedLabel = (count: number): string =>
 const replayLeaguesLabel = (count: number): string => `Replay · ${count} fake league${count === 1 ? '' : 's'}`
 
 const espnHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
-  if (state.replay) return { label: replayLeaguesLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
+  if (state.replay) {
+    const count = state.leagues.filter((row) => row.provider === 'espn').length
+    return { label: state.captureQuiet ? connectedLabel(count) : replayLeaguesLabel(count), kind: 'on' }
+  }
   if (state.espnNeedsRelogin) return { label: 'Needs re-login', kind: 'warn' }
   if (!state.espnConnected) return { label: 'Not connected', kind: 'off' }
   return { label: connectedLabel(state.leagues.filter((row) => row.provider === 'espn').length), kind: 'on' }
 }
 
 const sleeperHubStatus = (state: AppState): { label: string; kind: 'off' | 'on' | 'warn' } => {
-  if (state.replay) return { label: replayLeaguesLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
+  if (state.replay) {
+    const count = state.leagues.filter((row) => row.provider === 'sleeper').length
+    return { label: state.captureQuiet ? connectedLabel(count) : replayLeaguesLabel(count), kind: 'on' }
+  }
   if (!state.sleeperConnected) return { label: 'Not connected', kind: 'off' }
   return { label: connectedLabel(state.leagues.filter((row) => row.provider === 'sleeper').length), kind: 'on' }
 }
@@ -410,13 +426,16 @@ export const ConnectScreen = ({
   onOpenBoards,
   initialPath = 'hub',
   discoverable,
-  activeView = 'Connect'
+  activeView = 'Connect',
+  supportUrl = null
 }: {
   state: AppState
   onOpenBoards?: () => void
   initialPath?: ConnectPath
   discoverable?: League[]
   activeView?: string
+  /** Stripe Payment Link. Null hides the control. */
+  supportUrl?: string | null
 }): JSX.Element => {
   const [path, setPath] = useState<ConnectPath>(initialPath)
   const [username, setUsername] = useState(state.sleeperUsername ?? '')
@@ -613,7 +632,7 @@ export const ConnectScreen = ({
         <section className="rounded-sm border border-line bg-card p-5" data-connect-updates="static">
           <h2 className="text-sm font-semibold text-muted">Updates</h2>
           <div className="mt-3">
-            <UpdateSettings framed={false} />
+            <UpdateSettings framed={false} hideDevNote={state.captureQuiet} />
           </div>
         </section>
         <details className="connect-howto rounded-sm border border-line bg-card p-5">
@@ -639,6 +658,16 @@ export const ConnectScreen = ({
           >
             Copy diagnostics
           </button>
+          {supportUrl && isAllowedSupportUrl(supportUrl) ? (
+            <button
+              type="button"
+              onClick={() => void openSupportFromConnect(api(), supportUrl)}
+              className="w-fit cursor-pointer text-left text-sm text-muted hover:text-lime"
+              data-connect-support="sideline"
+            >
+              Support Sideline
+            </button>
+          ) : null}
         </div>
       </footer>
     </>

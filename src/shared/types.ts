@@ -210,6 +210,8 @@ export type AppState = {
   overlayToken: string | null
   overlayPairingCode: string | null
   replay: boolean
+  /** Marketing captures only. Hides Replay chrome. Always false for a normal launch. */
+  captureQuiet: boolean
   lastUpdated: number | null
   pollMs: number | null
   liveCallMs: number | null
@@ -286,6 +288,7 @@ export const emptyAppState = (): AppState => ({
   overlayToken: null,
   overlayPairingCode: null,
   replay: false,
+  captureQuiet: false,
   lastUpdated: null,
   pollMs: null,
   liveCallMs: null,

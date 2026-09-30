@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 import { bugReportActiveView } from '@shared/bugReport'
+import { isAllowedSupportUrl } from '@shared/support'
 import {
   acceleratorFromEvent,
   actionForAccelerator,
@@ -130,6 +131,11 @@ export const App = (): JSX.Element => {
               state={state}
               onOpenBoards={() => setScreen('boards')}
               activeView={bugReportActiveView(ready ? screen : 'connect', state.overlayVisible)}
+              supportUrl={
+                window.sideline?.supportUrl && isAllowedSupportUrl(window.sideline.supportUrl)
+                  ? window.sideline.supportUrl
+                  : null
+              }
             />
           ) : null}
           {ready && screen === 'boards' ? (

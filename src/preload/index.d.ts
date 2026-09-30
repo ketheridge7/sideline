@@ -55,6 +55,8 @@ export type SidelineApi = {
   getRuntimeInfo: () => Promise<BugReportRuntime>
   copyDiagnostics: () => Promise<{ ok: boolean; error?: string }>
   openExternal: (url: string) => Promise<{ ok: boolean; error?: string }>
+  /** Resolved Stripe Payment Link, or "" when unset. */
+  supportUrl: string
 }
 
 declare global {

@@ -22,7 +22,7 @@ export default defineConfig({
   plugins: [electronViteAssetQuery(), react()],
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx']
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'site/lib/**/*.test.ts']
   },
   resolve: {
     alias: {
