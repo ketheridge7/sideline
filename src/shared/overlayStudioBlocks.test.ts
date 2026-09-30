@@ -2,9 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { applyPreset, hudGroupBox, layoutFromPreset, overwritePreset, setHudGroupBox } from './overlayLayout'
 import {
   applyStudioSlider,
+  displayWidgets,
+  hudPlateBoxes,
   idsForStudioBlock,
+  mirrorStudioBlock,
+  nudgeStudioBlock,
+  otherTeamBlock,
+  resetStudioBlock,
   setStudioBlockBox,
   studioBlockBox,
+  translateStudioBlock,
   STUDIO_BLOCK_IDS
 } from './overlayStudioBlocks'
 
@@ -105,5 +112,91 @@ describe('studio blocks survive save-over', () => {
         expect(box.h).toBeGreaterThan(1)
       }
     }
+  })
+})
+
+describe('studio block moves', () => {
+  it('translates without resizing and stops at the canvas edge', () => {
+    const layout = layoutFromPreset('1')
+    const from = studioBlockBox(layout, 'mine')
+    const moved = studioBlockBox(translateStudioBlock(layout, 'mine', from, 10, 5), 'mine')
+    expect(moved.x).toBeCloseTo(from.x + 10, 1)
+    expect(moved.y).toBeCloseTo(from.y + 5, 1)
+    expect(moved.w).toBeCloseTo(from.w, 1)
+    const pinned = studioBlockBox(translateStudioBlock(layout, 'mine', from, 500, -500), 'mine')
+    expect(pinned.x + pinned.w).toBeCloseTo(100, 1)
+    expect(pinned.y).toBeCloseTo(0, 1)
+    expect(pinned.w).toBeCloseTo(from.w, 1)
+  })
+
+  it('nudges from the current box', () => {
+    const layout = layoutFromPreset('1')
+    const from = studioBlockBox(layout, 'opp')
+    const next = studioBlockBox(nudgeStudioBlock(layout, 'opp', -5, 1), 'opp')
+    expect(next.x).toBeCloseTo(from.x - 5, 1)
+    expect(next.y).toBeCloseTo(from.y + 1, 1)
+  })
+
+  it('mirrors one team onto the other across the center line', () => {
+    const layout = layoutFromPreset('1')
+    const mine = studioBlockBox(layout, 'mine')
+    const mirrored = studioBlockBox(mirrorStudioBlock(layout, 'mine'), 'opp')
+    expect(mirrored.x).toBeCloseTo(100 - mine.x - mine.w, 1)
+    expect(mirrored.y).toBeCloseTo(mine.y, 1)
+    expect(mirrored.w).toBeCloseTo(mine.w, 1)
+    expect(mirrorStudioBlock(layout, 'ticker')).toBe(layout)
+    expect(otherTeamBlock('opp')).toBe('mine')
+    expect(otherTeamBlock('ticker')).toBeNull()
+  })
+
+  it('resets one block to the baseline and leaves the others alone', () => {
+    const layout = layoutFromPreset('1')
+    const moved = nudgeStudioBlock(nudgeStudioBlock(layout, 'mine', 10, 10), 'opp', -10, 0)
+    const reset = resetStudioBlock(moved, 'mine', layout.widgets)
+    expect(studioBlockBox(reset, 'mine')).toEqual(studioBlockBox(layout, 'mine'))
+    expect(studioBlockBox(reset, 'opp')).toEqual(studioBlockBox(moved, 'opp'))
+  })
+})
+
+describe('display toggles', () => {
+  const hidden = (layout: ReturnType<typeof layoutFromPreset>, id: string) =>
+    displayWidgets(layout).find((row) => row.id === id)?.hidden
+
+  it('passes widgets through when everything is on', () => {
+    const layout = layoutFromPreset('1')
+    expect(displayWidgets(layout)).toBe(layout.widgets)
+  })
+
+  it('hides the ticker, lead chip, and name rails on request', () => {
+    const layout = layoutFromPreset('1')
+    const off = { ...layout, display: { ...layout.display, ticker: false, lead: false, rails: false } }
+    expect(hidden(off, 'ticker.nfl')).toBe(true)
+    expect(hidden(off, 'score.delta')).toBe(true)
+    expect(hidden(off, 'col.mine.name')).toBe(true)
+    expect(hidden(off, 'col.opp.name')).toBe(true)
+    expect(hidden(off, 'team.mine.name')).toBe(false)
+    expect(off.widgets.find((row) => row.id === 'ticker.nfl')?.hidden).toBe(hidden(layout, 'ticker.nfl'))
+  })
+})
+
+describe('hudPlateBoxes', () => {
+  it('backs each team frame with a padded plate', () => {
+    const layout = layoutFromPreset('1')
+    const plates = hudPlateBoxes(layout)
+    expect(plates.map((row) => row.side)).toEqual(['mine', 'opp'])
+    for (const plate of plates) {
+      const frame = studioBlockBox(layout, plate.side)
+      expect(plate.box.x).toBeLessThanOrEqual(frame.x)
+      expect(plate.box.x + plate.box.w).toBeGreaterThanOrEqual(frame.x + frame.w - 0.01)
+      expect(plate.box.x).toBeGreaterThanOrEqual(0)
+      expect(plate.box.y + plate.box.h).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('shrinks when rails are hidden', () => {
+    const layout = layoutFromPreset('1')
+    const full = hudPlateBoxes(layout)[0].box
+    const bare = hudPlateBoxes({ ...layout, display: { ...layout.display, rails: false } })[0].box
+    expect(bare.w * bare.h).toBeLessThanOrEqual(full.w * full.h)
   })
 })

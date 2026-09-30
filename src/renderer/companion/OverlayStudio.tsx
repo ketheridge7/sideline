@@ -1,28 +1,44 @@
-import { useEffect, useState, type JSX, type MouseEvent } from 'react'
+import { LayoutGrid, Maximize2, Minimize2, Paintbrush, Redo2, Sparkles, Type, Undo2 } from 'lucide-react'
 import {
-  applyPreset,
-  overwritePreset,
-  PRESET_LABELS,
-  PRESET_PLACEMENTS,
-  OVERLAY_PRESET_IDS,
-  type HudTextHighlight,
-  type OverlayLayout,
-  type OverlayPresetId
-} from '@shared/overlayLayout'
+  useEffect,
+  useRef,
+  useState,
+  type JSX,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode
+} from 'react'
+import { pushRecentColor } from '@shared/hudStyle'
+import { parseOverlayLayout, type HudTextHighlight, type OverlayLayout } from '@shared/overlayLayout'
 import {
-  applyStudioSlider,
-  STUDIO_BLOCK_IDS,
+  nudgeStudioBlock,
+  setStudioBlockBox,
   STUDIO_BLOCK_LABELS,
-  studioBlockBox,
+  translateStudioBlock,
   type StudioBlockId
 } from '@shared/overlayStudioBlocks'
+import {
+  canRedo,
+  canUndo,
+  commitHistory,
+  createHistory,
+  redoHistory,
+  syncHistory,
+  undoHistory
+} from '@shared/studioHistory'
 import type { AppState } from '@shared/types'
 import { toOverlayHud } from '@shared/types'
-import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from '../overlay/density'
-import { hudWidgetFontClass, hudWidgetFontStyle } from '../overlay/fontColor'
-import { OverlayWidgetView } from '../overlay/Widgets'
-import { StudioTextColors } from './StudioTextColors'
-import studioPlateUrl from '../assets/studio-plate.jpg'
+import { StudioTextColors, type TextColorChange } from './StudioTextColors'
+import { IconButton, Segmented } from './studio/controls'
+import { StudioLayoutTab } from './studio/StudioLayoutTab'
+import {
+  PREVIEW_PLATE_LABELS,
+  PREVIEW_PLATES,
+  StudioPreview,
+  type PreviewGesture,
+  type PreviewPlate
+} from './studio/StudioPreview'
+import { StudioStyleTab } from './studio/StudioStyleTab'
+import { StudioThemesTab } from './studio/StudioThemesTab'
 
 const api = (): NonNullable<Window['sideline']> => {
   if (!window.sideline) throw new Error('Sideline preload missing')
@@ -50,105 +66,203 @@ const EdgeChevrons = ({ direction }: { direction: 'left' | 'right' }): JSX.Eleme
   </svg>
 )
 
-const PREVIEW_W = 1280
-const PREVIEW_H = 720
-const PREVIEW_SCALE = 0.2
-const BLOCK_OUTLINE_PX = 12
-const BLOCK_OUTLINE_OFFSET_PX = 8
+export const STUDIO_TABS = ['layout', 'style', 'text', 'themes'] as const
+export type StudioTab = (typeof STUDIO_TABS)[number]
 
-const Slider = ({
-  label,
-  value,
-  min,
-  max,
-  disabled,
-  onChange
-}: {
-  label: string
-  value: number
-  min: number
-  max: number
-  disabled?: boolean
-  onChange: (value: number) => void
-}): JSX.Element => (
-  <label className="grid gap-0.5 text-[10px] uppercase tracking-wide text-muted">
-    <span className="flex items-center justify-between">
-      {label}
-      <span className="tabular-nums text-text">{Math.round(value)}</span>
-    </span>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={Math.round(value)}
-      disabled={disabled}
-      onChange={(event) => onChange(Number(event.target.value))}
-      className="accent-you disabled:opacity-40"
-      aria-label={label}
-    />
-  </label>
-)
+const TAB_LABELS: Record<StudioTab, string> = {
+  layout: 'Layout',
+  style: 'Style',
+  text: 'Text',
+  themes: 'Themes'
+}
+
+const tabIcon = (tab: StudioTab): ReactNode => {
+  switch (tab) {
+    case 'layout':
+      return <LayoutGrid size={13} />
+    case 'style':
+      return <Paintbrush size={13} />
+    case 'text':
+      return <Type size={13} />
+    case 'themes':
+      return <Sparkles size={13} />
+    default: {
+      const _never: never = tab
+      return _never
+    }
+  }
+}
+
+const PANEL_W = { normal: 300, wide: 560 } as const
+const COLLAPSED_W = 44
+/** Wide never takes more than this share of the window, so the board keeps room for its scores. */
+const WIDE_MAX_SHARE = 0.3
+
+const widePanelWidth = (windowWidth: number): number =>
+  Math.round(Math.max(PANEL_W.normal, Math.min(PANEL_W.wide, windowWidth * WIDE_MAX_SHARE)))
+
+const windowWidth = (): number => (typeof window === 'undefined' ? 1920 : window.innerWidth)
+const PANEL_PAD = 12
+/** Main echoes every save back as a new state. Ignore echoes this soon after a local edit. */
+const ECHO_GRACE_MS = 700
+const SEND_THROTTLE_MS = 40
+const NOTICE_MS = 1800
+
+const sameLayoutJson = (left: OverlayLayout, right: OverlayLayout): boolean =>
+  left === right || JSON.stringify(left) === JSON.stringify(right)
+
+const isTypingTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLInputElement && target.type !== 'range' && target.type !== 'checkbox'
 
 export const OverlayStudio = ({
   state,
-  initialSelectedBlock = null
+  initialSelectedBlock = null,
+  initialTab = 'layout',
+  initialWide = false
 }: {
   state: AppState
   initialSelectedBlock?: StudioBlockId | null
+  initialTab?: StudioTab
+  initialWide?: boolean
 }): JSX.Element => {
-  const [draft, setDraft] = useState<OverlayLayout | null>(null)
+  const [history, setHistory] = useState(() => createHistory(parseOverlayLayout(state.overlayLayout)))
   const [selected, setSelected] = useState<StudioBlockId | null>(initialSelectedBlock)
   const [collapsed, setCollapsed] = useState(false)
   const [highlight, setHighlight] = useState<HudTextHighlight | null>(null)
-  const layout = draft ?? state.overlayLayout
+  const [tab, setTab] = useState<StudioTab>(initialTab)
+  const [plate, setPlate] = useState<PreviewPlate>('game')
+  const [wide, setWide] = useState(initialWide)
+  const [viewportW, setViewportW] = useState(windowWidth)
+  const [notice, setNotice] = useState<string | null>(null)
+  const lastLocalAt = useRef(0)
+  const pending = useRef<OverlayLayout | null>(null)
+  const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const gestureSeq = useRef(0)
+  const layout = history.present
   const hud = toOverlayHud(state)
-  const target = selected ? studioBlockBox(layout, selected) : null
+  const panelW = wide ? widePanelWidth(viewportW) : PANEL_W.normal
 
   useEffect(() => {
-    setDraft(null)
+    if (!wide) return
+    const onResize = (): void => setViewportW(window.innerWidth)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [wide])
+
+  useEffect(() => {
+    if (Date.now() - lastLocalAt.current < ECHO_GRACE_MS) return
+    setHistory((prev) => syncHistory(prev, parseOverlayLayout(state.overlayLayout), sameLayoutJson))
   }, [state.overlayLayout])
 
-  const save = (next: OverlayLayout): void => {
-    setDraft(next)
-    void api().setOverlayLayout(next)
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS)
+    return () => clearTimeout(timer)
+  }, [notice])
+
+  const flush = (): void => {
+    sendTimer.current = null
+    const next = pending.current
+    pending.current = null
+    if (next) void api().setOverlayLayout(next)
   }
 
-  const handlePreset = (presetId: OverlayPresetId): void => {
-    save(applyPreset(presetId, layout))
+  useEffect(
+    () => () => {
+      if (sendTimer.current) clearTimeout(sendTimer.current)
+      if (pending.current) flush()
+    },
+    []
+  )
+
+  const send = (next: OverlayLayout): void => {
+    lastLocalAt.current = Date.now()
+    pending.current = next
+    if (!sendTimer.current) sendTimer.current = setTimeout(flush, SEND_THROTTLE_MS)
   }
 
-  const handleBox = (next: Partial<ReturnType<typeof studioBlockBox>>): void => {
-    save(applyStudioSlider(layout, selected, next))
+  const commit = (next: OverlayLayout, key?: string): void => {
+    setHistory((prev) => commitHistory(prev, next, { key }))
+    send(next)
   }
 
-  const handlePreviewClick = (): void => {
-    setSelected(null)
+  const undo = (): void => {
+    if (!canUndo(history)) return
+    const next = undoHistory(history)
+    setHistory(next)
+    send(next.present)
   }
 
-  const handleBlockClick = (event: MouseEvent<HTMLButtonElement>, id: StudioBlockId): void => {
-    event.stopPropagation()
-    setSelected(id)
+  const redo = (): void => {
+    if (!canRedo(history)) return
+    const next = redoHistory(history)
+    setHistory(next)
+    send(next.present)
   }
 
-  const handleEdge = (): void => {
-    setCollapsed((open) => !open)
+  const handleGesture = ({ id, mode, from, dx, dy }: PreviewGesture): void => {
+    const next =
+      mode === 'move'
+        ? translateStudioBlock(layout, id, from, dx, dy)
+        : setStudioBlockBox(layout, id, { ...from, w: from.w + dx, h: from.h + dy })
+    commit(next, `drag:${id}:${mode}:${gestureSeq.current}`)
   }
+
+  const handleTextColors = (textColors: OverlayLayout['textColors'], change?: TextColorChange): void => {
+    const library = change?.remember
+      ? { ...layout.library, recentColors: pushRecentColor(layout.library.recentColors, change.remember) }
+      : layout.library
+    commit({ ...layout, textColors, library }, change?.key)
+  }
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>): void => {
+    const mod = event.ctrlKey || event.metaKey
+    if (!mod || isTypingTarget(event.target)) return
+    const key = event.key.toLowerCase()
+    if (key === 'z' && !event.shiftKey) {
+      event.preventDefault()
+      event.stopPropagation()
+      undo()
+    } else if ((key === 'z' && event.shiftKey) || key === 'y') {
+      event.preventDefault()
+      event.stopPropagation()
+      redo()
+    }
+  }
+
+  const panel = (id: StudioTab, body: ReactNode): JSX.Element => (
+    <div
+      key={id}
+      role="tabpanel"
+      id={`studio-panel-${id}`}
+      aria-labelledby={`studio-tab-${id}`}
+      hidden={tab !== id}
+      data-studio-panel={id}
+      className={tab === id ? 'studio-panel-enter' : undefined}
+    >
+      {body}
+    </div>
+  )
+
+  const tabIndex = STUDIO_TABS.indexOf(tab)
 
   return (
     <aside
-      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-l border-line bg-card transition-[width] duration-300 ease-in-out ${
-        collapsed ? 'w-11' : 'w-[280px]'
-      }`}
+      className={`studio-shell relative flex h-full shrink-0 flex-col overflow-hidden border-l border-line transition-[width] duration-300 ease-in-out`}
+      style={{ width: collapsed ? COLLAPSED_W : panelW }}
       data-studio-collapsed={collapsed ? 'true' : 'false'}
+      data-studio-wide={wide ? 'true' : 'false'}
+      onKeyDown={handleKeyDown}
     >
       {collapsed ? (
         <button
           type="button"
-          onClick={handleEdge}
+          onClick={() => setCollapsed(false)}
           aria-expanded={false}
           aria-label="Expand overlay studio"
           data-studio-edge=""
-          className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center gap-3 pt-2 text-text hover:text-lime"
+          className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center gap-3 pt-2 text-text transition-colors hover:text-lime"
         >
           <EdgeChevrons direction="left" />
           <span className="font-cond text-base font-bold uppercase tracking-[0.14em] [writing-mode:vertical-rl]">
@@ -157,197 +271,140 @@ export const OverlayStudio = ({
         </button>
       ) : null}
       <div
-        className={`flex h-full w-[280px] min-w-[280px] flex-col transition-transform duration-300 ease-in-out ${
-          collapsed ? 'translate-x-[236px]' : 'translate-x-0'
-        }`}
+        className="flex h-full flex-col transition-transform duration-300 ease-in-out"
+        style={{
+          width: panelW,
+          minWidth: panelW,
+          transform: collapsed ? `translateX(${panelW - COLLAPSED_W}px)` : 'translateX(0)'
+        }}
         inert={collapsed}
         aria-hidden={collapsed}
       >
-      <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <h2 className="font-cond text-base font-bold uppercase tracking-[0.14em] text-text">Overlay Studio</h2>
-        <button
-          type="button"
-          onClick={handleEdge}
-          aria-expanded
-          aria-label="Collapse overlay studio"
-          data-studio-edge=""
-          className="flex cursor-pointer items-center justify-center text-text hover:text-lime"
-        >
-          <EdgeChevrons direction="right" />
-        </button>
-      </div>
-
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-auto px-2.5 py-2 text-sm">
-        <StudioTextColors
-          colors={layout.textColors}
-          onChange={(textColors) => save({ ...layout, textColors })}
-          onHighlight={setHighlight}
-        />
-
-        <div
-          className="studio-preview relative aspect-video overflow-hidden bg-[#0c2418]"
-          data-studio-preview="hud"
-          data-studio-highlight={highlight ?? 'none'}
-          onClick={handlePreviewClick}
-        >
-          <div
-            className="pointer-events-none absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${studioPlateUrl})`, filter: 'saturate(0.8) brightness(0.72)' }}
-            data-studio-plate="game"
-            aria-hidden="true"
-          />
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(7,8,10,0.6) 100%)' }}
-            aria-hidden="true"
-          />
-          <div
-            className="absolute left-0 top-0 origin-top-left"
-            style={{
-              width: PREVIEW_W,
-              height: PREVIEW_H,
-              transform: `scale(${PREVIEW_SCALE})`
-            }}
-          >
-            {layout.widgets.map((widget) => {
-              if (widget.hidden) return null
-              const fill = smokeFill('desktop', widget.opacity)
-              return (
-                <div
-                  key={widget.id}
-                  className={`hud-widget hud-frost pointer-events-none absolute overflow-visible ${hudWidgetFontClass(layout.textColors)}`}
-                  data-density={resolveDensity('desktop', widget.density)}
-                  data-hud-font={layout.textColors.all ?? 'default'}
-                  style={{
-                    left: `${widget.x}%`,
-                    top: `${widget.y}%`,
-                    width: `${widget.w}%`,
-                    height: `${widget.h}%`,
-                    background: hudWidgetFill(fill),
-                    textShadow: HUD_TEXT_SHADOW,
-                    ...hudWidgetFontStyle(layout.textColors)
-                  }}
-                >
-                  {widget.id === 'ticker.nfl' && hud.nflTicker.length === 0 ? (
-                    <div className="flex h-full w-full flex-col justify-end">
-                      <div className="hud-type-ticker flex w-full items-center bg-black/55 px-[0.75em] text-muted">
-                        Ticker
-                      </div>
-                    </div>
-                  ) : (
-                    <OverlayWidgetView
-                      id={widget.id}
-                      hud={hud}
-                      surface="desktop"
-                      density={widget.density}
-                      showCrawler={layout.showCrawler}
-                      textColors={layout.textColors}
-                    />
-                  )}
-                </div>
-              )
-            })}
-            {STUDIO_BLOCK_IDS.map((id) => {
-              const box = studioBlockBox(layout, id)
-              const active = selected === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  data-studio-block={id}
-                  aria-pressed={active}
-                  aria-label={`Select ${STUDIO_BLOCK_LABELS[id]}`}
-                  className={`absolute cursor-pointer bg-transparent ${
-                    active ? 'studio-block-active' : 'studio-block-idle'
-                  }`}
-                  style={{
-                    left: `${box.x}%`,
-                    top: `${box.y}%`,
-                    width: `${box.w}%`,
-                    height: `${box.h}%`,
-                    outline: active ? `${BLOCK_OUTLINE_PX}px solid #A6E6A0` : '4px solid transparent',
-                    outlineOffset: BLOCK_OUTLINE_OFFSET_PX,
-                    zIndex: 2
-                  }}
-                  onClick={(event) => handleBlockClick(event, id)}
-                />
-              )
-            })}
+        <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-lime shadow-[0_0_10px_#b6ff3b]" aria-hidden="true" />
+            <h2 className="truncate font-cond text-base font-bold uppercase tracking-[0.14em] text-text">Overlay Studio</h2>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <IconButton label="Undo (Ctrl+Z)" onClick={undo} disabled={!canUndo(history)} data={{ 'data-studio-undo': '' }}>
+              <Undo2 size={15} />
+            </IconButton>
+            <IconButton label="Redo (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo(history)} data={{ 'data-studio-redo': '' }}>
+              <Redo2 size={15} />
+            </IconButton>
+            <IconButton
+              label={wide ? 'Narrow studio' : 'Widen studio'}
+              onClick={() => setWide((prev) => !prev)}
+              active={wide}
+              data={{ 'data-studio-wide-toggle': '' }}
+            >
+              {wide ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </IconButton>
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              aria-expanded
+              aria-label="Collapse overlay studio"
+              data-studio-edge=""
+              className="ml-1 flex cursor-pointer items-center justify-center text-text transition-colors hover:text-lime"
+            >
+              <EdgeChevrons direction="right" />
+            </button>
           </div>
         </div>
 
-        <section className="grid gap-1" data-studio-section="layout">
-          <h3 className="font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Layout</h3>
-          <div className="studio-presets" data-active-preset={layout.presetId}>
-            {OVERLAY_PRESET_IDS.map((id) => {
-              const active = layout.presetId === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  data-preset={id}
-                  onClick={() => handlePreset(id)}
-                  className={`cursor-pointer border px-1 py-1 font-cond text-sm font-bold ${
-                    active ? 'studio-preset-active border-lime bg-lime/15 text-lime' : 'border-line text-muted'
-                  }`}
-                  aria-pressed={active}
-                  aria-label={`${PRESET_LABELS[id]}, ${PRESET_PLACEMENTS[id]}`}
-                >
-                  {id}
-                </button>
-              )
-            })}
+        <div className="grid grid-cols-1 gap-2 border-b border-line/70 px-3 pb-2.5 pt-2.5">
+          <StudioPreview
+            layout={layout}
+            hud={hud}
+            selected={selected}
+            highlight={highlight}
+            plate={plate}
+            initialWidth={panelW - PANEL_PAD * 2}
+            onSelect={setSelected}
+            onGesture={handleGesture}
+            onGestureEnd={() => {
+              gestureSeq.current += 1
+            }}
+            onNudge={(id, dx, dy) => commit(nudgeStudioBlock(layout, id, dx, dy), `nudge:${id}`)}
+          />
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-[11px] text-muted" data-studio-preview-hint="">
+              {selected ? (
+                <>
+                  <span className="text-lime">{STUDIO_BLOCK_LABELS[selected]}</span> · drag to move, corner to resize
+                </>
+              ) : (
+                'Click a block to select it'
+              )}
+            </span>
+            <div className="w-[140px] shrink-0">
+              <Segmented
+                name="plate"
+                label="Preview backdrop"
+                value={plate}
+                options={PREVIEW_PLATES.map((id) => ({ id, label: PREVIEW_PLATE_LABELS[id] }))}
+                onChange={setPlate}
+              />
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => save(overwritePreset(layout))}
-            className="cursor-pointer border border-line px-2 py-1 text-[10px] uppercase tracking-wide text-muted hover:text-text"
-          >
-            Save over {PRESET_LABELS[layout.presetId]}
-          </button>
-        </section>
+        </div>
 
-        <section className="grid gap-1" data-studio-section="size">
-          <h3 className="font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Size</h3>
-          <p className="text-[10px] leading-snug text-muted" data-studio-slider-target={selected ?? 'none'}>
-            {selected
-              ? `Moving ${STUDIO_BLOCK_LABELS[selected]}`
-              : 'Click your team, their team, or the ticker. Sliders move that block only.'}
-          </p>
-          <Slider
-            label="Position X"
-            value={target?.x ?? 0}
-            min={0}
-            max={96}
-            disabled={!selected}
-            onChange={(x) => handleBox({ x })}
+        <div className="relative grid border-b border-line px-2" role="tablist" aria-label="Studio sections" style={{ gridTemplateColumns: `repeat(${STUDIO_TABS.length}, minmax(0, 1fr))` }}>
+          {STUDIO_TABS.map((id) => {
+            const active = tab === id
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`studio-tab-${id}`}
+                aria-selected={active}
+                aria-controls={`studio-panel-${id}`}
+                data-studio-tab={id}
+                onClick={() => setTab(id)}
+                className={`studio-tab flex cursor-pointer items-center justify-center gap-1 py-2.5 font-cond text-[12px] font-bold uppercase tracking-[0.1em] ${
+                  active ? 'text-lime' : 'text-muted hover:text-text'
+                }`}
+              >
+                {tabIcon(id)}
+                {TAB_LABELS[id]}
+              </button>
+            )
+          })}
+          <span
+            aria-hidden="true"
+            className="studio-tab-indicator pointer-events-none absolute bottom-[-1px] left-2 h-[2px] rounded-full bg-lime shadow-[0_0_12px_rgba(182,255,59,0.8)]"
+            style={{
+              width: `calc((100% - 16px) / ${STUDIO_TABS.length})`,
+              transform: `translateX(${tabIndex * 100}%)`
+            }}
           />
-          <Slider
-            label="Position Y"
-            value={target?.y ?? 0}
-            min={0}
-            max={96}
-            disabled={!selected}
-            onChange={(y) => handleBox({ y })}
-          />
-          <Slider
-            label="Width"
-            value={target?.w ?? 0}
-            min={selected === 'ticker' ? 24 : 8}
-            max={100}
-            disabled={!selected}
-            onChange={(w) => handleBox({ w })}
-          />
-          <Slider
-            label="Height"
-            value={target?.h ?? 0}
-            min={selected === 'ticker' ? 4 : 12}
-            max={90}
-            disabled={!selected}
-            onChange={(h) => handleBox({ h })}
-          />
-        </section>
-      </div>
+        </div>
+
+        <div className="studio-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-6 pt-3 text-sm">
+          {panel('layout', <StudioLayoutTab layout={layout} selected={selected} onSelect={setSelected} commit={commit} />)}
+          {panel('style', <StudioStyleTab layout={layout} commit={commit} />)}
+          {panel(
+            'text',
+            <StudioTextColors
+              colors={layout.textColors}
+              recent={layout.library.recentColors}
+              onChange={handleTextColors}
+              onHighlight={setHighlight}
+            />
+          )}
+          {panel('themes', <StudioThemesTab layout={layout} commit={commit} onNotice={setNotice} />)}
+        </div>
+
+        {notice ? (
+          <div
+            className="studio-toast pointer-events-none absolute bottom-4 left-1/2 z-20 rounded-full bg-lime px-3 py-1.5 font-cond text-[12px] font-bold uppercase tracking-[0.12em] text-bg shadow-[0_8px_24px_-8px_rgba(182,255,59,0.7)]"
+            role="status"
+          >
+            {notice}
+          </div>
+        ) : null}
       </div>
     </aside>
   )

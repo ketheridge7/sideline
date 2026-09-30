@@ -273,6 +273,26 @@ describe('overlayHudUnchanged', () => {
     expect(overlayHudUnchanged(first, tinted)).toBe(false)
     expect(overlayHudUnchanged(tinted, { ...tinted })).toBe(true)
   })
+
+  it('redraws when the Studio look or display toggles change', () => {
+    const state = emptyAppState()
+    const first = toOverlayHud(state)
+    const plated = toOverlayHud({
+      ...state,
+      overlayLayout: { ...state.overlayLayout, style: { ...state.overlayLayout.style, backdrop: 'glass' } }
+    })
+    expect(overlayHudUnchanged(first, plated)).toBe(false)
+    const noTicker = toOverlayHud({
+      ...state,
+      overlayLayout: { ...state.overlayLayout, display: { ...state.overlayLayout.display, ticker: false } }
+    })
+    expect(overlayHudUnchanged(first, noTicker)).toBe(false)
+    const recents = toOverlayHud({
+      ...state,
+      overlayLayout: { ...state.overlayLayout, library: { savedThemes: [], recentColors: ['#FFFFFF'] } }
+    })
+    expect(overlayHudUnchanged(first, recents)).toBe(false)
+  })
 })
 
 describe('mapTransactionKind', () => {

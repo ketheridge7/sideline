@@ -10,9 +10,7 @@ import {
 } from '@shared/overlayLayout'
 import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, toOverlayHud } from '@shared/types'
-import { OverlayWidgetView } from './Widgets'
-import { HUD_TEXT_SHADOW, hudWidgetFill, resolveDensity, smokeFill } from './density'
-import { hudWidgetFontClass, hudWidgetFontStyle } from './fontColor'
+import { HudCanvas } from '../shared/HudCanvas'
 import {
   canvasInsetPct,
   overlayAllowsEdit,
@@ -139,48 +137,24 @@ export const OverlayApp = (): JSX.Element => {
           bottom: `${inset}%`
         }}
       >
-      {layout.widgets.map((widget) => {
-        if (widget.hidden) return null
-        const fill = smokeFill(surface, widget.opacity)
-        const active = canEdit && selected === widget.id
-        const fontClass = hudWidgetFontClass(layout.textColors)
-        return (
-          <div
-            key={widget.id}
-            className={`hud-widget hud-frost absolute ${fontClass} ${canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}`}
-            data-density={resolveDensity(surface, widget.density)}
-            data-hud-font={layout.textColors.all ?? 'default'}
-            style={{
-              left: `${widget.x}%`,
-              top: `${widget.y}%`,
-              width: `${widget.w}%`,
-              height: `${widget.h}%`,
-              background: hudWidgetFill(fill),
-              outline: active ? '1px dashed #A6E6A0' : 'none',
-              textShadow: HUD_TEXT_SHADOW,
-              ...hudWidgetFontStyle(layout.textColors)
-            }}
-            onPointerDown={(event) => startDrag(event, widget.id, false)}
-          >
-            <OverlayWidgetView
-              id={widget.id}
-              hud={hud}
-              surface={surface}
-              density={widget.density}
-              showCrawler={layout.showCrawler}
-              textColors={layout.textColors}
-            />
-            {active ? (
+        <HudCanvas
+          layout={layout}
+          hud={hud}
+          surface={surface}
+          widgetClassName={canEdit ? 'cursor-pointer overflow-hidden' : 'overflow-visible'}
+          activeWidgetId={canEdit ? selected : null}
+          onWidgetPointerDown={(event, id) => startDrag(event, id, false)}
+          renderWidgetChrome={(widget) =>
+            canEdit && selected === widget.id ? (
               <button
                 type="button"
                 className="absolute bottom-0 right-0 h-3 w-3 cursor-nwse-resize bg-you"
                 aria-label={`Resize ${widget.id}`}
                 onPointerDown={(event) => startDrag(event, widget.id, true)}
               />
-            ) : null}
-          </div>
-        )
-      })}
+            ) : null
+          }
+        />
       </div>
     </div>
   )
