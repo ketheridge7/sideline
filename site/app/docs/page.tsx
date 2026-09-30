@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { InstallerSha256 } from "@/components/installer-sha256";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { CtaLink, Kbd } from "@/components/ui";
@@ -110,6 +111,7 @@ export default async function DocsPage() {
             {version ? ` · ${version}` : ""} · {size}. The build is unsigned, so SmartScreen
             may say “Windows protected your PC.” Choose More info, then Run anyway.
           </p>
+          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
         </div>
       </main>
       <SiteFooter />

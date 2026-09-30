@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { SUPPORT_URL, supportHref } from "./constants";
+import { DOWNLOAD_URL, SUPPORT_URL, supportHref } from "./constants";
+
+describe("site installer URL", () => {
+  it("points at the versionless Windows setup exe", () => {
+    expect(DOWNLOAD_URL).toBe(
+      "https://github.com/ketheridge7/sideline/releases/latest/download/Sideline-Setup.exe",
+    );
+  });
+});
 
 describe("site support URL", () => {
   it("ships empty so Support controls stay hidden", () => {

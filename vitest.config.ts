@@ -25,8 +25,9 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'site/lib/**/*.test.ts']
   },
   resolve: {
-    alias: {
-      '@shared': resolve('src/shared')
-    }
+    alias: [
+      { find: '@shared', replacement: resolve('src/shared') },
+      { find: /^@\//, replacement: `${resolve('site')}/` },
+    ]
   }
 })

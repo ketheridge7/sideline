@@ -1,3 +1,4 @@
+import { InstallerSha256 } from "@/components/installer-sha256";
 import { CtaLink, SectionEyebrow, SectionTitle } from "@/components/ui";
 import { DOWNLOAD_URL, RELEASES_URL, supportHref } from "@/lib/constants";
 import { fetchLatestRelease, formatInstallerSize } from "@/lib/release";
@@ -54,6 +55,7 @@ export async function DownloadSection() {
               All releases
             </a>
           </p>
+          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
             The build is unsigned, so SmartScreen may say “Windows protected your PC.” Choose More
             info, then Run anyway.

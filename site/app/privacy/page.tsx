@@ -25,6 +25,10 @@ export default function PrivacyPage() {
             does not send your leagues to a Sideline server.
           </p>
           <p>
+            This site uses cookieless, aggregate visit counts (Vercel Web Analytics) to see which
+            links bring people in, and the app itself sends nothing.
+          </p>
+          <p>
             Sleeper connects with your username only. Sideline never asks for your Sleeper password.
           </p>
           <p>
