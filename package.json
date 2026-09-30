@@ -1,6 +1,6 @@
 {
   "name": "sideline",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Sideline - a gameday fantasy companion for Sleeper and ESPN",
   "main": "./out/main/index.js",
   "author": "Kevin Etheridge",
