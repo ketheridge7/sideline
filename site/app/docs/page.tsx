@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { InstallerSha256 } from "@/components/installer-sha256";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteNav } from "@/components/site-nav";
 import { CtaLink, Kbd } from "@/components/ui";
@@ -105,6 +106,7 @@ export default async function DocsPage() {
           <CtaLink href={DOWNLOAD_URL} external sameTab>
             Download for Windows
           </CtaLink>
+          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
             Windows 10/11 · per-user install
             {version ? ` · ${version}` : ""} · {size}. The build is unsigned, so SmartScreen

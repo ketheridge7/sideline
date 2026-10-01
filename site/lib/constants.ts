@@ -1,5 +1,5 @@
-export const DOWNLOAD_URL =
-  "https://github.com/ketheridge7/sideline/releases/latest/download/Sideline-Setup.exe";
+export const INSTALLER_NAME = "Sideline-Setup.exe";
+export const DOWNLOAD_URL = `https://github.com/ketheridge7/sideline/releases/latest/download/${INSTALLER_NAME}`;
 export const RELEASES_URL = "https://github.com/ketheridge7/sideline/releases";
 export const REPO_URL = "https://github.com/ketheridge7/sideline";
 export const ISSUES_URL = "https://github.com/ketheridge7/sideline/issues";

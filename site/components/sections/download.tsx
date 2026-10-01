@@ -1,3 +1,4 @@
+import { InstallerSha256 } from "@/components/installer-sha256";
 import { CtaLink, SectionEyebrow, SectionTitle } from "@/components/ui";
 import { DOWNLOAD_URL, RELEASES_URL, supportHref } from "@/lib/constants";
 import { fetchLatestRelease, formatInstallerSize } from "@/lib/release";
@@ -34,6 +35,7 @@ export async function DownloadSection() {
               Connect & shortcuts
             </CtaLink>
           </div>
+          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
           <p className="mt-4 text-sm text-muted">
             Windows 10/11 · per-user install
             {version ? (
