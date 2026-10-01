@@ -106,12 +106,12 @@ export default async function DocsPage() {
           <CtaLink href={DOWNLOAD_URL} external sameTab>
             Download for Windows
           </CtaLink>
+          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
             Windows 10/11 · per-user install
             {version ? ` · ${version}` : ""} · {size}. The build is unsigned, so SmartScreen
             may say “Windows protected your PC.” Choose More info, then Run anyway.
           </p>
-          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
         </div>
       </main>
       <SiteFooter />

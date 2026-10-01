@@ -35,6 +35,7 @@ export async function DownloadSection() {
               Connect & shortcuts
             </CtaLink>
           </div>
+          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
           <p className="mt-4 text-sm text-muted">
             Windows 10/11 · per-user install
             {version ? (
@@ -55,7 +56,6 @@ export async function DownloadSection() {
               All releases
             </a>
           </p>
-          {release?.installerSha256 ? <InstallerSha256 sha256={release.installerSha256} /> : null}
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
             The build is unsigned, so SmartScreen may say “Windows protected your PC.” Choose More
             info, then Run anyway.
