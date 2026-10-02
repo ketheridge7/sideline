@@ -37,6 +37,13 @@ import {
   recentLiveCallMs,
   restLeaguesToPrefetch,
   restPrefetchColdPlan,
+  BACKGROUND_SCORE_MS,
+  BACKGROUND_SCORE_PER_TICK_MAX,
+  backgroundScorePerTick,
+  liveBackgroundScorePlan,
+  leagueHostBlocked,
+  backgroundScoreLeagues,
+  cachedHudSeedPlan,
   restPrefetchAwaitPlan,
   restPrefetchGate,
   gamedayLiveTick,
@@ -2220,6 +2227,135 @@ describe('restSettleSchedulePlan', () => {
     expect(
       restSettleSchedulePlan({ hudScheduled: false, nextLive: false, scheduledLive: false })
     ).toBe('schedule')
+  })
+})
+
+describe('background league scores', () => {
+  const leagues = [
+    league('sleeper', '11'),
+    league('espn', '22'),
+    league('sleeper', '33'),
+    league('espn', '44')
+  ]
+
+  it('sizes the per-tick cap so a small board stays near 20s and a large board stays at 2 GETs', () => {
+    expect(BACKGROUND_SCORE_MS).toBe(20_000)
+    expect(BACKGROUND_SCORE_PER_TICK_MAX).toBe(2)
+    expect(backgroundScorePerTick(0)).toBe(0)
+    expect(backgroundScorePerTick(1)).toBe(1)
+    expect(backgroundScorePerTick(6)).toBe(1)
+    expect(backgroundScorePerTick(14)).toBe(2)
+    expect(backgroundScorePerTick(40)).toBe(2)
+  })
+
+  it('uses the cadence only on an automatic live tick', () => {
+    expect(
+      liveBackgroundScorePlan({ liveTick: true, launchSync: false, waitForBoards: false, replay: false })
+    ).toBe('cadence')
+    expect(
+      liveBackgroundScorePlan({ liveTick: false, launchSync: false, waitForBoards: false, replay: false })
+    ).toBe('full')
+    expect(
+      liveBackgroundScorePlan({ liveTick: true, launchSync: true, waitForBoards: false, replay: false })
+    ).toBe('full')
+    expect(
+      liveBackgroundScorePlan({ liveTick: true, launchSync: false, waitForBoards: true, replay: false })
+    ).toBe('full')
+    expect(
+      liveBackgroundScorePlan({ liveTick: true, launchSync: false, waitForBoards: false, replay: true })
+    ).toBe('full')
+  })
+
+  it('refreshes the oldest non-selected leagues and skips a fresh one, the HUD, and a backed-off host', () => {
+    const now = 1_000_000
+    const at = new Map<string, number>([
+      ['sleeper:11', now],
+      ['espn:22', now - BACKGROUND_SCORE_MS],
+      ['sleeper:33', now - BACKGROUND_SCORE_MS - 5_000]
+    ])
+    const args = {
+      leagues,
+      selectedKey: 'sleeper:11',
+      matchupAt: (key: string) => at.get(key),
+      now,
+      live: true,
+      blockedKeys: ['espn:22']
+    }
+    expect(backgroundScoreLeagues(args).map((row) => `${row.provider}:${row.id}`)).toEqual(['espn:44'])
+    expect(backgroundScoreLeagues({ ...args, perTick: 2 }).map((row) => `${row.provider}:${row.id}`)).toEqual([
+      'espn:44',
+      'sleeper:33'
+    ])
+  })
+
+  it('does not poll background scores when games are not live', () => {
+    expect(
+      backgroundScoreLeagues({
+        leagues,
+        selectedKey: 'sleeper:11',
+        matchupAt: () => undefined,
+        now: 1_000_000,
+        live: false
+      })
+    ).toEqual([])
+  })
+
+  it('spreads a due burst across ticks instead of fetching every league at once', () => {
+    const now = 1_000_000
+    const many = Array.from({ length: 8 }, (_, index) => league('sleeper', String(100 + index)))
+    const at = new Map(many.map((row) => [`sleeper:${row.id}`, now - BACKGROUND_SCORE_MS]))
+    const first = backgroundScoreLeagues({
+      leagues: [league('sleeper', '1'), ...many],
+      selectedKey: 'sleeper:1',
+      matchupAt: (key) => at.get(key),
+      now,
+      live: true
+    })
+    expect(first).toHaveLength(2)
+    for (const row of first) at.set(`sleeper:${row.id}`, now)
+    const second = backgroundScoreLeagues({
+      leagues: [league('sleeper', '1'), ...many],
+      selectedKey: 'sleeper:1',
+      matchupAt: (key) => at.get(key),
+      now: now + 3_000,
+      live: true
+    })
+    expect(second).toHaveLength(2)
+    expect(second.map((row) => row.id)).not.toEqual(first.map((row) => row.id))
+  })
+
+  it('paints a switched league from the background cache when last HUD belongs to another board', () => {
+    expect(
+      cachedHudSeedPlan({
+        hintKey: 'espn:22',
+        seeded: false,
+        hasCached: true,
+        cachedHasLineup: true
+      })
+    ).toBe('paint')
+    expect(
+      cachedHudSeedPlan({
+        hintKey: 'sleeper:11',
+        seeded: true,
+        hasCached: true,
+        cachedHasLineup: true
+      })
+    ).toBe('skip')
+    expect(
+      cachedHudSeedPlan({
+        hintKey: 'espn:22',
+        seeded: false,
+        hasCached: true,
+        cachedHasLineup: false
+      })
+    ).toBe('skip')
+  })
+
+  it('treats sleeper.app and ESPN read hosts as blocked', () => {
+    expect(leagueHostBlocked('sleeper', ['api.sleeper.app'])).toBe(true)
+    expect(leagueHostBlocked('espn', ['lm-api-reads.fantasy.espn.com'])).toBe(true)
+    expect(leagueHostBlocked('espn', ['api.sleeper.app'])).toBe(false)
+    expect(leagueHostBlocked('sleeper', [])).toBe(false)
   })
 })
 

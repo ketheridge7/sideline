@@ -3097,6 +3097,222 @@ describe('poller game-driven cadence', () => {
   })
 })
 
+describe('poller background league scores', () => {
+  const liveBoard = {
+    events: [
+      {
+        id: 'phi-dal',
+        status: { type: { state: 'in', shortDetail: 'Q2 8:12' } },
+        competitions: [
+          {
+            competitors: [
+              { homeAway: 'home', score: '14', team: { abbreviation: 'PHI' } },
+              { homeAway: 'away', score: '10', team: { abbreviation: 'DAL' } }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+
+  const rosterBody = [
+    { roster_id: 1, owner_id: 'me', settings: { wins: 1, losses: 0 } },
+    { roster_id: 2, owner_id: 'them', settings: { wins: 0, losses: 1 } }
+  ]
+  const userBody = [
+    { user_id: 'me', display_name: 'Me', metadata: { team_name: 'Mine' } },
+    { user_id: 'them', display_name: 'You', metadata: { team_name: 'Yours' } }
+  ]
+
+  it('keeps a non-selected league score and Est. win% moving while games are live', async () => {
+    const dir = app.getPath('userData')
+    const selectedId = '880000000000000201'
+    const otherId = '880000000000000202'
+    const selectedKey = leagueKey('sleeper', selectedId)
+    const otherKey = leagueKey('sleeper', otherId)
+    let now = Date.now()
+    const dateNow = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    let otherPoints = 4.4
+    saveSettings({
+      sleeperUsername: 'tester',
+      sleeperUserId: 'me',
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [],
+      pinnedLeagueKeys: [],
+      sleeperLeagueIds: [selectedId, otherId]
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: now, displayWeek: 1, selectedKey, matchup: hudMatchup })
+    )
+    writeFileSync(
+      join(dir, 'sideline-sleeper-leagues.json'),
+      JSON.stringify({
+        at: now,
+        username: 'tester',
+        season: '2026',
+        leagues: [
+          { id: selectedId, name: 'Mine', provider: 'sleeper', season: '2026', week: 1 },
+          { id: otherId, name: 'Other', provider: 'sleeper', season: '2026', week: 1 }
+        ]
+      })
+    )
+    warmupPollerCaches()
+    resetNflScoreboardCache()
+
+    const matchupUrls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/matchups/')) matchupUrls.push(url)
+        if (url.includes(`/league/${otherId}/matchups/`)) {
+          return jsonOk([
+            {
+              roster_id: 1,
+              matchup_id: 3,
+              points: otherPoints,
+              starters: ['1'],
+              players: ['1'],
+              players_points: { '1': otherPoints }
+            },
+            {
+              roster_id: 2,
+              matchup_id: 3,
+              points: 2,
+              starters: ['3'],
+              players: ['3'],
+              players_points: { '3': 2 }
+            }
+          ])
+        }
+        if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+        if (url.includes('/rosters')) return jsonOk(rosterBody)
+        if (url.includes('/league/') && url.includes('/users')) return jsonOk(userBody)
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('/leagues/')) return jsonOk([])
+        if (url.includes('scoreboard')) return jsonOk(liveBoard)
+        return jsonOk([])
+      })
+    )
+
+    try {
+      await refresh({ waitForBoards: true })
+      await expect.poll(() => currentState().boards.find((board) => board.key === otherKey)?.myPoints).toBe(4.4)
+      expect(currentState().selectedLeagueKey).toBe(selectedKey)
+      const afterLaunch = matchupUrls.filter((url) => url.includes(`/league/${otherId}/matchups/`)).length
+      expect(afterLaunch).toBeGreaterThan(0)
+
+      otherPoints = 40.2
+      now += 21_000
+      await refresh()
+      await expect.poll(() => currentState().boards.find((board) => board.key === otherKey)?.myPoints).toBe(40.2)
+      const otherBoard = currentState().boards.find((board) => board.key === otherKey)
+      expect(otherBoard?.oppPoints).toBe(2)
+      expect(otherBoard?.winPctSource).toBe('estimated')
+      expect(currentState().selectedLeagueKey).toBe(selectedKey)
+      expect(currentState().matchup?.myPoints).toBe(12.5)
+      const afterLive = matchupUrls.filter((url) => url.includes(`/league/${otherId}/matchups/`)).length
+      expect(afterLive).toBe(afterLaunch + 1)
+
+      now += 1_000
+      await refresh()
+      await expect.poll(() => currentState().matchup?.myPoints).toBe(12.5)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(matchupUrls.filter((url) => url.includes(`/league/${otherId}/matchups/`)).length).toBe(afterLive)
+
+      saveSettings({ selectedLeagueKey: otherKey })
+      await refresh({ forceLineup: true })
+      await expect.poll(() => currentState().matchup?.myPoints).toBe(40.2)
+      expect(currentState().matchup?.oppPoints).toBe(2)
+      expect(currentState().matchup?.winPctSource).toBe('estimated')
+      expect(currentState().selectedLeagueKey).toBe(otherKey)
+      const overlay = toOverlayHud(currentState())
+      expect(overlay.myPoints).toBe(40.2)
+      expect(overlay.oppPoints).toBe(2)
+    } finally {
+      dateNow.mockRestore()
+    }
+  })
+
+  it('does not refresh a non-selected league on an idle tick before the cold TTL', async () => {
+    const dir = app.getPath('userData')
+    const selectedId = '880000000000000301'
+    const otherId = '880000000000000302'
+    const selectedKey = leagueKey('sleeper', selectedId)
+    let now = Date.now()
+    const dateNow = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    saveSettings({
+      sleeperUsername: 'tester',
+      sleeperUserId: 'me',
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [],
+      pinnedLeagueKeys: [],
+      sleeperLeagueIds: [selectedId, otherId]
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-sleeper-leagues.json'),
+      JSON.stringify({
+        at: now,
+        username: 'tester',
+        season: '2026',
+        leagues: [
+          { id: selectedId, name: 'Mine', provider: 'sleeper', season: '2026', week: 1 },
+          { id: otherId, name: 'Other', provider: 'sleeper', season: '2026', week: 1 }
+        ]
+      })
+    )
+    warmupPollerCaches()
+    resetNflScoreboardCache()
+    const matchupUrls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/matchups/')) matchupUrls.push(url)
+        if (url.includes('/matchups/')) return jsonOk(sleeperMatchups)
+        if (url.includes('/rosters')) return jsonOk(rosterBody)
+        if (url.includes('/league/') && url.includes('/users')) return jsonOk(userBody)
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('/leagues/')) return jsonOk([])
+        if (url.includes('scoreboard')) {
+          return jsonOk({
+            events: [{ id: 'sun-1', date: '2026-10-04T17:00Z', status: { type: { state: 'pre' } } }]
+          })
+        }
+        return jsonOk([])
+      })
+    )
+    try {
+      await refresh({ waitForBoards: true })
+      await expect.poll(() => currentState().pollingLive).toBe(false)
+      const afterLaunch = matchupUrls.filter((url) => url.includes(`/league/${otherId}/matchups/`)).length
+      now += 21_000
+      await refresh()
+      await expect.poll(() => currentState().pollingLive).toBe(false)
+      expect(matchupUrls.filter((url) => url.includes(`/league/${otherId}/matchups/`)).length).toBe(afterLaunch)
+    } finally {
+      dateNow.mockRestore()
+    }
+  })
+})
+
 describe('poller provider backoff', () => {
   it('holds the last ESPN HUD after a 429 instead of hammering lm-api-reads every tick', async () => {
     const dir = app.getPath('userData')
