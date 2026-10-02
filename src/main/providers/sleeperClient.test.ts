@@ -852,6 +852,23 @@ describe('sleeperClient', () => {
     })
   })
 
+  it('keeps reserve and taxi ids so they can be left out of the team total', () => {
+    expect(
+      parseSleeperRoster({
+        roster_id: 11,
+        owner_id: 'u1',
+        starters: ['8228', 0],
+        reserve: ['11604', 12518],
+        taxi: ['999']
+      })
+    ).toMatchObject({
+      roster_id: 11,
+      starters: ['8228', '0'],
+      reserve: ['11604', '12518'],
+      taxi: ['999']
+    })
+  })
+
   it('coerces quoted Sleeper roster wins and losses', () => {
     expect(
       parseSleeperRoster({

@@ -36,6 +36,10 @@ export type SleeperRoster = {
   co_owners?: string[] | null
   players?: string[] | null
   starters?: string[] | null
+  /** Injured reserve / reserve. These ids never count toward the team total. */
+  reserve?: string[] | null
+  /** Taxi squad. These ids never count toward the team total. */
+  taxi?: string[] | null
   settings?: {
     wins?: number
     losses?: number
@@ -504,12 +508,16 @@ export const parseSleeperRoster = (raw: unknown): SleeperRoster | null => {
   const coOwners = Array.isArray(row.co_owners)
     ? row.co_owners.map((owner) => asStr(owner)).filter((owner): owner is string => Boolean(owner))
     : null
+  const reserve = asIdList(row.reserve)
+  const taxi = asIdList(row.taxi)
   return {
     roster_id: rosterId,
     owner_id: row.owner_id == null ? null : asStr(row.owner_id) ?? null,
     co_owners: coOwners,
     players: asIdList(row.players),
     starters: asIdList(row.starters),
+    ...(reserve ? { reserve } : {}),
+    ...(taxi ? { taxi } : {}),
     settings: asRosterSettings(row.settings)
   }
 }
