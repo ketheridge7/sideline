@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { SUPPORT_URL } from '@shared/support'
 import { emptyAppState, type League } from '@shared/types'
 import {
   ConnectScreen,
@@ -83,16 +84,28 @@ describe('ConnectScreen hub', () => {
     expect(htmlOf({}, { supportUrl: 'https://example.com/pay' })).not.toContain('Support Sideline')
   })
 
-  it('shows Support Sideline beside the other footer actions when a Stripe link is set', async () => {
-    const html = htmlOf({}, { supportUrl: 'https://buy.stripe.com/test_example' })
+  it('shows Support Sideline beside the other footer actions for the live donate link', async () => {
+    const html = htmlOf({}, { supportUrl: SUPPORT_URL })
+    expect(SUPPORT_URL).toBe('https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401')
     expect(html).toContain('Support Sideline')
     expect(html).toContain('data-connect-support="sideline"')
     expect(html.indexOf('data-connect-support="sideline"')).toBeGreaterThan(html.indexOf('data-connect-report="diagnostics"'))
+    const marker = 'data-connect-support="sideline"'
+    const start = html.lastIndexOf('<button', html.indexOf(marker))
+    const end = html.indexOf('</button>', start)
+    const button = html.slice(start, end)
+    expect(button.startsWith('<button')).toBe(true)
+    expect(button).not.toContain('href')
     const openExternal = vi.fn(async () => ({ ok: true as const }))
+    await openSupportFromConnect({ openExternal }, SUPPORT_URL)
+    expect(openExternal).toHaveBeenCalledWith('https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401')
+    openExternal.mockClear()
     await openSupportFromConnect({ openExternal }, 'https://buy.stripe.com/test_example')
     expect(openExternal).toHaveBeenCalledWith('https://buy.stripe.com/test_example')
     openExternal.mockClear()
     await openSupportFromConnect({ openExternal }, 'https://example.com/pay')
+    expect(openExternal).not.toHaveBeenCalled()
+    await openSupportFromConnect({ openExternal }, '')
     expect(openExternal).not.toHaveBeenCalled()
   })
 

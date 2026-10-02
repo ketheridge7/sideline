@@ -1,5 +1,5 @@
-/** Stripe Payment Link. Leave empty until the link exists. Override with SIDELINE_SUPPORT_URL for a capture. */
-export const SUPPORT_URL = ''
+/** Live Stripe donate link. SIDELINE_SUPPORT_URL overrides this when that value is an allowed Payment Link. */
+export const SUPPORT_URL = 'https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401'
 
 const SUPPORT_HOSTS = new Set(['buy.stripe.com', 'donate.stripe.com'])
 
@@ -15,7 +15,7 @@ export const isAllowedSupportUrl = (url: unknown): url is string => {
   }
 }
 
-/** Env override wins when it is an allowed Payment Link. Otherwise the committed constant, which is empty. */
+/** Env override wins when it is an allowed Payment Link. An empty override keeps the committed link. A disallowed override hides the control. */
 export const resolveSupportUrl = (override?: string | null): string | null => {
   const raw = (override?.trim() || SUPPORT_URL).trim()
   return isAllowedSupportUrl(raw) ? raw : null
