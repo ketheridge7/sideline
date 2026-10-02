@@ -1525,13 +1525,117 @@ export const restMatchupFlightKey = (
   week: number
 ): string => `${provider}:${id}:${season}:${week}`
 
-/** Live ticks fetch selected + pinned only. Unpinned boards keep last scores until idle so they cannot occupy the rest pool beside HUD. Launch sync still refreshes every connected league for the confirmed week. */
+/** Live ticks fetch selected + pinned only on the full prefetch path. Unpinned boards keep last scores until idle so they cannot occupy the rest pool beside HUD. Launch sync still refreshes every connected league for the confirmed week. Automatic gameday ticks use `liveBackgroundScorePlan` instead of this wave. */
 export const restPrefetchColdPlan = (
   pollingLive: boolean,
   launchSync = false
 ): 'hot-only' | 'hot-and-cold' => {
   if (launchSync) return 'hot-and-cold'
   return pollingLive ? 'hot-only' : 'hot-and-cold'
+}
+
+/**
+ * Compact score interval for a league the HUD is not showing.
+ * Selected stays on the 3s poll. 20s sits inside the 15–30s background window.
+ */
+export const BACKGROUND_SCORE_MS = 20_000
+
+/** Hard cap on background score GETs started in one ~3s live tick. */
+export const BACKGROUND_SCORE_PER_TICK_MAX = 2
+
+/**
+ * How many non-selected score GETs to start this tick.
+ * Sized so a modest board hits ~20s, then clamped so a large board cannot exceed
+ * 2 GETs / 3s (40/min) on top of the selected league's 20/min.
+ */
+export const backgroundScorePerTick = (
+  restCount: number,
+  opts?: { intervalMs?: number; tickMs?: number; max?: number }
+): number => {
+  if (restCount <= 0) return 0
+  const intervalMs = opts?.intervalMs ?? BACKGROUND_SCORE_MS
+  const tickMs = opts?.tickMs ?? 3_000
+  const max = opts?.max ?? BACKGROUND_SCORE_PER_TICK_MAX
+  const needed = Math.ceil((restCount * tickMs) / intervalMs)
+  return Math.min(max, Math.max(1, needed))
+}
+
+/** Automatic live ticks use the capped cadence. Launch, connect, pin, and idle keep the full due set. */
+export const liveBackgroundScorePlan = (opts: {
+  liveTick: boolean
+  launchSync: boolean
+  waitForBoards: boolean
+  replay: boolean
+}): 'cadence' | 'full' => {
+  if (opts.replay || opts.launchSync || opts.waitForBoards || !opts.liveTick) return 'full'
+  return 'cadence'
+}
+
+/** True when this provider's score host is in the shared 429/5xx breaker. */
+export const leagueHostBlocked = (provider: League['provider'], hosts: readonly string[]): boolean => {
+  switch (provider) {
+    case 'sleeper':
+      return hosts.some((host) => host.includes('sleeper.app'))
+    case 'espn':
+      return hosts.some((host) => host.includes('fantasy.espn.com') || host.includes('lm-api-reads'))
+    default: {
+      const _never: never = provider
+      return _never
+    }
+  }
+}
+
+/**
+ * Non-selected leagues whose compact score is due.
+ * Oldest first so a burst spreads across ticks. Never-fetched leagues sort first.
+ * Returns nothing when games are not live — idle keeps its own slower prefetch.
+ */
+export const backgroundScoreLeagues = (opts: {
+  leagues: League[]
+  selectedKey: string | null
+  matchupAt: (key: string) => number | undefined
+  now: number
+  live: boolean
+  intervalMs?: number
+  perTick?: number
+  blockedKeys?: readonly string[]
+}): League[] => {
+  if (!opts.live) return []
+  const interval = opts.intervalMs ?? BACKGROUND_SCORE_MS
+  const blocked = new Set(opts.blockedKeys ?? [])
+  const rest = opts.leagues.filter((league) => {
+    if (!isLiveLeagueId(league.id)) return false
+    const key = leagueKey(league.provider, league.id)
+    if (key === opts.selectedKey || blocked.has(key)) return false
+    return true
+  })
+  const cap = opts.perTick ?? backgroundScorePerTick(rest.length, { intervalMs: interval })
+  if (cap <= 0) return []
+  const due = rest
+    .map((league) => {
+      const key = leagueKey(league.provider, league.id)
+      const at = opts.matchupAt(key)
+      return {
+        league,
+        key,
+        at: at ?? Number.NEGATIVE_INFINITY,
+        age: at == null ? Number.POSITIVE_INFINITY : opts.now - at
+      }
+    })
+    .filter((row) => row.age >= interval)
+    .sort((a, b) => a.at - b.at || a.key.localeCompare(b.key))
+  return due.slice(0, cap).map((row) => row.league)
+}
+
+/** A league switch can paint the background score immediately so the HUD is not the previous board. */
+export const cachedHudSeedPlan = (opts: {
+  hintKey: string | null
+  seeded: boolean
+  hasCached: boolean
+  cachedHasLineup: boolean
+}): 'paint' | 'skip' => {
+  if (opts.seeded || !opts.hintKey || !opts.hasCached || !opts.cachedHasLineup) return 'skip'
+  return 'paint'
 }
 
 /** Live ticks publish the HUD snapshot without waiting on pinned rest GETs. Overlay already painted; each pin still upserts as it returns. Connect / waitForBoards still awaits that prefetch. */
