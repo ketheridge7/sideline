@@ -249,9 +249,28 @@ export const sleeperIdentityTimeoutMs = (
   live = false
 ): number => (hud ? livePollMs : restScoreTimeoutMs({ live, livePollMs, restTimeoutMs }))
 
+/** Game-day / live-window roster refresh. Lineup edits happen before kickoff and during TNF while other games are still locked. */
+export const ESPN_LINEUP_GAMEDAY_MS = 3 * 60_000
+
+/** Tuesday/Wednesday. The idle score poll is already faster than this; it only matters if the boxscore was being skipped. */
+export const ESPN_LINEUP_OFFDAY_MS = 15 * 60_000
+
+/** True when the cached boxscore's lineup slots are old enough to refetch, or a manual refresh asked for them now. */
+export const espnLineupRefreshDue = (opts: {
+  fetchedAt: number | undefined
+  now: number
+  gameday: boolean
+  force?: boolean
+}): boolean => {
+  if (opts.force) return true
+  if (opts.fetchedAt == null) return false
+  const ttl = opts.gameday ? ESPN_LINEUP_GAMEDAY_MS : ESPN_LINEUP_OFFDAY_MS
+  return opts.now - opts.fetchedAt >= ttl
+}
+
 /** Compact success defers ~40KB `mMatchupScore` SWR. Selected HUD recovers immediately on compact failure or a true-cold miss so rest/tx cannot sit on a dead live GET. Rest/pinned always defer that boxscore so a pin cannot pile 40KB beside HUD. */
-/** Compact live paints HUD. Boxscore SWR waits until after rest. While games are `in`, skip that ~40KB SWR; HUD recover still runs if compact fails or there is no overlay. */
-/** Idle defers ~40KB `mMatchupScore` after compact live. Gameday ticks skip that GET so it cannot occupy the rest pool; HUD recover still starts immediately when compact fails. */
+/** Compact live paints HUD. Boxscore SWR waits until after rest. While games are `in`, skip that ~40KB SWR unless the lineup TTL elapsed; HUD recover still runs if compact fails or there is no overlay. */
+/** Idle defers ~40KB `mMatchupScore` after compact live. Gameday ticks skip that GET so it cannot occupy the rest pool; a due lineup refresh still defers one boxscore, and HUD recover still starts immediately when compact fails. */
 export const espnLiveFullSwrPlan = (opts: {
   needsFull: boolean
   liveFailed: boolean
@@ -260,9 +279,23 @@ export const espnLiveFullSwrPlan = (opts: {
   gamesIn?: boolean
   compactIsStub?: boolean
   hasNamedLineup?: boolean
-}): 'recover' | 'defer' | 'skip' => {
+  lineupDue?: boolean
+  force?: boolean
+}): 'recover' | 'defer' | 'defer-lineup' | 'skip' => {
   if (opts.hud && opts.compactIsStub) return 'recover'
   if (opts.hud && opts.hasNamedLineup === false) return 'recover'
+  if (opts.force && opts.hud) return 'recover'
+  if (opts.force) return 'defer-lineup'
+  if (
+    opts.lineupDue &&
+    opts.gamesIn &&
+    opts.hasOverlay &&
+    !opts.liveFailed &&
+    !opts.compactIsStub &&
+    opts.hasNamedLineup !== false
+  ) {
+    return 'defer-lineup'
+  }
   if (!opts.needsFull) return 'skip'
   if (opts.hud && (opts.liveFailed || !opts.hasOverlay)) return 'recover'
   if (opts.gamesIn) return 'skip'
@@ -305,12 +338,58 @@ export const espnBoxscoreRecoverStale = (opts: {
 /** Deferred boxscore must not win Chromium's pipe over the next 3s `mLiveScoring` / `/matchups`. Recover stays high via `liveScorePriority`. */
 export const espnDeferredBoxscorePriority = (): 'low' => 'low'
 
-/** A deferred full boxscore must not replace compact live scores. Overlay onto last HUD; if overlay has no live rows, keep the screen. Prefer a parsed lineup when overlay has empty starters. */
+const lineupSignature = (players: Player[]): string =>
+  players.map((player) => `${player.playerId}:${player.lineupSlotId ?? ''}:${player.position}`).join(',')
+
+const sameEspnLineup = (left: Matchup, right: Matchup): boolean =>
+  lineupSignature(left.starters) === lineupSignature(right.starters) &&
+  lineupSignature(left.bench) === lineupSignature(right.bench) &&
+  lineupSignature(left.oppStarters) === lineupSignature(right.oppStarters) &&
+  lineupSignature(left.oppBench) === lineupSignature(right.oppBench)
+
+const overlayPointsById = (matchup: Matchup): Map<string, number> => {
+  const map = new Map<string, number>()
+  for (const player of [...matchup.starters, ...matchup.bench, ...matchup.oppStarters, ...matchup.oppBench]) {
+    if (typeof player.points !== 'number' || !player.playerId) continue
+    map.set(player.playerId, player.points)
+    const coerced = Number(player.playerId)
+    if (Number.isFinite(coerced)) map.set(String(coerced), player.points)
+  }
+  return map
+}
+
+const withOverlayPoints = (player: Player, points: Map<string, number>): Player => {
+  const direct = points.get(player.playerId)
+  if (direct != null) return { ...player, points: direct }
+  const coerced = Number(player.playerId)
+  if (!Number.isFinite(coerced)) return player
+  const alt = points.get(String(coerced))
+  if (alt == null) return player
+  return { ...player, points: alt }
+}
+
+/** Fresh boxscore decides who is starting. Compact live points already on the HUD stay on that player. */
+export const mergeEspnRefreshedLineup = (overlaid: Matchup, parsed: Matchup): Matchup => {
+  const points = overlayPointsById(overlaid)
+  return {
+    ...overlaid,
+    starters: parsed.starters.map((player) => withOverlayPoints(player, points)),
+    bench: parsed.bench.map((player) => withOverlayPoints(player, points)),
+    oppStarters: parsed.oppStarters.map((player) => withOverlayPoints(player, points)),
+    oppBench: parsed.oppBench.map((player) => withOverlayPoints(player, points))
+  }
+}
+
+/** A deferred full boxscore must not replace compact live scores. Overlay onto last HUD; if overlay has no live rows, keep the screen. Prefer a parsed lineup when overlay has empty starters. When both have a lineup, a slot change (bench, FLEX, IR) comes from the fresh boxscore. */
 export const espnFullSwrPaintPlan = (opts: {
   prev: Matchup | null
   overlaid: Matchup | null
   parsed: Matchup | null
 }): Matchup | null => {
+  if (opts.overlaid && opts.parsed && matchupHasLineup(opts.overlaid) && matchupHasLineup(opts.parsed)) {
+    if (!sameEspnLineup(opts.overlaid, opts.parsed)) return mergeEspnRefreshedLineup(opts.overlaid, opts.parsed)
+    return opts.overlaid
+  }
   if (opts.overlaid && matchupHasLineup(opts.overlaid)) return opts.overlaid
   if (opts.parsed && matchupHasLineup(opts.parsed)) return opts.parsed
   if (opts.overlaid) return opts.overlaid

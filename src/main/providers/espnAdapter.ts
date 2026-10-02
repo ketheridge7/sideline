@@ -1001,6 +1001,49 @@ const orderEspnStarters = (players: Player[], slots: Map<string, number>): Playe
   return ranked.map((row) => row.player)
 }
 
+const slotForPlayer = (slots: Map<string, number>, player: Player): number | undefined => {
+  const direct = slots.get(player.playerId)
+  if (direct != null) return direct
+  const coerced = num(player.playerId)
+  return coerced != null ? slots.get(String(coerced)) : undefined
+}
+
+/**
+ * Move players between starters and bench/IR when the payload has a slot for
+ * every player already on the HUD. A scorer-only compact blob is missing slots
+ * for someone, so it keeps the previous partition (unscored chips stay).
+ */
+const reseatEspnLineup = (
+  starters: Player[],
+  bench: Player[],
+  slots: Map<string, number>
+): { starters: Player[]; bench: Player[] } | null => {
+  const roster = [...starters, ...bench]
+  if (roster.length === 0 || slots.size === 0) return null
+  if (roster.some((player) => !player.playerId || slotForPlayer(slots, player) == null)) return null
+  const nextStarters: Array<{ player: Player; rank: [number, number, number] }> = []
+  const nextBench: Player[] = []
+  roster.forEach((player, index) => {
+    const slot = slotForPlayer(slots, player) as number
+    const fromSlot = isBenchSlot(slot) ? undefined : ESPN_SLOT_POSITION[slot]
+    const stamped: Player = {
+      ...player,
+      lineupSlotId: slot,
+      ...(fromSlot ? { position: fromSlot } : {})
+    }
+    if (isBenchSlot(slot)) {
+      nextBench.push(stamped)
+      return
+    }
+    nextStarters.push({
+      player: stamped,
+      rank: espnStarterRank(slot, stamped.position, index)
+    })
+  })
+  nextStarters.sort((left, right) => compareEspnStarterRank(left.rank, right.rank))
+  return { starters: nextStarters.map((row) => row.player), bench: nextBench }
+}
+
 const periodActual = (side: Record<string, unknown>, scoringPeriodId?: number): number | undefined => {
   const row = isRecord(side.pointsByScoringPeriod) ? side.pointsByScoringPeriod : null
   if (!row || scoringPeriodId == null) return undefined
@@ -1017,6 +1060,38 @@ const starterActualSum = (side: Record<string, unknown>, scoringPeriodId?: numbe
     if (pts != null) sum += pts
   }
   return sum
+}
+
+const positivePts = (value: number | undefined): number => (value != null && value > 0 ? value : 0)
+
+/**
+ * Split a slotted roster into starter vs bench/IR points. Unslotted rows are
+ * ignored here so a compact blob that omits `lineupSlotId` still uses the
+ * team total (player stats often lag `totalPointsLive`).
+ */
+const slottedPointSplit = (
+  side: Record<string, unknown>,
+  scoringPeriodId?: number
+): { starter: number; bench: number; sawStarter: boolean } => {
+  const period = rosterPeriod(side)
+  const entries = period ? asEntryRows(period.entries) : []
+  let starter = 0
+  let bench = 0
+  let sawStarter = false
+  for (const entry of entries) {
+    const slot = num(entry.lineupSlotId)
+    if (slot == null) continue
+    const benchSlot = isBenchSlot(slot)
+    if (!benchSlot) sawStarter = true
+    const ppe = isRecord(entry.playerPoolEntry) ? entry.playerPoolEntry : undefined
+    const pts = Math.max(
+      positivePts(livePtsFromRows(entry, ppe)),
+      positivePts(getAppliedTotal(entry as EspnRosterEntry, scoringPeriodId))
+    )
+    if (benchSlot) bench += pts
+    else starter += pts
+  }
+  return { starter, bench, sawStarter }
 }
 
 const priorPeriodsActual = (side: Record<string, unknown>, priorPeriodIds: number[]): number => {
@@ -1038,6 +1113,16 @@ const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number, prio
   const period = periodActual(side, scoringPeriodId)
   // Pre-kickoff current period 0 beats leftover totalPoints / last-week live totals.
   if (period === 0 && liveStarters === 0 && starters === 0) return prior
+  // ESPN `totalPointsLive` is sometimes the whole roster (a TNF bench/IR scorer)
+  // while every starter slot is still 0. That total is not the matchup score.
+  // A team total larger than the bench/IR sum is left alone: starter chips lag
+  // the live team total during games.
+  const split = slottedPointSplit(side, scoringPeriodId)
+  if (split.sawStarter && split.starter === 0 && split.bench > 0) {
+    const explained = (value: number | null | undefined): boolean =>
+      value == null || value === 0 || value <= split.bench + 0.001
+    if (explained(live) && explained(period)) return prior
+  }
   if (live != null && live > 0) return Math.max(live, prior)
   if (live === 0) return prior
   if (liveStarters > 0) return prior + liveStarters
@@ -1490,25 +1575,25 @@ export const overlayEspnMatchup = (
   const oppSlots = oppSide ? lineupSlotByPlayerId(oppSide) : new Map<string, number>()
   const trustMineChips = trustMine || preferLive
   const trustOppChips = trustOpp || preferLive
+  const scoredStarters = overlayEspnPlayers(prev.starters, myById, trustMineChips, trustMine && myLiveTotal === 0)
+  const scoredBench = overlayEspnPlayers(prev.bench, myById, trustMineChips, trustMine && myLiveTotal === 0)
+  const mineSeat = reseatEspnLineup(scoredStarters, scoredBench, mySlots)
+  const scoredOppStarters = oppSide
+    ? overlayEspnPlayers(prev.oppStarters, oppById, trustOppChips, trustOpp && oppLiveTotal === 0)
+    : prev.oppStarters
+  const scoredOppBench = oppSide
+    ? overlayEspnPlayers(prev.oppBench, oppById, trustOppChips, trustOpp && oppLiveTotal === 0)
+    : prev.oppBench
+  const oppSeat = oppSide ? reseatEspnLineup(scoredOppStarters, scoredOppBench, oppSlots) : null
   return withEspnProjected(
     {
       ...prev,
       myPoints: overlayTotal(prev.myPoints, myLiveTotal, trustMine),
       oppPoints: oppSide ? overlayTotal(prev.oppPoints, oppLiveTotal, trustOpp) : prev.oppPoints,
-      starters: orderEspnStarters(
-        overlayEspnPlayers(prev.starters, myById, trustMineChips, trustMine && myLiveTotal === 0),
-        mySlots
-      ),
-      bench: overlayEspnPlayers(prev.bench, myById, trustMineChips, trustMine && myLiveTotal === 0),
-      oppStarters: oppSide
-        ? orderEspnStarters(
-            overlayEspnPlayers(prev.oppStarters, oppById, trustOppChips, trustOpp && oppLiveTotal === 0),
-            oppSlots
-          )
-        : prev.oppStarters,
-      oppBench: oppSide
-        ? overlayEspnPlayers(prev.oppBench, oppById, trustOppChips, trustOpp && oppLiveTotal === 0)
-        : prev.oppBench,
+      starters: mineSeat?.starters ?? orderEspnStarters(scoredStarters, mySlots),
+      bench: mineSeat?.bench ?? scoredBench,
+      oppStarters: oppSeat?.starters ?? (oppSide ? orderEspnStarters(scoredOppStarters, oppSlots) : prev.oppStarters),
+      oppBench: oppSeat?.bench ?? scoredOppBench,
       scoresFinal: espnGameIsFinal(game)
     },
     mySide,

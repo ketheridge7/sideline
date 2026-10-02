@@ -712,6 +712,101 @@ describe('poller live tick order', () => {
     expect(urls[liveAt]).not.toContain('view=mTeam')
   })
 
+  it('applies an ESPN bench, FLEX, and IR move on the next roster refresh', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '899513'
+    const selectedKey = leagueKey('espn', leagueId)
+    const stale = {
+      ...hudMatchup,
+      starters: [
+        { playerId: '100', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 10, lineupSlotId: 0 },
+        { playerId: '400', name: 'Lamb', position: 'WR', nflTeam: 'DAL', points: 8, lineupSlotId: 4 }
+      ],
+      bench: [{ playerId: '200', name: 'Chase', position: 'WR', nflTeam: 'CIN', points: 0, lineupSlotId: 20 }]
+    }
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId]
+    })
+    writeNfl(dir)
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 1, selectedKey, matchup: stale })
+    )
+    warmupPollerCaches()
+
+    const entry = (id: number, slot: number, name: string, pos: number) => ({
+      playerId: id,
+      lineupSlotId: slot,
+      playerPoolEntry: { player: { fullName: name, defaultPositionId: pos, proTeamId: 21 } }
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({ scoringPeriodId: 1, schedule: [{ matchupPeriodId: 1 }] })
+        }
+        if (url.includes('mMatchupScore') || url.includes('mScoreboard')) {
+          return jsonOk({
+            scoringPeriodId: 1,
+            teams: [
+              { id: 1, location: 'Mine', nickname: 'Team' },
+              { id: 2, location: 'Yours', nickname: 'Club' }
+            ],
+            schedule: [
+              {
+                matchupPeriodId: 1,
+                home: {
+                  teamId: 1,
+                  totalPointsLive: 18,
+                  rosterForCurrentScoringPeriod: {
+                    entries: [
+                      entry(100, 20, 'Hurts', 1),
+                      entry(200, 23, 'Chase', 3),
+                      entry(400, 21, 'Lamb', 3)
+                    ]
+                  }
+                },
+                away: {
+                  teamId: 2,
+                  totalPointsLive: 9,
+                  rosterForCurrentScoringPeriod: {
+                    entries: [entry(300, 0, 'Allen', 1)]
+                  }
+                }
+              }
+            ]
+          })
+        }
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 1,
+            display_week: 1,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk({ teams: [], schedule: [] })
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect
+      .poll(() => currentState().matchup?.starters.map((player) => player.name))
+      .toEqual(['Chase'])
+    const matchup = currentState().matchup
+    expect(matchup?.starters[0]?.position).toBe('FLEX')
+    expect(matchup?.starters[0]?.lineupSlotId).toBe(23)
+    expect(matchup?.bench.map((player) => `${player.name}:${player.lineupSlotId}`)).toEqual([
+      'Hurts:20',
+      'Lamb:21'
+    ])
+  })
+
   it('does not resurrect week-1 last-HUD points for week 2 when scores disk is 0-0', () => {
     const dir = app.getPath('userData')
     const leagueId = '543268341'
