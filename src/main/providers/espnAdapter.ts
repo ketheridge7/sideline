@@ -1178,6 +1178,48 @@ export const espnMatchupPeriodFor = (
 const priorScoringPeriods = (period: EspnMatchupPeriod, scoringPeriodId: number): number[] =>
   period.scoringPeriodIds.filter((id) => id < scoringPeriodId)
 
+/**
+ * Opponent team id from this matchup period's schedule.
+ * `undefined` — the payload does not name home/away (compact live with no pairings).
+ * `null` — the schedule has sides and this team is on a bye.
+ */
+export const espnScheduledOpponentId = (
+  payload: unknown,
+  myTeamId: number,
+  matchupPeriod: EspnMatchupPeriod
+): number | null | undefined => {
+  const row = unwrapEspnPayload(payload, hasEspnLeagueShape)
+  if (!row) return undefined
+  const sided = payloadSchedule(row).filter(
+    (game) => scheduleRowInPeriod(game, matchupPeriod) && scheduleGameHasSides(game)
+  )
+  if (sided.length === 0) return undefined
+  const game = sided.find((entry) => {
+    const home = isRecord(entry.home) ? entry.home : null
+    const away = isRecord(entry.away) ? entry.away : null
+    return scheduleSideId(home) === myTeamId || scheduleSideId(away) === myTeamId
+  })
+  if (!game) return null
+  const home = isRecord(game.home) ? game.home : null
+  const away = isRecord(game.away) ? game.away : null
+  const iAmHome = scheduleSideId(home) === myTeamId
+  return scheduleSideId(iAmHome ? away : home) ?? null
+}
+
+/** True when this payload's schedule names a different opponent than `prev` (including a bye). */
+export const espnOpponentChanged = (
+  prev: Matchup,
+  payload: unknown,
+  matchupPeriod: EspnMatchupPeriod
+): boolean => {
+  const myId = num(prev.myTeam.id)
+  if (myId == null) return false
+  const scheduled = espnScheduledOpponentId(payload, myId, matchupPeriod)
+  if (scheduled === undefined) return false
+  const prevOpp = prev.oppTeam ? num(prev.oppTeam.id) ?? null : null
+  return scheduled !== prevOpp
+}
+
 /** Schedule rows carry `matchupPeriodId`; bare `scoringPeriodId` rows match any week of the matchup. */
 const scheduleRowInPeriod = (row: Record<string, unknown>, period: EspnMatchupPeriod): boolean => {
   const matchupPeriodId = num(row.matchupPeriodId)
@@ -1536,6 +1578,7 @@ export const overlayEspnMatchup = (
   if (!matchupHasLineup(prev)) return null
   const myId = num(prev.myTeam.id)
   if (myId == null || myId <= 0) return null
+  if (espnOpponentChanged(prev, payload, matchupPeriod)) return null
   const priorPeriods = priorScoringPeriods(matchupPeriod, displayWeek)
   const liveTeams = liveScoringTeams(payload)
   const schedule = payloadSchedule(payload)
@@ -1551,9 +1594,13 @@ export const overlayEspnMatchup = (
   const liveMine = liveTeamFor(liveTeams, myId)
   const mySide = mergeSide(iAmHome ? home : away, liveMine)
   if (!mySide) return null
-  const oppId = prev.oppTeam
-    ? num(prev.oppTeam.id)
-    : scheduleSideId(iAmHome ? away : home)
+  const scheduledOpp = espnScheduledOpponentId(payload, myId, matchupPeriod)
+  const oppId =
+    scheduledOpp !== undefined
+      ? scheduledOpp ?? undefined
+      : prev.oppTeam
+        ? num(prev.oppTeam.id)
+        : scheduleSideId(iAmHome ? away : home)
   const liveOpp = liveTeamFor(liveTeams, oppId)
   const oppSide = mergeSide(iAmHome ? away : home, liveOpp)
   const myById = livePointsByPlayerId(mySide, displayWeek)

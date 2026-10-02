@@ -711,6 +711,72 @@ describe('overlaySleeperMatchups', () => {
     ]
     expect(overlaySleeperMatchups(espnHud, live)).toBeNull()
   })
+
+  it('refuses week 3 opponent when week 4 reuses matchup_id numbers for a different roster', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(prev?.oppTeam?.id).toBe('2')
+    const week4: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 3,
+        points: 14,
+        starters: ['1', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 8, '2': 6, '9': 1 }
+      },
+      {
+        roster_id: 3,
+        matchup_id: 3,
+        points: 11,
+        starters: ['4'],
+        players: ['4'],
+        players_points: { '4': 11 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 9,
+        points: 40,
+        starters: ['3'],
+        players: ['3'],
+        players_points: { '3': 40 }
+      }
+    ]
+    expect(overlaySleeperMatchups(prev!, week4)).toBeNull()
+    const rebuilt = toMatchup({
+      userId: 'me',
+      rosters: [
+        ...rosters,
+        { roster_id: 3, owner_id: 'new', settings: { wins: 2, losses: 1 } }
+      ],
+      users: [...users, { user_id: 'new', display_name: 'New', metadata: { team_name: 'This Week' } }],
+      matchups: week4,
+      players
+    })
+    expect(rebuilt?.oppTeam?.id).toBe('3')
+    expect(rebuilt?.oppTeam?.name).toBe('This Week')
+    expect(rebuilt?.oppPoints).toBe(11)
+    expect(rebuilt?.myPoints).toBe(14)
+  })
+
+  it('keeps the same opponent when the new week pairs the same roster', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    const live = [
+      { ...matchups[0], points: 22, players_points: { '1': 12, '2': 10, '9': 1 } },
+      { ...matchups[1], points: 16, players_points: { '3': 16 } }
+    ]
+    const next = overlaySleeperMatchups(prev!, live)
+    expect(next?.oppTeam?.id).toBe('2')
+    expect(next?.oppPoints).toBe(16)
+    expect(next?.myPoints).toBe(22)
+  })
+
+  it('refuses a bye week when last week still has an opponent', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    const bye: SleeperMatchup[] = [
+      { roster_id: 1, matchup_id: null, points: 0, starters: ['1', '2'], players: ['1', '2'] }
+    ]
+    expect(overlaySleeperMatchups(prev!, bye)).toBeNull()
+  })
 })
 
 describe('applyPlayerNames', () => {
