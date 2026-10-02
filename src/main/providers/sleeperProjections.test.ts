@@ -2,6 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writeFileSync } from 'fs'
 import { join } from 'path'
 
+const projections = vi.hoisted(() => ({ getWeekProjections: vi.fn() }))
+
+vi.mock('./sleeperClient', async () => {
+  const actual = await vi.importActual<typeof import('./sleeperClient')>('./sleeperClient')
+  return { ...actual, getWeekProjections: projections.getWeekProjections }
+})
+
 vi.mock('electron', () => {
   const fs = require('fs') as typeof import('fs')
   const os = require('os') as typeof import('os')
@@ -12,6 +19,7 @@ vi.mock('electron', () => {
 
 import { app } from 'electron'
 import {
+  getSleeperProjectionPts,
   hydrateSleeperProjectionsFromDisk,
   peekSleeperProjectionPts,
   resetSleeperProjectionsCache
@@ -39,6 +47,28 @@ describe('peekSleeperProjectionPts', () => {
     expect(peekSleeperProjectionPts('half_ppr')).toBe(half)
     expect(peekSleeperProjectionPts('std')).toEqual({ '4046': 11.15 })
     expect(peekSleeperProjectionPts()).toEqual({ '4046': 17.49 })
+  })
+
+  it('does not let an older week fetch overwrite the newer week', async () => {
+    let releaseOld: (value: unknown) => void = () => undefined
+    let releaseNew: (value: unknown) => void = () => undefined
+    const olderWeek = new Promise((resolve) => {
+      releaseOld = resolve
+    })
+    const newerWeek = new Promise((resolve) => {
+      releaseNew = resolve
+    })
+    projections.getWeekProjections.mockImplementation((_season: string, week: number) =>
+      week === 3 ? olderWeek : newerWeek
+    )
+    const older = getSleeperProjectionPts({ season: '2026', week: 3, seasonType: 'regular' })
+    const newer = getSleeperProjectionPts({ season: '2026', week: 4, seasonType: 'regular' })
+    releaseNew({ '1': { pts_ppr: 9 } })
+    await newer
+    expect(peekSleeperProjectionPts()).toEqual({ '1': 9 })
+    releaseOld({ '1': { pts_ppr: 1 } })
+    await older
+    expect(peekSleeperProjectionPts()).toEqual({ '1': 9 })
   })
 
   it('drops the memo when the projection rows change', () => {

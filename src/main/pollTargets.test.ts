@@ -64,6 +64,10 @@ import {
   espnLeagueIdsToDiscover,
   espnFanExtraIds,
   espnScoreOverlayPlan,
+  espnScoreCacheKey,
+  espnScoreLeagueIdFromKey,
+  getEspnScoreCache,
+  putEspnScoreCache,
   espnScoreKickOrder,
   liveScorePriority,
   sleeperIdentityPriority,
@@ -195,6 +199,28 @@ describe('calendarNflFallback', () => {
       leagueSeason: '2026',
       seasonType: 'regular'
     })
+    // Monday of week 1 is still week 1. Sleeper rolls Tuesday, not Thursday.
+    expect(calendarNflFallback(new Date('2026-09-14T16:00:00Z'))).toEqual({
+      week: 1,
+      displayWeek: 1,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular'
+    })
+    expect(calendarNflFallback(new Date('2026-09-15T16:00:00Z'))).toEqual({
+      week: 2,
+      displayWeek: 2,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular'
+    })
+    expect(calendarNflFallback(new Date('2026-09-16T16:00:00Z'))).toEqual({
+      week: 2,
+      displayWeek: 2,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular'
+    })
     expect(calendarNflFallback(new Date('2026-09-18T12:00:00-04:00'))).toEqual({
       week: 2,
       displayWeek: 2,
@@ -313,6 +339,21 @@ describe('espnScoreOverlayPlan', () => {
       overlay: true,
       refreshFull: true
     })
+  })
+})
+
+describe('espn score cache key', () => {
+  it('keeps week 3 when a week 4 payload arrives, and ignores a late week 3 write', () => {
+    const cache = new Map()
+    putEspnScoreCache(cache, '99', 4, { week: 4 }, 20, 4)
+    putEspnScoreCache(cache, '99', 3, { week: 3 }, 30, 4)
+    expect(getEspnScoreCache(cache, '99', 4)).toEqual({ at: 20, week: 4, payload: { week: 4 } })
+    expect(getEspnScoreCache(cache, '99', 3)).toBeUndefined()
+    expect(espnScoreCacheKey('99', 4)).toBe('4:99')
+    expect(espnScoreLeagueIdFromKey('4:99')).toBe('99')
+    putEspnScoreCache(cache, '99', 3, { week: 3 }, 10, undefined)
+    expect(getEspnScoreCache(cache, '99', 3)?.week).toBe(3)
+    expect(getEspnScoreCache(cache, '99', 4)?.payload).toEqual({ week: 4 })
   })
 })
 

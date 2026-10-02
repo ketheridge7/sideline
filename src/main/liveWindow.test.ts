@@ -28,6 +28,12 @@ describe('isLikelyLive', () => {
     expect(isLikelyLive(et('2026-08-30T18:00:00Z'), 'pre')).toBe(false)
   })
 
+  it('stays live into early Tuesday so a Monday game past midnight does not drop to idle', () => {
+    expect(isLikelyLive(et('2026-09-15T04:30:00Z'), 'regular')).toBe(true)
+    expect(isLikelyLive(et('2026-09-15T05:30:00Z'), 'regular')).toBe(true)
+    expect(isLikelyLive(et('2026-09-15T06:30:00Z'), 'regular')).toBe(false)
+  })
+
   it('uses 3s when live and 30s when idle', () => {
     expect(pollIntervalMs(true)).toBe(3_000)
     expect(pollIntervalMs(false)).toBe(30_000)

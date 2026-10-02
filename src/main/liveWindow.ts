@@ -17,6 +17,8 @@ export const isLikelyLive = (now: Date, seasonType: string): boolean => {
   if (weekday === 'Sat' && mins >= 9 * 60) return true
   if (weekday === 'Sun' && mins >= 9 * 60) return true
   if (weekday === 'Mon' && mins >= 19 * 60) return true
+  // Monday night, including a second Monday game, can still be on after midnight Eastern.
+  if (weekday === 'Tue' && mins < 2 * 60) return true
   return false
 }
 

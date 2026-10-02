@@ -20,6 +20,8 @@ export type SleeperNflState = {
   season: string
   league_season: string
   season_type: string
+  /** Fantasy week. Can differ from `display_week` once the NFL is in the postseason. */
+  leg?: number
 }
 
 export type SleeperLeague = {
@@ -460,13 +462,15 @@ export const parseSleeperNflState = (raw: unknown): SleeperNflState | null => {
   const season = asStr(row.season)
   const leagueSeason = asStr(row.league_season) ?? season
   const seasonType = asStr(row.season_type) ?? 'regular'
+  const leg = asInt(row.leg)
   if (week == null || displayWeek == null || !season || !leagueSeason) return null
   return {
     week,
     display_week: displayWeek,
     season,
     league_season: leagueSeason,
-    season_type: seasonType
+    season_type: seasonType,
+    ...(leg != null ? { leg } : {})
   }
 }
 

@@ -124,6 +124,16 @@ const forgetLanToken = (): void => {
   disarmLanSession()
 }
 
+/** False when the socket is already gone, so the heartbeat timer can stop. */
+export const writeOverlayPing = (write: (chunk: string) => void): boolean => {
+  try {
+    write('event: ping\ndata: {}\n\n')
+    return true
+  } catch {
+    return false
+  }
+}
+
 const sendSse = (res: ServerResponse): void => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -133,7 +143,9 @@ const sendSse = (res: ServerResponse): void => {
   res.write(lastEvent)
   clients.add(res)
   const ping = setInterval(() => {
-    res.write('event: ping\ndata: {}\n\n')
+    if (writeOverlayPing((chunk) => res.write(chunk))) return
+    clearInterval(ping)
+    clients.delete(res)
   }, 15000)
   res.on('close', () => {
     clearInterval(ping)

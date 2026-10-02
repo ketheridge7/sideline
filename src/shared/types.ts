@@ -141,6 +141,8 @@ export type NflState = {
   season: string
   leagueSeason: string
   seasonType: string
+  /** Sleeper `leg` when it was present. Fantasy matchup week during the postseason. */
+  leg?: number
 }
 
 export type NflTickerGame = {

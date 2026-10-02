@@ -429,6 +429,16 @@ describe('sleeperClient', () => {
       league_season: '2026',
       season_type: 'regular'
     })
+    expect(
+      parseSleeperNflState({
+        week: 19,
+        display_week: 19,
+        leg: 16,
+        season: '2026',
+        league_season: '2026',
+        season_type: 'post'
+      })
+    ).toMatchObject({ week: 19, display_week: 19, leg: 16, season_type: 'post' })
   })
 
   it('unwraps wrapped /state/nfl and /user envelopes so a shape change cannot stall week or identity', () => {

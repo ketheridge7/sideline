@@ -12,7 +12,8 @@ import {
   resetLanTokenPersistenceForTests,
   setOverlayLanEnabled,
   startOverlayServer,
-  stopOverlayServer
+  stopOverlayServer,
+  writeOverlayPing
 } from './server'
 
 afterEach(async () => {
@@ -102,6 +103,19 @@ describe('overlay server port fallback', () => {
       return port
     }
     await expect(listenOnFreePort(7333, '127.0.0.1', attempt)).resolves.toBe(7335)
+  })
+})
+
+describe('writeOverlayPing', () => {
+  it('stops the heartbeat when the TV socket is already closed', () => {
+    const chunks: string[] = []
+    expect(writeOverlayPing((chunk) => chunks.push(chunk))).toBe(true)
+    expect(chunks).toEqual(['event: ping\ndata: {}\n\n'])
+    expect(
+      writeOverlayPing(() => {
+        throw new Error('write EPIPE')
+      })
+    ).toBe(false)
   })
 })
 
