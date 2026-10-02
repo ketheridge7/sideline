@@ -156,24 +156,145 @@ const toPlayer = (
   }
 }
 
-const starterPointsSum = (matchup: SleeperMatchup): number => {
+/** Sleeper writes "0" into an empty starter slot. That id is not a player. */
+const isScoringStarterId = (id: string | undefined): id is string =>
+  id != null && id !== '' && id !== '0'
+
+const idInSet = (set: ReadonlySet<string>, id: string): boolean => {
+  if (set.has(id)) return true
+  const coerced = Number(id)
+  return Number.isFinite(coerced) && set.has(String(coerced))
+}
+
+const NO_INACTIVE: ReadonlySet<string> = new Set()
+
+/** Float slack for "this total is exactly the bench pile". Distinct tenths stay distinct. */
+const POINTS_EPS = 0.02
+
+type StarterSlot = { id: string; index: number }
+
+const starterSlots = (matchup: SleeperMatchup): StarterSlot[] => {
   const ids = matchup.starters ?? []
-  let sum = 0
+  const slots: StarterSlot[] = []
   for (let index = 0; index < ids.length; index++) {
     const id = playerIdOf(ids[index])
     if (!id) continue
-    const pts = pointsForPlayer(matchup, id, index)
+    slots.push({ id, index })
+  }
+  return slots
+}
+
+const isScoringSlot = (slot: StarterSlot, inactive: ReadonlySet<string>): boolean =>
+  isScoringStarterId(slot.id) && !idInSet(inactive, slot.id)
+
+/** IR and taxi never score, even if a stale starters list still names them. */
+const inactiveIds = (roster: SleeperRoster | undefined): ReadonlySet<string> => {
+  if (!roster) return NO_INACTIVE
+  const ids = new Set<string>()
+  for (const raw of [...(roster.reserve ?? []), ...(roster.taxi ?? [])]) {
+    const id = playerIdOf(raw)
+    if (!isScoringStarterId(id)) continue
+    ids.add(id)
+  }
+  return ids.size > 0 ? ids : NO_INACTIVE
+}
+
+export const sleeperInactiveByRoster = (
+  rosters: SleeperRoster[] | undefined
+): ReadonlyMap<number, ReadonlySet<string>> => {
+  const map = new Map<number, ReadonlySet<string>>()
+  if (!rosters) return map
+  for (const roster of rosters) {
+    const rosterId = rosterIdOf(roster)
+    if (rosterId == null) continue
+    const inactive = inactiveIds(roster)
+    if (inactive !== NO_INACTIVE) map.set(rosterId, inactive)
+  }
+  return map
+}
+
+const starterPointsSum = (matchup: SleeperMatchup, inactive: ReadonlySet<string>): number => {
+  let sum = 0
+  for (const slot of starterSlots(matchup)) {
+    if (!isScoringSlot(slot, inactive)) continue
+    const pts = pointsForPlayer(matchup, slot.id, slot.index)
     if (typeof pts === 'number') sum += pts
   }
   return sum
 }
 
-const teamTotal = (matchup: SleeperMatchup): number => {
+/**
+ * Positive points for anyone who is not a scoring starter: bench, and IR/taxi
+ * still sitting in the starters array. Key "0" is skipped so an empty slot
+ * cannot explain a real team total.
+ */
+const nonStarterPointsSum = (matchup: SleeperMatchup, inactive: ReadonlySet<string>): number => {
+  const scoring = new Set<string>()
+  for (const slot of starterSlots(matchup)) {
+    if (!isScoringSlot(slot, inactive)) continue
+    scoring.add(slot.id)
+  }
+  let sum = 0
+  const seen = new Set<string>()
+  const add = (id: string, pts: number | undefined): void => {
+    if (!isScoringStarterId(id) || idInSet(scoring, id) || idInSet(seen, id)) return
+    if (pts == null || pts <= 0) return
+    seen.add(id)
+    sum += pts
+  }
+  if (matchup.players_points) {
+    for (const [key, value] of Object.entries(matchup.players_points)) {
+      const id = playerIdOf(key)
+      if (!id) continue
+      add(id, asPts(value))
+    }
+  }
+  for (const slot of starterSlots(matchup)) {
+    if (!isScoringStarterId(slot.id) || !idInSet(inactive, slot.id)) continue
+    add(slot.id, pointsForPlayer(matchup, slot.id, slot.index))
+  }
+  return sum
+}
+
+/** Points parked on empty starter slots. They are not a player and never score. */
+const emptySlotPoints = (matchup: SleeperMatchup): number => {
+  let sum = 0
+  for (const slot of starterSlots(matchup)) {
+    if (slot.id !== '0') continue
+    const pts = pointsForPlayer(matchup, slot.id, slot.index)
+    if (pts != null && pts > 0) sum += pts
+  }
+  return sum
+}
+
+const teamTotal = (matchup: SleeperMatchup, inactive: ReadonlySet<string> = NO_INACTIVE): number => {
   const custom = asPts(matchup.custom_points)
   if (custom != null) return custom
   const pts = asPts(matchup.points)
+  const starterSum = starterPointsSum(matchup, inactive)
+  const benchSum = nonStarterPointsSum(matchup, inactive)
+  // An empty-slot phantom only explains the total when no real bench/IR points do.
+  // Adding the two together would hide a real starter total that is still ahead of
+  // zeroed starter chips but smaller than bench + phantom.
+  const explained = benchSum > 0 ? benchSum : emptySlotPoints(matchup)
+  // TNF: every scoring starter is still 0, and the published total is the bench /
+  // IR / empty-slot pile (or Sleeper's own 0). A larger total is left alone —
+  // starter chips lag the official score during games.
+  if (starterSum === 0 && explained > 0 && (pts == null || pts <= explained + POINTS_EPS)) {
+    return 0
+  }
+  // `points` matches starters + bench, so it is the whole roster rather than the
+  // official starter total. Count starters only.
+  if (
+    pts != null &&
+    pts > 0 &&
+    benchSum > POINTS_EPS &&
+    Math.abs(pts - (starterSum + benchSum)) <= POINTS_EPS
+  ) {
+    return starterSum
+  }
   if (pts != null && pts > 0) return pts
-  return Math.max(pts ?? 0, starterPointsSum(matchup))
+  return Math.max(pts ?? 0, starterSum)
 }
 
 const hasCachedPlayers = (players: Record<string, CachedPlayer>): boolean => {
@@ -231,8 +352,8 @@ const hasLivePts = (row: SleeperMatchup): boolean => {
   return false
 }
 
-const overlayTotal = (prevPts: number, row: SleeperMatchup): number => {
-  const live = teamTotal(row)
+const overlayTotal = (prevPts: number, row: SleeperMatchup, inactive: ReadonlySet<string>): number => {
+  const live = teamTotal(row, inactive)
   return hasLivePts(row) ? live : Math.max(prevPts, live)
 }
 
@@ -271,26 +392,32 @@ const playersById = (players: Player[]): Map<string, Player> => {
 const reseatSleeperSide = (
   prevStarters: Player[],
   prevBench: Player[],
-  row: SleeperMatchup
+  row: SleeperMatchup,
+  inactive: ReadonlySet<string>
 ): { starters: Player[]; bench: Player[] } | null => {
   if (!Array.isArray(row.starters)) return null
-  const starterIds = row.starters.map(sleeperPlayerId).filter((id): id is string => id != null)
+  const starterIds = row.starters
+    .map(sleeperPlayerId)
+    .filter((id): id is string => id != null && !idInSet(inactive, id))
   if (starterIds.length === 0) return null
   const known = playersById([...prevStarters, ...prevBench])
   const lookup = (id: string): Player =>
     known.get(id) ?? { playerId: id, name: id, position: '?', nflTeam: '' }
-  const starterSet = new Set(starterIds)
-  const isStarter = (id: string): boolean => {
-    if (starterSet.has(id)) return true
-    const coerced = Number(id)
-    return Number.isFinite(coerced) && starterSet.has(String(coerced))
-  }
-  const benchSource = Array.isArray(row.players)
+  const isStarter = (id: string): boolean => idInSet(new Set(starterIds), id)
+  const fromPlayers = Array.isArray(row.players)
     ? row.players.map(sleeperPlayerId).filter((id): id is string => id != null)
     : [...prevStarters, ...prevBench].map((player) => player.playerId).filter((id) => id !== '')
+  const parked = row.starters.map(sleeperPlayerId).filter((id): id is string => id != null && idInSet(inactive, id))
+  const benchIds: string[] = []
+  const seen = new Set<string>()
+  for (const id of [...fromPlayers, ...parked]) {
+    if (isStarter(id) || idInSet(seen, id)) continue
+    seen.add(id)
+    benchIds.push(id)
+  }
   return {
     starters: starterIds.map(lookup),
-    bench: benchSource.filter((id) => !isStarter(id)).map(lookup)
+    bench: benchIds.map(lookup)
   }
 }
 
@@ -415,7 +542,11 @@ export const applySleeperWinEstimate = (
   }
 }
 
-export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]): Matchup | null => {
+export const overlaySleeperMatchups = (
+  prev: Matchup,
+  matchups: SleeperMatchup[],
+  inactiveByRoster?: ReadonlyMap<number, ReadonlySet<string>>
+): Matchup | null => {
   const myId = asInt(prev.myTeam.id)
   if (myId == null) return null
   const mine = matchups.find((row) => rosterIdOf(row) === myId)
@@ -429,12 +560,20 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
       : matchups.find(
           (row) => matchupIdOf(row) === matchupIdOf(mine) && rosterIdOf(row) !== rosterIdOf(mine)
         )
-  const mineSeat = reseatSleeperSide(prev.starters, prev.bench, mine)
-  const oppSeat = opp ? reseatSleeperSide(prev.oppStarters, prev.oppBench, opp) : null
+  const inactiveFor = (row: SleeperMatchup | undefined): ReadonlySet<string> => {
+    if (!row || !inactiveByRoster) return NO_INACTIVE
+    const rosterId = rosterIdOf(row)
+    if (rosterId == null) return NO_INACTIVE
+    return inactiveByRoster.get(rosterId) ?? NO_INACTIVE
+  }
+  const mineInactive = inactiveFor(mine)
+  const oppInactive = inactiveFor(opp)
+  const mineSeat = reseatSleeperSide(prev.starters, prev.bench, mine, mineInactive)
+  const oppSeat = opp ? reseatSleeperSide(prev.oppStarters, prev.oppBench, opp, oppInactive) : null
   const next: Matchup = {
     ...prev,
-    myPoints: overlayTotal(prev.myPoints, mine),
-    oppPoints: opp ? overlayTotal(prev.oppPoints, opp) : prev.oppPoints,
+    myPoints: overlayTotal(prev.myPoints, mine, mineInactive),
+    oppPoints: opp ? overlayTotal(prev.oppPoints, opp, oppInactive) : prev.oppPoints,
     starters: overlayPlayers(mineSeat?.starters ?? prev.starters, mine),
     bench: overlayPlayers(mineSeat?.bench ?? prev.bench, mine),
     oppStarters: opp ? overlayPlayers(oppSeat?.starters ?? prev.oppStarters, opp) : prev.oppStarters,
@@ -444,6 +583,35 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
   const win = sleeperOfficialWin(mine.win_probability, opp?.win_probability, prev)
   if (win.winPctSource === 'official') return { ...next, ...win }
   return withoutEstimatedWin(next)
+}
+
+const lineupFromMatchup = (
+  matchup: SleeperMatchup,
+  inactive: ReadonlySet<string>,
+  players: Record<string, CachedPlayer>
+): { starters: Player[]; bench: Player[] } => {
+  const slots = starterSlots(matchup).filter((slot) => isScoringSlot(slot, inactive))
+  const scoring = new Set(slots.map((slot) => slot.id))
+  const bench: Player[] = []
+  const seen = new Set<string>()
+  const pushBench = (id: string, index: number): void => {
+    if (!isScoringStarterId(id) || idInSet(scoring, id) || idInSet(seen, id)) return
+    seen.add(id)
+    bench.push(toPlayer(id, matchup, index, players))
+  }
+  for (const slot of starterSlots(matchup)) {
+    if (isScoringSlot(slot, inactive)) continue
+    pushBench(slot.id, slot.index)
+  }
+  for (const raw of matchup.players ?? []) {
+    const id = playerIdOf(raw)
+    if (!id) continue
+    pushBench(id, -1)
+  }
+  return {
+    starters: slots.map((slot) => toPlayer(slot.id, matchup, slot.index, players)),
+    bench
+  }
 }
 
 export const toMatchup = (args: {
@@ -468,33 +636,20 @@ export const toMatchup = (args: {
     ? args.rosters.find((roster) => rosterIdOf(roster) === rosterIdOf(oppMatchup))
     : undefined
 
-  const starterIds = (myMatchup.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
-  const starters = starterIds.map((id, index) => toPlayer(id, myMatchup, index, args.players))
-  const starterSet = new Set(starterIds)
-  const bench = (myMatchup.players ?? [])
-    .map(playerIdOf)
-    .filter((id): id is string => id != null && !starterSet.has(id))
-    .map((id) => toPlayer(id, myMatchup, -1, args.players))
-
-  const oppStarterIds = (oppMatchup?.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
-  const oppStarters = oppStarterIds.map((id, index) =>
-    toPlayer(id, oppMatchup as SleeperMatchup, index, args.players)
-  )
-  const oppStarterSet = new Set(oppStarterIds)
-  const oppBench = (oppMatchup?.players ?? [])
-    .map(playerIdOf)
-    .filter((id): id is string => id != null && !oppStarterSet.has(id))
-    .map((id) => toPlayer(id, oppMatchup as SleeperMatchup, -1, args.players))
+  const myInactive = inactiveIds(myRoster)
+  const oppInactive = inactiveIds(oppRoster)
+  const myLineup = lineupFromMatchup(myMatchup, myInactive, args.players)
+  const oppLineup = oppMatchup ? lineupFromMatchup(oppMatchup, oppInactive, args.players) : null
 
   return {
     myTeam: teamFromRoster(myRoster, args.users),
     oppTeam: oppRoster ? teamFromRoster(oppRoster, args.users) : null,
-    myPoints: teamTotal(myMatchup),
-    oppPoints: oppMatchup ? teamTotal(oppMatchup) : 0,
-    starters,
-    bench,
-    oppStarters: oppMatchup ? oppStarters : [],
-    oppBench: oppMatchup ? oppBench : [],
+    myPoints: teamTotal(myMatchup, myInactive),
+    oppPoints: oppMatchup ? teamTotal(oppMatchup, oppInactive) : 0,
+    starters: myLineup.starters,
+    bench: myLineup.bench,
+    oppStarters: oppLineup?.starters ?? [],
+    oppBench: oppLineup?.bench ?? [],
     scoresFinal: myMatchup.custom_points != null || oppMatchup?.custom_points != null,
     ...sleeperOfficialWin(myMatchup.win_probability, oppMatchup?.win_probability)
   }

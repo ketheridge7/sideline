@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, starterProjectedFinal, starterProjectedTotal, toMatchup, toTransactions } from './sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, sleeperInactiveByRoster, starterProjectedFinal, starterProjectedTotal, toMatchup, toTransactions } from './sleeperAdapter'
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 import { finalNflTeams } from '@shared/winPct'
@@ -173,6 +173,120 @@ describe('toMatchup', () => {
     const live = [{ ...matchups[0], custom_points: 19.5, points: 0 }, matchups[1]]
     const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
     expect(result?.myPoints).toBe(19.5)
+  })
+
+  it('does not count a bench scorer when no starter has played (TNF)', () => {
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 0,
+        starters: ['1', '0', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 0, '2': 0, '9': 14.2, '0': 14.2 },
+        starters_points: [0, 14.2, 0]
+      },
+      {
+        roster_id: 2,
+        matchup_id: 7,
+        points: 0,
+        starters: ['3', '0'],
+        players: ['3', '9'],
+        players_points: { '3': 0, '9': 6.5 },
+        starters_points: [0, 6.5]
+      }
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.myPoints).toBe(0)
+    expect(result?.oppPoints).toBe(0)
+    expect(result?.starters.map((row) => row.playerId)).toEqual(['1', '2'])
+    expect(result?.starters.every((row) => (row.points ?? 0) === 0)).toBe(true)
+    expect(result?.bench.map((row) => row.playerId)).toEqual(['9'])
+    expect(result?.bench[0]?.points).toBe(14.2)
+    expect(result?.oppStarters.map((row) => row.playerId)).toEqual(['3'])
+    expect(result?.oppBench[0]?.points).toBe(6.5)
+  })
+
+  it('ignores a positive matchup total that is only bench points', () => {
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 14.2,
+        starters: ['1', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 0, '2': 0, '9': 14.2 },
+        starters_points: [0, 0]
+      },
+      matchups[1]
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.myPoints).toBe(0)
+    expect(result?.bench[0]?.points).toBe(14.2)
+    expect(result?.oppPoints).toBe(18)
+  })
+
+  it('counts starters only when matchup points equal the whole roster', () => {
+    const live: SleeperMatchup[] = [
+      {
+        ...matchups[0],
+        points: 21.8,
+        players_points: { '1': 12.4, '2': 7.6, '9': 1.8 }
+      },
+      matchups[1]
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.myPoints).toBe(20)
+    expect(result?.bench[0]?.points).toBe(1.8)
+  })
+
+  it('keeps official starter points when a bench player has also scored', () => {
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 3.4,
+        starters: ['1', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 3.4, '2': 0, '9': 4.7 },
+        starters_points: [3.4, 0]
+      },
+      matchups[1]
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.myPoints).toBe(3.4)
+    expect(result?.bench[0]?.points).toBe(4.7)
+  })
+
+  it('does not score IR or taxi players left in the starter list', () => {
+    const withInactive: SleeperRoster[] = [
+      { ...rosters[0], reserve: ['9'], taxi: ['8'] },
+      rosters[1]
+    ]
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 8,
+        starters: ['1', '9', '0'],
+        players: ['1', '8', '9'],
+        players_points: { '1': 0, '8': 3, '9': 5 },
+        starters_points: [0, 5, 3]
+      },
+      matchups[1]
+    ]
+    const result = toMatchup({
+      userId: 'me',
+      rosters: withInactive,
+      users,
+      matchups: live,
+      players: { ...players, '8': { name: 'Taxi', position: 'RB', nflTeam: 'NYJ' } }
+    })
+    expect(result?.myPoints).toBe(0)
+    expect(result?.starters.map((row) => row.playerId)).toEqual(['1'])
+    expect(result?.bench.map((row) => row.playerId)).toEqual(['9', '8'])
+    expect(result?.bench[0]?.points).toBe(5)
+    expect(result?.bench[1]?.points).toBe(3)
   })
 })
 
@@ -477,6 +591,72 @@ describe('overlaySleeperMatchups', () => {
     expect(next?.myPoints).toBe(41.2)
     expect(next?.oppPoints).toBe(27.6)
     expect(next?.starters[0]?.points).toBe(22.4)
+  })
+
+  it('keeps the header at 0 on overlay when only a bench player has scored', () => {
+    const kickoff: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 0,
+        starters: ['1', '0', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 0, '2': 0, '9': 0 },
+        starters_points: [0, 0, 0]
+      },
+      {
+        roster_id: 2,
+        matchup_id: 7,
+        points: 0,
+        starters: ['3'],
+        players: ['3'],
+        players_points: { '3': 0 },
+        starters_points: [0]
+      }
+    ]
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups: kickoff, players })
+    expect(prev?.myPoints).toBe(0)
+    expect(prev).not.toBeNull()
+    if (!prev) return
+    const live: SleeperMatchup[] = [
+      {
+        ...kickoff[0],
+        points: 14.2,
+        players_points: { '1': 0, '2': 0, '9': 14.2, '0': 14.2 },
+        starters_points: [0, 14.2, 0]
+      },
+      kickoff[1]
+    ]
+    const next = overlaySleeperMatchups(prev, live)
+    expect(next?.myPoints).toBe(0)
+    expect(next?.oppPoints).toBe(0)
+    expect(next?.starters.map((row) => row.playerId)).toEqual(['1', '2'])
+    expect(next?.starters.every((row) => (row.points ?? 0) === 0)).toBe(true)
+    expect(next?.bench.map((row) => row.playerId)).toEqual(['9'])
+    expect(next?.bench[0]?.points).toBe(14.2)
+  })
+
+  it('drops IR points out of the overlay total when the roster cache marks them inactive', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(prev).not.toBeNull()
+    if (!prev) return
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 8.1,
+        starters: ['9', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 0, '2': 0, '9': 8.1 }
+      },
+      matchups[1]
+    ]
+    const inactive = sleeperInactiveByRoster([{ ...rosters[0], reserve: ['9'] }])
+    const next = overlaySleeperMatchups(prev, live, inactive)
+    expect(next?.myPoints).toBe(0)
+    expect(next?.starters.map((row) => row.playerId)).toEqual(['2'])
+    expect(next?.bench.map((row) => row.playerId)).toEqual(['1', '9'])
+    expect(next?.bench.find((row) => row.playerId === '9')?.points).toBe(8.1)
   })
 
   it('moves a benched player into the starting lineup on the next /matchups overlay', () => {

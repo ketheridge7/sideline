@@ -34,7 +34,7 @@ import {
   type SleeperUser,
   sleeperScoringKind
 } from './providers/sleeperClient'
-import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, sleeperInactiveByRoster, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
 import {
   DISCOVERY_VIEWS,
   EspnHttpError,
@@ -1761,7 +1761,9 @@ const sleeperMatchup = async (
   switch (scorePlan) {
     case 'overlay-prev': {
       const matchups = await matchupsPromise
-      const overlaid = prev ? overlaySleeperMatchups(prev, matchups) : null
+      const overlaid = prev
+        ? overlaySleeperMatchups(prev, matchups, sleeperInactiveByRoster(sleeperRosterCache.get(league.id)?.rosters))
+        : null
       const miss = sleeperOverlayMissPlan({
         hasOverlay: overlaid != null,
         matchupCount: matchups.length,
