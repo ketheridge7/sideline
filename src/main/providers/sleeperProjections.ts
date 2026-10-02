@@ -22,7 +22,12 @@ type ProjectionCacheFile = {
 }
 
 let memory: ProjectionCacheFile | null = null
-let inflight: Promise<{ pts: Record<string, number> | null; refreshed: boolean }> | null = null
+let flight: {
+  key: string
+  gen: number
+  promise: Promise<{ pts: Record<string, number> | null; refreshed: boolean }>
+} | null = null
+let flightGen = 0
 
 const cachePath = (): string => join(app.getPath('userData'), 'sideline-sleeper-projections.json')
 
@@ -93,7 +98,9 @@ export const getSleeperProjectionPts = async (opts: {
       return { pts: peekSleeperProjectionPts(scoring), refreshed: false }
     }
   }
-  if (inflight) return inflight
+  const key = cacheKey(opts.season, opts.week, opts.seasonType)
+  if (flight?.key === key) return flight.promise
+  const gen = ++flightGen
   const run = async (): Promise<{ pts: Record<string, number> | null; refreshed: boolean }> => {
     try {
       const players = await getWeekProjections(opts.season, opts.week, opts.seasonType, {
@@ -101,6 +108,7 @@ export const getSleeperProjectionPts = async (opts: {
         retries: 0,
         priority: 'low'
       })
+      if (gen !== flightGen) return { pts: null, refreshed: false }
       memory = {
         fetchedAt: Date.now(),
         season: opts.season,
@@ -113,15 +121,17 @@ export const getSleeperProjectionPts = async (opts: {
       void writeFile(cachePath(), JSON.stringify(memory), 'utf8').catch(() => undefined)
       return { pts: ptsForKind(players, scoring), refreshed: true }
     } finally {
-      inflight = null
+      if (flight?.gen === gen) flight = null
     }
   }
-  inflight = run()
-  return inflight
+  const promise = run()
+  flight = { key, gen, promise }
+  return promise
 }
 
 export const resetSleeperProjectionsCache = (): void => {
   memory = null
-  inflight = null
+  flight = null
+  flightGen += 1
   ptsCache = null
 }

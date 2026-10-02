@@ -22,8 +22,26 @@ export const toNflState = (raw: SleeperNflState) => ({
   displayWeek: raw.display_week,
   season: raw.season,
   leagueSeason: raw.league_season,
-  seasonType: raw.season_type
+  seasonType: raw.season_type,
+  ...(raw.leg != null ? { leg: raw.leg } : {})
 })
+
+/**
+ * Matchup / transaction / projection week.
+ * Regular season uses `display_week` (it matches `leg` on the public state).
+ * In the postseason, Sleeper can leave `leg` on the fantasy week (14–18) while
+ * `display_week` jumps to the NFL week (19+). League matchups are stored under `leg`.
+ * A `leg` of 1 during `post` is a playoff round, not a matchup week, so it is ignored.
+ */
+export const sleeperMatchupWeek = (
+  nfl: { displayWeek: number; seasonType: string; leg?: number }
+): number => {
+  const leg = nfl.leg
+  if (nfl.seasonType === 'post' && leg != null && leg >= 14 && leg <= 18 && nfl.displayWeek > leg) {
+    return leg
+  }
+  return nfl.displayWeek
+}
 
 export const toLeagues = (
   leagues: SleeperLeague[],
@@ -133,8 +151,9 @@ const pointsForPlayer = (
     Array.isArray(matchup.starters_points) && starterIndex >= 0
       ? asPts(matchup.starters_points[starterIndex])
       : undefined
-  if (fromMap != null && fromMap > 0) return fromMap
-  if (fromStarters != null && fromStarters > 0) return fromStarters
+  // Zero in one source means "not posted yet". A negative DST or fumble in the other source is real.
+  if (fromMap != null && fromMap !== 0) return fromMap
+  if (fromStarters != null && fromStarters !== 0) return fromStarters
   if (fromMap === 0 || fromStarters === 0) return 0
   return fromMap ?? fromStarters
 }
@@ -282,23 +301,22 @@ const teamTotal = (matchup: SleeperMatchup, inactive: ReadonlySet<string> = NO_I
   // zeroed starter chips but smaller than bench + phantom.
   const explained = benchSum > 0 ? benchSum : emptySlotPoints(matchup)
   // TNF: every scoring starter is still 0, and the published total is the bench /
-  // IR / empty-slot pile (or Sleeper's own 0). A larger total is left alone —
-  // starter chips lag the official score during games.
-  if (starterSum === 0 && explained > 0 && (pts == null || pts <= explained + POINTS_EPS)) {
+  // IR / empty-slot pile (or Sleeper's own 0). A negative total is a real score
+  // (DST, fumbles), not that pile.
+  if (starterSum === 0 && explained > 0 && (pts == null || (pts >= 0 && pts <= explained + POINTS_EPS))) {
     return 0
   }
   // `points` matches starters + bench, so it is the whole roster rather than the
   // official starter total. Count starters only.
   if (
     pts != null &&
-    pts > 0 &&
     benchSum > POINTS_EPS &&
     Math.abs(pts - (starterSum + benchSum)) <= POINTS_EPS
   ) {
     return starterSum
   }
-  if (pts != null && pts > 0) return pts
-  return Math.max(pts ?? 0, starterSum)
+  if (pts != null && pts !== 0) return pts
+  return starterSum
 }
 
 const hasCachedPlayers = (players: Record<string, CachedPlayer>): boolean => {
@@ -546,13 +564,26 @@ export const applySleeperWinEstimate = (
   }
 }
 
+export const sleeperRosterIdForUser = (
+  rosters: readonly SleeperRoster[] | undefined,
+  userId: string | undefined
+): number | undefined => {
+  if (!rosters || !userId) return undefined
+  const mine = rosters.find((roster) => isMyRoster(roster, userId))
+  if (!mine) return undefined
+  return rosterIdOf(mine)
+}
+
 export const overlaySleeperMatchups = (
   prev: Matchup,
   matchups: SleeperMatchup[],
-  inactiveByRoster?: ReadonlyMap<number, ReadonlySet<string>>
+  inactiveByRoster?: ReadonlyMap<number, ReadonlySet<string>>,
+  myRosterId?: number
 ): Matchup | null => {
   const myId = asInt(prev.myTeam.id)
   if (myId == null) return null
+  // The roster cache says this user moved. Overlapping starter ids must not keep the old team.
+  if (myRosterId != null && myRosterId !== myId) return null
   const mine = matchups.find((row) => rosterIdOf(row) === myId)
   if (!mine) return null
   // A compact row that omits matchup_id cannot prove who is paired this week.
@@ -560,12 +591,12 @@ export const overlaySleeperMatchups = (
   if (mine.matchup_id === undefined) return null
   const liveIds = (mine.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
   if (!overlayStartersBelong(prev.starters, liveIds)) return null
-  const myRosterId = rosterIdOf(mine)
+  const liveRosterId = rosterIdOf(mine)
   const myMatchupId = matchupIdOf(mine)
   const opp =
-    myRosterId == null || myMatchupId == null
+    liveRosterId == null || myMatchupId == null
       ? undefined
-      : matchups.find((row) => matchupIdOf(row) === myMatchupId && rosterIdOf(row) !== myRosterId)
+      : matchups.find((row) => matchupIdOf(row) === myMatchupId && rosterIdOf(row) !== liveRosterId)
   const prevOpp = prev.oppTeam ? asInt(prev.oppTeam.id) ?? null : null
   const nextOpp = opp ? rosterIdOf(opp) ?? null : null
   if (prevOpp !== nextOpp) return null

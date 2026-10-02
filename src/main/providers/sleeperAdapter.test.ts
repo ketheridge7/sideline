@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, sleeperInactiveByRoster, starterProjectedFinal, starterProjectedTotal, toMatchup, toTransactions } from './sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, starterProjectedFinal, starterProjectedTotal, toMatchup, toNflState, toTransactions } from './sleeperAdapter'
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 import { finalNflTeams } from '@shared/winPct'
@@ -173,6 +173,42 @@ describe('toMatchup', () => {
     const live = [{ ...matchups[0], custom_points: 19.5, points: 0 }, matchups[1]]
     const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
     expect(result?.myPoints).toBe(19.5)
+  })
+
+  it('keeps a negative DST score when players_points is still zero', () => {
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 0,
+        starters: ['1', '2'],
+        players: ['1', '2'],
+        players_points: { '1': 0, '2': 0 },
+        starters_points: [-3.2, 0]
+      },
+      matchups[1]
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.starters[0]?.points).toBe(-3.2)
+    expect(result?.myPoints).toBe(-3.2)
+  })
+
+  it('keeps a negative official total when bench points would otherwise explain it away', () => {
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: -4.2,
+        starters: ['1', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 0, '2': 0, '9': 6 },
+        starters_points: [0, 0]
+      },
+      matchups[1]
+    ]
+    const result = toMatchup({ userId: 'me', rosters, users, matchups: live, players })
+    expect(result?.myPoints).toBe(-4.2)
+    expect(result?.bench[0]?.points).toBe(6)
   })
 
   it('does not count a bench scorer when no starter has played (TNF)', () => {
@@ -776,6 +812,70 @@ describe('overlaySleeperMatchups', () => {
       { roster_id: 1, matchup_id: null, points: 0, starters: ['1', '2'], players: ['1', '2'] }
     ]
     expect(overlaySleeperMatchups(prev!, bye)).toBeNull()
+  })
+
+  it('rebuilds when the user now owns a different roster even if a starter id still overlaps', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    const live: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 30,
+        starters: ['1', '2'],
+        players: ['1', '2'],
+        players_points: { '1': 18, '2': 12 }
+      },
+      {
+        roster_id: 5,
+        matchup_id: 4,
+        points: 9,
+        starters: ['1', '4'],
+        players: ['1', '4'],
+        players_points: { '1': 4, '4': 5 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 7,
+        points: 11,
+        starters: ['3'],
+        players: ['3'],
+        players_points: { '3': 11 }
+      }
+    ]
+    expect(overlaySleeperMatchups(prev!, live, undefined, 5)).toBeNull()
+    const kept = overlaySleeperMatchups(prev!, live, undefined, 1)
+    expect(kept?.myTeam.id).toBe('1')
+    expect(kept?.myPoints).toBe(30)
+  })
+})
+
+describe('sleeperMatchupWeek', () => {
+  it('uses display_week during the regular season', () => {
+    expect(sleeperMatchupWeek({ displayWeek: 4, seasonType: 'regular', leg: 4 })).toBe(4)
+    expect(sleeperMatchupWeek({ displayWeek: 4, seasonType: 'regular' })).toBe(4)
+  })
+
+  it('uses leg for postseason matchups when display_week has moved to the NFL playoff week', () => {
+    const state = toNflState({
+      week: 19,
+      display_week: 19,
+      leg: 16,
+      season: '2026',
+      league_season: '2026',
+      season_type: 'post'
+    })
+    expect(state.leg).toBe(16)
+    expect(sleeperMatchupWeek(state)).toBe(16)
+    expect(sleeperMatchupWeek({ displayWeek: 19, seasonType: 'post', leg: 1 })).toBe(19)
+    expect(sleeperMatchupWeek({ displayWeek: 19, seasonType: 'post', leg: 19 })).toBe(19)
+  })
+})
+
+describe('sleeperRosterIdForUser', () => {
+  it('finds the roster this user owns, including a co-owner', () => {
+    expect(sleeperRosterIdForUser(rosters, 'me')).toBe(1)
+    expect(sleeperRosterIdForUser([{ ...rosters[0], owner_id: 'other', co_owners: ['me'] }, rosters[1]], 'me')).toBe(1)
+    expect(sleeperRosterIdForUser(rosters, 'missing')).toBeUndefined()
   })
 })
 

@@ -1119,9 +1119,13 @@ export const calendarNflFallback = (now: Date): NflState => {
       seasonType: 'pre'
     }
   }
+  const weekMs = 7 * 24 * 60 * 60 * 1000
+  // Sleeper rolls the fantasy week on Tuesday. Week 1 is anchored on Thursday,
+  // so Tuesday is two days before the next Thursday boundary.
+  const tuesdayLeadMs = 2 * 24 * 60 * 60 * 1000
   const week = Math.min(
     NFL_DISPLAY_WEEK_MAX,
-    Math.floor((nowMs - week1Ms) / (7 * 24 * 60 * 60 * 1000)) + 1
+    Math.floor((nowMs - week1Ms + tuesdayLeadMs) / weekMs) + 1
   )
   return {
     week,
@@ -1155,8 +1159,45 @@ export const asNflState = (value: unknown): NflState | null => {
   const season = diskStr(row.season)
   const leagueSeason = diskStr(row.leagueSeason) ?? season
   const seasonType = diskStr(row.seasonType) ?? 'regular'
+  const leg = diskInt(row.leg)
   if (week == null || displayWeek == null || !season || !leagueSeason) return null
-  return { week, displayWeek, season, leagueSeason, seasonType }
+  return {
+    week,
+    displayWeek,
+    season,
+    leagueSeason,
+    seasonType,
+    ...(leg != null ? { leg } : {})
+  }
+}
+
+export type EspnScoreCacheRow = { at: number; week: number; payload: unknown }
+
+/** Week is part of the key so a late week-N boxscore cannot replace week N+1. */
+export const espnScoreCacheKey = (leagueId: string, week: number): string => `${week}:${leagueId}`
+
+export const espnScoreLeagueIdFromKey = (key: string): string => {
+  const cut = key.indexOf(':')
+  return cut < 0 ? key : key.slice(cut + 1)
+}
+
+export const getEspnScoreCache = (
+  cache: Map<string, EspnScoreCacheRow>,
+  leagueId: string,
+  week: number
+): EspnScoreCacheRow | undefined => cache.get(espnScoreCacheKey(leagueId, week))
+
+/** Ignore a write for a different current week. A matching week never clobbers another week's row. */
+export const putEspnScoreCache = (
+  cache: Map<string, EspnScoreCacheRow>,
+  leagueId: string,
+  week: number,
+  payload: unknown,
+  at: number,
+  currentWeek: number | undefined
+): void => {
+  if (currentWeek != null && week !== currentWeek) return
+  cache.set(espnScoreCacheKey(leagueId, week), { at, week, payload })
 }
 
 export const nflFromDiskPayload = (

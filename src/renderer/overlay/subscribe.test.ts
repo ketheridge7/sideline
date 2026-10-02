@@ -5,7 +5,9 @@ import {
   isTvOverlay,
   overlayAllowsEdit,
   overlayPresetFromSearch,
-  overlaySurface
+  overlaySurface,
+  overlayWatchdogPlan,
+  sseHudPayload
 } from './subscribe'
 
 describe('eventsPathFromSearch', () => {
@@ -55,6 +57,22 @@ describe('overlayPresetFromSearch', () => {
     expect(overlayPresetFromSearch('')).toBeNull()
     expect(overlayPresetFromSearch('?preset=9')).toBeNull()
     expect(overlayPresetFromSearch('?preset=corners')).toBeNull()
+  })
+})
+
+describe('sseHudPayload', () => {
+  it('keeps the painted HUD when an SSE frame is not JSON', () => {
+    expect(sseHudPayload('not-json')).toBeNull()
+    expect(sseHudPayload('')).toBeNull()
+    expect(sseHudPayload('[]')).toBeNull()
+    expect(sseHudPayload('{"myPoints":12}')).toEqual({ myPoints: 12 })
+  })
+})
+
+describe('overlayWatchdogPlan', () => {
+  it('reconnects the stream once before a full page reload', () => {
+    expect(overlayWatchdogPlan(0)).toBe('reconnect')
+    expect(overlayWatchdogPlan(1)).toBe('reload')
   })
 })
 
