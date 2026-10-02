@@ -1516,8 +1516,8 @@ export const asMatchup = (value: unknown): Matchup | null => {
     bench,
     oppStarters,
     oppBench,
-    ...(myProjectedPoints != null && myProjectedPoints > 0 ? { myProjectedPoints } : {}),
-    ...(oppProjectedPoints != null && oppProjectedPoints > 0 ? { oppProjectedPoints } : {}),
+    ...(myProjectedPoints != null && myProjectedPoints !== 0 ? { myProjectedPoints } : {}),
+    ...(oppProjectedPoints != null && oppProjectedPoints !== 0 ? { oppProjectedPoints } : {}),
     ...(myWinPct != null && myWinPct >= 0 && myWinPct <= 1 ? { myWinPct } : {}),
     ...(oppWinPct != null && oppWinPct >= 0 && oppWinPct <= 1 ? { oppWinPct } : {}),
     ...(winPctSource ? { winPctSource } : {})

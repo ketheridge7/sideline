@@ -102,8 +102,9 @@ export const finalNflTeams = (games: readonly NflTickerGame[]): Set<string> => {
 
 /**
  * Remaining-aware player final: the actual once that player's NFL game is
- * final, otherwise max(actual, weekly projection). Undefined when a player
- * still to play has no projection (keeps Est. win% pending).
+ * final, otherwise max(actual, weekly projection). A still-zero actual keeps
+ * a negative projection (a DST at -2 before kickoff, or still at 0 mid-game).
+ * Undefined when a player still to play has no projection (keeps Est. win% pending).
  */
 export const playerProjectedFinal = (opts: {
   actual?: number
@@ -114,12 +115,14 @@ export const playerProjectedFinal = (opts: {
   if (opts.gameFinal) return actual
   const projected = finiteNumber(opts.projected)
   if (projected == null) return undefined
+  if (actual === 0 && projected < 0) return projected
   return Math.max(actual, projected)
 }
 
 export const projectedFinal = (live: number, projected?: number): number => {
   const proj = finiteNumber(projected)
   if (proj == null) return live
+  if (live === 0 && proj < 0) return proj
   return Math.max(live, proj)
 }
 
@@ -137,7 +140,8 @@ export const hasProjectedFinals = (myProjected?: number, oppProjected?: number):
 
 /**
  * Remaining-aware estimate from live scores + projected team finals.
- * Projected final F = max(live, projected). Sleeper passes a per-player sum
+ * Projected final F = max(live, projected), except a still-zero live total
+ * keeps a negative projection. Sleeper passes a per-player sum
  * (`playerProjectedFinal`) so finished players contribute only what they
  * scored. Null when projections are missing — never score-share.
  */

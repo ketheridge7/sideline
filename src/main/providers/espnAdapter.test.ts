@@ -885,6 +885,173 @@ describe('toEspnMatchup', () => {
     ])
   })
 
+  it('trusts a negative DST team total when bench points would otherwise explain it away', () => {
+    const stat = (appliedTotal: number) => ({
+      statSourceId: 0,
+      statSplitTypeId: 1,
+      scoringPeriodId: 4,
+      appliedTotal
+    })
+    const entry = (slot: number, id: number, name: string, appliedTotal: number, position = 1) => ({
+      lineupSlotId: slot,
+      playerId: id,
+      playerPoolEntry: {
+        player: {
+          fullName: name,
+          defaultPositionId: position,
+          stats: [stat(appliedTotal)]
+        }
+      }
+    })
+    const matchup = toEspnMatchup({
+      payload: {
+        teams: [
+          {
+            id: 1,
+            primaryOwner: '{11111111-1111-1111-1111-111111111111}',
+            location: 'Mine',
+            nickname: 'Squad'
+          },
+          { id: 2, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 4,
+            home: {
+              teamId: 1,
+              totalPointsLive: -4.2,
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  entry(16, 1, 'Bears D/ST', -4.2, 16),
+                  entry(0, 2, 'Hurts', 0),
+                  entry(20, 3, 'Bench', 6)
+                ]
+              }
+            },
+            away: {
+              teamId: 2,
+              totalPointsLive: 0,
+              rosterForCurrentScoringPeriod: {
+                entries: [entry(0, 4, 'Allen', 0), entry(20, 5, 'Opp Bench', 1.5)]
+              }
+            }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' },
+      displayWeek: 4
+    })
+    expect(matchup?.myPoints).toBe(-4.2)
+    expect(matchup?.oppPoints).toBe(0)
+    expect(matchup?.starters.find((player) => player.name === 'Bears D/ST')?.points).toBe(-4.2)
+    expect(matchup?.bench.map((player) => player.name)).toEqual(['Bench'])
+    expect(matchup?.oppBench.map((player) => player.name)).toEqual(['Opp Bench'])
+  })
+
+  it('trusts a negative scoring-period actual when totalPointsLive is still zero', () => {
+    const matchup = toEspnMatchup({
+      payload: {
+        teams: [
+          {
+            id: 1,
+            primaryOwner: '{11111111-1111-1111-1111-111111111111}',
+            location: 'Mine',
+            nickname: 'Squad'
+          },
+          { id: 2, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 4,
+            home: {
+              teamId: 1,
+              totalPointsLive: 0,
+              totalPoints: 0,
+              pointsByScoringPeriod: { '4': -3 },
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  {
+                    lineupSlotId: 16,
+                    playerId: 1,
+                    playerPoolEntry: {
+                      player: {
+                        fullName: 'Bears D/ST',
+                        defaultPositionId: 16,
+                        stats: [{ statSourceId: 0, statSplitTypeId: 1, scoringPeriodId: 4, appliedTotal: 0 }]
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            away: {
+              teamId: 2,
+              totalPointsLive: 0,
+              totalPoints: 0,
+              pointsByScoringPeriod: { '4': 0 }
+            }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' },
+      displayWeek: 4
+    })
+    expect(matchup?.myPoints).toBe(-3)
+    expect(matchup?.oppPoints).toBe(0)
+  })
+
+  it('trusts a negative totalPointsLive when the scoring period is still 0', () => {
+    const stat = (appliedTotal: number) => ({
+      statSourceId: 0,
+      statSplitTypeId: 1,
+      scoringPeriodId: 4,
+      appliedTotal
+    })
+    const entry = (slot: number, id: number, name: string, appliedTotal: number) => ({
+      lineupSlotId: slot,
+      playerId: id,
+      playerPoolEntry: {
+        player: {
+          fullName: name,
+          defaultPositionId: slot === 16 ? 16 : 1,
+          stats: [stat(appliedTotal)]
+        }
+      }
+    })
+    const matchup = toEspnMatchup({
+      payload: {
+        teams: [
+          {
+            id: 1,
+            primaryOwner: '{11111111-1111-1111-1111-111111111111}',
+            location: 'Mine',
+            nickname: 'Squad'
+          },
+          { id: 2, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 4,
+            home: {
+              teamId: 1,
+              totalPointsLive: -4.2,
+              pointsByScoringPeriod: { '4': 0 },
+              rosterForCurrentScoringPeriod: {
+                entries: [entry(16, 1, 'Bears D/ST', 0), entry(20, 3, 'Bench', 6)]
+              }
+            },
+            away: { teamId: 2, totalPointsLive: 0, pointsByScoringPeriod: { '4': 0 } }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' },
+      displayWeek: 4
+    })
+    expect(matchup?.myPoints).toBe(-4.2)
+    expect(matchup?.oppPoints).toBe(0)
+    expect(matchup?.bench.map((player) => `${player.name}:${player.points}`)).toEqual(['Bench:6'])
+  })
+
   it('scores from schedule when teams[] is empty if myTeamId is known', () => {
     const matchup = toEspnMatchup({
       payload: {
@@ -2381,6 +2548,29 @@ describe('overlayEspnMatchup', () => {
     expect(next?.starters[0]?.name).toBe('Hurts')
     expect(next?.starters[0]?.points).toBe(22.4)
     expect(next?.oppStarters[0]?.points).toBe(15.1)
+  })
+
+  it('paints a negative DST team total over a zeroed header', () => {
+    const next = overlayEspnMatchup(
+      {
+        ...prev,
+        myPoints: 0,
+        oppPoints: 0,
+        starters: [{ ...prev.starters[0], points: 0 }],
+        oppStarters: [{ ...prev.oppStarters[0], points: 0 }]
+      },
+      {
+        liveScoring: {
+          teams: [
+            { teamId: 1, totalPointsLive: -4.2, players: [{ playerId: 100, liveScore: 0 }] },
+            { teamId: 2, totalPointsLive: 0, players: [{ playerId: 200, liveScore: 0 }] }
+          ]
+        }
+      },
+      4
+    )
+    expect(next?.myPoints).toBe(-4.2)
+    expect(next?.oppPoints).toBe(0)
   })
 
   it('does not keep last week opponent when this matchup period pairs a different team', () => {
@@ -4890,6 +5080,21 @@ describe('ESPN multi-week playoff matchup periods', () => {
       matchupPeriod: espnMatchupPeriodFor(periods, 16)
     })
     expect(matchup?.myPoints).toBe(150.2)
+    expect(matchup?.oppPoints).toBe(98.25)
+  })
+
+  it('does not let a negative week-2 period drop below the completed week', () => {
+    const payload = playoffWith((home, away) => {
+      home.pointsByScoringPeriod['16'] = -4
+      away.pointsByScoringPeriod['16'] = -2
+    })
+    const matchup = toEspnMatchup({
+      payload,
+      cookies: playoffCookies,
+      displayWeek: 16,
+      matchupPeriod: espnMatchupPeriodFor(periods, 16)
+    })
+    expect(matchup?.myPoints).toBe(121.5)
     expect(matchup?.oppPoints).toBe(98.25)
   })
 

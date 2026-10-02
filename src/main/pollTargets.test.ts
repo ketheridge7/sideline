@@ -2144,6 +2144,28 @@ describe('lastHudFromDiskPayload', () => {
     ).toBe(101.46)
   })
 
+  it('keeps a negative projected final so Est. win% can use it after a restart', () => {
+    const now = 1_000_000
+    const withProj = {
+      ...matchup,
+      myProjectedPoints: -2,
+      oppProjectedPoints: 18.4,
+      winPctSource: 'estimated' as const
+    }
+    expect(
+      lastHudFromDiskPayload(
+        { at: now, displayWeek: 1, selectedKey: 'sleeper:1', matchup: withProj },
+        now
+      )?.matchup.myProjectedPoints
+    ).toBe(-2)
+    expect(
+      lastHudFromDiskPayload(
+        { at: now, displayWeek: 1, selectedKey: 'sleeper:1', matchup: withProj },
+        now
+      )?.matchup.oppProjectedPoints
+    ).toBe(18.4)
+  })
+
   it('hydrates provider win% without treating it as live points', () => {
     const now = 1_000_000
     const withWp = { ...matchup, myWinPct: 0.74, oppWinPct: 0.26, winPctSource: 'official' as const }

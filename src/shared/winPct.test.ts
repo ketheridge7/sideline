@@ -6,6 +6,7 @@ import {
   finalNflTeams,
   nflTeamKey,
   playerProjectedFinal,
+  projectedFinal,
   normalCdf,
   providerChanceToWin,
   remainingStd,
@@ -82,6 +83,41 @@ describe('estimatedChanceToWin', () => {
     expect(estimatedChanceToWin({ myLive: 10, oppLive: 10, scoresFinal: true })?.mine).toBe(0.5)
   })
 
+  it('keeps a negative projection in the win% before kickoff and while the actual is still 0', () => {
+    const pregameClamped = estimatedChanceToWin({
+      myLive: 0,
+      oppLive: 0,
+      myProjected: 0,
+      oppProjected: 10
+    })
+    const pregame = estimatedChanceToWin({
+      myLive: 0,
+      oppLive: 0,
+      myProjected: -2,
+      oppProjected: 10
+    })
+    expect(pregame).not.toBeNull()
+    expect(pregame!.mine).toBeLessThan(pregameClamped!.mine)
+
+    const tied = estimatedChanceToWin({
+      myLive: 12,
+      oppLive: 12,
+      myProjected: 30,
+      oppProjected: 30
+    })
+    const midGame = estimatedChanceToWin({
+      myLive: 12,
+      oppLive: 12,
+      myProjected: 28,
+      oppProjected: 30
+    })
+    expect(tied?.mine).toBeCloseTo(0.5, 5)
+    expect(midGame!.mine).toBeLessThan(0.5)
+    expect(projectedFinal(0, -2)).toBe(-2)
+    expect(projectedFinal(12, 28)).toBe(28)
+    expect(projectedFinal(4, -2)).toBe(4)
+  })
+
   it('uses remaining vs needed, not raw live score-share', () => {
     const trailingLive = estimatedChanceToWin({
       myLive: 40,
@@ -119,6 +155,15 @@ describe('playerProjectedFinal', () => {
     expect(playerProjectedFinal({ actual: 4.2, projected: 18, gameFinal: false })).toBe(18)
     expect(playerProjectedFinal({ actual: 24, projected: 18, gameFinal: false })).toBe(24)
     expect(playerProjectedFinal({ actual: 3, projected: undefined, gameFinal: false })).toBeUndefined()
+  })
+
+  it('keeps a negative projection while the actual is still 0 and the game is not final', () => {
+    expect(playerProjectedFinal({ actual: 0, projected: -2, gameFinal: false })).toBe(-2)
+    expect(playerProjectedFinal({ actual: undefined, projected: -2, gameFinal: false })).toBe(-2)
+    expect(playerProjectedFinal({ actual: 3, projected: -2, gameFinal: false })).toBe(3)
+    expect(playerProjectedFinal({ actual: -1, projected: -2, gameFinal: false })).toBe(-1)
+    expect(playerProjectedFinal({ actual: 0, projected: -2, gameFinal: true })).toBe(0)
+    expect(playerProjectedFinal({ actual: -3, projected: -2, gameFinal: true })).toBe(-3)
   })
 })
 
