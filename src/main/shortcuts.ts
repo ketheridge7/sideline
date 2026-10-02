@@ -47,7 +47,7 @@ export const cycleLeague = async (delta: number): Promise<void> => {
   })
   if (!next || next === state.selectedLeagueKey) return
   saveSettings({ selectedLeagueKey: next })
-  await refresh()
+  await refresh({ forceLineup: true })
 }
 
 const handlerFor = (action: ShortcutAction): (() => void) => {

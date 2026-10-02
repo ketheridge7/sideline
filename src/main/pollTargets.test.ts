@@ -63,6 +63,9 @@ import {
   sleeperIdentityTimeoutMs,
   hudScoreFetchTimeoutMs,
   espnLiveFullSwrPlan,
+  espnLineupRefreshDue,
+  ESPN_LINEUP_GAMEDAY_MS,
+  ESPN_LINEUP_OFFDAY_MS,
   espnDeferredBoxscoreDrainPlan,
   espnScoreRefreshKey,
   espnBoxscoreSwrFreshPlan,
@@ -451,6 +454,73 @@ describe('espnLiveFullSwrPlan', () => {
       })
     ).toBe('skip')
   })
+
+  it('defers one boxscore while games are in once the lineup TTL is due', () => {
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        hasNamedLineup: true,
+        lineupDue: true
+      })
+    ).toBe('defer-lineup')
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: true,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        hasNamedLineup: true,
+        lineupDue: false
+      })
+    ).toBe('skip')
+  })
+
+  it('recovers the HUD boxscore immediately when a manual refresh asks for the lineup', () => {
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        hasNamedLineup: true,
+        force: true
+      })
+    ).toBe('recover')
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: false,
+        gamesIn: true,
+        hasNamedLineup: true,
+        force: true
+      })
+    ).toBe('defer-lineup')
+  })
+})
+
+describe('espnLineupRefreshDue', () => {
+  it('is due on a manual refresh, and on the gameday or off-day TTL', () => {
+    expect(espnLineupRefreshDue({ fetchedAt: 0, now: 0, gameday: true, force: true })).toBe(true)
+    expect(espnLineupRefreshDue({ fetchedAt: undefined, now: ESPN_LINEUP_GAMEDAY_MS, gameday: true })).toBe(false)
+    expect(
+      espnLineupRefreshDue({ fetchedAt: 0, now: ESPN_LINEUP_GAMEDAY_MS - 1, gameday: true })
+    ).toBe(false)
+    expect(espnLineupRefreshDue({ fetchedAt: 0, now: ESPN_LINEUP_GAMEDAY_MS, gameday: true })).toBe(true)
+    expect(espnLineupRefreshDue({ fetchedAt: 0, now: 30_000, gameday: true })).toBe(false)
+    expect(
+      espnLineupRefreshDue({ fetchedAt: 0, now: ESPN_LINEUP_OFFDAY_MS - 1, gameday: false })
+    ).toBe(false)
+    expect(espnLineupRefreshDue({ fetchedAt: 0, now: ESPN_LINEUP_GAMEDAY_MS, gameday: false })).toBe(false)
+    expect(espnLineupRefreshDue({ fetchedAt: 0, now: ESPN_LINEUP_OFFDAY_MS, gameday: false })).toBe(true)
+  })
 })
 
 describe('espnDeferredBoxscoreDrainPlan', () => {
@@ -572,6 +642,37 @@ describe('espnFullSwrPaintPlan', () => {
         parsed: etheridge
       })
     ).toBe(etheridge)
+  })
+
+  it('replaces starter and bench slots from a fresh boxscore while keeping compact live points', () => {
+    const hurts = { playerId: '100', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 18, lineupSlotId: 0 }
+    const chase = { playerId: '200', name: 'Chase', position: 'WR', nflTeam: 'CIN', points: 4, lineupSlotId: 20 }
+    const lamb = { playerId: '400', name: 'Lamb', position: 'WR', nflTeam: 'DAL', points: 9, lineupSlotId: 4 }
+    const overlaid = {
+      ...hud,
+      myPoints: 27,
+      starters: [hurts, lamb],
+      bench: [chase]
+    }
+    const parsed = {
+      ...hud,
+      myPoints: 0,
+      starters: [{ ...chase, position: 'FLEX', lineupSlotId: 23, points: 0 }],
+      bench: [
+        { ...hurts, lineupSlotId: 20, points: 0 },
+        { ...lamb, lineupSlotId: 21, points: 0 }
+      ]
+    }
+    const next = espnFullSwrPaintPlan({ prev: overlaid, overlaid, parsed })
+    expect(next?.myPoints).toBe(27)
+    expect(next?.starters.map((player) => player.name)).toEqual(['Chase'])
+    expect(next?.starters[0]?.position).toBe('FLEX')
+    expect(next?.starters[0]?.lineupSlotId).toBe(23)
+    expect(next?.starters[0]?.points).toBe(4)
+    expect(next?.bench.map((player) => `${player.name}:${player.lineupSlotId}:${player.points}`)).toEqual([
+      'Hurts:20:18',
+      'Lamb:21:9'
+    ])
   })
 })
 

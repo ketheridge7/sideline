@@ -250,6 +250,50 @@ const hasPositivePlayerPts = (row: SleeperMatchup): boolean => {
   return false
 }
 
+const sleeperPlayerId = (value: unknown): string | undefined => {
+  const id = playerIdOf(value)
+  if (!id || id === '0') return undefined
+  return id
+}
+
+const playersById = (players: Player[]): Map<string, Player> => {
+  const map = new Map<string, Player>()
+  for (const player of players) {
+    if (!player.playerId) continue
+    map.set(player.playerId, player)
+    const coerced = Number(player.playerId)
+    if (Number.isFinite(coerced)) map.set(String(coerced), player)
+  }
+  return map
+}
+
+/** Rebuild starter/bench from this `/matchups` row when it carries a starters list. Omitted starters keep the previous partition. */
+const reseatSleeperSide = (
+  prevStarters: Player[],
+  prevBench: Player[],
+  row: SleeperMatchup
+): { starters: Player[]; bench: Player[] } | null => {
+  if (!Array.isArray(row.starters)) return null
+  const starterIds = row.starters.map(sleeperPlayerId).filter((id): id is string => id != null)
+  if (starterIds.length === 0) return null
+  const known = playersById([...prevStarters, ...prevBench])
+  const lookup = (id: string): Player =>
+    known.get(id) ?? { playerId: id, name: id, position: '?', nflTeam: '' }
+  const starterSet = new Set(starterIds)
+  const isStarter = (id: string): boolean => {
+    if (starterSet.has(id)) return true
+    const coerced = Number(id)
+    return Number.isFinite(coerced) && starterSet.has(String(coerced))
+  }
+  const benchSource = Array.isArray(row.players)
+    ? row.players.map(sleeperPlayerId).filter((id): id is string => id != null)
+    : [...prevStarters, ...prevBench].map((player) => player.playerId).filter((id) => id !== '')
+  return {
+    starters: starterIds.map(lookup),
+    bench: benchSource.filter((id) => !isStarter(id)).map(lookup)
+  }
+}
+
 const overlayPlayers = (players: Player[], row: SleeperMatchup): Player[] =>
   players.map((player) => {
     const pts = ptsForPlayerId(row, player.playerId)
@@ -385,14 +429,16 @@ export const overlaySleeperMatchups = (prev: Matchup, matchups: SleeperMatchup[]
       : matchups.find(
           (row) => matchupIdOf(row) === matchupIdOf(mine) && rosterIdOf(row) !== rosterIdOf(mine)
         )
+  const mineSeat = reseatSleeperSide(prev.starters, prev.bench, mine)
+  const oppSeat = opp ? reseatSleeperSide(prev.oppStarters, prev.oppBench, opp) : null
   const next: Matchup = {
     ...prev,
     myPoints: overlayTotal(prev.myPoints, mine),
     oppPoints: opp ? overlayTotal(prev.oppPoints, opp) : prev.oppPoints,
-    starters: overlayPlayers(prev.starters, mine),
-    bench: overlayPlayers(prev.bench, mine),
-    oppStarters: opp ? overlayPlayers(prev.oppStarters, opp) : prev.oppStarters,
-    oppBench: opp ? overlayPlayers(prev.oppBench, opp) : prev.oppBench,
+    starters: overlayPlayers(mineSeat?.starters ?? prev.starters, mine),
+    bench: overlayPlayers(mineSeat?.bench ?? prev.bench, mine),
+    oppStarters: opp ? overlayPlayers(oppSeat?.starters ?? prev.oppStarters, opp) : prev.oppStarters,
+    oppBench: opp ? overlayPlayers(oppSeat?.bench ?? prev.oppBench, opp) : prev.oppBench,
     scoresFinal: mine.custom_points != null || opp?.custom_points != null
   }
   const win = sleeperOfficialWin(mine.win_probability, opp?.win_probability, prev)

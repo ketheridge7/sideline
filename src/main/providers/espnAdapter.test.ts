@@ -820,6 +820,71 @@ describe('toEspnMatchup', () => {
     expect(matchup?.bench.map((player) => player.name)).toEqual(['Bench'])
   })
 
+  it('keeps the team score at 0 when every starter is 0 and only bench or IR has points', () => {
+    const stat = (appliedTotal: number) => ({
+      statSourceId: 0,
+      statSplitTypeId: 1,
+      scoringPeriodId: 4,
+      appliedTotal
+    })
+    const entry = (slot: number, id: number, name: string, appliedTotal: number) => ({
+      lineupSlotId: slot,
+      playerId: id,
+      playerPoolEntry: {
+        player: {
+          fullName: name,
+          defaultPositionId: 1,
+          stats: [stat(appliedTotal)]
+        }
+      }
+    })
+    const matchup = toEspnMatchup({
+      payload: {
+        teams: [
+          {
+            id: 1,
+            primaryOwner: '{11111111-1111-1111-1111-111111111111}',
+            location: 'Mine',
+            nickname: 'Squad'
+          },
+          { id: 2, location: 'Them', nickname: 'Squad' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 4,
+            home: {
+              teamId: 1,
+              totalPointsLive: 0,
+              rosterForCurrentScoringPeriod: {
+                entries: [entry(0, 1, 'Hurts', 0)]
+              }
+            },
+            away: {
+              teamId: 2,
+              totalPointsLive: 1.5,
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  entry(0, 2, 'Allen', 0),
+                  entry(20, 3, 'TNF Bench', 1.5),
+                  entry(21, 4, 'IR', 4)
+                ]
+              }
+            }
+          }
+        ]
+      },
+      cookies: { espn_s2: 'x', SWID: '{11111111-1111-1111-1111-111111111111}' },
+      displayWeek: 4
+    })
+    expect(matchup?.oppPoints).toBe(0)
+    expect(matchup?.myPoints).toBe(0)
+    expect(matchup?.oppStarters.map((player) => player.points)).toEqual([0])
+    expect(matchup?.oppBench.map((player) => `${player.name}:${player.points}`)).toEqual([
+      'TNF Bench:1.5',
+      'IR:4'
+    ])
+  })
+
   it('scores from schedule when teams[] is empty if myTeamId is known', () => {
     const matchup = toEspnMatchup({
       payload: {
@@ -2500,6 +2565,89 @@ describe('overlayEspnMatchup', () => {
     ])
     expect(next?.starters[1]?.points).toBe(4.3)
     expect(next?.starters[8]?.points).toBe(1)
+  })
+
+  it('moves a bench player to FLEX, a starter to the bench, and a starter to IR when the roster slots change', () => {
+    const hud = {
+      ...prev,
+      starters: [
+        { playerId: '100', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 10, lineupSlotId: 0 },
+        { playerId: '400', name: 'Lamb', position: 'WR', nflTeam: 'DAL', points: 8, lineupSlotId: 4 }
+      ],
+      bench: [{ playerId: '200', name: 'Chase', position: 'WR', nflTeam: 'CIN', points: 0, lineupSlotId: 20 }]
+    }
+    const live = {
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 1,
+            totalPointsLive: 18,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                { playerId: 100, lineupSlotId: 20, playerPoolEntry: { player: { fullName: 'Hurts', defaultPositionId: 1 } } },
+                { playerId: 200, lineupSlotId: 23, playerPoolEntry: { player: { fullName: 'Chase', defaultPositionId: 3 } } },
+                { playerId: 400, lineupSlotId: 21, playerPoolEntry: { player: { fullName: 'Lamb', defaultPositionId: 3 } } }
+              ]
+            }
+          },
+          away: { teamId: 2, totalPointsLive: 8 }
+        }
+      ]
+    }
+    const next = overlayEspnMatchup(hud, live, 1, true)
+    expect(next?.starters.map((player) => player.name)).toEqual(['Chase'])
+    expect(next?.starters[0]?.position).toBe('FLEX')
+    expect(next?.starters[0]?.lineupSlotId).toBe(23)
+    expect(next?.bench.map((player) => `${player.name}:${player.lineupSlotId}`)).toEqual(['Hurts:20', 'Lamb:21'])
+  })
+
+  it('drops an opponent total that is only bench and IR points while starters are still 0', () => {
+    const hud = {
+      ...prev,
+      oppPoints: 1.5,
+      oppStarters: [{ playerId: '2', name: 'Allen', position: 'QB', nflTeam: 'BUF', points: 0, lineupSlotId: 0 }],
+      oppBench: [
+        { playerId: '3', name: 'TNF Bench', position: 'WR', nflTeam: 'CIN', points: 0, lineupSlotId: 20 },
+        { playerId: '4', name: 'IR', position: 'RB', nflTeam: 'PHI', points: 0, lineupSlotId: 21 }
+      ]
+    }
+    const stat = (appliedTotal: number) => ({
+      statSourceId: 0,
+      statSplitTypeId: 1,
+      scoringPeriodId: 4,
+      appliedTotal
+    })
+    const entry = (slot: number, id: number, name: string, appliedTotal: number) => ({
+      playerId: id,
+      lineupSlotId: slot,
+      playerPoolEntry: { player: { fullName: name, defaultPositionId: 1, stats: [stat(appliedTotal)] } }
+    })
+    const live = {
+      schedule: [
+        {
+          matchupPeriodId: 4,
+          home: {
+            teamId: 1,
+            totalPointsLive: 0,
+            rosterForCurrentScoringPeriod: {
+              entries: [entry(0, 100, 'Hurts', 0)]
+            }
+          },
+          away: {
+            teamId: 2,
+            totalPointsLive: 1.5,
+            rosterForCurrentScoringPeriod: {
+              entries: [entry(0, 2, 'Allen', 0), entry(20, 3, 'TNF Bench', 1.5), entry(21, 4, 'IR', 4)]
+            }
+          }
+        }
+      ]
+    }
+    const next = overlayEspnMatchup(hud, live, 4, true)
+    expect(next?.oppPoints).toBe(0)
+    expect(next?.oppStarters.map((player) => player.points)).toEqual([0])
+    expect(next?.oppBench.map((player) => `${player.name}:${player.points}`)).toEqual(['TNF Bench:1.5', 'IR:4'])
   })
 
   it('does not overlay compact live onto an empty ESPN lineup', () => {

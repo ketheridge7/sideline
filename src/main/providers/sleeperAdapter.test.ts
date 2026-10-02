@@ -479,6 +479,27 @@ describe('overlaySleeperMatchups', () => {
     expect(next?.starters[0]?.points).toBe(22.4)
   })
 
+  it('moves a benched player into the starting lineup on the next /matchups overlay', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    expect(prev).not.toBeNull()
+    if (!prev) return
+    const live = [
+      {
+        ...matchups[0],
+        points: 22,
+        starters: ['9', '2'],
+        players: ['1', '2', '9'],
+        players_points: { '1': 12.4, '2': 8.1, '9': 13.9 }
+      },
+      matchups[1]
+    ]
+    const next = overlaySleeperMatchups(prev, live)
+    expect(next?.starters.map((player) => player.name)).toEqual(['Bench', 'Barkley'])
+    expect(next?.starters[0]?.points).toBe(13.9)
+    expect(next?.bench.map((player) => player.name)).toEqual(['Hurts'])
+    expect(next?.bench[0]?.points).toBe(12.4)
+  })
+
   it('does not overlay an ESPN last HUD onto a Sleeper /matchups payload', () => {
     const espnHud = {
       myTeam: { id: '1', name: 'Dawg House', owner: 'Kevin', record: '1-0' },
