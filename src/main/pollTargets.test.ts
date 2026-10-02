@@ -136,6 +136,8 @@ import {
   sleeperRestNameHydratePlan,
   selectedFallbackJoinPlan,
   sleeperCdnBustToken,
+  matchupMemKey,
+  parseMatchupMemKey,
   sleeperMatchupsHoldKey,
   sleeperIdentityHoldKey,
   sleeperMatchupsReusePlan,
@@ -413,6 +415,26 @@ describe('espnLiveFullSwrPlan', () => {
       espnLiveFullSwrPlan({
         needsFull: true,
         liveFailed: false,
+        hasOverlay: true,
+        hud: true,
+        gamesIn: true,
+        confirmOpponent: true
+      })
+    ).toBe('recover')
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: false,
+        liveFailed: false,
+        hasOverlay: true,
+        hud: false,
+        gamesIn: true,
+        confirmOpponent: true
+      })
+    ).toBe('recover')
+    expect(
+      espnLiveFullSwrPlan({
+        needsFull: true,
+        liveFailed: false,
         hasOverlay: false,
         hud: false,
         gamesIn: true
@@ -649,6 +671,21 @@ describe('espnFullSwrPaintPlan', () => {
         parsed: etheridge
       })
     ).toBe(etheridge)
+    const week4 = {
+      ...hud,
+      oppTeam: { id: '9', name: 'This Week', owner: 'New', record: '2-1' },
+      oppPoints: 11,
+      starters: [{ playerId: '100', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 14 }]
+    }
+    const staleOpp = {
+      ...week4,
+      oppTeam: { id: '2', name: 'Last Week', owner: 'Old', record: '1-2' },
+      oppPoints: 40,
+      starters: [{ playerId: '100', name: 'Hurts', position: 'QB', nflTeam: 'PHI', points: 14 }]
+    }
+    expect(espnFullSwrPaintPlan({ prev: staleOpp, overlaid: staleOpp, parsed: week4 })?.oppTeam?.id).toBe('9')
+    const clearedOpp = { ...staleOpp, oppTeam: null, oppPoints: 0, oppStarters: [], oppBench: [] }
+    expect(espnFullSwrPaintPlan({ prev: clearedOpp, overlaid: clearedOpp, parsed: week4 })?.oppTeam?.id).toBe('9')
   })
 
   it('replaces starter and bench slots from a fresh boxscore while keeping compact live points', () => {
@@ -1646,6 +1683,19 @@ describe('sleeperMatchupsHoldKey', () => {
       sleeperMatchupsHoldKey({ ...base, priority: 'low' })
     )
     expect(sleeperMatchupsHoldKey(base)).not.toBe(sleeperMatchupsHoldKey({ ...base, priority: 'high' }))
+  })
+})
+
+describe('matchupMemKey', () => {
+  it('includes the week so a week 3 row cannot be read as week 4', () => {
+    expect(matchupMemKey('sleeper:1', 3)).toBe('3:sleeper:1')
+    expect(matchupMemKey('sleeper:1', 3)).not.toBe(matchupMemKey('sleeper:1', 4))
+    expect(matchupMemKey('espn:9', 4)).toBe('4:espn:9')
+    expect(parseMatchupMemKey('4:sleeper:1399263669623205888')).toEqual({
+      week: 4,
+      leagueKey: 'sleeper:1399263669623205888'
+    })
+    expect(parseMatchupMemKey('sleeper:1')).toBeNull()
   })
 })
 

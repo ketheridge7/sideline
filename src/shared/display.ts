@@ -217,18 +217,18 @@ export const toMatchupBoard = (
   }
 }
 
-/** Week rollover: keep identity/lineup, drop prior-week live/final points. */
+/** Week rollover: keep my team and zero my lineup. Drop the opponent so week N cannot sit on week N+1. */
 export const weekShiftClearedMatchup = (matchup: Matchup): Matchup => {
   const zeroed = (players: Player[]): Player[] => players.map((player) => ({ ...player, points: 0 }))
   return {
     myTeam: matchup.myTeam,
-    oppTeam: matchup.oppTeam,
+    oppTeam: null,
     myPoints: 0,
     oppPoints: 0,
     starters: zeroed(matchup.starters),
     bench: zeroed(matchup.bench),
-    oppStarters: zeroed(matchup.oppStarters),
-    oppBench: zeroed(matchup.oppBench)
+    oppStarters: [],
+    oppBench: []
   }
 }
 
@@ -244,7 +244,7 @@ export const weekShiftClearedBoard = (
     provider: board.provider,
     week,
     myName: board.myName,
-    oppName: board.oppName,
+    oppName: null,
     myPoints: 0,
     oppPoints: 0,
     lastScorers: [],

@@ -3311,6 +3311,502 @@ describe('poller background league scores', () => {
       dateNow.mockRestore()
     }
   })
+
+  it('rolls a stale Sleeper week 3 opponent onto the week 4 matchup_id pair', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    resetPollerForTests()
+    const dir = app.getPath('userData')
+    const leagueId = '1399263669623205888'
+    const selectedKey = leagueKey('sleeper', leagueId)
+    saveSettings({
+      sleeperUsername: 'tester',
+      sleeperUserId: 'me',
+      selectedLeagueKey: selectedKey,
+      sleeperLeagueIds: [leagueId],
+      espnLeagueIds: [],
+      pinnedLeagueKeys: []
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: {
+          week: 3,
+          displayWeek: 3,
+          season: '2026',
+          leagueSeason: '2026',
+          seasonType: 'regular'
+        }
+      })
+    )
+    const stale = {
+      ...hudMatchup,
+      oppTeam: { id: '2', name: 'Last Week', owner: 'Old', record: '1-2' },
+      myPoints: 98,
+      oppPoints: 40
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 3, selectedKey, matchup: stale })
+    )
+    writeFileSync(
+      join(dir, 'sideline-matchups.json'),
+      JSON.stringify({ at: Date.now(), week: 3, byKey: { [selectedKey]: stale } })
+    )
+    writeFileSync(
+      join(dir, 'sideline-sleeper-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        username: 'tester',
+        season: '2026',
+        leagues: [{ id: leagueId, name: 'Public', provider: 'sleeper', season: '2026', week: 3 }]
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().leagues.map((league) => league.id)).toContain(leagueId)
+    expect(currentState().matchup?.oppTeam?.name).toBe('Last Week')
+
+    const urls: string[] = []
+    const week4 = [
+      {
+        roster_id: 1,
+        matchup_id: 3,
+        points: 14,
+        starters: ['1'],
+        players: ['1'],
+        players_points: { '1': 14 }
+      },
+      {
+        roster_id: 3,
+        matchup_id: 3,
+        points: 11,
+        starters: ['4'],
+        players: ['4'],
+        players_points: { '4': 11 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 9,
+        points: 40,
+        starters: ['3'],
+        players: ['3'],
+        players_points: { '3': 40 }
+      }
+    ]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        urls.push(url)
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 4,
+            display_week: 4,
+            leg: 4,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('/matchups/')) return jsonOk(week4)
+        if (url.includes('/rosters')) {
+          return jsonOk([
+            { roster_id: 1, owner_id: 'me', settings: { wins: 2, losses: 1 } },
+            { roster_id: 2, owner_id: 'old', settings: { wins: 1, losses: 2 } },
+            { roster_id: 3, owner_id: 'new', settings: { wins: 2, losses: 1 } }
+          ])
+        }
+        if (url.includes('/users')) {
+          return jsonOk([
+            { user_id: 'me', display_name: 'Me', metadata: { team_name: 'Mine' } },
+            { user_id: 'old', display_name: 'Old', metadata: { team_name: 'Last Week' } },
+            { user_id: 'new', display_name: 'New', metadata: { team_name: 'This Week' } }
+          ])
+        }
+        if (url.includes('/user/')) return jsonOk({ user_id: 'me', username: 'tester', display_name: 'Me' })
+        if (url.includes('/players/nfl')) return jsonOk({})
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        if (url.includes('/leagues/')) {
+          return jsonOk([{ league_id: leagueId, name: 'Public', season: '2026' }])
+        }
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().nfl?.displayWeek).toBe(4)
+    await expect.poll(() => currentState().matchup?.oppTeam?.name).toBe('This Week')
+    expect(currentState().matchup?.oppTeam?.id).toBe('3')
+    expect(currentState().matchup?.oppPoints).toBe(11)
+    expect(currentState().matchup?.myPoints).toBe(14)
+    expect(currentState().boards.find((row) => row.key === selectedKey)?.oppName).toBe('This Week')
+    expect(currentState().boards.find((row) => row.key === selectedKey)?.week).toBe(4)
+    expect(toOverlayHud(currentState()).oppName).toBe('This Week')
+    expect(toOverlayHud(currentState()).week).toBe(4)
+    expect(urls.some((url) => url.includes('/matchups/4'))).toBe(true)
+    expect(urls.some((url) => url.includes('/matchups/3'))).toBe(false)
+
+    await refresh({ waitForBoards: true })
+    expect(currentState().matchup?.oppTeam?.name).toBe('This Week')
+    expect(currentState().matchup?.oppPoints).toBe(11)
+  })
+
+  it('rolls a stale ESPN week 3 opponent onto the week 4 schedule', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '543268341'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId],
+      sleeperLeagueIds: [],
+      pinnedLeagueKeys: []
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: {
+          week: 3,
+          displayWeek: 3,
+          season: '2026',
+          leagueSeason: '2026',
+          seasonType: 'regular'
+        }
+      })
+    )
+    const stale = {
+      ...hudMatchup,
+      oppTeam: { id: '2', name: 'Last Week', owner: 'Old', record: '1-2' },
+      myPoints: 98,
+      oppPoints: 40
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 3, selectedKey, matchup: stale })
+    )
+    writeFileSync(
+      join(dir, 'sideline-matchups.json'),
+      JSON.stringify({ at: Date.now(), week: 3, byKey: { [selectedKey]: stale } })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: leagueId,
+        leagues: [{ id: leagueId, name: 'Public', provider: 'espn', season: '2026', week: 3 }]
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().matchup?.oppTeam?.name).toBe('Last Week')
+
+    const urls: string[] = []
+    const week4 = {
+      scoringPeriodId: 4,
+      status: { latestScoringPeriod: 4, currentMatchupPeriod: 4 },
+      teams: [
+        { id: 1, location: 'Mine', nickname: 'Team' },
+        { id: 9, location: 'This', nickname: 'Week' },
+        { id: 2, location: 'Last', nickname: 'Week' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 4,
+          home: {
+            teamId: 1,
+            totalPointsLive: 14,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 1,
+                  playerPoolEntry: { player: { fullName: 'Hurts', defaultPositionId: 1, proTeamId: 21 } }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 9,
+            totalPointsLive: 11,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 900,
+                  playerPoolEntry: { player: { fullName: 'Chase', defaultPositionId: 3, proTeamId: 4 } }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        urls.push(url)
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 4,
+            display_week: 4,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('scoringPeriodId=3')) throw new Error('must not fetch ESPN week 3 after week 4 is confirmed')
+        if (url.includes('lm-api-reads')) return jsonOk(week4)
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().nfl?.displayWeek).toBe(4)
+    await expect.poll(() => currentState().matchup?.oppTeam?.id).toBe('9')
+    expect(currentState().matchup?.oppTeam?.name).toBe('This Week')
+    expect(currentState().matchup?.oppPoints).toBe(11)
+    expect(currentState().matchup?.myPoints).toBe(14)
+    expect(currentState().boards[0]?.oppName).toBe('This Week')
+    expect(currentState().boards[0]?.week).toBe(4)
+    expect(toOverlayHud(currentState()).oppName).toBe('This Week')
+    expect(urls.some((url) => url.includes('scoringPeriodId=4'))).toBe(true)
+    expect(urls.some((url) => url.includes('scoringPeriodId=3'))).toBe(false)
+  })
+
+  it('rebuilds a Sleeper opponent when week 4 disk still names the week 3 roster', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '1399263669623205888'
+    const selectedKey = leagueKey('sleeper', leagueId)
+    saveSettings({
+      sleeperUsername: 'tester',
+      sleeperUserId: 'me',
+      selectedLeagueKey: selectedKey,
+      sleeperLeagueIds: [leagueId],
+      espnLeagueIds: [],
+      pinnedLeagueKeys: []
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: { week: 4, displayWeek: 4, season: '2026', leagueSeason: '2026', seasonType: 'regular' }
+      })
+    )
+    const stale = {
+      ...hudMatchup,
+      oppTeam: { id: '2', name: 'Last Week', owner: 'Old', record: '1-2' },
+      myPoints: 98,
+      oppPoints: 40
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 4, selectedKey, matchup: stale })
+    )
+    writeFileSync(
+      join(dir, 'sideline-matchups.json'),
+      JSON.stringify({ at: Date.now(), week: 4, byKey: { [selectedKey]: stale } })
+    )
+    writeFileSync(
+      join(dir, 'sideline-sleeper-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        username: 'tester',
+        season: '2026',
+        leagues: [{ id: leagueId, name: 'Public', provider: 'sleeper', season: '2026', week: 4 }]
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().matchup?.oppTeam?.name).toBe('Last Week')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 4,
+            display_week: 4,
+            leg: 4,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('/matchups/')) {
+          return jsonOk([
+            {
+              roster_id: 1,
+              matchup_id: 3,
+              points: 14,
+              starters: ['1'],
+              players: ['1'],
+              players_points: { '1': 14 }
+            },
+            {
+              roster_id: 3,
+              matchup_id: 3,
+              points: 11,
+              starters: ['4'],
+              players: ['4'],
+              players_points: { '4': 11 }
+            },
+            {
+              roster_id: 2,
+              matchup_id: 9,
+              points: 40,
+              starters: ['3'],
+              players: ['3'],
+              players_points: { '3': 40 }
+            }
+          ])
+        }
+        if (url.includes('/rosters')) {
+          return jsonOk([
+            { roster_id: 1, owner_id: 'me', settings: { wins: 2, losses: 1 } },
+            { roster_id: 2, owner_id: 'old', settings: { wins: 1, losses: 2 } },
+            { roster_id: 3, owner_id: 'new', settings: { wins: 2, losses: 1 } }
+          ])
+        }
+        if (url.includes('/users')) {
+          return jsonOk([
+            { user_id: 'me', display_name: 'Me', metadata: { team_name: 'Mine' } },
+            { user_id: 'old', display_name: 'Old', metadata: { team_name: 'Last Week' } },
+            { user_id: 'new', display_name: 'New', metadata: { team_name: 'This Week' } }
+          ])
+        }
+        if (url.includes('/user/')) return jsonOk({ user_id: 'me', username: 'tester', display_name: 'Me' })
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.oppTeam?.name).toBe('This Week')
+    expect(currentState().matchup?.oppTeam?.id).toBe('3')
+    expect(currentState().matchup?.oppPoints).toBe(11)
+    expect(currentState().boards[0]?.oppName).toBe('This Week')
+    expect(toOverlayHud(currentState()).oppName).toBe('This Week')
+  })
+
+  it('does not keep an ESPN opponent that only compact live still names', async () => {
+    const dir = app.getPath('userData')
+    const leagueId = '543268341'
+    const selectedKey = leagueKey('espn', leagueId)
+    saveSettings({
+      sleeperUsername: null,
+      sleeperUserId: null,
+      selectedLeagueKey: selectedKey,
+      espnLeagueIds: [leagueId],
+      sleeperLeagueIds: [],
+      pinnedLeagueKeys: []
+    })
+    writeFileSync(
+      join(dir, 'sideline-nfl.json'),
+      JSON.stringify({
+        at: Date.now(),
+        nfl: { week: 4, displayWeek: 4, season: '2026', leagueSeason: '2026', seasonType: 'regular' }
+      })
+    )
+    const stale = {
+      ...hudMatchup,
+      oppTeam: { id: '2', name: 'Last Week', owner: 'Old', record: '1-2' },
+      myPoints: 98,
+      oppPoints: 40
+    }
+    writeFileSync(
+      join(dir, 'sideline-last-hud.json'),
+      JSON.stringify({ at: Date.now(), displayWeek: 4, selectedKey, matchup: stale })
+    )
+    writeFileSync(
+      join(dir, 'sideline-matchups.json'),
+      JSON.stringify({ at: Date.now(), week: 4, byKey: { [selectedKey]: stale } })
+    )
+    writeFileSync(
+      join(dir, 'sideline-espn-leagues.json'),
+      JSON.stringify({
+        at: Date.now(),
+        season: '2026',
+        ids: leagueId,
+        leagues: [{ id: leagueId, name: 'Public', provider: 'espn', season: '2026', week: 4 }]
+      })
+    )
+    warmupPollerCaches()
+    expect(currentState().matchup?.oppTeam?.name).toBe('Last Week')
+    const week4 = {
+      scoringPeriodId: 4,
+      status: { latestScoringPeriod: 4, currentMatchupPeriod: 4 },
+      teams: [
+        { id: 1, location: 'Mine', nickname: 'Team' },
+        { id: 9, location: 'This', nickname: 'Week' },
+        { id: 2, location: 'Last', nickname: 'Week' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 4,
+          home: {
+            teamId: 1,
+            totalPointsLive: 14,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 1,
+                  playerPoolEntry: { player: { fullName: 'Hurts', defaultPositionId: 1, proTeamId: 21 } }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 9,
+            totalPointsLive: 11,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 900,
+                  playerPoolEntry: { player: { fullName: 'Chase', defaultPositionId: 3, proTeamId: 4 } }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/state/nfl')) {
+          return jsonOk({
+            week: 4,
+            display_week: 4,
+            season: '2026',
+            league_season: '2026',
+            season_type: 'regular'
+          })
+        }
+        if (url.includes('mLiveScoring') && !url.includes('mMatchupScore')) {
+          return jsonOk({
+            scoringPeriodId: 4,
+            liveScoring: {
+              teams: [
+                { teamId: 1, totalPointsLive: 14 },
+                { teamId: 2, totalPointsLive: 40 }
+              ]
+            }
+          })
+        }
+        if (url.includes('mMatchupScore')) return jsonOk(week4)
+        if (url.includes('scoreboard')) return jsonOk({ events: [] })
+        return jsonOk([])
+      })
+    )
+    await refresh({ waitForBoards: true })
+    await expect.poll(() => currentState().matchup?.oppTeam?.name).toBe('This Week')
+    expect(currentState().matchup?.oppTeam?.id).toBe('9')
+    expect(currentState().matchup?.oppPoints).toBe(11)
+    expect(currentState().matchup?.myPoints).toBe(14)
+    expect(currentState().boards[0]?.oppName).toBe('This Week')
+    expect(toOverlayHud(currentState()).oppName).toBe('This Week')
+  })
 })
 
 describe('poller provider backoff', () => {

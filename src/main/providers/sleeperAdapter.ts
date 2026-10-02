@@ -555,15 +555,20 @@ export const overlaySleeperMatchups = (
   if (myId == null) return null
   const mine = matchups.find((row) => rosterIdOf(row) === myId)
   if (!mine) return null
+  // A compact row that omits matchup_id cannot prove who is paired this week.
+  // Trusting prev.oppTeam.roster_id paints last week's opponent with this week's points.
+  if (mine.matchup_id === undefined) return null
   const liveIds = (mine.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
   if (!overlayStartersBelong(prev.starters, liveIds)) return null
-  const oppId = prev.oppTeam ? asInt(prev.oppTeam.id) : undefined
+  const myRosterId = rosterIdOf(mine)
+  const myMatchupId = matchupIdOf(mine)
   const opp =
-    oppId != null
-      ? matchups.find((row) => rosterIdOf(row) === oppId)
-      : matchups.find(
-          (row) => matchupIdOf(row) === matchupIdOf(mine) && rosterIdOf(row) !== rosterIdOf(mine)
-        )
+    myRosterId == null || myMatchupId == null
+      ? undefined
+      : matchups.find((row) => matchupIdOf(row) === myMatchupId && rosterIdOf(row) !== myRosterId)
+  const prevOpp = prev.oppTeam ? asInt(prev.oppTeam.id) ?? null : null
+  const nextOpp = opp ? rosterIdOf(opp) ?? null : null
+  if (prevOpp !== nextOpp) return null
   const inactiveFor = (row: SleeperMatchup | undefined): ReadonlySet<string> => {
     if (!row || !inactiveByRoster) return NO_INACTIVE
     const rosterId = rosterIdOf(row)

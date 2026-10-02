@@ -146,16 +146,23 @@ describe('toMatchupBoard', () => {
       provider: 'sleeper',
       week: 2,
       myName: 'Gibbs Me Head',
-      oppName: 'The Other Guys',
+      oppName: null,
       myPoints: 0,
       oppPoints: 0,
       lastScorers: [],
       size: 12,
       refreshing: true
     })
-    expect(weekShiftClearedMatchup(matchup).myPoints).toBe(0)
-    expect(weekShiftClearedMatchup(matchup).starters[0]?.points).toBe(0)
-    expect(weekShiftClearedMatchup(matchup).myTeam.name).toBe('Gibbs Me Head')
+    const cleared = weekShiftClearedMatchup(matchup)
+    expect(cleared.myPoints).toBe(0)
+    expect(cleared.oppPoints).toBe(0)
+    expect(cleared.starters[0]?.points).toBe(0)
+    expect(cleared.myTeam.name).toBe('Gibbs Me Head')
+    expect(cleared.oppTeam).toBeNull()
+    expect(cleared.oppStarters).toEqual([])
+    expect(cleared.oppBench).toEqual([])
+    expect(cleared.myWinPct).toBeUndefined()
+    expect(cleared.oppWinPct).toBeUndefined()
   })
 
   it('copies provider win% onto the LEAGUES card for the shared LeadBar', () => {

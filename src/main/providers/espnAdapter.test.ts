@@ -2383,6 +2383,61 @@ describe('overlayEspnMatchup', () => {
     expect(next?.oppStarters[0]?.points).toBe(15.1)
   })
 
+  it('does not keep last week opponent when this matchup period pairs a different team', () => {
+    const live = {
+      scoringPeriodId: 4,
+      teams: [
+        { id: 1, location: 'Mine', nickname: 'Team' },
+        { id: 9, location: 'This', nickname: 'Week' },
+        { id: 2, location: 'Last', nickname: 'Week' }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 4,
+          home: {
+            teamId: 1,
+            totalPointsLive: 14,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 100,
+                  playerPoolEntry: { player: { fullName: 'Hurts', defaultPositionId: 1, proTeamId: 21 } }
+                }
+              ]
+            }
+          },
+          away: {
+            teamId: 9,
+            totalPointsLive: 11,
+            rosterForCurrentScoringPeriod: {
+              entries: [
+                {
+                  lineupSlotId: 0,
+                  playerId: 900,
+                  playerPoolEntry: { player: { fullName: 'Chase', defaultPositionId: 3, proTeamId: 4 } }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      liveScoring: {
+        teams: [
+          { teamId: 1, totalPointsLive: 14, players: [{ playerId: 100, totalPointsLive: 14 }] },
+          { teamId: 2, totalPointsLive: 40, players: [{ playerId: 200, totalPointsLive: 40 }] },
+          { teamId: 9, totalPointsLive: 11, players: [{ playerId: 900, totalPointsLive: 11 }] }
+        ]
+      }
+    }
+    expect(overlayEspnMatchup(prev, live, 4)).toBeNull()
+    const built = toEspnMatchup({ payload: live, cookies: null, displayWeek: 4, myTeamId: 1 })
+    expect(built?.oppTeam?.id).toBe('9')
+    expect(built?.oppTeam?.name).toBe('This Week')
+    expect(built?.oppPoints).toBe(11)
+    expect(built?.myPoints).toBe(14)
+  })
+
   it('parses projected finals for win% without treating them as live points', () => {
     const live = {
       liveScoring: {

@@ -281,11 +281,17 @@ export const espnLiveFullSwrPlan = (opts: {
   hasNamedLineup?: boolean
   lineupDue?: boolean
   force?: boolean
+  /** Week just rolled and this league's opponent has not been re-paired yet. */
+  confirmOpponent?: boolean
 }): 'recover' | 'defer' | 'defer-lineup' | 'skip' => {
   if (opts.hud && opts.compactIsStub) return 'recover'
   if (opts.hud && opts.hasNamedLineup === false) return 'recover'
   if (opts.force && opts.hud) return 'recover'
   if (opts.force) return 'defer-lineup'
+  // Once per week rollover (or a launch that has not re-paired yet), even if a
+  // boxscore is already cached. Compact live has no home/away, so a fresh cache
+  // must not skip the payload that names this week's opponent.
+  if (opts.confirmOpponent) return 'recover'
   if (
     opts.lineupDue &&
     opts.gamesIn &&
@@ -386,6 +392,13 @@ export const espnFullSwrPaintPlan = (opts: {
   overlaid: Matchup | null
   parsed: Matchup | null
 }): Matchup | null => {
+  if (
+    opts.overlaid &&
+    opts.parsed?.oppTeam?.id &&
+    opts.overlaid.oppTeam?.id !== opts.parsed.oppTeam.id
+  ) {
+    return opts.parsed
+  }
   if (opts.overlaid && opts.parsed && matchupHasLineup(opts.overlaid) && matchupHasLineup(opts.parsed)) {
     if (!sameEspnLineup(opts.overlaid, opts.parsed)) return mergeEspnRefreshedLineup(opts.overlaid, opts.parsed)
     return opts.overlaid
@@ -931,6 +944,19 @@ export const sleeperRestNameHydratePlan = (): 'after-publish' => 'after-publish'
 
 export const sleeperCdnBustToken = (now: number, intervalMs: number): string =>
   String(Math.floor(now / intervalMs))
+
+/** In-memory matchup cache key. Week is part of the key so week N cannot be read as week N+1. */
+export const matchupMemKey = (leagueKey: string, week: number): string => `${week}:${leagueKey}`
+
+export const parseMatchupMemKey = (memKey: string): { week: number; leagueKey: string } | null => {
+  const cut = memKey.indexOf(':')
+  if (cut <= 0) return null
+  const week = Number(memKey.slice(0, cut))
+  if (!Number.isInteger(week) || week < 0) return null
+  const leagueKey = memKey.slice(cut + 1)
+  if (!leagueKey.startsWith('sleeper:') && !leagueKey.startsWith('espn:')) return null
+  return { week, leagueKey }
+}
 
 export const sleeperMatchupsHoldKey = (opts: {
   leagueId: string
