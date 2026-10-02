@@ -508,14 +508,16 @@ export const parseSleeperRoster = (raw: unknown): SleeperRoster | null => {
   const coOwners = Array.isArray(row.co_owners)
     ? row.co_owners.map((owner) => asStr(owner)).filter((owner): owner is string => Boolean(owner))
     : null
+  const reserve = asIdList(row.reserve)
+  const taxi = asIdList(row.taxi)
   return {
     roster_id: rosterId,
     owner_id: row.owner_id == null ? null : asStr(row.owner_id) ?? null,
     co_owners: coOwners,
     players: asIdList(row.players),
     starters: asIdList(row.starters),
-    reserve: asIdList(row.reserve) ?? null,
-    taxi: asIdList(row.taxi) ?? null,
+    ...(reserve ? { reserve } : {}),
+    ...(taxi ? { taxi } : {}),
     settings: asRosterSettings(row.settings)
   }
 }

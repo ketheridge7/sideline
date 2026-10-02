@@ -229,6 +229,9 @@ const starterPointsSum = (matchup: SleeperMatchup, inactive: ReadonlySet<string>
  * cannot explain a real team total.
  */
 const nonStarterPointsSum = (matchup: SleeperMatchup, inactive: ReadonlySet<string>): number => {
+  // A compact row that omits `starters` cannot be split. Its player map may be
+  // the starter chips themselves; do not treat that map as bench.
+  if (!Array.isArray(matchup.starters)) return 0
   const scoring = new Set<string>()
   for (const slot of starterSlots(matchup)) {
     if (!isScoringSlot(slot, inactive)) continue
@@ -258,6 +261,7 @@ const nonStarterPointsSum = (matchup: SleeperMatchup, inactive: ReadonlySet<stri
 
 /** Points parked on empty starter slots. They are not a player and never score. */
 const emptySlotPoints = (matchup: SleeperMatchup): number => {
+  if (!Array.isArray(matchup.starters)) return 0
   let sum = 0
   for (const slot of starterSlots(matchup)) {
     if (slot.id !== '0') continue
