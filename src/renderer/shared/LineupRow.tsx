@@ -37,8 +37,26 @@ export const HudRail = ({
   />
 )
 
+type StarterHeaderAlign = 'start' | 'end'
+
+/** Left rail is left-aligned. Right rail is right-aligned. Color still follows `you`. */
+const starterHeaderClass = (you: boolean | undefined, align: StarterHeaderAlign): string => {
+  const tone = you ? 'text-lime' : 'text-them'
+  switch (align) {
+    case 'start':
+      return `mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] ${tone}`
+    case 'end':
+      return `mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] ${tone}`
+    default: {
+      const _never: never = align
+      return _never
+    }
+  }
+}
+
 export const BoardRosterColumn = ({
   you,
+  headerAlign = you ? 'start' : 'end',
   starters,
   bench,
   rows,
@@ -48,6 +66,8 @@ export const BoardRosterColumn = ({
   onFocus
 }: {
   you?: boolean
+  /** Which edge of this column the STARTERS label sits on. Independent of lime/them. */
+  headerAlign?: StarterHeaderAlign
   starters: Player[]
   bench: Player[]
   rows: number
@@ -59,9 +79,7 @@ export const BoardRosterColumn = ({
   const visibleBench = displayableBenchPlayers(bench)
   const copy = benchFootCopy(visibleBench.length, missing)
   const side: BenchSide = you ? 'mine' : 'opp'
-  const headerClass = you
-    ? 'mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime'
-    : 'mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them'
+  const headerClass = starterHeaderClass(you, headerAlign)
 
   const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>): void => {
     onFocus()
@@ -144,6 +162,7 @@ export const BoardRails = ({
     <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
       <BoardRosterColumn
         you={emphasizeMine}
+        headerAlign="start"
         starters={mine}
         bench={mineBench}
         rows={rows}
@@ -156,6 +175,7 @@ export const BoardRails = ({
         onFocus={() => setLastFocused('mine')}
       />
       <BoardRosterColumn
+        headerAlign="end"
         starters={opp}
         bench={oppBench}
         rows={rows}

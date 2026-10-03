@@ -64,18 +64,21 @@ const defaultSchedule: Scheduler = (fn, ms) => {
   return { cancel: () => clearTimeout(id) }
 }
 
-/** Week-wide ESPN read. No `filterTeamIds`, so it cannot join the HUD boxscore. */
+/**
+ * Week-wide ESPN read. No `filterTeamIds`, so it cannot join the HUD boxscore.
+ * `mRoster` supplies lineup slots and pro teams when `mMatchupScore` rows are stats-only.
+ */
 export const espnBrowseFetchArgs = (
   kind: LeagueBrowseKind,
   matchupPeriodId: number
 ): {
-  views: ['mMatchupScore'] | ['mLiveScoring']
+  views: ['mMatchupScore', 'mRoster'] | ['mLiveScoring']
   filter: EspnFantasyFilter
   timeoutMs: number
   retries: 0
   priority: 'low'
 } => ({
-  views: kind === 'boxscore' ? ['mMatchupScore'] : ['mLiveScoring'],
+  views: kind === 'boxscore' ? ['mMatchupScore', 'mRoster'] : ['mLiveScoring'],
   filter: weekScheduleFilter(matchupPeriodId),
   timeoutMs: LIVE_POLL_MS,
   retries: 0,

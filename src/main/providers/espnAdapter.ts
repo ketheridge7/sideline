@@ -1755,6 +1755,54 @@ const LEAGUE_BROWSE_COOKIES: EspnCookies = {
   SWID: '{league-browse}'
 }
 
+/** Starter slots that have an NFL team. Bench and IR never count. Names are optional. */
+const countableSlotStarters = (entries: EspnRosterEntry[], scoringPeriodId?: number): Player[] => {
+  const starters: Player[] = []
+  entries.forEach((entry, index) => {
+    const slot = num(entry.lineupSlotId)
+    if (slot == null || isBenchSlot(slot)) return
+    const raw = entry.playerPoolEntry?.player
+    const nflTeam = espnTeamAbbr(num(raw?.proTeamId))
+    if (!nflTeam || nflTeam === 'FA') return
+    const playerId = String(entry.playerId ?? entry.playerPoolEntry?.id ?? `slot-${slot}-${index}`)
+    starters.push({
+      playerId,
+      name: raw?.fullName || espnDisplayPosition(entry, num(raw?.defaultPositionId)) || 'Starter',
+      position: espnDisplayPosition(entry, num(raw?.defaultPositionId)),
+      nflTeam,
+      points: getAppliedTotal(entry, scoringPeriodId),
+      lineupSlotId: slot
+    })
+  })
+  return starters
+}
+
+const teamRosterEntries = (teams: Record<string, unknown>[], teamId: number | undefined): EspnRosterEntry[] => {
+  if (teamId == null) return []
+  const team = teams.find((row) => num(row.id) === teamId)
+  const roster = team && isRecord(team.roster) ? team.roster : null
+  return roster ? (asEntryRows(roster.entries) as EspnRosterEntry[]) : []
+}
+
+/**
+ * League browse `mMatchupScore` rows are often stats-only (no player id or pro team).
+ * Count starter slots from those rows when they carry `proTeamId`, otherwise from `mRoster`.
+ * The HUD matchup parser stays on named lineup rows.
+ */
+const leagueSideStarters = (
+  current: Player[],
+  side: Record<string, unknown> | null,
+  teams: Record<string, unknown>[],
+  scoringPeriodId?: number
+): Player[] => {
+  if (current.some((player) => player.nflTeam)) return current
+  const live = side ? rosterEntries(side, []) : []
+  const fromLive = countableSlotStarters(live, scoringPeriodId)
+  if (fromLive.length > 0) return fromLive
+  const teamId = side ? num(side.teamId) : undefined
+  return countableSlotStarters(teamRosterEntries(teams, teamId), scoringPeriodId)
+}
+
 /**
  * Every game in one ESPN week payload, plus a bye for each team the schedule
  * does not pair. Cookies are not used to pick a side — `myTeamId` only marks
@@ -1808,6 +1856,8 @@ export const toEspnLeaguePairs = (args: {
   )
   if (schedule.length === 0) return []
   const ticker = args.ticker ?? []
+  const teams = espnTeamsFromPayload(payload)
+  const periodId = period.scoringPeriodIds[0]
   const seen = new Set<number>()
   const pairs: LeaguePair[] = []
   for (const game of schedule) {
@@ -1828,12 +1878,20 @@ export const toEspnLeaguePairs = (args: {
       matchupPeriod: period
     })
     if (!matchup) continue
+    const mineSide = focus === homeId ? home : away
+    const oppSide = focus === homeId ? away : home
+    const starters = leagueSideStarters(matchup.starters, mineSide, teams, periodId)
+    const oppStarters = leagueSideStarters(matchup.oppStarters, oppSide, teams, periodId)
+    const lined =
+      starters === matchup.starters && oppStarters === matchup.oppStarters
+        ? matchup
+        : { ...matchup, starters, oppStarters }
     pairs.push({
       id: `${homeId ?? 'x'}-${awayId ?? 'x'}`,
       mine: userInGame,
-      matchup,
-      left: startersStillToPlay(matchup.starters, ticker, args.slate),
-      oppLeft: startersStillToPlay(matchup.oppStarters, ticker, args.slate)
+      matchup: lined,
+      left: startersStillToPlay(lined.starters, ticker, args.slate),
+      oppLeft: startersStillToPlay(lined.oppStarters, ticker, args.slate)
     })
   }
   const members = membersOf(payload)

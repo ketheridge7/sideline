@@ -117,4 +117,24 @@ describe('BoardRails', () => {
     expect(html).toContain('Empty')
     expect(html).not.toContain('overflow-x-auto')
   })
+
+  it('left-aligns the left STARTERS header even when that rail is not lime', () => {
+    const html = renderToStaticMarkup(
+      <BoardRails
+        emphasizeMine={false}
+        oppMissing
+        mine={[player({ playerId: 'jones', name: 'Aaron Jones', position: 'RB', points: 21.4 })]}
+        opp={[]}
+      />
+    )
+    const headers = [...html.matchAll(/<h2 class="([^"]*)">Starters<\/h2>/g)].map((match) => match[1])
+    expect(headers).toEqual([
+      'mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-them',
+      'mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them'
+    ])
+    expect(html.indexOf('data-lineup-col="pos"')).toBeLessThan(html.indexOf('data-lineup-col="name"'))
+    expect(html.indexOf('data-lineup-col="name"')).toBeLessThan(html.indexOf('data-lineup-col="pts"'))
+    expect(html).toContain('Aaron Jones')
+    expect(html).toContain('data-bench-foot="opp"')
+  })
 })

@@ -104,4 +104,104 @@ describe('toEspnLeaguePairs', () => {
     expect(mine?.left).toBe(0)
     expect(mine?.oppLeft).toBe(0)
   })
+
+  it('counts starters still to play from mRoster when mMatchupScore rows have no pro team', () => {
+    const slot = (lineupSlotId: number, name: string, proTeamId: number) => ({
+      lineupSlotId,
+      playerId: proTeamId * 10 + lineupSlotId,
+      playerPoolEntry: { player: { fullName: name, defaultPositionId: 1, proTeamId } }
+    })
+    const statsOnly = (lineupSlotId: number) => ({
+      lineupSlotId,
+      playerPoolEntry: { player: { stats: [{ statSourceId: 1, statSplitTypeId: 1, appliedTotal: 4 }] } }
+    })
+    const body = {
+      scoringPeriodId: 1,
+      teams: [
+        {
+          id: 1,
+          name: 'Alpha',
+          roster: {
+            entries: [
+              slot(0, 'Alpha QB', 6),
+              slot(20, 'Alpha Bench', 12),
+              slot(21, 'Alpha IR', 12)
+            ]
+          }
+        },
+        {
+          id: 2,
+          name: 'Bravo',
+          roster: {
+            entries: [slot(0, 'Bravo QB', 12), slot(2, 'Bravo RB', 6), slot(20, 'Bravo Bench', 22)]
+          }
+        }
+      ],
+      schedule: [
+        {
+          matchupPeriodId: 1,
+          home: {
+            teamId: 1,
+            totalPointsLive: 10,
+            rosterForCurrentScoringPeriod: { entries: [statsOnly(0), statsOnly(20)] }
+          },
+          away: {
+            teamId: 2,
+            totalPointsLive: 8,
+            rosterForCurrentScoringPeriod: { entries: [statsOnly(0), statsOnly(2)] }
+          }
+        }
+      ]
+    }
+    const pairs = toEspnLeaguePairs({ payload: body, displayWeek: 1, myTeamId: 1, ticker })
+    const mine = pairs.find((pair) => pair.mine)
+    expect(mine?.matchup.starters.map((player) => player.nflTeam)).toEqual(['DAL'])
+    expect(mine?.matchup.oppStarters.map((player) => player.nflTeam)).toEqual(['KC', 'DAL'])
+    expect(mine?.left).toBe(0)
+    expect(mine?.oppLeft).toBe(1)
+    const hud = toEspnMatchup({ payload: body, cookies, displayWeek: 1, myTeamId: 1 })
+    expect(hud?.starters).toEqual([])
+    expect(hud?.oppStarters).toEqual([])
+  })
+
+  it('counts a stats-only starter slot when that row already has a pro team', () => {
+    const pairs = toEspnLeaguePairs({
+      payload: {
+        scoringPeriodId: 1,
+        teams: [
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Bravo' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: {
+              teamId: 1,
+              totalPointsLive: 0,
+              rosterForCurrentScoringPeriod: {
+                entries: [
+                  { lineupSlotId: 0, playerPoolEntry: { player: { proTeamId: 12 } } },
+                  { lineupSlotId: 21, playerPoolEntry: { player: { proTeamId: 6 } } }
+                ]
+              }
+            },
+            away: {
+              teamId: 2,
+              totalPointsLive: 0,
+              rosterForCurrentScoringPeriod: {
+                entries: [{ lineupSlotId: 2, playerPoolEntry: { player: { proTeamId: 6 } } }]
+              }
+            }
+          }
+        ]
+      },
+      displayWeek: 1,
+      myTeamId: 1,
+      ticker
+    })
+    const mine = pairs.find((pair) => pair.mine)
+    expect(mine?.matchup.starters).toHaveLength(1)
+    expect(mine?.left).toBe(1)
+    expect(mine?.oppLeft).toBe(0)
+  })
 })
