@@ -1,10 +1,19 @@
 import type { JSX } from 'react'
 import type { TapeEvent } from '@shared/types'
+import { isRosterTapeEvent } from '@shared/tape'
 import { formatDelta } from '../shared/format'
 
 const clock = (at: number): string => {
   if (!at) return '—'
   return new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+/** Waiver and free-agent rows can be days old. Plays stay on the clock. */
+const stamp = (event: TapeEvent): string => {
+  const time = clock(event.at)
+  if (!event.at || !isRosterTapeEvent(event)) return time
+  const date = new Date(event.at).toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return `${date} · ${time}`
 }
 
 const kindBadge = (event: TapeEvent): { label: string; className: string } => {
@@ -46,7 +55,7 @@ export const ScoringTape = ({ events }: { events: TapeEvent[] }): JSX.Element =>
             return (
               <div key={event.id} className="border-b border-line px-3 py-2">
                 <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-muted">
-                  <span>{clock(event.at)}</span>
+                  <span>{stamp(event)}</span>
                   {event.leagueName ? <span className="truncate">{event.leagueName}</span> : null}
                 </div>
                 <div className="mt-0.5 flex items-baseline gap-2">
