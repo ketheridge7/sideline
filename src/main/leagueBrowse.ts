@@ -19,6 +19,13 @@ import { HttpBackoffError, HttpError } from './http'
 
 export type LeagueBrowseKind = 'boxscore' | 'compact'
 
+/** Replay-only board fixture for visual checks. Unset during a normal replay. */
+const replayBoardFixture = (): 'loading' | 'error' | null => {
+  const raw = process.env.SIDELINE_REPLAY_BOARD
+  if (raw === 'loading' || raw === 'error') return raw
+  return null
+}
+
 export type LeagueBrowseContext = {
   leagueKey: string
   leagueName: string
@@ -421,6 +428,20 @@ const pump = async (token: number): Promise<void> => {
   }
   noteSwitch(ctx)
   if (ctx.replay) {
+    const fixture = replayBoardFixture()
+    if (fixture === 'loading') {
+      emit({ ...baseSnap(ctx, 'loading'), pairs: [], updatedAt: null })
+      return
+    }
+    if (fixture === 'error') {
+      emit({
+        ...baseSnap(ctx, 'error'),
+        pairs: host.replayPairs(ctx.leagueKey),
+        updatedAt: host.now(),
+        error: 'League scores are paused after a rate limit. Your matchup is unchanged.'
+      })
+      return
+    }
     emit({
       ...baseSnap(ctx, 'ready'),
       pairs: host.replayPairs(ctx.leagueKey),

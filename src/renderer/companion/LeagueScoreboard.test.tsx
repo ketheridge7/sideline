@@ -81,10 +81,23 @@ describe('LeagueScoreboard', () => {
     expect(html).toContain('Ice Box')
     expect(html).toContain('Hash Marks')
     expect(html).toContain('data-league-bye="true"')
+    expect(html).toContain('bg-card')
     expect(html).toContain('BYE')
     expect(html).toContain('4 left')
     expect(html).toContain('data-live-dot="true"')
     expect(html).toContain('The overlay stays on yours.')
+  })
+
+  it('dashes a bye detail instead of scoring the missing side as 0.0', () => {
+    const html = renderToStaticMarkup(
+      <LeagueScoreboard board={board()} onMine={() => undefined} initialScan={{ view: 'detail', index: 2 }} />
+    )
+    expect(html).toContain('data-hud-score="bye"')
+    expect(html).toContain('—')
+    expect(html).toContain('BYE')
+    expect(html).toContain('>12.0<')
+    expect(html).not.toContain('>0.0<')
+    expect(html).not.toContain('Win% pending')
   })
 
   it('opens a pairing with All matchups and no read-only label', () => {

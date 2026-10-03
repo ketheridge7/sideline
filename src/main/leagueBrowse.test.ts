@@ -157,6 +157,7 @@ describe('league browse isolation', () => {
   })
 
   afterEach(() => {
+    delete process.env.SIDELINE_REPLAY_BOARD
     resetLeagueBrowse()
   })
 
@@ -304,5 +305,26 @@ describe('league browse isolation', () => {
     await leagueBrowseSettled()
     expect(fetches).toEqual([])
     expect(published.at(-1)?.pairs[0]?.id).toBe('replay')
+  })
+
+  it('can hold a replay board on a loading skeleton or an error banner', async () => {
+    ctx = { ...ctx, replay: true }
+    process.env.SIDELINE_REPLAY_BOARD = 'loading'
+    setLeagueBrowseVisible(true)
+    setLeagueBrowseOpen(true)
+    await leagueBrowseSettled()
+    expect(published.at(-1)?.status).toBe('loading')
+    expect(published.at(-1)?.pairs).toEqual([])
+
+    resetLeagueBrowse()
+    published = []
+    process.env.SIDELINE_REPLAY_BOARD = 'error'
+    setLeagueBrowseVisible(true)
+    setLeagueBrowseOpen(true)
+    await leagueBrowseSettled()
+    expect(published.at(-1)?.status).toBe('error')
+    expect(published.at(-1)?.error).toContain('rate limit')
+    expect(published.at(-1)?.pairs[0]?.id).toBe('replay')
+    delete process.env.SIDELINE_REPLAY_BOARD
   })
 })

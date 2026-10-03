@@ -94,8 +94,8 @@ const PairRow = ({
       data-league-pair={pair.id}
       data-league-bye={bye ? 'true' : 'false'}
       data-league-mine={pair.mine ? 'true' : 'false'}
-      className={`relative w-full cursor-pointer border-b border-line px-5 py-3 text-left ${
-        selected ? 'bg-bg' : 'hover:bg-white/[0.03]'
+      className={`relative w-full cursor-pointer border-b border-line px-5 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-you ${
+        selected ? 'bg-card' : 'hover:bg-white/[0.03]'
       }`}
     >
       {selected ? <span className="absolute inset-y-0 left-0 w-0.5 bg-you" aria-hidden="true" /> : null}
@@ -235,6 +235,7 @@ export const LeagueScoreboard = ({
           matchup={selected.matchup}
           showOwners={board?.provider !== 'sleeper'}
           neutralSides={!selected.mine}
+          dashBye={bye}
         />
         <BoardRails
           mine={selected.matchup.starters}
@@ -267,7 +268,12 @@ export const LeagueScoreboard = ({
           </p>
         )
       ) : (
-        <div ref={listRef} className="min-h-0 flex-1 overflow-auto" role="listbox" aria-label="League matchups">
+        <div
+          ref={listRef}
+          className="league-scroll min-h-0 flex-1 overflow-auto"
+          role="listbox"
+          aria-label="League matchups"
+        >
           {pairs.map((pair, index) => (
             <PairRow
               key={pair.id}
