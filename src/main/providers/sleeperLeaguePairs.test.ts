@@ -424,17 +424,41 @@ describe('toSleeperLeaguePairs', () => {
       true
     )
 
+    const unprojected = new Set(gucci.unprojected)
     const doubtful = toMatchup({ ...base, focusRosterId: 10 })
     expect(doubtful?.myTeam.name).toBe('Jtgonzo9')
     expect(doubtful?.starters.some((player) => player.playerId === '5927' && player.points === 0)).toBe(true)
     expect(applySleeperWinEstimate(doubtful!, gucci.projections).myWinPct).toBeUndefined()
+    const hudZero = applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), undefined, unprojected)
+    expect(hudZero.myWinPct).toEqual(expect.any(Number))
+    expect(hudZero.myProjectedPoints).toEqual(expect.any(Number))
+    const scored = applySleeperWinEstimate(
+      {
+        ...doubtful!,
+        myPoints: doubtful!.myPoints + 12.4,
+        starters: doubtful!.starters.map((player) =>
+          player.playerId === '5927' ? { ...player, points: 12.4 } : player
+        )
+      },
+      gucci.projections,
+      new Set(),
+      undefined,
+      unprojected
+    )
+    expect(scored.myProjectedPoints).toBeCloseTo((hudZero.myProjectedPoints ?? 0) + 12.4)
+
+    const absent = new Set([...unprojected].filter((id) => id !== '5927'))
+    expect(applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), undefined, absent).myWinPct).toBeUndefined()
     expect(
-      applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), new Set(), new Set(gucci.unprojected)).myWinPct
+      applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), new Set(['WAS']), absent).myWinPct
     ).toEqual(expect.any(Number))
 
     const ir = toMatchup({ ...base, focusRosterId: 2 })
     expect(ir?.myTeam.name).toBe('Tanner0731')
     expect(ir?.starters.some((player) => player.playerId === '13286' && player.nflTeam === 'SEA')).toBe(true)
     expect(applySleeperWinEstimate(ir!, gucci.projections).myWinPct).toBeUndefined()
+    expect(applySleeperWinEstimate(ir!, gucci.projections, new Set(), undefined, unprojected).myWinPct).toEqual(
+      expect.any(Number)
+    )
   })
 })

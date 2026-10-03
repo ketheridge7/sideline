@@ -787,8 +787,8 @@ const consumeProjection = (file: WeekProjectionFile, id: unknown, row: unknown):
 /**
  * Weekly projection file.
  * Scoring rows keep pts_ppr / pts_half_ppr / pts_std.
- * A key with no scoring column stays in `unprojected` so League can count it
- * as 0. `parseWeekProjections` still returns only the scoring rows.
+ * A key with no scoring column stays in `unprojected` so League and the HUD
+ * can count it as 0. `parseWeekProjections` still returns only the scoring rows.
  */
 export const parseWeekProjectionFile = (raw: unknown): WeekProjectionFile => {
   const file: WeekProjectionFile = { players: {}, unprojected: [] }

@@ -253,6 +253,18 @@ describe('replayWorld (Sunday-real spec)', () => {
       const after = replayLeaguePairs(featured, 0)
       expect(after).toHaveLength(6)
       expect(after.every((pair) => matchupChanceToWin(pair.matchup) != null)).toBe(true)
+      const hud = replayMatchupFor(featured, 0)
+      expect(hud?.starters.some((player) => player.name === 'Terry McLaurin' && player.points === 0)).toBe(true)
+      expect(matchupChanceToWin(hud!)).not.toBeNull()
+      expect(hud?.myProjectedPoints).toEqual(expect.any(Number))
+    } finally {
+      delete process.env.SIDELINE_REPLAY_BOARD
+    }
+    process.env.SIDELINE_REPLAY_BOARD = 'gucci-before'
+    try {
+      const pending = replayMatchupFor(featured, 0)
+      expect(pending?.starters.some((player) => player.playerId === '5927')).toBe(true)
+      expect(matchupChanceToWin(pending!)).toBeNull()
     } finally {
       delete process.env.SIDELINE_REPLAY_BOARD
     }
