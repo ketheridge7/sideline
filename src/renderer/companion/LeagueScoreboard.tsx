@@ -90,6 +90,7 @@ const PairRow = ({
   onOpen: () => void
 }): JSX.Element => {
   const bye = !pair.matchup.oppTeam
+  const pod = pair.pod ?? []
   const live = pollingLive && !bye && !pair.matchup.scoresFinal
   const chance = matchupChanceToWin(pair.matchup)
   return (
@@ -100,6 +101,7 @@ const PairRow = ({
       onClick={onOpen}
       data-league-pair={pair.id}
       data-league-bye={bye ? 'true' : 'false'}
+      data-league-pod={pod.length > 0 ? 'true' : 'false'}
       data-league-mine={pair.mine ? 'true' : 'false'}
       className={`relative w-full cursor-pointer border-b border-line px-5 py-3 text-left ${
         selected ? 'bg-card' : 'hover:bg-white/[0.03]'
@@ -110,7 +112,9 @@ const PairRow = ({
         {pair.mine ? (
           <span className="font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-lime">Mine</span>
         ) : (
-          <span className="font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-muted">Matchup</span>
+          <span className="font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+            {pod.length > 0 ? 'Group' : 'Matchup'}
+          </span>
         )}
         {live ? (
           <span className="inline-flex items-center gap-1 font-cond text-[10px] font-bold uppercase tracking-[0.16em] text-lime" data-live-dot="true">
@@ -136,6 +140,12 @@ const PairRow = ({
           <LeftCount count={pair.oppLeft} starters={pair.matchup.oppStarters.length} />
         </div>
       </div>
+      {pod.map((side) => (
+        <div key={side.team.id} className="mt-2 flex items-center justify-between gap-3" data-league-pod-team={side.team.id}>
+          <div className="min-w-0 truncate text-[13px] font-medium text-text">{side.team.name}</div>
+          <ScoreSlot value={formatScore(side.points)} />
+        </div>
+      ))}
       {bye ? null : (
         <div className="mt-3">
           <LeadBar
@@ -242,6 +252,12 @@ export const LeagueScoreboard = ({
           neutralSides={!selected.mine}
           dashBye={bye}
         />
+        {selected.pod && selected.pod.length > 0 ? (
+          <p className="px-6 pb-2 text-center text-[11px] uppercase tracking-[0.16em] text-muted" data-league-pod="true">
+            Also in this matchup:{' '}
+            {selected.pod.map((side) => `${side.team.name} ${formatScore(side.points)}`).join(' · ')}
+          </p>
+        ) : null}
         <BoardRails
           mine={selected.matchup.starters}
           opp={selected.matchup.oppStarters}

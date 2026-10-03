@@ -114,4 +114,180 @@ describe('toSleeperLeaguePairs', () => {
     expect(orphan?.oppLeft).toBe(1)
     expect(orphan?.matchup.winPctSource).toBe('estimated')
   })
+
+  const club = (
+    rosterId: number,
+    ownerId: string | null,
+    name: string,
+    playerId: string
+  ): { roster: SleeperRoster; user: SleeperLeagueUser | null; player: CachedPlayer } => ({
+    roster: { roster_id: rosterId, owner_id: ownerId, settings: { wins: 1, losses: 0 } },
+    user: ownerId ? { user_id: ownerId, display_name: name, metadata: { team_name: name } } : null,
+    player: { name: `${name} QB`, position: 'QB', nflTeam: 'KC' }
+  })
+
+  it('pairs the two real clubs when a synthetic median shares the matchup id, in any order', () => {
+    const alpha = club(1, 'u1', 'Alpha', '10')
+    const bravo = club(2, 'u2', 'Bravo', '20')
+    const median = {
+      roster_id: 99,
+      matchup_id: 1,
+      points: 70,
+      starters: [] as string[],
+      players: [] as string[]
+    }
+    const alphaRow = {
+      roster_id: 1,
+      matchup_id: 1,
+      points: 10,
+      starters: ['10'],
+      players: ['10'],
+      players_points: { '10': 10 }
+    }
+    const bravoRow = {
+      roster_id: 2,
+      matchup_id: 1,
+      points: 8,
+      starters: ['20'],
+      players: ['20'],
+      players_points: { '20': 8 }
+    }
+    const base = {
+      userId: 'u1',
+      rosters: [alpha.roster, bravo.roster],
+      users: [alpha.user, bravo.user].filter((user): user is SleeperLeagueUser => user != null),
+      players: { '10': alpha.player, '20': bravo.player },
+      projections: { '10': 18, '20': 14 }
+    }
+    for (const matchups of [
+      [median, alphaRow, bravoRow],
+      [alphaRow, median, bravoRow],
+      [alphaRow, bravoRow, median]
+    ]) {
+      const pairs = toSleeperLeaguePairs({ ...base, matchups })
+      expect(pairs.map((pair) => pair.id)).toEqual(['m:1'])
+      expect(pairs[0]?.matchup.myTeam.name).toBe('Alpha')
+      expect(pairs[0]?.matchup.oppTeam?.name).toBe('Bravo')
+      expect(pairs[0]?.matchup.myWinPct).toEqual(expect.any(Number))
+      expect(pairs[0]?.pod).toBeUndefined()
+      expect(pairs.some((pair) => pair.id.startsWith('bye'))).toBe(false)
+    }
+    const hud = toMatchup({ ...base, matchups: [median, alphaRow, bravoRow] })
+    expect(hud?.myTeam.name).toBe('Alpha')
+    expect(hud?.oppTeam).toBeNull()
+  })
+
+  it('does not spend the Est. win% bar on an empty median roster that is in the league', () => {
+    const alpha = club(1, 'u1', 'Alpha', '10')
+    const bravo = club(2, 'u2', 'Bravo', '20')
+    const pairs = toSleeperLeaguePairs({
+      userId: 'u1',
+      rosters: [alpha.roster, bravo.roster, { roster_id: 9, owner_id: null, settings: { wins: 0, losses: 0 } }],
+      users: [alpha.user, bravo.user].filter((user): user is SleeperLeagueUser => user != null),
+      players: { '10': alpha.player, '20': bravo.player },
+      projections: { '10': 18, '20': 14 },
+      matchups: [
+        { roster_id: 9, matchup_id: 1, points: 70, starters: [], players: [] },
+        {
+          roster_id: 1,
+          matchup_id: 1,
+          points: 10,
+          starters: ['10'],
+          players: ['10'],
+          players_points: { '10': 10 }
+        },
+        {
+          roster_id: 2,
+          matchup_id: 1,
+          points: 8,
+          starters: ['20'],
+          players: ['20'],
+          players_points: { '20': 8 }
+        }
+      ]
+    })
+    expect(pairs.map((pair) => pair.id)).toEqual(['m:1'])
+    expect(pairs[0]?.matchup.oppTeam?.name).toBe('Bravo')
+    expect(pairs[0]?.matchup.myWinPct).toEqual(expect.any(Number))
+    expect(pairs[0]?.pod?.map((side) => side.team.name)).toEqual(['Roster 9'])
+    expect(pairs.some((pair) => pair.id.startsWith('bye'))).toBe(false)
+  })
+
+  it('keeps a third real club on the matchup instead of painting a bye', () => {
+    const alpha = club(1, 'u1', 'Alpha', '10')
+    const bravo = club(2, 'u2', 'Bravo', '20')
+    const charlie = club(3, 'u3', 'Charlie', '30')
+    const row = (rosterId: number, playerId: string, points: number) => ({
+      roster_id: rosterId,
+      matchup_id: 4,
+      points,
+      starters: [playerId],
+      players: [playerId],
+      players_points: { [playerId]: points }
+    })
+    const pairs = toSleeperLeaguePairs({
+      userId: 'u1',
+      rosters: [alpha.roster, bravo.roster, charlie.roster],
+      users: [alpha.user, bravo.user, charlie.user].filter((user): user is SleeperLeagueUser => user != null),
+      players: { '10': alpha.player, '20': bravo.player, '30': charlie.player },
+      projections: { '10': 18, '20': 14, '30': 16 },
+      matchups: [row(3, '30', 4), row(1, '10', 9), row(2, '20', 7)]
+    })
+    expect(pairs.map((pair) => pair.id)).toEqual(['m:4'])
+    expect(pairs[0]?.matchup.myTeam.name).toBe('Alpha')
+    expect(pairs[0]?.matchup.oppTeam?.name).toBe('Bravo')
+    expect(pairs[0]?.pod?.map((side) => side.team.name)).toEqual(['Charlie'])
+    expect(pairs[0]?.pod?.[0]?.points).toBe(4)
+    expect(pairs[0]?.matchup.myWinPct).toEqual(expect.any(Number))
+    expect(pairs.some((pair) => pair.matchup.oppTeam == null)).toBe(false)
+  })
+
+  it('fills Est. win% for every head-to-head that has projections, including a zero, and stays pending when one starter is missing', () => {
+    const alpha = club(1, 'u1', 'Alpha', '10')
+    const bravo = club(2, 'u2', 'Bravo', '20')
+    const charlie = club(3, 'u3', 'Charlie', '30')
+    const delta = club(4, 'u4', 'Delta', '40')
+    const echo = club(5, 'u5', 'Echo', '50')
+    const foxtrot = club(6, 'u6', 'Foxtrot', '60')
+    const row = (rosterId: number, matchupId: number, playerId: string) => ({
+      roster_id: rosterId,
+      matchup_id: matchupId,
+      points: 0,
+      starters: [playerId],
+      players: [playerId],
+      players_points: { [playerId]: 0 }
+    })
+    const pairs = toSleeperLeaguePairs({
+      userId: 'u1',
+      rosters: [alpha, bravo, charlie, delta, echo, foxtrot].map((side) => side.roster),
+      users: [alpha, bravo, charlie, delta, echo, foxtrot]
+        .map((side) => side.user)
+        .filter((user): user is SleeperLeagueUser => user != null),
+      players: {
+        '10': alpha.player,
+        '20': bravo.player,
+        '30': charlie.player,
+        '40': delta.player,
+        '50': echo.player,
+        '60': foxtrot.player
+      },
+      projections: { '10': 18, '20': 0, '30': 12, '40': 11, '50': 15 },
+      matchups: [
+        row(1, 1, '10'),
+        row(2, 1, '20'),
+        row(3, 2, '30'),
+        row(4, 2, '40'),
+        row(5, 3, '50'),
+        row(6, 3, '60')
+      ]
+    })
+    const byId = new Map(pairs.map((pair) => [pair.id, pair]))
+    expect(byId.get('m:1')?.matchup.myWinPct).toEqual(expect.any(Number))
+    expect(byId.get('m:1')?.matchup.myProjectedPoints).toBe(18)
+    expect(byId.get('m:1')?.matchup.oppProjectedPoints).toBe(0)
+    expect(byId.get('m:2')?.matchup.myWinPct).toEqual(expect.any(Number))
+    expect(byId.get('m:3')?.matchup.winPctSource).toBe('estimated')
+    expect(byId.get('m:3')?.matchup.myWinPct).toBeUndefined()
+    expect(byId.get('m:3')?.matchup.myProjectedPoints).toBeUndefined()
+  })
 })

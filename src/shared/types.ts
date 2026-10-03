@@ -128,6 +128,12 @@ export type Matchup = {
   scoresFinal?: boolean
 }
 
+/** Another club on the same Sleeper matchup. Shown with the pair, never as a bye. */
+export type LeaguePodSide = {
+  team: Team
+  points: number
+}
+
 /** One pairing inside a league. Not the HUD matchup. */
 export type LeaguePair = {
   id: string
@@ -137,6 +143,11 @@ export type LeaguePair = {
   /** Starters whose NFL game is not final yet. */
   left: number
   oppLeft: number
+  /**
+   * Extra clubs that share this matchup id (a median week or any 3+ group).
+   * Absent for a normal head-to-head.
+   */
+  pod?: LeaguePodSide[]
 }
 
 export type LeagueBoardStatus = 'loading' | 'ready' | 'error'

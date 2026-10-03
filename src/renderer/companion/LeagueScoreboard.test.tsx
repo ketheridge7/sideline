@@ -136,4 +136,28 @@ describe('LeagueScoreboard', () => {
     const official = renderToStaticMarkup(<LeagueScoreboard board={board()} onMine={() => undefined} />)
     expect(official).not.toContain('Est. win%')
   })
+
+  it('keeps a third club on the row with an Est. win% bar', () => {
+    const snapshot = board()
+    const group = snapshot.pairs[1]
+    if (!group) throw new Error('missing pair')
+    snapshot.pairs[1] = {
+      ...group,
+      matchup: { ...group.matchup, winPctSource: 'estimated' },
+      pod: [{ team: { id: 'median', name: 'League Median', owner: 'Median', record: '—' }, points: 81.5 }]
+    }
+    const html = renderToStaticMarkup(<LeagueScoreboard board={snapshot} onMine={() => undefined} />)
+    const row = html.split('data-league-pair="other"')[1]?.split('data-league-pair=')[0] ?? ''
+    expect(row).toContain('data-league-pod="true"')
+    expect(row).toContain('League Median')
+    expect(row).toContain('Group')
+    expect(row).toContain('data-hud-win-pct-fill="mine"')
+    expect(row).not.toContain('>BYE<')
+    const detail = renderToStaticMarkup(
+      <LeagueScoreboard board={snapshot} onMine={() => undefined} initialScan={{ view: 'detail', index: 1 }} />
+    )
+    expect(detail).toContain('data-league-pod="true"')
+    expect(detail).toContain('Also in this matchup')
+    expect(detail).toContain('League Median')
+  })
 })
