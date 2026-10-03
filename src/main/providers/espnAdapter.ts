@@ -1,7 +1,7 @@
 import { matchupHasLineup, overlayStartersBelong, visibleInjury } from '@shared/display'
-import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
+import type { League, LeaguePair, Matchup, NflTickerGame, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
-import { asWinProbability } from '@shared/winPct'
+import { asWinProbability, startersStillToPlay } from '@shared/winPct'
 import type { EspnCookies } from './espnClient'
 
 export const BENCH_SLOT_IDS = new Set([20, 21])
@@ -1748,6 +1748,89 @@ export const toEspnMatchup = (args: {
     mySide,
     oppSide
   )
+}
+
+const LEAGUE_BROWSE_COOKIES: EspnCookies = {
+  espn_s2: 'league-browse',
+  SWID: '{league-browse}'
+}
+
+/**
+ * Every game in one ESPN week payload, plus a bye for each team the schedule
+ * does not pair. Cookies are not used to pick a side — `myTeamId` only marks
+ * the signed-in pairing — so a week-wide body cannot rewrite every game onto
+ * the HUD team.
+ */
+export const toEspnLeaguePairs = (args: {
+  payload: unknown
+  displayWeek: number
+  myTeamId?: number
+  matchupPeriod?: EspnMatchupPeriod
+  ticker?: readonly NflTickerGame[]
+}): LeaguePair[] => {
+  const payload = unwrapEspnPayload(args.payload, hasEspnLeagueShape)
+  if (!payload) return []
+  if (espnLivePayloadIsStub(payload)) return []
+  const period =
+    args.matchupPeriod ??
+    espnMatchupPeriodFor(null, args.displayWeek > 0 ? args.displayWeek : scoringPeriodFromStatus(payload, args.displayWeek))
+  const schedule = payloadSchedule(payload).filter(
+    (row) => scheduleRowInPeriod(row, period) && scheduleGameHasSides(row)
+  )
+  if (schedule.length === 0) return []
+  const ticker = args.ticker ?? []
+  const seen = new Set<number>()
+  const pairs: LeaguePair[] = []
+  for (const game of schedule) {
+    const home = isRecord(game.home) ? game.home : null
+    const away = isRecord(game.away) ? game.away : null
+    const homeId = scheduleSideId(home)
+    const awayId = scheduleSideId(away)
+    if (homeId != null) seen.add(homeId)
+    if (awayId != null) seen.add(awayId)
+    const userInGame = args.myTeamId != null && (args.myTeamId === homeId || args.myTeamId === awayId)
+    const focus = userInGame ? args.myTeamId : homeId ?? awayId
+    if (focus == null) continue
+    const matchup = toEspnMatchup({
+      payload: { ...payload, schedule: [game] },
+      cookies: LEAGUE_BROWSE_COOKIES,
+      displayWeek: args.displayWeek,
+      myTeamId: focus,
+      matchupPeriod: period
+    })
+    if (!matchup) continue
+    pairs.push({
+      id: `${homeId ?? 'x'}-${awayId ?? 'x'}`,
+      mine: userInGame,
+      matchup,
+      left: startersStillToPlay(matchup.starters, ticker),
+      oppLeft: startersStillToPlay(matchup.oppStarters, ticker)
+    })
+  }
+  const members = membersOf(payload)
+  for (const team of espnTeamsFromPayload(payload)) {
+    const id = num(team.id)
+    if (id == null || seen.has(id)) continue
+    const bye: Matchup = {
+      myTeam: toTeam(team, members),
+      oppTeam: null,
+      myPoints: 0,
+      oppPoints: 0,
+      starters: [],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+    pairs.push({
+      id: `bye-${id}`,
+      mine: id === args.myTeamId,
+      matchup: bye,
+      left: 0,
+      oppLeft: 0
+    })
+  }
+  pairs.sort((a, b) => Number(b.mine) - Number(a.mine) || a.id.localeCompare(b.id))
+  return pairs
 }
 
 /** True when a boxscore payload has starter identity (playerId + name + position), not stats-only mMatchupScore rows. */

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, LeagueBoardSnapshot, OverlayHudState, ToastPayload } from '@shared/types'
 import { resolveSupportUrl } from '@shared/support'
 import type { UpdateSnapshot } from '@shared/updater'
 import type { SidelineApi } from './index.d'
@@ -27,6 +27,12 @@ const api: SidelineApi = {
     ipcRenderer.on('sideline:live', listener)
     return () => ipcRenderer.removeListener('sideline:live', listener)
   },
+  onLeagueBoard: (cb) => {
+    const listener = (_event: unknown, snapshot: LeagueBoardSnapshot): void => cb(snapshot)
+    ipcRenderer.on('sideline:leagueBoard', listener)
+    return () => ipcRenderer.removeListener('sideline:leagueBoard', listener)
+  },
+  setLeagueBrowse: (args) => ipcRenderer.invoke('sideline:setLeagueBrowse', args),
   onHud: (cb) => {
     const listener = (_event: unknown, hud: OverlayHudState): void => cb(hud)
     ipcRenderer.on('sideline:hud', listener)

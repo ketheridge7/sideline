@@ -1,5 +1,6 @@
 import { app, ipcMain } from 'electron'
 import { applyOverlayLayout, applyLanOverlay, addEspnLeagueId, completeEspnSignIn, connectSleeper, currentState, disconnectEspn, disconnectSleeper, listDiscoverableLeagues, refresh, removeEspnLeagueId, removeSleeperLeagueId, setOverlayVisible, setSelectedLeagueIds } from './poller'
+import { setLeagueBrowseOpen } from './leagueBrowse'
 import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
@@ -93,6 +94,12 @@ export const registerIpc = (): void => {
   ipcMain.handle('sideline:selectLeague', async (_event, key: string | null) => {
     saveSettings({ selectedLeagueKey: key })
     await refresh({ forceLineup: true })
+  })
+  ipcMain.handle('sideline:setLeagueBrowse', (_event, args: unknown) => {
+    const open = Boolean(
+      args && typeof args === 'object' && 'open' in args ? (args as { open?: unknown }).open : args
+    )
+    setLeagueBrowseOpen(open)
   })
   ipcMain.handle('sideline:toggleOverlay', () => {
     const visible = toggleOverlay()

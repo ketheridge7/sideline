@@ -128,6 +128,37 @@ export type Matchup = {
   scoresFinal?: boolean
 }
 
+/** One pairing inside a league. Not the HUD matchup. */
+export type LeaguePair = {
+  id: string
+  /** The signed-in manager's pairing. Pinned to the top of the list. */
+  mine: boolean
+  matchup: Matchup
+  /** Starters whose NFL game is not final yet. */
+  left: number
+  oppLeft: number
+}
+
+export type LeagueBoardStatus = 'loading' | 'ready' | 'error'
+
+/**
+ * League-wide scoreboard for the companion League view.
+ * Never part of AppState, and never sent on the HUD / overlay channels.
+ */
+export type LeagueBoardSnapshot = {
+  leagueKey: string
+  leagueName: string
+  provider: Provider
+  week: number
+  status: LeagueBoardStatus
+  pairs: LeaguePair[]
+  updatedAt: number | null
+  error?: string
+  /** Private ESPN miss. The companion shows the existing sign-in banner. */
+  needsSignIn?: boolean
+  pollingLive: boolean
+}
+
 export type Transaction = {
   id: string
   type: TransactionKind

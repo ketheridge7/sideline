@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, OverlayHudState, ToastPayload } from '@shared/types'
+import type { AppState, CompanionBoardsPatch, CompanionHudPatch, CompanionTick, LeagueBoardSnapshot, OverlayHudState, ToastPayload } from '@shared/types'
 import type { UpdateSnapshot } from '@shared/updater'
 
 let companion: BrowserWindow | null = null
@@ -63,6 +63,9 @@ export const runtime = {
   },
   sendLive: (patch: CompanionHudPatch) => {
     if (!companion?.isDestroyed()) companion?.webContents.send('sideline:live', patch)
+  },
+  sendLeagueBoard: (snapshot: LeagueBoardSnapshot) => {
+    if (!companion?.isDestroyed()) companion?.webContents.send('sideline:leagueBoard', snapshot)
   },
   sendToast: (toast: ToastPayload) => {
     if (!companion?.isDestroyed()) companion?.webContents.send('sideline:toast', toast)

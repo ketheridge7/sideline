@@ -100,6 +100,21 @@ export const finalNflTeams = (games: readonly NflTickerGame[]): Set<string> => {
   return out
 }
 
+/** Starters still to play: anyone whose NFL team is not final on the ticker. A team that has not kicked off is still left. */
+export const startersStillToPlay = (
+  starters: readonly { nflTeam?: string }[],
+  games: readonly NflTickerGame[]
+): number => {
+  const finals = finalNflTeams(games)
+  let left = 0
+  for (const player of starters) {
+    const key = nflTeamKey(player.nflTeam)
+    if (!key) continue
+    if (!finals.has(key)) left += 1
+  }
+  return left
+}
+
 /**
  * Remaining-aware player final: the actual once that player's NFL game is
  * final, otherwise max(actual, weekly projection). A still-zero actual keeps

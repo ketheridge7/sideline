@@ -1,0 +1,55 @@
+{
+  "userId": "u1",
+  "rosters": [
+    { "roster_id": 1, "owner_id": "u1", "settings": { "wins": 2, "losses": 0 } },
+    { "roster_id": 2, "owner_id": "u2", "settings": { "wins": 1, "losses": 1 } },
+    { "roster_id": 3, "owner_id": "u3", "settings": { "wins": 1, "losses": 1 } },
+    { "roster_id": 4, "owner_id": "u4", "settings": { "wins": 0, "losses": 2 } }
+  ],
+  "users": [
+    { "user_id": "u1", "display_name": "Ada", "metadata": { "team_name": "Alpha" } },
+    { "user_id": "u2", "display_name": "Bo", "metadata": { "team_name": "Bravo" } },
+    { "user_id": "u3", "display_name": "Cam", "metadata": { "team_name": "Charlie" } },
+    { "user_id": "u4", "display_name": "Dee", "metadata": { "team_name": "Delta" } }
+  ],
+  "players": {
+    "10": { "name": "Alpha QB", "position": "QB", "nflTeam": "DAL" },
+    "20": { "name": "Bravo QB", "position": "QB", "nflTeam": "KC" },
+    "30": { "name": "Charlie QB", "position": "QB", "nflTeam": "PHI" },
+    "40": { "name": "Delta QB", "position": "QB", "nflTeam": "BUF" }
+  },
+  "matchups": [
+    {
+      "roster_id": 1,
+      "matchup_id": 1,
+      "points": 90,
+      "starters": ["10"],
+      "players": ["10"],
+      "players_points": { "10": 90 }
+    },
+    {
+      "roster_id": 2,
+      "matchup_id": 1,
+      "points": 80,
+      "starters": ["20"],
+      "players": ["20"],
+      "players_points": { "20": 80 }
+    },
+    {
+      "roster_id": 3,
+      "matchup_id": 2,
+      "points": 70,
+      "starters": ["30"],
+      "players": ["30"],
+      "players_points": { "30": 70 }
+    },
+    {
+      "roster_id": 4,
+      "matchup_id": null,
+      "points": 10,
+      "starters": ["40"],
+      "players": ["40"],
+      "players_points": { "40": 10 }
+    }
+  ]
+}

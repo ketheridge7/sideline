@@ -34,7 +34,7 @@ import {
   type SleeperUser,
   sleeperScoringKind
 } from './providers/sleeperClient'
-import { applyPlayerNames, applySleeperWinEstimate, keepSameMatchupLineup, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, keepSameMatchupLineup, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, toLeagues, toMatchup, toNflState, toSleeperLeaguePairs, toTransactions } from './providers/sleeperAdapter'
 import {
   DISCOVERY_VIEWS,
   EspnHttpError,
@@ -78,6 +78,7 @@ import {
   isReplayMode,
   replayBoardMeta,
   replayEspnLeagues,
+  replayLeaguePairs,
   replayMatchup,
   replayNfl,
   replayNflTicker,
@@ -85,6 +86,7 @@ import {
   replaySleeperLeagues,
   replayTransactions
 } from './providers/replay'
+import { bindLeagueBrowse, espnBrowseFetchArgs, offerSleeperMatchups, pokeLeagueBrowse, resetLeagueBrowse } from './leagueBrowse'
 import { runtime } from './runtime'
 import { backoffNoticePlan, settingsFileNotice, startupErrorNotice, statusErrorPlan } from './notices'
 import { syncLanPowerSave } from './powerSave'
@@ -353,6 +355,11 @@ export const applyHotkeys = (): void => {
 const broadcast = (state: AppState): void => {
   const prev = lastState
   lastState = state
+  try {
+    pokeLeagueBrowse()
+  } catch (error) {
+    console.error('[sideline] league browse league-change check failed', error)
+  }
   syncLanPowerSave(state.lanOverlayEnabled, state.pollingLive)
   const order = broadcastOrderPlan()
   switch (order) {
@@ -1674,6 +1681,20 @@ const sleeperMemoryNames = (): Record<string, CachedPlayer> => {
   }
 }
 
+const trackedSleeperMatchups = (
+  leagueId: string,
+  week: number,
+  opts: Parameters<typeof getMatchups>[2]
+): Promise<SleeperMatchup[]> =>
+  getMatchups(leagueId, week, opts).then((rows) => {
+    try {
+      offerSleeperMatchups(leagueId, week, rows)
+    } catch (error) {
+      console.error('[sideline] league browse handoff failed', error)
+    }
+    return rows
+  })
+
 const heldSleeperMatchups = (
   leagueId: string,
   week: number,
@@ -1695,7 +1716,7 @@ const heldSleeperMatchups = (
     const restJoin = sleeperMatchupsRestJoinHudPlan({ hudHold: hudHold != null })
     switch (restJoin) {
       case 'join':
-        return hudHold?.promise ?? getMatchups(leagueId, week, opts)
+        return hudHold?.promise ?? trackedSleeperMatchups(leagueId, week, opts)
       case 'own':
         break
       default: {
@@ -1713,11 +1734,11 @@ const heldSleeperMatchups = (
   })
   switch (reuse) {
     case 'join':
-      return hold?.promise ?? getMatchups(leagueId, week, opts)
+      return hold?.promise ?? trackedSleeperMatchups(leagueId, week, opts)
     case 'kick': {
       const row: { bust: string; promise: Promise<SleeperMatchup[]>; settled: boolean } = {
         bust,
-        promise: getMatchups(leagueId, week, opts),
+        promise: trackedSleeperMatchups(leagueId, week, opts),
         settled: false
       }
       row.promise = row.promise.finally(() => {
@@ -4469,6 +4490,8 @@ export const resetPollerForTests = (): void => {
   espnDiscoveryError = null
   resetSleeperProjectionsCache()
   resetHostBackoff()
+  resetLeagueBrowse()
+  wireLeagueBrowse()
 }
 
 export const startPoller = (): void => {
@@ -4682,3 +4705,81 @@ export const listDiscoverableLeagues = async (provider: Provider): Promise<Disco
     }
   }
 }
+
+const wireLeagueBrowse = (): void => {
+  bindLeagueBrowse({
+    now: () => Date.now(),
+    context: () => {
+      const key = lastState.selectedLeagueKey
+      const parsed = key ? parseLeagueKey(key) : null
+      const nfl = lastState.nfl ?? (isReplayMode() ? replayNfl() : null)
+      if (!parsed || !key || !nfl) return null
+      const league = lastState.leagues.find((row) => leagueKey(row.provider, row.id) === key)
+      const matchupPeriod =
+        parsed.provider === 'espn'
+          ? espnPeriodFor(parsed.id, nfl)
+          : { matchupPeriodId: nfl.displayWeek, scoringPeriodIds: [nfl.displayWeek] }
+      return {
+        leagueKey: key,
+        leagueName: league?.name ?? parsed.id,
+        provider: parsed.provider,
+        leagueId: parsed.id,
+        season: nfl.leagueSeason,
+        week: nfl.displayWeek,
+        matchupPeriod,
+        pollingLive: lastState.pollingLive,
+        replay: isReplayMode(),
+        ticker: lastState.nflTicker
+      }
+    },
+    publish: (snapshot) => {
+      runtime.sendLeagueBoard(snapshot)
+    },
+    fetchEspn: (args) => {
+      const nfl = lastState.nfl
+      const period = nfl ? espnPeriodFor(args.leagueId, nfl).matchupPeriodId : args.week
+      const planned = espnBrowseFetchArgs(args.kind, period)
+      return fetchLeague({
+        season: args.season,
+        leagueId: args.leagueId,
+        cookies: espnCookieCache?.cookies ?? null,
+        views: [...planned.views],
+        scoringPeriodId: args.week,
+        filter: planned.filter,
+        timeoutMs: planned.timeoutMs,
+        retries: planned.retries,
+        priority: planned.priority
+      })
+    },
+    sleeperBuild: (leagueId, _week, rows) => {
+      if (!sleeperUser) return null
+      const cached = sleeperRosterCache.get(leagueId)
+      if (!cached) return null
+      return toSleeperLeaguePairs({
+        userId: sleeperUser.user_id,
+        rosters: cached.rosters,
+        users: cached.users,
+        matchups: rows,
+        players: peekPlayerMap(),
+        projections: sleeperProjectionPtsFor(leagueId),
+        ticker: lastState.nflTicker
+      })
+    },
+    replayPairs: (key) => {
+      const parsed = parseLeagueKey(key)
+      if (!parsed) return []
+      const league = lastState.leagues.find((row) => leagueKey(row.provider, row.id) === key) ?? {
+        id: parsed.id,
+        provider: parsed.provider,
+        name: parsed.id,
+        season: lastState.nfl?.leagueSeason ?? '',
+        week: lastState.nfl?.displayWeek ?? 0
+      }
+      return replayLeaguePairs(league)
+    },
+    espnTeams: (leagueId) => espnTeamCache.get(leagueId) ?? [],
+    myEspnTeamId: (leagueId) => myEspnTeamId(leagueId, espnCookieCache?.cookies ?? null)
+  })
+}
+
+wireLeagueBrowse()

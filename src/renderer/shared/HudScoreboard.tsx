@@ -7,14 +7,18 @@ import { LeadBar } from './LeadBar'
 export const HudScoreboard = ({
   matchup,
   needsSignIn = false,
-  showOwners = true
+  showOwners = true,
+  neutralSides = false
 }: {
   matchup: Matchup
   needsSignIn?: boolean
   showOwners?: boolean
+  /** Both clubs use the same ink. The signed-in pairing keeps you / them. */
+  neutralSides?: boolean
 }): JSX.Element => {
   const bye = !matchup.oppTeam
   const opponentName = matchup.oppTeam?.name ?? (needsSignIn ? 'Sign in' : 'BYE')
+  const ink = neutralSides ? 'neutral' : 'tone'
   return (
     <div className="px-6 py-5" aria-live="polite">
       <div className="grid grid-cols-[1fr_minmax(7rem,11rem)_1fr] items-end gap-6">
@@ -24,7 +28,7 @@ export const HudScoreboard = ({
               {matchup.myTeam.owner}
             </div>
           ) : null}
-          <HudTeamName name={matchup.myTeam.name} tone="you" surface="board" />
+          <HudTeamName name={matchup.myTeam.name} tone="you" surface="board" ink={ink} />
           <div className="text-xs text-muted">{matchup.myTeam.record}</div>
           <HudTeamScore value={matchup.myPoints} tone="you" surface="board" />
         </div>
@@ -40,7 +44,7 @@ export const HudScoreboard = ({
               {matchup.oppTeam.owner}
             </div>
           ) : null}
-          <HudTeamName name={opponentName} tone="them" surface="board" muted={bye} />
+          <HudTeamName name={opponentName} tone="them" surface="board" muted={bye} ink={bye ? 'tone' : ink} />
           <div className="text-xs text-muted">{matchup.oppTeam?.record ?? ''}</div>
           <HudTeamScore value={matchup.oppPoints} tone="them" surface="board" />
         </div>
