@@ -932,25 +932,32 @@ type GucciWeek4File = {
 }
 
 /** Dev-only board: Kevin's week-4 matchups through the real League win% path. */
-const gucciWeek4Pairs = (countUnprojected: boolean): LeaguePair[] => {
-  const file = JSON.parse(
-    readFileSync(join(process.cwd(), 'fixtures/sleeper-gucci-week4.json'), 'utf8')
-  ) as GucciWeek4File
-  return toSleeperLeaguePairs({
-    userId: file.userId,
-    rosters: file.rosters,
-    users: file.users,
-    players: file.players,
-    matchups: file.matchups,
-    projections: file.projections,
-    unprojected: countUnprojected ? new Set(file.unprojected) : null,
-    ticker: file.ticker
-  })
+const gucciWeek4Pairs = (countUnprojected: boolean): LeaguePair[] | null => {
+  try {
+    const file = JSON.parse(
+      readFileSync(join(process.cwd(), 'fixtures/sleeper-gucci-week4.json'), 'utf8')
+    ) as GucciWeek4File
+    return toSleeperLeaguePairs({
+      userId: file.userId,
+      rosters: file.rosters,
+      users: file.users,
+      players: file.players,
+      matchups: file.matchups,
+      projections: file.projections,
+      unprojected: countUnprojected ? new Set(file.unprojected) : null,
+      ticker: file.ticker
+    })
+  } catch {
+    return null
+  }
 }
 
 export const replayLeaguePairs = (league: League, tick: number): LeaguePair[] => {
   const board = process.env.SIDELINE_REPLAY_BOARD
-  if (board === 'gucci' || board === 'gucci-before') return gucciWeek4Pairs(board === 'gucci')
+  if (board === 'gucci' || board === 'gucci-before') {
+    const gucci = gucciWeek4Pairs(board === 'gucci')
+    if (gucci) return gucci
+  }
   const ticker = replayTickerGames(tick)
   const pairs: LeaguePair[] = []
   const mine = replayMatchupFor(league, tick)
