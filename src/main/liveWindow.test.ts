@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createLanPowerController, isLikelyLive, lanPowerSavePlan, nextPollDelayMs, pollIntervalMs } from './liveWindow'
+import { createLanPowerController, isLikelyLive, knownKickoffLive, lanPowerSavePlan, nextPollDelayMs, pollIntervalMs } from './liveWindow'
 
 const et = (isoUtc: string): Date => new Date(isoUtc)
 
@@ -32,6 +32,27 @@ describe('isLikelyLive', () => {
     expect(isLikelyLive(et('2026-09-15T04:30:00Z'), 'regular')).toBe(true)
     expect(isLikelyLive(et('2026-09-15T05:30:00Z'), 'regular')).toBe(true)
     expect(isLikelyLive(et('2026-09-15T06:30:00Z'), 'regular')).toBe(false)
+  })
+
+  it('is idle Thursday morning and Monday afternoon when no kickoff is known', () => {
+    expect(isLikelyLive(et('2026-09-10T14:30:00Z'), 'regular')).toBe(false)
+    expect(isLikelyLive(et('2026-09-14T20:00:00Z'), 'regular')).toBe(false)
+  })
+
+  it('covers a known kickoff only, not the rest of Thursday morning or Monday afternoon', () => {
+    const thursdayMorning = Date.parse('2026-09-10T13:30:00Z')
+    const mondayAfternoon = Date.parse('2026-09-14T20:30:00Z')
+    expect(isLikelyLive(et('2026-09-10T13:20:00Z'), 'regular', [thursdayMorning])).toBe(true)
+    expect(isLikelyLive(et('2026-09-10T13:00:00Z'), 'regular', [thursdayMorning])).toBe(false)
+    expect(isLikelyLive(et('2026-09-10T14:30:00Z'), 'regular', [thursdayMorning])).toBe(true)
+    expect(isLikelyLive(et('2026-09-10T12:00:00Z'), 'regular', [thursdayMorning])).toBe(false)
+    expect(isLikelyLive(et('2026-09-14T20:20:00Z'), 'regular', [mondayAfternoon])).toBe(true)
+    expect(isLikelyLive(et('2026-09-14T19:00:00Z'), 'regular', [mondayAfternoon])).toBe(false)
+    expect(isLikelyLive(et('2026-09-14T20:00:00Z'), 'regular', [thursdayMorning])).toBe(false)
+    expect(isLikelyLive(et('2026-09-10T14:30:00Z'), 'pre', [thursdayMorning])).toBe(false)
+    expect(knownKickoffLive(Date.parse('2026-09-10T13:20:00Z'), thursdayMorning)).toBe(true)
+    expect(knownKickoffLive(Date.parse('2026-09-10T17:30:00Z'), thursdayMorning)).toBe(true)
+    expect(knownKickoffLive(Date.parse('2026-09-10T17:31:00Z'), thursdayMorning)).toBe(false)
   })
 
   it('uses 3s when live and 30s when idle', () => {

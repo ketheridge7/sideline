@@ -720,8 +720,10 @@ export type SleeperScoringKind = 'ppr' | 'half_ppr' | 'std'
 
 /**
  * League scoring kind from `scoring_settings.rec` (points per reception),
- * snapped to the nearest projection column Sleeper publishes. Undefined when
- * the league omits scoring settings.
+ * snapped to the nearest projection column Sleeper publishes (`pts_ppr` /
+ * `pts_half_ppr` / `pts_std`). Undefined when the league omits scoring settings.
+ * Superflex is a roster slot, not a scoring weight, so it stays on this column.
+ * `bonus_rec_te` is not applied: those three columns are all Sleeper publishes.
  */
 export const sleeperScoringKind = (league: Pick<SleeperLeague, 'scoring_settings'>): SleeperScoringKind | undefined => {
   if (!league.scoring_settings) return undefined

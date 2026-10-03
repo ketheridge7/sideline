@@ -11,6 +11,8 @@ import {
   NFL_SCOREBOARD_TIMEOUT_MS,
   nflScoreboardTtlMs,
   nflKickoffSoon,
+  nflEventKickoffs,
+  nflKnownKickoffs,
   nflPreKickoffs,
   nflScoreboardReachable,
   KICKOFF_LATE_MS,
@@ -350,6 +352,33 @@ describe('nflScoreboardState', () => {
     expect(
       nflPreKickoffs({ sports: [{ leagues: [{ events: [{ date: '2026-09-14T00:20Z', status: 'pre' }] }] }] })
     ).toEqual([Date.parse('2026-09-14T00:20Z')])
+    expect(
+      nflEventKickoffs({
+        events: [
+          { date: '2026-09-10T13:30Z', status: { type: { state: 'in' } } },
+          { date: '2026-09-13T17:00Z', status: { type: { state: 'pre' } } }
+        ]
+      })
+    ).toEqual([Date.parse('2026-09-10T13:30Z'), Date.parse('2026-09-13T17:00Z')])
+  })
+
+  it('remembers kickoffs from the last good scoreboard after later fetches fail', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T12:00:00Z'))
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        events: [{ id: 'thu', date: '2026-09-10T13:30Z', status: { type: { state: 'pre' } } }]
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await nflScoreboardState(false)
+    expect(nflKnownKickoffs()).toEqual([Date.parse('2026-09-10T13:30Z')])
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+    vi.advanceTimersByTime(NFL_SCOREBOARD_REACHABLE_MS + 1)
+    await expect(nflScoreboardState(false)).resolves.toMatchObject({ reachable: false, live: false })
+    expect(nflKnownKickoffs()).toEqual([Date.parse('2026-09-10T13:30Z')])
   })
 
   it('keeps the cached slate briefly after a failed refresh, then falls back to the calendar', async () => {

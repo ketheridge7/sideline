@@ -34,7 +34,7 @@ import {
   type SleeperUser,
   sleeperScoringKind
 } from './providers/sleeperClient'
-import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, keepSameMatchupLineup, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, toLeagues, toMatchup, toNflState, toTransactions } from './providers/sleeperAdapter'
 import {
   DISCOVERY_VIEWS,
   EspnHttpError,
@@ -49,7 +49,7 @@ import {
   weekTeamScheduleFilter,
   type EspnCookies
 } from './providers/espnClient'
-import { nflScoreboardReachable, nflScoreboardState, type NflScoreboardState } from './providers/nflScoreboard'
+import { nflKnownKickoffs, nflScoreboardReachable, nflScoreboardState, type NflScoreboardState } from './providers/nflScoreboard'
 import {
   leaguesFromFanPayload,
   espnTeamsFromPayload,
@@ -1023,7 +1023,7 @@ const persistLiveSnapshot = (write: () => void): void => {
   const calendarLive = calendarFallbackLive({
     replay: false,
     scoreboardReachable: nflScoreboardReachable(),
-    calendarLive: seasonType != null && isLikelyLive(new Date(), seasonType)
+    calendarLive: seasonType != null && isLikelyLive(new Date(), seasonType, nflKnownKickoffs())
   })
   const plan = liveMatchupsPersistPlan(
     gamedayLiveTick({ pollingLive: lastState.pollingLive, calendarLive })
@@ -1806,6 +1806,11 @@ const sleeperMatchup = async (
     week: nfl.displayWeek,
     cached: readMatchup(key, nfl.displayWeek)?.matchup ?? null
   })
+  const finishBuilt = (built: Matchup | null): Matchup | null => {
+    const next = keepSameMatchupLineup(prev, built)
+    if (next) confirmWeekOpponent(key)
+    return next
+  }
   const scorePlan = sleeperHudScorePlan({
     hasPrevMatchup: prev != null,
     hasRosterCache: sleeperRosterCache.has(league.id)
@@ -1889,8 +1894,7 @@ const sleeperMatchup = async (
           matchups,
           players: sleeperMemoryNames()
         })
-        if (built) confirmWeekOpponent(key)
-        return built
+        return finishBuilt(built)
       }
       break
     }
@@ -1901,8 +1905,7 @@ const sleeperMatchup = async (
         matchupsPromise
       ])
       const built = toMatchup({ userId: sleeperUser.user_id, rosters, users, matchups, players: sleeperMemoryNames() })
-      if (built) confirmWeekOpponent(key)
-      return built
+      return finishBuilt(built)
     }
     default: {
       const _never: never = scorePlan
@@ -1935,16 +1938,14 @@ const sleeperMatchup = async (
       matchups,
       players: sleeperMemoryNames()
     })
-    if (built) confirmWeekOpponent(key)
-    return built
+    return finishBuilt(built)
   }
   const [{ rosters, users }, matchups] = await Promise.all([
     loadSleeperIdentity(league.id, identityOpts),
     matchupsPromise
   ])
   const built = toMatchup({ userId: sleeperUser.user_id, rosters, users, matchups, players: sleeperMemoryNames() })
-  if (built) confirmWeekOpponent(key)
-  return built
+  return finishBuilt(built)
 }
 
 const myEspnTeamId = (leagueId: string, cookies: EspnCookies | null): number | undefined => {
@@ -2608,7 +2609,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     const nflState = nfl
     let liveNfl: NflState = nflState
 
-    const rawCalendarLive = isLikelyLive(new Date(), nflState.seasonType)
+    const rawCalendarLive = isLikelyLive(new Date(), nflState.seasonType, nflKnownKickoffs())
     const calendarLive = calendarFallbackLive({
       replay,
       scoreboardReachable: nflScoreboardReachable(),
@@ -4272,7 +4273,7 @@ export const warmupPollerCaches = (): void => {
       if (!nflStateCache) {
         nflStateCache = {
           at: Date.now() - NFL_TTL_MS,
-          nfl: nflCalendarSeed(new Date(), peekLastHud()?.displayWeek),
+          nfl: nflCalendarSeed(new Date(), peekLastHud()?.displayWeek, readNflDiskStale()),
           trusted: false
         }
       }

@@ -1136,10 +1136,21 @@ export const calendarNflFallback = (now: Date): NflState => {
   }
 }
 
-export const nflCalendarSeed = (now: Date, lastHudWeek?: number): NflState => {
+/**
+ * Week to request before `/state/nfl` answers.
+ * A saved HUD week wins. Otherwise the last week from a successful state
+ * response wins, so Tuesday midnight Eastern cannot jump ahead of Sleeper.
+ * The calendar seed is only used when neither of those exists.
+ */
+export const nflCalendarSeed = (
+  now: Date,
+  lastHudWeek?: number,
+  confirmed?: NflState | null
+): NflState => {
   const fallback = calendarNflFallback(now)
-  if (lastHudWeek == null) return fallback
-  return { ...fallback, week: lastHudWeek, displayWeek: lastHudWeek }
+  const base = confirmed ? { ...confirmed } : fallback
+  if (lastHudWeek == null) return base
+  return { ...base, week: lastHudWeek, displayWeek: lastHudWeek }
 }
 
 export const warmupNflCachePlan = (opts: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlayerNames, applySleeperWinEstimate, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, starterProjectedFinal, starterProjectedTotal, toMatchup, toNflState, toTransactions } from './sleeperAdapter'
+import { applyPlayerNames, applySleeperWinEstimate, keepSameMatchupLineup, overlaySleeperMatchups, sleeperInactiveByRoster, sleeperMatchupWeek, sleeperRosterIdForUser, starterProjectedFinal, starterProjectedTotal, toMatchup, toNflState, toTransactions } from './sleeperAdapter'
 import { parseSleeperMatchup, type SleeperLeagueUser, type SleeperMatchup, type SleeperRoster } from './sleeperClient'
 import { emptyScoreMemory, stabilizeMatchup } from '@shared/scoreStability'
 import { finalNflTeams } from '@shared/winPct'
@@ -846,6 +846,62 @@ describe('overlaySleeperMatchups', () => {
     const kept = overlaySleeperMatchups(prev!, live, undefined, 1)
     expect(kept?.myTeam.id).toBe('1')
     expect(kept?.myPoints).toBe(30)
+  })
+
+  it('does not treat an all-empty starters array as the previous lineup', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    const emptySlots: SleeperMatchup[] = [
+      { roster_id: 1, matchup_id: 7, points: 0, starters: ['0', null as unknown as string, ''] },
+      { roster_id: 2, matchup_id: 7, points: 0, starters: ['0'] }
+    ]
+    expect(overlaySleeperMatchups(prev!, emptySlots)).toBeNull()
+    expect(
+      overlaySleeperMatchups(prev!, [
+        { roster_id: 1, matchup_id: 7, points: 0, starters: [] },
+        { roster_id: 2, matchup_id: 7, points: 0, starters: [] }
+      ])
+    ).toBeNull()
+  })
+
+  it('keeps the last lineup when Tuesday has not posted starters yet', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    const unposted: SleeperMatchup[] = [
+      { roster_id: 1, matchup_id: 7, points: 0 },
+      { roster_id: 2, matchup_id: 7, points: 0 }
+    ]
+    const next = overlaySleeperMatchups(prev!, unposted)
+    expect(next?.starters.map((row) => row.name)).toEqual(['Hurts', 'Barkley'])
+    expect(next?.oppStarters.map((row) => row.name)).toEqual(['Allen'])
+    expect(next?.myPoints).toBe(20)
+    expect(next?.oppTeam?.id).toBe('2')
+  })
+
+  it('keeps that lineup after a rebuild when the roster and opponent are unchanged', () => {
+    const prev = toMatchup({ userId: 'me', rosters, users, matchups, players })
+    const unposted: SleeperMatchup[] = [
+      { roster_id: 1, matchup_id: 7, points: 0, starters: ['0', '0'], players: ['1', '2', '9'] },
+      { roster_id: 2, matchup_id: 7, points: 0, starters: ['0'], players: ['3'] }
+    ]
+    const rebuilt = toMatchup({ userId: 'me', rosters, users, matchups: unposted, players })
+    expect(rebuilt?.starters).toEqual([])
+    const kept = keepSameMatchupLineup(prev!, rebuilt)
+    expect(kept?.starters.map((row) => row.name)).toEqual(['Hurts', 'Barkley'])
+    expect(kept?.oppStarters.map((row) => row.name)).toEqual(['Allen'])
+    expect(kept?.myPoints).toBe(20)
+    expect(kept?.oppPoints).toBe(18)
+    const otherOpp = toMatchup({
+      userId: 'me',
+      rosters: [...rosters, { roster_id: 3, owner_id: 'new', settings: { wins: 0, losses: 0 } }],
+      users: [...users, { user_id: 'new', display_name: 'New', metadata: { team_name: 'This Week' } }],
+      matchups: [
+        { roster_id: 1, matchup_id: 3, points: 0, starters: ['0'] },
+        { roster_id: 3, matchup_id: 3, points: 0, starters: ['0'] }
+      ],
+      players
+    })
+    const replaced = keepSameMatchupLineup(prev!, otherOpp)
+    expect(replaced?.oppTeam?.id).toBe('3')
+    expect(replaced?.starters).toEqual([])
   })
 })
 

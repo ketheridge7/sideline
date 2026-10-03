@@ -1,6 +1,8 @@
-/** Broad gameday calendar window. Only decides cadence while the NFL scoreboard is unreachable. */
-export const isLikelyLive = (now: Date, seasonType: string): boolean => {
-  if (seasonType !== 'regular' && seasonType !== 'post') return false
+/** How early a known kickoff opens the calendar fallback, and how long that game stays live. */
+export const KNOWN_KICKOFF_LEAD_MS = 15 * 60_000
+export const KNOWN_KICKOFF_LENGTH_MS = 4 * 60 * 60_000
+
+const etClock = (now: Date): { weekday: string | undefined; mins: number } => {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     weekday: 'short',
@@ -11,7 +13,12 @@ export const isLikelyLive = (now: Date, seasonType: string): boolean => {
   const weekday = parts.find((part) => part.type === 'weekday')?.value
   const hour = Number(parts.find((part) => part.type === 'hour')?.value)
   const minute = Number(parts.find((part) => part.type === 'minute')?.value)
-  const mins = hour * 60 + minute
+  return { weekday, mins: hour * 60 + minute }
+}
+
+/** Broad gameday hours. Thursday morning and Monday afternoon stay idle unless a kickoff says otherwise. */
+const calendarWindowLive = (now: Date): boolean => {
+  const { weekday, mins } = etClock(now)
   if (weekday === 'Thu' && mins >= 12 * 60) return true
   if (weekday === 'Fri' && mins >= 9 * 60) return true
   if (weekday === 'Sat' && mins >= 9 * 60) return true
@@ -20,6 +27,24 @@ export const isLikelyLive = (now: Date, seasonType: string): boolean => {
   // Monday night, including a second Monday game, can still be on after midnight Eastern.
   if (weekday === 'Tue' && mins < 2 * 60) return true
   return false
+}
+
+/** One kickoff, from 15 minutes before through a full game. Does not open the rest of that weekday. */
+export const knownKickoffLive = (nowMs: number, kickoffMs: number): boolean =>
+  Number.isFinite(kickoffMs) &&
+  nowMs >= kickoffMs - KNOWN_KICKOFF_LEAD_MS &&
+  nowMs <= kickoffMs + KNOWN_KICKOFF_LENGTH_MS
+
+/**
+ * Broad gameday calendar window. Only decides cadence while the NFL scoreboard is unreachable.
+ * `kickoffs` (epoch ms from a previous scoreboard) extend that window for those games only.
+ */
+export const isLikelyLive = (now: Date, seasonType: string, kickoffs?: readonly number[]): boolean => {
+  if (seasonType !== 'regular' && seasonType !== 'post') return false
+  if (calendarWindowLive(now)) return true
+  if (!kickoffs || kickoffs.length === 0) return false
+  const nowMs = now.getTime()
+  return kickoffs.some((at) => knownKickoffLive(nowMs, at))
 }
 
 export const LIVE_POLL_MS = 3_000

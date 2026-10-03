@@ -46,12 +46,38 @@ export const espnIndicatorHealthy = (opts: {
   espnNeedsRelogin: boolean
 }): boolean => opts.replay || (opts.espnConnected && !opts.espnNeedsRelogin)
 
-export const overlayStartersBelong = (prev: Player[], liveIds: Iterable<string>): boolean => {
+export type OverlayStartersOpts = {
+  /**
+   * The live row included a `starters` array. An empty array has no ids to
+   * iterate, so the caller has to say the list was present.
+   */
+  listed?: boolean
+}
+
+const isRealStarterId = (id: string | null | undefined): id is string =>
+  Boolean(id) && id !== '0'
+
+/**
+ * True when the previous lineup is the one this live row is scoring.
+ * An omitted starters list (nothing iterated, `listed` not set) keeps the
+ * previous names — a compact or not-yet-posted row. A list that is present
+ * but only `"0"` / `""` / null does not: those slots are not this lineup.
+ */
+export const overlayStartersBelong = (
+  prev: Player[],
+  liveIds: Iterable<string>,
+  opts?: OverlayStartersOpts
+): boolean => {
   const ids = new Set<string>()
+  let sawSlot = false
   for (const id of liveIds) {
-    if (id) ids.add(id)
+    sawSlot = true
+    if (isRealStarterId(id)) ids.add(id)
   }
-  if (ids.size === 0) return true
+  if (ids.size === 0) {
+    if (opts?.listed || sawSlot) return false
+    return true
+  }
   const prevIds = prev.filter((player) => Boolean(player.playerId))
   if (prevIds.length === 0) return false
   return prevIds.some((player) => {
