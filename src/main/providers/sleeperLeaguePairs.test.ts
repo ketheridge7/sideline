@@ -3,7 +3,7 @@ import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { NflTickerGame } from '@shared/types'
 import type { CachedPlayer, SleeperLeagueUser, SleeperMatchup, SleeperRoster } from './sleeperClient'
-import { toMatchup, toSleeperLeaguePairs } from './sleeperAdapter'
+import { applySleeperWinEstimate, toMatchup, toSleeperLeaguePairs } from './sleeperAdapter'
 
 type Fixture = {
   userId: string
@@ -289,5 +289,99 @@ describe('toSleeperLeaguePairs', () => {
     expect(byId.get('m:3')?.matchup.winPctSource).toBe('estimated')
     expect(byId.get('m:3')?.matchup.myWinPct).toBeUndefined()
     expect(byId.get('m:3')?.matchup.myProjectedPoints).toBeUndefined()
+  })
+
+  it('fills Est. win% when one side has played starters missing from the weekly projection file', () => {
+    const roster = (rosterId: number, ownerId: string, name: string): SleeperRoster => ({
+      roster_id: rosterId,
+      owner_id: ownerId,
+      settings: { wins: 1, losses: 0 }
+    })
+    const user = (ownerId: string, name: string): SleeperLeagueUser => ({
+      user_id: ownerId,
+      display_name: name,
+      metadata: { team_name: name }
+    })
+    const player = (name: string, nflTeam: string): CachedPlayer => ({
+      name,
+      position: 'WR',
+      nflTeam
+    })
+    const ticker: NflTickerGame[] = [
+      { id: 'dal-phi', away: 'DAL', awayScore: 24, home: 'PHI', homeScore: 17, clock: 'FINAL', final: true },
+      { id: 'kc-buf', away: 'KC', awayScore: 14, home: 'BUF', homeScore: 10, clock: 'Q3 8:00' }
+    ]
+    const projections = { '10': 18, '20': 16, '32': 14, '40': 11, '41': 9, '42': 8, '43': 7, '50': 17 }
+    const matchups: SleeperMatchup[] = [
+      { roster_id: 1, matchup_id: 1, points: 0, starters: ['10'], players: ['10'], players_points: { '10': 0 } },
+      { roster_id: 2, matchup_id: 1, points: 0, starters: ['20'], players: ['20'], players_points: { '20': 0 } },
+      {
+        roster_id: 3,
+        matchup_id: 2,
+        points: 34.2,
+        starters: ['30', '31', '32'],
+        players: ['30', '31', '32'],
+        players_points: { '30': 21.4, '31': 12.8, '32': 0 }
+      },
+      {
+        roster_id: 4,
+        matchup_id: 2,
+        points: 0,
+        starters: ['40', '41', '42', '43'],
+        players: ['40', '41', '42', '43'],
+        players_points: { '40': 0, '41': 0, '42': 0, '43': 0 }
+      },
+      { roster_id: 5, matchup_id: 3, points: 0, starters: ['50'], players: ['50'], players_points: { '50': 0 } },
+      { roster_id: 6, matchup_id: 3, points: 0, starters: ['60'], players: ['60'], players_points: { '60': 0 } }
+    ]
+    const players = {
+      '10': player('Alpha', 'LAR'),
+      '20': player('Bravo', 'SEA'),
+      '30': player('Thursday', 'DAL'),
+      '31': player('Live', 'KC'),
+      '32': player('Later', 'SEA'),
+      '40': player('Quiet A', 'LAR'),
+      '41': player('Quiet B', 'SEA'),
+      '42': player('Quiet C', 'NYJ'),
+      '43': player('Quiet D', 'GB'),
+      '50': player('Waiting', 'LAR'),
+      '60': player('Unprojected', 'SEA')
+    }
+    const args = {
+      userId: 'u1',
+      rosters: [1, 2, 3, 4, 5, 6].map((id) => roster(id, `u${id}`, `Club ${id}`)),
+      users: [1, 2, 3, 4, 5, 6].map((id) => user(`u${id}`, `Club ${id}`)),
+      players,
+      projections,
+      matchups,
+      ticker
+    }
+    const pairs = toSleeperLeaguePairs(args)
+    const byId = new Map(pairs.map((pair) => [pair.id, pair]))
+    expect(byId.get('m:1')?.mine).toBe(true)
+    expect(byId.get('m:1')?.matchup.myPoints).toBe(0)
+    expect(byId.get('m:1')?.matchup.oppPoints).toBe(0)
+    expect(byId.get('m:1')?.matchup.myWinPct).toEqual(expect.any(Number))
+
+    const played = byId.get('m:2')
+    expect(played?.mine).toBe(false)
+    expect(played?.matchup.myPoints).toBe(34.2)
+    expect(played?.matchup.oppPoints).toBe(0)
+    expect(played?.left).toBeLessThan(played?.oppLeft ?? 0)
+    expect(played?.matchup.myProjectedPoints).toBeCloseTo(21.4 + 12.8 + 14)
+    expect(played?.matchup.oppProjectedPoints).toBe(11 + 9 + 8 + 7)
+    expect(played?.matchup.myWinPct).toEqual(expect.any(Number))
+
+    expect(byId.get('m:3')?.matchup.myWinPct).toBeUndefined()
+
+    const hud = toMatchup({
+      userId: 'u3',
+      rosters: args.rosters,
+      users: args.users,
+      matchups: matchups.filter((row) => row.matchup_id === 2),
+      players
+    })
+    expect(hud?.myPoints).toBe(34.2)
+    expect(applySleeperWinEstimate(hud!, projections).myWinPct).toBeUndefined()
   })
 })

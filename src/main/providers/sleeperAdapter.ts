@@ -495,25 +495,37 @@ export const starterProjectedTotal = (
   return sum
 }
 
+const recordedScore = (points: number | undefined): boolean => {
+  if (typeof points !== 'number' || !Number.isFinite(points)) return false
+  return points !== 0
+}
+
 /**
  * Remaining-aware starter final: players whose NFL game is final count their
  * actual points; everyone else max(actual, weekly projection). A starter still
  * at 0 keeps a negative projection. Undefined (pending) when a starter still
  * to play has no projection.
+ * `startedTeams` is league-only. The ticker omits pregame, so a team on it has
+ * kicked off. A kicked-off starter missing from the weekly projection file
+ * counts their actual (including 0). A non-zero score counts even when the
+ * NFL team did not match the ticker. Omit the set on the HUD.
  */
 export const starterProjectedFinal = (
   starters: Player[],
   projections: Record<string, number>,
-  finalTeams: ReadonlySet<string> = new Set()
+  finalTeams: ReadonlySet<string> = new Set(),
+  startedTeams?: ReadonlySet<string>
 ): number | undefined => {
   const rows = starters.filter((player) => Boolean(player.playerId))
   if (rows.length === 0) return undefined
   let sum = 0
   for (const player of rows) {
+    const team = nflTeamKey(player.nflTeam)
     const pts = playerProjectedFinal({
       actual: player.points,
       projected: projectionOf(projections, player.playerId),
-      gameFinal: finalTeams.has(nflTeamKey(player.nflTeam))
+      gameFinal: finalTeams.has(team),
+      gameStarted: startedTeams != null && (startedTeams.has(team) || recordedScore(player.points))
     })
     if (pts == null) return undefined
     sum += pts
@@ -541,13 +553,14 @@ const withoutEstimatedWin = (matchup: Matchup): Matchup => {
 export const applySleeperWinEstimate = (
   matchup: Matchup,
   projections: Record<string, number> | null | undefined,
-  finalTeams: ReadonlySet<string> = new Set()
+  finalTeams: ReadonlySet<string> = new Set(),
+  startedTeams?: ReadonlySet<string>
 ): Matchup => {
   if (matchup.winPctSource === 'official') return matchup
   const pending = withoutEstimatedWin(matchup)
   if (!projections || !matchup.oppTeam) return pending
-  const myProjected = starterProjectedFinal(matchup.starters, projections, finalTeams)
-  const oppProjected = starterProjectedFinal(matchup.oppStarters, projections, finalTeams)
+  const myProjected = starterProjectedFinal(matchup.starters, projections, finalTeams, startedTeams)
+  const oppProjected = starterProjectedFinal(matchup.oppStarters, projections, finalTeams, startedTeams)
   if (!hasProjectedFinals(myProjected, oppProjected)) return pending
   const chance = estimatedChanceToWin({
     myLive: matchup.myPoints,
@@ -737,6 +750,7 @@ const pairFromRows = (args: {
   players: Record<string, CachedPlayer>
   projections?: Record<string, number> | null
   finalTeams: ReadonlySet<string>
+  startedTeams: ReadonlySet<string>
   ticker: readonly NflTickerGame[]
   slate?: readonly string[]
   mine: boolean
@@ -752,7 +766,7 @@ const pairFromRows = (args: {
     focusRosterId: args.focusRosterId
   })
   if (!built) return null
-  const matchup = applySleeperWinEstimate(built, args.projections, args.finalTeams)
+  const matchup = applySleeperWinEstimate(built, args.projections, args.finalTeams, args.startedTeams)
   return {
     id: args.id,
     mine: args.mine,
@@ -786,10 +800,13 @@ export const toSleeperLeaguePairs = (args: {
 }): LeaguePair[] => {
   const ticker = args.ticker ?? []
   const finalTeams = new Set<string>()
+  const startedTeams = new Set<string>()
   for (const game of ticker) {
-    if (!game.final) continue
     const home = nflTeamKey(game.home)
     const away = nflTeamKey(game.away)
+    if (home) startedTeams.add(home)
+    if (away) startedTeams.add(away)
+    if (!game.final) continue
     if (home) finalTeams.add(home)
     if (away) finalTeams.add(away)
   }
@@ -830,6 +847,7 @@ export const toSleeperLeaguePairs = (args: {
       players: args.players,
       projections: args.projections,
       finalTeams,
+      startedTeams,
       ticker,
       slate: args.slate,
       mine,
