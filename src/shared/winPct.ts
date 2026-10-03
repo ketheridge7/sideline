@@ -134,16 +134,23 @@ export const startersStillToPlay = (
  * final, otherwise max(actual, weekly projection). A still-zero actual keeps
  * a negative projection (a DST at -2 before kickoff, or still at 0 mid-game).
  * Undefined when a player still to play has no projection (keeps Est. win% pending).
+ * `gameStarted` is the league board's fallback for a kicked-off player who has
+ * dropped out of the weekly projection file: count the actual, including 0.
+ * The HUD omits it, so a missing projection there stays pending.
  */
 export const playerProjectedFinal = (opts: {
   actual?: number
   projected?: number
   gameFinal: boolean
+  gameStarted?: boolean
 }): number | undefined => {
   const actual = finiteNumber(opts.actual) ?? 0
   if (opts.gameFinal) return actual
   const projected = finiteNumber(opts.projected)
-  if (projected == null) return undefined
+  if (projected == null) {
+    if (opts.gameStarted) return actual
+    return undefined
+  }
   if (actual === 0 && projected < 0) return projected
   return Math.max(actual, projected)
 }

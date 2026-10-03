@@ -156,6 +156,8 @@ describe('playerProjectedFinal', () => {
     expect(playerProjectedFinal({ actual: 4.2, projected: 18, gameFinal: false })).toBe(18)
     expect(playerProjectedFinal({ actual: 24, projected: 18, gameFinal: false })).toBe(24)
     expect(playerProjectedFinal({ actual: 3, projected: undefined, gameFinal: false })).toBeUndefined()
+    expect(playerProjectedFinal({ actual: 12.8, projected: undefined, gameFinal: false, gameStarted: true })).toBe(12.8)
+    expect(playerProjectedFinal({ actual: 0, projected: undefined, gameFinal: false, gameStarted: true })).toBe(0)
   })
 
   it('keeps a negative projection while the actual is still 0 and the game is not final', () => {
