@@ -4,6 +4,7 @@ import { espnScoreCacheKey } from './pollTargets'
 import { HttpBackoffError } from './http'
 import { EspnHttpError, weekScheduleFilter, weekTeamScheduleFilter } from './providers/espnClient'
 import { LIVE_POLL_MS, IDLE_POLL_MS } from './liveWindow'
+import { toSleeperLeaguePairs } from './providers/sleeperAdapter'
 import {
   bindLeagueBrowse,
   espnBrowseFetchArgs,
@@ -16,6 +17,7 @@ import {
   leagueBrowseWindowVisible,
   offerSleeperMatchups,
   pokeLeagueBrowse,
+  refreshSleeperLeagueBoard,
   resetLeagueBrowse,
   setLeagueBrowseOpen,
   setLeagueBrowseScheduler,
@@ -326,5 +328,45 @@ describe('league browse isolation', () => {
     expect(published.at(-1)?.error).toContain('rate limit')
     expect(published.at(-1)?.pairs[0]?.id).toBe('replay')
     delete process.env.SIDELINE_REPLAY_BOARD
+  })
+
+  it('repaints Sleeper Est. win% when projections arrive, which a same-league poke does not', async () => {
+    let projections: Record<string, number> | null = null
+    ctx = { ...ctx, provider: 'sleeper', leagueKey: 'sleeper:9', leagueId: '9', leagueName: 'Median' }
+    bindLeagueBrowse({
+      ...host(),
+      sleeperBuild: (_leagueId, _week, rows) =>
+        toSleeperLeaguePairs({
+          userId: 'u1',
+          rosters: [
+            { roster_id: 1, owner_id: 'u1', settings: { wins: 1, losses: 0 } },
+            { roster_id: 2, owner_id: 'u2', settings: { wins: 0, losses: 1 } }
+          ],
+          users: [
+            { user_id: 'u1', display_name: 'Ada', metadata: { team_name: 'Alpha' } },
+            { user_id: 'u2', display_name: 'Bo', metadata: { team_name: 'Bravo' } }
+          ],
+          matchups: rows,
+          players: {
+            '10': { name: 'Alpha QB', position: 'QB', nflTeam: 'DAL' },
+            '20': { name: 'Bravo QB', position: 'QB', nflTeam: 'KC' }
+          },
+          projections
+        })
+    })
+    setLeagueBrowseVisible(true)
+    setLeagueBrowseOpen(true)
+    await leagueBrowseSettled()
+    offerSleeperMatchups('9', 1, [
+      { roster_id: 1, matchup_id: 1, points: 0, starters: ['10'], players: ['10'], players_points: { '10': 0 } },
+      { roster_id: 2, matchup_id: 1, points: 0, starters: ['20'], players: ['20'], players_points: { '20': 0 } }
+    ])
+    expect(published.at(-1)?.pairs[0]?.matchup.myWinPct).toBeUndefined()
+    projections = { '10': 18, '20': 12 }
+    pokeLeagueBrowse()
+    expect(published.at(-1)?.pairs[0]?.matchup.myWinPct).toBeUndefined()
+    refreshSleeperLeagueBoard()
+    expect(published.at(-1)?.pairs[0]?.matchup.winPctSource).toBe('estimated')
+    expect(published.at(-1)?.pairs[0]?.matchup.myWinPct).toEqual(expect.any(Number))
   })
 })

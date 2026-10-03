@@ -479,3 +479,17 @@ export const offerSleeperMatchups = (leagueId: string, week: number, rows: Sleep
   if (!windowVisible || backedOff) return
   publishSleeper(ctx)
 }
+
+/**
+ * Rebuild the open Sleeper board from the stashed week.
+ * Projections land on their own fetch, after the matchup handoff. Mine
+ * repaints on that fetch. The league list has to as well — `pokeLeagueBrowse`
+ * ignores a league and week it has already seen.
+ */
+export const refreshSleeperLeagueBoard = (): void => {
+  if (!active() || !host) return
+  const ctx = host.context()
+  if (!ctx || ctx.replay || ctx.provider !== 'sleeper') return
+  if (!stash.has(sleeperKey(ctx.leagueId, ctx.week))) return
+  publishSleeper(ctx)
+}

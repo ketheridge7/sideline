@@ -847,15 +847,52 @@ const toReplayPair = (id: string, mine: boolean, matchup: Matchup, ticker: reado
 })
 
 /**
+ * A three-club Sleeper group for the League list. The head-to-head still has
+ * an Est. win% bar. The third club is on the same row, not a bye.
+ */
+const replayMedianGroup = (league: League, ticker: readonly NflTickerGame[]): LeaguePair => {
+  const starter = (id: string, name: string, position: string, nflTeam: string, points: number): Player => ({
+    playerId: id,
+    name,
+    position,
+    nflTeam,
+    points
+  })
+  const matchup: Matchup = {
+    myTeam: { id: `${league.id}-pod-a`, name: 'Red Zone', owner: 'Rae', record: '2-1' },
+    oppTeam: { id: `${league.id}-pod-b`, name: 'Two Minute', owner: 'Theo', record: '2-1' },
+    myPoints: 88.4,
+    oppPoints: 76.2,
+    myProjectedPoints: 112.4,
+    oppProjectedPoints: 104.8,
+    winPctSource: 'estimated',
+    starters: [starter(`${league.id}-pod-qb`, 'Sam Howell', 'QB', 'SEA', 18.2)],
+    bench: [],
+    oppStarters: [starter(`${league.id}-pod-rb`, 'Tony Jones', 'RB', 'NO', 11.4)],
+    oppBench: []
+  }
+  return {
+    ...toReplayPair(`${league.provider}:${league.id}:pod`, false, matchup, ticker),
+    pod: [
+      {
+        team: { id: `${league.id}-pod-c`, name: 'League Median', owner: 'Median', record: '—' },
+        points: 81.5
+      }
+    ]
+  }
+}
+
+/**
  * Scripted pairings for the League view. The selected league's own matchup is
- * marked mine. Other scripted leagues fill the rest of the board, plus one bye,
- * so Replay can show the scoreboard without a network call.
+ * marked mine. Other scripted leagues fill the rest of the board, plus one bye
+ * and one three-club group, so Replay can show the scoreboard without a network call.
  */
 export const replayLeaguePairs = (league: League, tick: number): LeaguePair[] => {
   const ticker = replayTickerGames(tick)
   const pairs: LeaguePair[] = []
   const mine = replayMatchupFor(league, tick)
   if (mine) pairs.push(toReplayPair(`${league.provider}:${league.id}:mine`, true, mine, ticker))
+  pairs.push(replayMedianGroup(league, ticker))
   for (const row of WORLD_LEAGUES) {
     if (row.provider === league.provider && row.id === league.id) continue
     const other = replayMatchupFor({ ...row, week: league.week }, tick)

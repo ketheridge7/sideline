@@ -86,7 +86,7 @@ import {
   replaySleeperLeagues,
   replayTransactions
 } from './providers/replay'
-import { bindLeagueBrowse, espnBrowseFetchArgs, leagueBrowseWeek, offerSleeperMatchups, pokeLeagueBrowse, resetLeagueBrowse } from './leagueBrowse'
+import { bindLeagueBrowse, espnBrowseFetchArgs, leagueBrowseWeek, offerSleeperMatchups, pokeLeagueBrowse, refreshSleeperLeagueBoard, resetLeagueBrowse } from './leagueBrowse'
 import { runtime } from './runtime'
 import { backoffNoticePlan, settingsFileNotice, startupErrorNotice, statusErrorPlan } from './notices'
 import { syncLanPowerSave } from './powerSave'
@@ -3356,6 +3356,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         boards,
         lastUpdated: Date.now()
       })
+      refreshSleeperLeagueBoard()
     }
     const kickFatSwr = (): void => {
       if (!replay) {

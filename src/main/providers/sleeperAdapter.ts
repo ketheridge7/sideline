@@ -1,5 +1,5 @@
 import { matchupHasLineup, overlayStartersBelong } from '@shared/display'
-import type { League, LeaguePair, Matchup, NflTickerGame, Player, Team, Transaction } from '@shared/types'
+import type { League, LeaguePair, LeaguePodSide, Matchup, NflTickerGame, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import {
   estimatedChanceToWin,
@@ -762,10 +762,17 @@ const pairFromRows = (args: {
   }
 }
 
+const scoringStarterCount = (row: SleeperMatchup): number =>
+  starterSlots(row).filter((slot) => isScoringStarterId(slot.id)).length
+
 /**
  * Every pairing in one Sleeper `/matchups/{week}` payload.
  * A `matchup_id` with one roster, and a null `matchup_id`, are byes.
- * A third roster on the same id is not a median row — it is its own bye.
+ * Three or more rosters on one id are one group: the two lineups with
+ * starters are the head-to-head, and everyone else stays on that row.
+ * A roster id that is not in the league is a synthetic median row and is
+ * dropped. It is not a bye, and it is not the opponent.
+ * The HUD `toMatchup` path is unchanged and still takes the first other row.
  */
 export const toSleeperLeaguePairs = (args: {
   userId: string
@@ -801,14 +808,21 @@ export const toSleeperLeaguePairs = (args: {
   }
   const pairs: LeaguePair[] = []
   let pairedAny = false
-  const pushBuilt = (
+  const rosterKnown = new Set<number>()
+  for (const roster of args.rosters) {
+    const id = rosterIdOf(roster)
+    if (id != null) rosterKnown.add(id)
+  }
+  const byRosterId = (a: SleeperMatchup, b: SleeperMatchup): number =>
+    (rosterIdOf(a) ?? 0) - (rosterIdOf(b) ?? 0)
+  const buildPair = (
     rows: SleeperMatchup[],
     focusRosterId: number | undefined,
     mine: boolean,
     id: string
-  ): void => {
-    if (focusRosterId == null) return
-    const pair = pairFromRows({
+  ): LeaguePair | null => {
+    if (focusRosterId == null) return null
+    return pairFromRows({
       userId: args.userId,
       rosters: args.rosters,
       users: args.users,
@@ -822,7 +836,40 @@ export const toSleeperLeaguePairs = (args: {
       id,
       focusRosterId
     })
-    if (pair) pairs.push(pair)
+  }
+  const groupPair = (field: SleeperMatchup[], id: string): LeaguePair | null => {
+    const mineRow = field.find((row) => rosterIdOf(row) === myRosterId) ?? null
+    const focus = mineRow ?? field[0]
+    const focusId = focus ? rosterIdOf(focus) : undefined
+    if (!focus || focusId == null) return null
+    const others = field.filter((row) => rosterIdOf(row) !== focusId)
+    const opponent = [...others].sort((a, b) => {
+      const byLineup = scoringStarterCount(b) - scoringStarterCount(a)
+      if (byLineup !== 0) return byLineup
+      return byRosterId(a, b)
+    })[0]
+    if (!opponent) return null
+    const oppId = rosterIdOf(opponent)
+    const rest = others.filter((row) => rosterIdOf(row) !== oppId).sort(byRosterId)
+    const grouped = [focus, opponent, ...rest]
+    const pair = buildPair(grouped, focusId, mineRow != null, id)
+    if (!pair) return null
+    const pod: LeaguePodSide[] = []
+    for (const extra of rest) {
+      const extraId = rosterIdOf(extra)
+      if (extraId == null) continue
+      const side = toMatchup({
+        userId: args.userId,
+        rosters: args.rosters,
+        users: args.users,
+        matchups: grouped,
+        players: args.players,
+        focusRosterId: extraId
+      })
+      if (!side) continue
+      pod.push({ team: side.myTeam, points: side.myPoints })
+    }
+    return pod.length > 0 ? { ...pair, pod } : pair
   }
   for (const [id, rows] of groups) {
     if (rows.length < 2) {
@@ -830,18 +877,26 @@ export const toSleeperLeaguePairs = (args: {
       continue
     }
     pairedAny = true
-    const extras = rows.slice(2)
-    for (const extra of extras) byes.push({ ...extra, matchup_id: null })
-    const paired = rows.slice(0, 2)
-    const mineRow = paired.find((row) => rosterIdOf(row) === myRosterId)
-    const focus = mineRow ?? paired[0]
-    const focusId = rosterIdOf(focus)
-    pushBuilt(paired, focusId, mineRow != null, `m:${id}`)
+    const known = rows.filter((row) => {
+      const rosterId = rosterIdOf(row)
+      return rosterId != null && rosterKnown.has(rosterId)
+    })
+    const field = (known.length >= 2 ? known : rows).slice().sort(byRosterId)
+    if (field.length === 2) {
+      const mineRow = field.find((row) => rosterIdOf(row) === myRosterId)
+      const focus = mineRow ?? field[0]
+      const pair = focus ? buildPair(field, rosterIdOf(focus), mineRow != null, `m:${id}`) : null
+      if (pair) pairs.push(pair)
+      continue
+    }
+    const pair = groupPair(field, `m:${id}`)
+    if (pair) pairs.push(pair)
   }
   if (!pairedAny) return []
   for (const row of byes) {
     const rosterId = rosterIdOf(row)
-    pushBuilt([row], rosterId, rosterId != null && rosterId === myRosterId, `bye:${rosterId ?? 'x'}`)
+    const pair = buildPair([row], rosterId, rosterId != null && rosterId === myRosterId, `bye:${rosterId ?? 'x'}`)
+    if (pair) pairs.push(pair)
   }
   pairs.sort((a, b) => Number(b.mine) - Number(a.mine) || a.id.localeCompare(b.id))
   return pairs
