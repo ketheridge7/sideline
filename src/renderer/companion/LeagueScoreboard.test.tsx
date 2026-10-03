@@ -102,6 +102,32 @@ describe('LeagueScoreboard', () => {
     expect(html).not.toContain('Win% pending')
   })
 
+  it('aligns STARTERS over the player rows on another matchup and a bye', () => {
+    const headers = (html: string): string[] =>
+      [...html.matchAll(/<h2 class="([^"]*)">Starters<\/h2>/g)].map((match) => match[1] ?? '')
+    const mine = headers(
+      renderToStaticMarkup(
+        <LeagueScoreboard board={board()} onMine={() => undefined} initialScan={{ view: 'detail', index: 0 }} />
+      )
+    )
+    const other = headers(
+      renderToStaticMarkup(
+        <LeagueScoreboard board={board()} onMine={() => undefined} initialScan={{ view: 'detail', index: 1 }} />
+      )
+    )
+    const bye = headers(
+      renderToStaticMarkup(
+        <LeagueScoreboard board={board()} onMine={() => undefined} initialScan={{ view: 'detail', index: 2 }} />
+      )
+    )
+    expect(mine[0]).toBe('mb-2 shrink-0 font-cond text-xs font-bold uppercase tracking-[0.18em] text-lime')
+    expect(mine[1]).toBe('mb-2 shrink-0 text-right font-cond text-xs font-bold uppercase tracking-[0.18em] text-them')
+    expect(other[0]).toBe(mine[0]?.replace('text-lime', 'text-them'))
+    expect(other[1]).toBe(mine[1])
+    expect(bye).toEqual(other)
+    expect(other[0]).not.toContain('text-right')
+  })
+
   it('opens a pairing with All matchups and no read-only label', () => {
     const html = renderToStaticMarkup(
       <LeagueScoreboard board={board()} onMine={() => undefined} initialScan={{ view: 'detail', index: 1 }} />
