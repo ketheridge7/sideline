@@ -82,6 +82,8 @@ describe('LeagueScoreboard', () => {
     expect(html).toContain('Hash Marks')
     expect(html).toContain('data-league-bye="true"')
     expect(html).toContain('bg-card')
+    expect(html).toContain('w-[5.5ch]')
+    expect(html).toContain('text-right')
     expect(html).toContain('BYE')
     expect(html).toContain('4 left')
     expect(html).toContain('data-live-dot="true"')

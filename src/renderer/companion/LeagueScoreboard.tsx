@@ -66,6 +66,13 @@ export const leagueScanForSnapshot = (
   return scan.index === index ? scan : { ...scan, index }
 }
 
+/** One decimal place, right-aligned in a fixed slot so 9.0 and 100.0 share a decimal. */
+const ScoreSlot = ({ value, bye = false }: { value: string; bye?: boolean }): JSX.Element => (
+  <div className="font-cond text-3xl font-extrabold leading-none tabular-nums">
+    <span className={`inline-block w-[5.5ch] ${bye ? 'text-center text-muted' : 'text-right'}`}>{value}</span>
+  </div>
+)
+
 const LeftCount = ({ count, starters }: { count: number; starters: number }): JSX.Element | null => {
   if (starters <= 0) return null
   return <div className="mt-1 font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-muted">{count} left</div>
@@ -94,7 +101,7 @@ const PairRow = ({
       data-league-pair={pair.id}
       data-league-bye={bye ? 'true' : 'false'}
       data-league-mine={pair.mine ? 'true' : 'false'}
-      className={`relative w-full cursor-pointer border-b border-line px-5 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-you ${
+      className={`relative w-full cursor-pointer border-b border-line px-5 py-3 text-left ${
         selected ? 'bg-card' : 'hover:bg-white/[0.03]'
       }`}
     >
@@ -117,7 +124,7 @@ const PairRow = ({
           <div className={`truncate text-[13px] font-medium ${pair.mine ? 'text-lime' : 'text-text'}`}>
             {pair.matchup.myTeam.name}
           </div>
-          <div className="font-cond text-3xl font-extrabold leading-none tabular-nums">{formatScore(pair.matchup.myPoints)}</div>
+          <ScoreSlot value={formatScore(pair.matchup.myPoints)} />
           <LeftCount count={pair.left} starters={pair.matchup.starters.length} />
         </div>
         <div className="pt-4 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Vs</div>
@@ -125,9 +132,7 @@ const PairRow = ({
           <div className={`truncate text-[13px] font-medium ${bye ? 'text-muted' : 'text-text'}`}>
             {pair.matchup.oppTeam?.name ?? 'BYE'}
           </div>
-          <div className="font-cond text-3xl font-extrabold leading-none tabular-nums">
-            {bye ? '—' : formatScore(pair.matchup.oppPoints)}
-          </div>
+          <ScoreSlot value={bye ? '—' : formatScore(pair.matchup.oppPoints)} bye={bye} />
           <LeftCount count={pair.oppLeft} starters={pair.matchup.oppStarters.length} />
         </div>
       </div>
