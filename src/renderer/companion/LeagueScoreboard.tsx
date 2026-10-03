@@ -127,12 +127,14 @@ const Skeleton = (): JSX.Element => (
 
 export const LeagueScoreboard = ({
   board,
-  onMine
+  onMine,
+  initialScan = { view: 'list', index: 0 }
 }: {
   board: LeagueBoardSnapshot | null
   onMine: () => void
+  initialScan?: LeagueScan
 }): JSX.Element => {
-  const [scan, setScan] = useState<LeagueScan>({ view: 'list', index: 0 })
+  const [scan, setScan] = useState<LeagueScan>(initialScan)
   const pairs = board?.pairs ?? []
   const count = pairs.length
 
@@ -179,7 +181,6 @@ export const LeagueScoreboard = ({
           >
             All matchups
           </button>
-          <span className="font-cond text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Read only</span>
         </div>
         <HudScoreboard
           matchup={selected.matchup}

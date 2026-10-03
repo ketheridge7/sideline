@@ -64,6 +64,16 @@ describe('LeagueScoreboard', () => {
     expect(html).toContain('The overlay stays on yours.')
   })
 
+  it('opens a pairing with All matchups and no read-only label', () => {
+    const html = renderToStaticMarkup(
+      <LeagueScoreboard board={board()} onMine={() => undefined} initialScan={{ view: 'detail', index: 1 }} />
+    )
+    expect(html).toContain('All matchups')
+    expect(html).toContain('Last Call')
+    expect(html).not.toContain('Read only')
+    expect(html).not.toContain('READ ONLY')
+  })
+
   it('shows a loading skeleton and keeps the last names when a later snapshot errors', () => {
     const loading = renderToStaticMarkup(<LeagueScoreboard board={null} onMine={() => undefined} />)
     expect(loading).toContain('data-league-status="loading"')
