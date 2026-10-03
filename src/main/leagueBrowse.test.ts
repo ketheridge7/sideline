@@ -58,7 +58,7 @@ describe('espnBrowseFetchArgs', () => {
   it('asks for a week-wide low-priority read with a 3s abort and no team filter', () => {
     const box = espnBrowseFetchArgs('boxscore', 4)
     const live = espnBrowseFetchArgs('compact', 4)
-    expect(box.views).toEqual(['mMatchupScore'])
+    expect(box.views).toEqual(['mMatchupScore', 'mRoster'])
     expect(live.views).toEqual(['mLiveScoring'])
     expect(box.filter).toEqual(weekScheduleFilter(4))
     expect(box.filter).not.toEqual(weekTeamScheduleFilter(4, 1))

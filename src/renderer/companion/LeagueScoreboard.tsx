@@ -66,10 +66,32 @@ export const leagueScanForSnapshot = (
   return scan.index === index ? scan : { ...scan, index }
 }
 
-/** One decimal place, right-aligned in a fixed slot so 9.0 and 100.0 share a decimal. */
+/** Score sits on the same center axis as the team name. A bye is a muted dash. */
 const ScoreSlot = ({ value, bye = false }: { value: string; bye?: boolean }): JSX.Element => (
-  <div className="font-cond text-3xl font-extrabold leading-none tabular-nums">
-    <span className={`inline-block w-[5.5ch] ${bye ? 'text-center text-muted' : 'text-right'}`}>{value}</span>
+  <div className={`font-cond text-3xl font-extrabold leading-none tabular-nums ${bye ? 'text-muted' : ''}`}>
+    {value}
+  </div>
+)
+
+const SideStack = ({
+  name,
+  score,
+  bye = false,
+  count,
+  starters,
+  nameClass
+}: {
+  name: string
+  score: string
+  bye?: boolean
+  count: number
+  starters: number
+  nameClass: string
+}): JSX.Element => (
+  <div className="flex min-w-0 flex-col items-center text-center" data-league-side="stack">
+    <div className={`w-full truncate text-[13px] font-medium ${nameClass}`}>{name}</div>
+    <ScoreSlot value={score} bye={bye} />
+    <LeftCount count={count} starters={starters} />
   </div>
 )
 
@@ -124,21 +146,22 @@ const PairRow = ({
         ) : null}
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
-        <div className="min-w-0 text-center">
-          <div className={`truncate text-[13px] font-medium ${pair.mine ? 'text-lime' : 'text-text'}`}>
-            {pair.matchup.myTeam.name}
-          </div>
-          <ScoreSlot value={formatScore(pair.matchup.myPoints)} />
-          <LeftCount count={pair.left} starters={pair.matchup.starters.length} />
-        </div>
+        <SideStack
+          name={pair.matchup.myTeam.name}
+          score={formatScore(pair.matchup.myPoints)}
+          count={pair.left}
+          starters={pair.matchup.starters.length}
+          nameClass={pair.mine ? 'text-lime' : 'text-text'}
+        />
         <div className="pt-4 font-cond text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Vs</div>
-        <div className="min-w-0 text-center">
-          <div className={`truncate text-[13px] font-medium ${bye ? 'text-muted' : 'text-text'}`}>
-            {pair.matchup.oppTeam?.name ?? 'BYE'}
-          </div>
-          <ScoreSlot value={bye ? '—' : formatScore(pair.matchup.oppPoints)} bye={bye} />
-          <LeftCount count={pair.oppLeft} starters={pair.matchup.oppStarters.length} />
-        </div>
+        <SideStack
+          name={pair.matchup.oppTeam?.name ?? 'BYE'}
+          score={bye ? '—' : formatScore(pair.matchup.oppPoints)}
+          bye={bye}
+          count={pair.oppLeft}
+          starters={pair.matchup.oppStarters.length}
+          nameClass={bye ? 'text-muted' : 'text-text'}
+        />
       </div>
       {pod.map((side) => (
         <div key={side.team.id} className="mt-2 flex items-center justify-between gap-3" data-league-pod-team={side.team.id}>

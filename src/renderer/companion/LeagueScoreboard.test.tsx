@@ -82,8 +82,9 @@ describe('LeagueScoreboard', () => {
     expect(html).toContain('Hash Marks')
     expect(html).toContain('data-league-bye="true"')
     expect(html).toContain('bg-card')
-    expect(html).toContain('w-[5.5ch]')
-    expect(html).toContain('text-right')
+    expect(html).toContain('data-league-side="stack"')
+    expect(html).toContain('items-center')
+    expect(html).not.toContain('w-[5.5ch]')
     expect(html).toContain('BYE')
     expect(html).toContain('4 left')
     expect(html).toContain('data-live-dot="true"')
@@ -126,6 +127,29 @@ describe('LeagueScoreboard', () => {
     expect(other[1]).toBe(mine[1])
     expect(bye).toEqual(other)
     expect(other[0]).not.toContain('text-right')
+  })
+
+  it('centers each side’s name, score, and players left, and truncates a long name', () => {
+    const snapshot = board()
+    const mine = snapshot.pairs[0]
+    if (!mine) throw new Error('missing pair')
+    snapshot.pairs[0] = {
+      ...mine,
+      matchup: {
+        ...mine.matchup,
+        myTeam: { ...mine.matchup.myTeam, name: 'Gibbs Me Head But The Name Keeps Going' }
+      }
+    }
+    const html = renderToStaticMarkup(<LeagueScoreboard board={snapshot} onMine={() => undefined} />)
+    const row = html.split('data-league-pair="mine"')[1]?.split('data-league-pair=')[0] ?? ''
+    expect(row.match(/data-league-side="stack"/g)).toHaveLength(2)
+    expect(row).toContain('flex min-w-0 flex-col items-center text-center')
+    expect(row).toContain('w-full truncate')
+    expect(row).toContain('Gibbs Me Head But The Name Keeps Going')
+    expect(row).toContain('4 left')
+    expect(row).toContain('5 left')
+    expect(row).not.toContain('w-[5.5ch]')
+    expect(row).not.toContain('text-right')
   })
 
   it('opens a pairing with All matchups and no read-only label', () => {
