@@ -1,7 +1,11 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import type { League, LeaguePair, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { tapePlayerLabel } from '@shared/display'
 import { estimatedChanceToWin, startersStillToPlay } from '@shared/winPct'
+import { toSleeperLeaguePairs } from './sleeperAdapter'
+import type { CachedPlayer, SleeperLeagueUser, SleeperMatchup, SleeperRoster } from './sleeperClient'
 
 export const REPLAY_SEASON = '2026'
 export const REPLAY_WEEK = 3
@@ -916,7 +920,37 @@ const replayPlayedSide = (league: League, ticker: readonly NflTickerGame[]): Lea
  * one three-club group, and one row where only one side has scored, so Replay
  * can show the scoreboard without a network call.
  */
+type GucciWeek4File = {
+  userId: string
+  rosters: SleeperRoster[]
+  users: SleeperLeagueUser[]
+  players: Record<string, CachedPlayer>
+  matchups: SleeperMatchup[]
+  projections: Record<string, number>
+  unprojected: string[]
+  ticker: NflTickerGame[]
+}
+
+/** Dev-only board: Kevin's week-4 matchups through the real League win% path. */
+const gucciWeek4Pairs = (countUnprojected: boolean): LeaguePair[] => {
+  const file = JSON.parse(
+    readFileSync(join(process.cwd(), 'fixtures/sleeper-gucci-week4.json'), 'utf8')
+  ) as GucciWeek4File
+  return toSleeperLeaguePairs({
+    userId: file.userId,
+    rosters: file.rosters,
+    users: file.users,
+    players: file.players,
+    matchups: file.matchups,
+    projections: file.projections,
+    unprojected: countUnprojected ? new Set(file.unprojected) : null,
+    ticker: file.ticker
+  })
+}
+
 export const replayLeaguePairs = (league: League, tick: number): LeaguePair[] => {
+  const board = process.env.SIDELINE_REPLAY_BOARD
+  if (board === 'gucci' || board === 'gucci-before') return gucciWeek4Pairs(board === 'gucci')
   const ticker = replayTickerGames(tick)
   const pairs: LeaguePair[] = []
   const mine = replayMatchupFor(league, tick)

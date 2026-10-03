@@ -4,7 +4,7 @@ import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { cacheFresh } from '../pollTargets'
 import {
-  getWeekProjections,
+  getWeekProjectionFile,
   toProjectionPtsMap,
   type SleeperPlayerProjection,
   type SleeperScoringKind
@@ -19,6 +19,8 @@ type ProjectionCacheFile = {
   week: number
   seasonType: string
   players: Record<string, SleeperPlayerProjection>
+  /** Ids in the file with no pts column. Omitted on caches written before that was kept. */
+  unprojected?: string[]
 }
 
 let memory: ProjectionCacheFile | null = null
@@ -72,6 +74,15 @@ let ptsCache: {
   byKind: Map<SleeperScoringKind, Record<string, number> | null>
 } | null = null
 
+let unprojectedMemo: { ids: readonly string[] | undefined; set: ReadonlySet<string> } | null = null
+
+const unprojectedSet = (ids: readonly string[] | undefined): ReadonlySet<string> => {
+  if (unprojectedMemo && unprojectedMemo.ids === ids) return unprojectedMemo.set
+  const set = new Set(ids ?? [])
+  unprojectedMemo = { ids, set }
+  return set
+}
+
 const ptsForKind = (
   players: Record<string, SleeperPlayerProjection>,
   kind: SleeperScoringKind
@@ -88,6 +99,16 @@ const ptsForKind = (
 export const peekSleeperProjectionPts = (kind: SleeperScoringKind = 'ppr'): Record<string, number> | null => {
   if (!memory) return null
   return ptsForKind(memory.players, kind)
+}
+
+/**
+ * Ids Sleeper listed this week with no fantasy-point column.
+ * Null until a projection file is in memory. An older disk cache has no list,
+ * so the set is empty until the next fetch.
+ */
+export const peekSleeperUnprojectedIds = (): ReadonlySet<string> | null => {
+  if (!memory) return null
+  return unprojectedSet(memory.unprojected)
 }
 
 export const hydrateSleeperProjectionsFromDisk = (opts: {
@@ -122,7 +143,7 @@ export const getSleeperProjectionPts = async (opts: {
   const gen = ++flightGen
   const run = async (): Promise<{ pts: Record<string, number> | null; refreshed: boolean }> => {
     try {
-      const players = await getWeekProjections(opts.season, opts.week, opts.seasonType, {
+      const file = await getWeekProjectionFile(opts.season, opts.week, opts.seasonType, {
         timeoutMs: 10_000,
         retries: 0,
         priority: 'low'
@@ -133,10 +154,11 @@ export const getSleeperProjectionPts = async (opts: {
         season: opts.season,
         week: opts.week,
         seasonType: opts.seasonType,
-        players
+        players: file.players,
+        unprojected: file.unprojected
       }
       persist(memory)
-      return { pts: ptsForKind(players, scoring), refreshed: true }
+      return { pts: ptsForKind(file.players, scoring), refreshed: true }
     } finally {
       if (flight?.gen === gen) flight = null
     }
@@ -152,4 +174,5 @@ export const resetSleeperProjectionsCache = (): void => {
   flightGen += 1
   persistGen += 1
   ptsCache = null
+  unprojectedMemo = null
 }

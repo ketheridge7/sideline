@@ -16,6 +16,7 @@ import {
   parseSleeperRoster,
   parseSleeperTransaction,
   parseSleeperUser,
+  parseWeekProjectionFile,
   parseWeekProjections,
   getWeekProjections,
   toProjectionPtsMap,
@@ -927,6 +928,16 @@ describe('week projections', () => {
     ).toEqual({ '4881': { pts_ppr: 19.56, pts_half_ppr: 19.56, pts_std: 19.56 } })
     expect(toProjectionPtsMap({ '4046': { pts_ppr: 17.49, pts_std: 11.15 } })).toEqual({ '4046': 17.49 })
     expect(toProjectionPtsMap({ '4046': { pts_ppr: 17.49, pts_std: 11.15 } }, 'std')).toEqual({ '4046': 11.15 })
+    expect(
+      parseWeekProjectionFile({
+        '4046': { adp_dd_ppr: 12, gp: 1, pts_ppr: 17.49, pts_half_ppr: 14.32, pts_std: 11.15 },
+        '5927': { adp_dd_ppr: 1000 },
+        '13286': { adp_dd_ppr: 1000 }
+      })
+    ).toEqual({
+      players: { '4046': { pts_ppr: 17.49, pts_half_ppr: 14.32, pts_std: 11.15 } },
+      unprojected: ['5927', '13286']
+    })
   })
 
   it('GETs api.sleeper.app /projections/nfl/{season_type}/{season}/{week} at low priority with a 10 min bust', async () => {

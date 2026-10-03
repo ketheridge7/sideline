@@ -384,4 +384,57 @@ describe('toSleeperLeaguePairs', () => {
     expect(hud?.myPoints).toBe(34.2)
     expect(applySleeperWinEstimate(hud!, projections).myWinPct).toBeUndefined()
   })
+
+  it('fills Est. win% for Gucci Gang week 4 starters Sleeper listed with no fantasy points', () => {
+    const gucci = JSON.parse(
+      readFileSync(join(process.cwd(), 'fixtures/sleeper-gucci-week4.json'), 'utf8')
+    ) as Fixture & {
+      projections: Record<string, number>
+      unprojected: string[]
+      ticker: NflTickerGame[]
+    }
+    const base = {
+      userId: gucci.userId,
+      rosters: gucci.rosters,
+      users: gucci.users,
+      players: gucci.players,
+      matchups: gucci.matchups,
+      projections: gucci.projections,
+      ticker: gucci.ticker
+    }
+    const names = (pair: { matchup: { starters: { name: string }[]; oppStarters: { name: string }[] } }): string[] => [
+      ...pair.matchup.starters.map((player) => player.name),
+      ...pair.matchup.oppStarters.map((player) => player.name)
+    ]
+    const before = toSleeperLeaguePairs(base)
+    expect(before).toHaveLength(6)
+    expect(before.every((pair) => pair.matchup.oppTeam != null)).toBe(true)
+    const hidden = before.filter((pair) => pair.matchup.myWinPct == null)
+    expect(hidden).toHaveLength(2)
+    expect(hidden.flatMap(names)).toEqual(expect.arrayContaining(['Terry McLaurin', 'Jadarian Price']))
+    const mine = before.find((pair) => pair.mine)
+    expect(mine?.matchup.myTeam.name).toBe('Gibbs Me Head')
+    expect(mine?.matchup.myPoints).toBe(19.6)
+    expect(mine?.matchup.myWinPct).toEqual(expect.any(Number))
+
+    const after = toSleeperLeaguePairs({ ...base, unprojected: new Set(gucci.unprojected) })
+    expect(after).toHaveLength(6)
+    expect(after.every((pair) => typeof pair.matchup.myWinPct === 'number')).toBe(true)
+    expect(after.every((pair) => pair.matchup.myProjectedPoints != null && pair.matchup.oppProjectedPoints != null)).toBe(
+      true
+    )
+
+    const doubtful = toMatchup({ ...base, focusRosterId: 10 })
+    expect(doubtful?.myTeam.name).toBe('Jtgonzo9')
+    expect(doubtful?.starters.some((player) => player.playerId === '5927' && player.points === 0)).toBe(true)
+    expect(applySleeperWinEstimate(doubtful!, gucci.projections).myWinPct).toBeUndefined()
+    expect(
+      applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), new Set(), new Set(gucci.unprojected)).myWinPct
+    ).toEqual(expect.any(Number))
+
+    const ir = toMatchup({ ...base, focusRosterId: 2 })
+    expect(ir?.myTeam.name).toBe('Tanner0731')
+    expect(ir?.starters.some((player) => player.playerId === '13286' && player.nflTeam === 'SEA')).toBe(true)
+    expect(applySleeperWinEstimate(ir!, gucci.projections).myWinPct).toBeUndefined()
+  })
 })

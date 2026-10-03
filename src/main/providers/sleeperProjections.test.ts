@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writeFileSync } from 'fs'
 import { join } from 'path'
 
-const projections = vi.hoisted(() => ({ getWeekProjections: vi.fn() }))
+const projections = vi.hoisted(() => ({ getWeekProjectionFile: vi.fn() }))
 
 vi.mock('./sleeperClient', async () => {
   const actual = await vi.importActual<typeof import('./sleeperClient')>('./sleeperClient')
-  return { ...actual, getWeekProjections: projections.getWeekProjections }
+  return { ...actual, getWeekProjectionFile: projections.getWeekProjectionFile }
 })
 
 vi.mock('electron', () => {
@@ -22,6 +22,7 @@ import {
   getSleeperProjectionPts,
   hydrateSleeperProjectionsFromDisk,
   peekSleeperProjectionPts,
+  peekSleeperUnprojectedIds,
   resetSleeperProjectionsCache,
   sleeperProjectionsSettled
 } from './sleeperProjections'
@@ -60,17 +61,19 @@ describe('peekSleeperProjectionPts', () => {
     const newerWeek = new Promise((resolve) => {
       releaseNew = resolve
     })
-    projections.getWeekProjections.mockImplementation((_season: string, week: number) =>
+    projections.getWeekProjectionFile.mockImplementation((_season: string, week: number) =>
       week === 3 ? olderWeek : newerWeek
     )
     const older = getSleeperProjectionPts({ season: '2026', week: 3, seasonType: 'regular' })
     const newer = getSleeperProjectionPts({ season: '2026', week: 4, seasonType: 'regular' })
-    releaseNew({ '1': { pts_ppr: 9 } })
+    releaseNew({ players: { '1': { pts_ppr: 9 } }, unprojected: ['5927'] })
     await newer
     expect(peekSleeperProjectionPts()).toEqual({ '1': 9 })
-    releaseOld({ '1': { pts_ppr: 1 } })
+    expect(peekSleeperUnprojectedIds()).toEqual(new Set(['5927']))
+    releaseOld({ players: { '1': { pts_ppr: 1 } }, unprojected: [] })
     await older
     expect(peekSleeperProjectionPts()).toEqual({ '1': 9 })
+    expect([...peekSleeperUnprojectedIds()!]).toEqual(['5927'])
   })
 
   it('drops the memo when the projection rows change', () => {
@@ -83,5 +86,22 @@ describe('peekSleeperProjectionPts', () => {
     const second = peekSleeperProjectionPts('ppr')
     expect(second).not.toBe(first)
     expect(second).toEqual({ '1': 12 })
+    expect(peekSleeperUnprojectedIds()).toEqual(new Set())
+  })
+
+  it('keeps ids that the file listed with no fantasy points', () => {
+    writeFileSync(
+      join(app.getPath('userData'), 'sideline-sleeper-projections.json'),
+      JSON.stringify({
+        fetchedAt: Date.now(),
+        ...week,
+        players: { '8228': { pts_ppr: 18.58 } },
+        unprojected: ['5927', '13286']
+      })
+    )
+    hydrateSleeperProjectionsFromDisk(week)
+    expect(peekSleeperProjectionPts()).toEqual({ '8228': 18.58 })
+    expect(peekSleeperUnprojectedIds()).toEqual(new Set(['5927', '13286']))
+    expect(peekSleeperUnprojectedIds()).toBe(peekSleeperUnprojectedIds())
   })
 })

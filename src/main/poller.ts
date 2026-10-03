@@ -16,6 +16,7 @@ import {
   getSleeperProjectionPts,
   hydrateSleeperProjectionsFromDisk,
   peekSleeperProjectionPts,
+  peekSleeperUnprojectedIds,
   resetSleeperProjectionsCache
 } from './providers/sleeperProjections'
 import {
@@ -4765,6 +4766,7 @@ const wireLeagueBrowse = (): void => {
         matchups: rows,
         players: peekPlayerMap(),
         projections: sleeperProjectionPtsFor(leagueId),
+        unprojected: peekSleeperUnprojectedIds(),
         ticker: lastState.nflTicker,
         slate: nflSlateTeams()
       })
