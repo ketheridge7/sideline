@@ -428,6 +428,9 @@ describe('overlayStartersBelong', () => {
     expect(overlayStartersBelong(prev, ['1', '3'])).toBe(false)
     expect(overlayStartersBelong(prev, [])).toBe(true)
     expect(overlayStartersBelong([], ['4046'])).toBe(false)
+    expect(overlayStartersBelong(prev, ['0', '', '0'])).toBe(false)
+    expect(overlayStartersBelong(prev, [], { listed: true })).toBe(false)
+    expect(overlayStartersBelong(prev, ['4046', '0'])).toBe(true)
     expect(
       overlayStartersBelong(
         [{ playerId: '', name: '', position: '', nflTeam: '' }],

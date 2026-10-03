@@ -17,7 +17,15 @@ export const NFL_SCOREBOARD_REACHABLE_MS = 5 * 60_000
 export const nflScoreboardTtlMs = (gamesInProgress: boolean): number =>
   gamesInProgress ? NFL_SCOREBOARD_TTL_MS : NFL_SCOREBOARD_PRE_TTL_MS
 
-let scoreboardCache: { at: number; gamesIn: boolean; kickoffs: number[]; ticker: NflTickerGame[] } | null = null
+let scoreboardCache: {
+  at: number
+  gamesIn: boolean
+  /** `pre` games only. Drives cadence while this scoreboard is reachable. */
+  kickoffs: number[]
+  /** Every event kickoff from the last good payload, including games no longer `pre`. */
+  knownKickoffs: number[]
+  ticker: NflTickerGame[]
+} | null = null
 let lastGoodScoreboardUrl: string | null = null
 
 export const nflScoreboardReachable = (now = Date.now()): boolean =>
@@ -162,6 +170,19 @@ export const nflPreKickoffs = (payload: unknown): number[] => {
   return out
 }
 
+/** Kickoff times of every event on the scoreboard, including games already `in` or `post`. */
+export const nflEventKickoffs = (payload: unknown): number[] => {
+  const out: number[] = []
+  for (const event of collectEvents(payload)) {
+    const at = eventKickoffMs(event)
+    if (at != null) out.push(at)
+  }
+  return out
+}
+
+/** Last successful scoreboard's kickoffs. Still available after that fetch goes stale. */
+export const nflKnownKickoffs = (): readonly number[] => scoreboardCache?.knownKickoffs ?? []
+
 export const nflKickoffSoon = (kickoffs: readonly number[], now: number, windowMs = KICKOFF_SOON_MS): boolean =>
   kickoffs.some((at) => at - now <= windowMs && now - at <= KICKOFF_LATE_MS)
 
@@ -253,6 +274,7 @@ export const nflScoreboardState = async (
       at: Date.now(),
       gamesIn: nflGamesInProgress(payload),
       kickoffs: nflPreKickoffs(payload),
+      knownKickoffs: nflEventKickoffs(payload),
       ticker: nflTickerFromPayload(payload)
     }
     return fromCache(scoreboardCache, Date.now(), calendarLive)

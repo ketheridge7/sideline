@@ -1,4 +1,4 @@
-import { overlayStartersBelong } from '@shared/display'
+import { matchupHasLineup, overlayStartersBelong } from '@shared/display'
 import type { League, Matchup, Player, Team, Transaction } from '@shared/types'
 import { mapTransactionKind } from '@shared/transactionKind'
 import {
@@ -575,6 +575,30 @@ export const sleeperRosterIdForUser = (
   return rosterIdOf(mine)
 }
 
+/**
+ * A rebuild from a not-yet-posted row has no named starters. Keep the last
+ * lineup when it is still the same roster and opponent, so Tuesday does not
+ * flash blank. A different opponent is a new pairing and stays as rebuilt.
+ * A zero total that is not final is the unposted stub, not a real score.
+ */
+export const keepSameMatchupLineup = (prev: Matchup | null, next: Matchup | null): Matchup | null => {
+  if (!next || !prev) return next
+  if (matchupHasLineup(next) || !matchupHasLineup(prev)) return next
+  if (prev.myTeam.id !== next.myTeam.id) return next
+  if ((prev.oppTeam?.id ?? null) !== (next.oppTeam?.id ?? null)) return next
+  const myPoints = next.scoresFinal || next.myPoints !== 0 ? next.myPoints : prev.myPoints
+  const oppPoints = next.scoresFinal || next.oppPoints !== 0 ? next.oppPoints : prev.oppPoints
+  return {
+    ...next,
+    myPoints,
+    oppPoints,
+    starters: prev.starters,
+    bench: prev.bench,
+    oppStarters: prev.oppStarters,
+    oppBench: prev.oppBench
+  }
+}
+
 export const overlaySleeperMatchups = (
   prev: Matchup,
   matchups: SleeperMatchup[],
@@ -590,8 +614,11 @@ export const overlaySleeperMatchups = (
   // A compact row that omits matchup_id cannot prove who is paired this week.
   // Trusting prev.oppTeam.roster_id paints last week's opponent with this week's points.
   if (mine.matchup_id === undefined) return null
-  const liveIds = (mine.starters ?? []).map(playerIdOf).filter((id): id is string => id != null)
-  if (!overlayStartersBelong(prev.starters, liveIds)) return null
+  // Omitted starters stay an empty iteration so a not-yet-posted row can keep names.
+  // A present array is passed through, including "0" / "" slots, so those cannot.
+  const starterSlots = mine.starters
+  const liveIds = Array.isArray(starterSlots) ? starterSlots.map((slot) => playerIdOf(slot) ?? '') : []
+  if (!overlayStartersBelong(prev.starters, liveIds, { listed: Array.isArray(starterSlots) })) return null
   const liveRosterId = rosterIdOf(mine)
   const myMatchupId = matchupIdOf(mine)
   const opp =

@@ -253,6 +253,30 @@ describe('calendarNflFallback', () => {
       seasonType: 'pre'
     })
   })
+
+  it('keeps the last confirmed week when Tuesday midnight is ahead of Sleeper', () => {
+    const confirmed = {
+      week: 1,
+      displayWeek: 1,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular' as const,
+      leg: 1
+    }
+    // Tuesday 12:30am Eastern. The calendar seed is already week 2.
+    const tuesdayEarly = new Date('2026-09-15T04:30:00Z')
+    expect(calendarNflFallback(tuesdayEarly).displayWeek).toBe(2)
+    expect(nflCalendarSeed(tuesdayEarly, undefined, confirmed)).toEqual(confirmed)
+    expect(nflCalendarSeed(tuesdayEarly, 3, confirmed)).toMatchObject({
+      week: 3,
+      displayWeek: 3,
+      season: '2026',
+      leagueSeason: '2026',
+      seasonType: 'regular',
+      leg: 1
+    })
+    expect(nflCalendarSeed(tuesdayEarly).displayWeek).toBe(2)
+  })
 })
 
 describe('warmupNflCachePlan', () => {
