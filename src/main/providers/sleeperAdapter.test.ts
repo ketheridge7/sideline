@@ -1019,6 +1019,59 @@ describe('applySleeperWinEstimate', () => {
     expect(starterProjectedFinal(matchup.starters, { '3': 16 })).toBeUndefined()
   })
 
+  it('counts a DST projected at -2 before that game is final', () => {
+    const dstPlayers = {
+      ...players,
+      '16': { name: 'Bears D/ST', position: 'DEF', nflTeam: 'CHI' }
+    }
+    const pregame: SleeperMatchup[] = [
+      {
+        roster_id: 1,
+        matchup_id: 7,
+        points: 0,
+        starters: ['1', '16'],
+        players: ['1', '16'],
+        players_points: { '1': 0, '16': 0 }
+      },
+      {
+        roster_id: 2,
+        matchup_id: 7,
+        points: 0,
+        starters: ['3'],
+        players: ['3'],
+        players_points: { '3': 0 }
+      }
+    ]
+    const projections = { '1': 20, '16': -2, '3': 20 }
+    const beforeKick = toMatchup({ userId: 'me', rosters, users, matchups: pregame, players: dstPlayers })!
+    const before = applySleeperWinEstimate(beforeKick, projections)
+    expect(before.myProjectedPoints).toBe(18)
+    expect(before.oppProjectedPoints).toBe(20)
+    expect(before.myWinPct).toBeLessThan(0.5)
+
+    const mid: SleeperMatchup[] = [
+      { ...pregame[0], points: 12, players_points: { '1': 12, '16': 0 } },
+      { ...pregame[1], points: 12, players_points: { '3': 12 } }
+    ]
+    const during = applySleeperWinEstimate(
+      toMatchup({ userId: 'me', rosters, users, matchups: mid, players: dstPlayers })!,
+      projections
+    )
+    expect(during.myPoints).toBe(12)
+    expect(during.myProjectedPoints).toBe(18)
+    expect(during.oppProjectedPoints).toBe(20)
+    expect(during.myWinPct).toBeLessThan(0.5)
+
+    const dstFinal = applySleeperWinEstimate(
+      toMatchup({ userId: 'me', rosters, users, matchups: mid, players: dstPlayers })!,
+      projections,
+      finalNflTeams([
+        { id: 'g', away: 'GB', awayScore: 24, home: 'CHI', homeScore: 10, clock: 'FINAL', final: true }
+      ])
+    )
+    expect(dstFinal.myProjectedPoints).toBe(20)
+  })
+
   it('stays pending when a starter is missing a projection (no score-share)', () => {
     const matchup = toMatchup({ userId: 'me', rosters, users, matchups, players })
     expect(matchup).not.toBeNull()

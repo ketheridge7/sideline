@@ -496,8 +496,9 @@ export const starterProjectedTotal = (
 
 /**
  * Remaining-aware starter final: players whose NFL game is final count their
- * actual points; everyone else max(actual, weekly projection). Undefined
- * (pending) when a starter still to play has no projection.
+ * actual points; everyone else max(actual, weekly projection). A starter still
+ * at 0 keeps a negative projection. Undefined (pending) when a starter still
+ * to play has no projection.
  */
 export const starterProjectedFinal = (
   starters: Player[],

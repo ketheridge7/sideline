@@ -544,7 +544,7 @@ const liveTeamPts = (row: Record<string, unknown> | null | undefined): number | 
   if (!row) return undefined
   for (const field of [row.totalPointsLive, row.liveScore, row.pointsLive]) {
     const pts = liveChipPts(field)
-    if (pts != null && pts > 0) return pts
+    if (pts != null && pts !== 0) return pts
   }
   const liveScore = liveChipPts(row.liveScore)
   const appliedActive = liveChipPts(row.appliedActiveReal)
@@ -892,7 +892,7 @@ const mergeSide = (
   const merged: Record<string, unknown> = { ...(side ?? {}), ...(live ?? {}) }
   const fromLive = liveTeamPts(live)
   const fromSide = liveTeamPts(side)
-  if (fromLive != null && fromLive > 0) {
+  if (fromLive != null && fromLive !== 0) {
     merged.totalPointsLive = fromLive
     merged.liveScore = fromLive
   } else if (fromLive === 0) {
@@ -1112,21 +1112,30 @@ const sideTotal = (side: Record<string, unknown>, scoringPeriodId?: number, prio
   const starters = starterActualSum(side, scoringPeriodId)
   const period = periodActual(side, scoringPeriodId)
   // Pre-kickoff current period 0 beats leftover totalPoints / last-week live totals.
-  if (period === 0 && liveStarters === 0 && starters === 0) return prior
+  // A negative live total in a normal week is this week's score, even if the
+  // period map is still 0. A completed playoff week stays the floor.
+  if (period === 0 && liveStarters === 0 && starters === 0 && !(prior === 0 && live != null && live < 0)) return prior
   // ESPN `totalPointsLive` is sometimes the whole roster (a TNF bench/IR scorer)
   // while every starter slot is still 0. That total is not the matchup score.
+  // A negative total is a real score (DST), not that bench pile.
   // A team total larger than the bench/IR sum is left alone: starter chips lag
   // the live team total during games.
   const split = slottedPointSplit(side, scoringPeriodId)
   if (split.sawStarter && split.starter === 0 && split.bench > 0) {
     const explained = (value: number | null | undefined): boolean =>
-      value == null || value === 0 || value <= split.bench + 0.001
+      value == null || value === 0 || (value > 0 && value <= split.bench + 0.001)
     if (explained(live) && explained(period)) return prior
   }
   if (live != null && live > 0) return Math.max(live, prior)
+  // No completed playoff week to use as a floor: a negative team total stands.
+  // With a prior week, never paint below it.
+  if (live != null && live < 0) return prior > 0 ? Math.max(live, prior) : live
   if (live === 0) return prior
   if (liveStarters > 0) return prior + liveStarters
-  if (period != null) return prior + Math.max(period, starters)
+  if (period != null) {
+    const week = period < 0 && starters <= 0 ? period : Math.max(period, starters)
+    return prior > 0 ? prior + Math.max(week, 0) : week
+  }
   const final = num(side.totalPoints)
   return Math.max(final ?? 0, prior + starters)
 }
@@ -1555,7 +1564,7 @@ const hasEspnLivePts = (
   byId: Map<string, number>,
   displayWeek: number
 ): boolean => {
-  if (side && sideTotal(side, displayWeek) > 0) return true
+  if (side && sideTotal(side, displayWeek) !== 0) return true
   for (const pts of byId.values()) {
     if (pts > 0) return true
   }
