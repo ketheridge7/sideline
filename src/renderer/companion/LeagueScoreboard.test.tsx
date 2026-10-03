@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { LeagueBoardSnapshot, Matchup } from '@shared/types'
-import { applyLeagueScanKey, LeagueScoreboard } from './LeagueScoreboard'
+import { applyLeagueScanKey, leagueScanForSnapshot, leagueScanKeyBlocked, LeagueScoreboard } from './LeagueScoreboard'
 
 const pairing = (name: string, opp: string | null): Matchup => ({
   myTeam: { id: name, name, owner: name, record: '1-0' },
@@ -49,6 +49,29 @@ describe('applyLeagueScanKey', () => {
     expect(back).toEqual({ view: 'list', index: 1 })
     expect(applyLeagueScanKey(back === 'mine' ? list : back, 'Escape', 3)).toBe('mine')
   })
+
+  it('returns to the list when the league or week changes', () => {
+    const detail = { view: 'detail' as const, index: 2 }
+    expect(leagueScanForSnapshot(detail, 'sleeper:1:3', 'sleeper:9:3', 4)).toEqual({ view: 'list', index: 0 })
+    expect(leagueScanForSnapshot(detail, 'sleeper:1:3', 'sleeper:1:4', 4)).toEqual({ view: 'list', index: 0 })
+    expect(leagueScanForSnapshot(detail, 'sleeper:1:3', 'sleeper:1:3', 4)).toEqual(detail)
+    expect(leagueScanForSnapshot(detail, 'sleeper:1:3', 'sleeper:1:3', 2)).toEqual({ view: 'detail', index: 1 })
+  })
+
+  it('ignores arrows while a shortcut or the HUD studio already owns the key', () => {
+    const event = {
+      defaultPrevented: false,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      target: null
+    }
+    expect(leagueScanKeyBlocked(event)).toBe(false)
+    expect(leagueScanKeyBlocked({ ...event, defaultPrevented: true })).toBe(true)
+    expect(leagueScanKeyBlocked({ ...event, metaKey: true })).toBe(true)
+    expect(leagueScanKeyBlocked({ ...event, ctrlKey: true })).toBe(true)
+    expect(leagueScanKeyBlocked({ ...event, altKey: true })).toBe(true)
+  })
 })
 
 describe('LeagueScoreboard', () => {
@@ -82,5 +105,20 @@ describe('LeagueScoreboard', () => {
     expect(html).toContain('Ice Box')
     expect(html).toContain('data-league-status="error"')
     expect(html).toContain('paused after a rate limit')
+  })
+
+  it('labels a Sleeper estimate and leaves an official ESPN bar unlabeled in the list', () => {
+    const estimated = board()
+    const first = estimated.pairs[0]
+    if (!first) throw new Error('missing pair')
+    estimated.pairs[0] = {
+      ...first,
+      matchup: { ...first.matchup, winPctSource: 'estimated' }
+    }
+    const html = renderToStaticMarkup(<LeagueScoreboard board={estimated} onMine={() => undefined} />)
+    expect(html).toContain('Est. win%')
+    expect(html).toContain('data-hud-win-pct-source="estimated"')
+    const official = renderToStaticMarkup(<LeagueScoreboard board={board()} onMine={() => undefined} />)
+    expect(official).not.toContain('Est. win%')
   })
 })

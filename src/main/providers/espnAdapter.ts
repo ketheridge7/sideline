@@ -1761,12 +1761,40 @@ const LEAGUE_BROWSE_COOKIES: EspnCookies = {
  * the signed-in pairing — so a week-wide body cannot rewrite every game onto
  * the HUD team.
  */
+const schedulePairKey = (homeId: number | undefined, awayId: number | undefined): string => {
+  if (homeId == null || awayId == null) return `${homeId ?? 'x'}-${awayId ?? 'x'}`
+  return `${Math.min(homeId, awayId)}:${Math.max(homeId, awayId)}`
+}
+
+/** Prefer the current NFL week's row when a two-week round is split across schedule entries. */
+const scheduleRowRank = (game: Record<string, unknown>, displayWeek: number): number => {
+  const week = num(game.scoringPeriodId)
+  if (week != null && week === displayWeek) return Number.MAX_SAFE_INTEGER
+  return week ?? -1
+}
+
+const dedupeSchedule = (
+  schedule: Record<string, unknown>[],
+  displayWeek: number
+): Record<string, unknown>[] => {
+  const chosen = new Map<string, Record<string, unknown>>()
+  for (const game of schedule) {
+    const home = isRecord(game.home) ? game.home : null
+    const away = isRecord(game.away) ? game.away : null
+    const key = schedulePairKey(scheduleSideId(home), scheduleSideId(away))
+    const prev = chosen.get(key)
+    if (!prev || scheduleRowRank(game, displayWeek) >= scheduleRowRank(prev, displayWeek)) chosen.set(key, game)
+  }
+  return [...chosen.values()]
+}
+
 export const toEspnLeaguePairs = (args: {
   payload: unknown
   displayWeek: number
   myTeamId?: number
   matchupPeriod?: EspnMatchupPeriod
   ticker?: readonly NflTickerGame[]
+  slate?: readonly string[]
 }): LeaguePair[] => {
   const payload = unwrapEspnPayload(args.payload, hasEspnLeagueShape)
   if (!payload) return []
@@ -1774,8 +1802,9 @@ export const toEspnLeaguePairs = (args: {
   const period =
     args.matchupPeriod ??
     espnMatchupPeriodFor(null, args.displayWeek > 0 ? args.displayWeek : scoringPeriodFromStatus(payload, args.displayWeek))
-  const schedule = payloadSchedule(payload).filter(
-    (row) => scheduleRowInPeriod(row, period) && scheduleGameHasSides(row)
+  const schedule = dedupeSchedule(
+    payloadSchedule(payload).filter((row) => scheduleRowInPeriod(row, period) && scheduleGameHasSides(row)),
+    args.displayWeek
   )
   if (schedule.length === 0) return []
   const ticker = args.ticker ?? []
@@ -1803,8 +1832,8 @@ export const toEspnLeaguePairs = (args: {
       id: `${homeId ?? 'x'}-${awayId ?? 'x'}`,
       mine: userInGame,
       matchup,
-      left: startersStillToPlay(matchup.starters, ticker),
-      oppLeft: startersStillToPlay(matchup.oppStarters, ticker)
+      left: startersStillToPlay(matchup.starters, ticker, args.slate),
+      oppLeft: startersStillToPlay(matchup.oppStarters, ticker, args.slate)
     })
   }
   const members = membersOf(payload)

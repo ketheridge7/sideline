@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import type { LeagueBoardSnapshot, LeaguePair } from '@shared/types'
 import { matchupChanceToWin, matchupWinPctSource } from '@shared/display'
 import { HudScoreboard } from '../shared/HudScoreboard'
@@ -28,8 +28,43 @@ export const applyLeagueScanKey = (state: LeagueScan, key: string, count: number
   }
 }
 
-const typingTarget = (target: EventTarget | null): boolean =>
-  target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement
+const typingTarget = (target: EventTarget | null): boolean => {
+  if (typeof HTMLInputElement === 'undefined') return false
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLTextAreaElement
+  )
+}
+
+/** Keys aimed at a field, the HUD studio, or a shortcut that already ran. */
+export const leagueScanKeyBlocked = (event: {
+  defaultPrevented: boolean
+  metaKey: boolean
+  ctrlKey: boolean
+  altKey: boolean
+  target: EventTarget | null
+}): boolean => {
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return true
+  if (typingTarget(event.target)) return true
+  if (typeof HTMLElement === 'undefined' || !(event.target instanceof HTMLElement)) return false
+  return Boolean(
+    event.target.closest('[data-studio-preview], [data-color-picker], [role="slider"], [contenteditable="true"]')
+  )
+}
+
+/** Drop a detail view when the league or week changes so the previous list cannot stay open. */
+export const leagueScanForSnapshot = (
+  scan: LeagueScan,
+  previousKey: string,
+  nextKey: string,
+  count: number
+): LeagueScan => {
+  if (previousKey !== nextKey) return { view: 'list', index: 0 }
+  if (count <= 0) return { view: 'list', index: 0 }
+  const index = Math.min(scan.index, count - 1)
+  return scan.index === index ? scan : { ...scan, index }
+}
 
 const LeftCount = ({ count, starters }: { count: number; starters: number }): JSX.Element | null => {
   if (starters <= 0) return null
@@ -137,29 +172,43 @@ export const LeagueScoreboard = ({
   const [scan, setScan] = useState<LeagueScan>(initialScan)
   const pairs = board?.pairs ?? []
   const count = pairs.length
+  const boardKey = board ? `${board.leagueKey}:${board.week}` : ''
+  const seenBoard = useRef(boardKey)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setScan((current) => {
-      if (count <= 0) return { view: 'list', index: 0 }
-      const index = Math.min(current.index, count - 1)
-      return current.index === index ? current : { ...current, index }
-    })
-  }, [count])
+    const previous = seenBoard.current
+    seenBoard.current = boardKey
+    setScan((current) => leagueScanForSnapshot(current, previous, boardKey, count))
+  }, [boardKey, count])
+
+  useEffect(() => {
+    if (scan.view !== 'list') return
+    const root = listRef.current
+    if (!root) return
+    const pair = pairs[scan.index]
+    if (!pair) {
+      root.scrollTop = 0
+      return
+    }
+    const escaped = typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(pair.id) : pair.id
+    const node = root.querySelector(`[data-league-pair="${escaped}"]`)
+    if (node instanceof HTMLElement) node.scrollIntoView({ block: 'nearest' })
+  }, [boardKey, pairs, scan.index, scan.view])
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent): void => {
-      if (typingTarget(event.target)) return
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter' && event.key !== 'Escape') {
         return
       }
+      if (leagueScanKeyBlocked(event)) return
       const next = applyLeagueScanKey(scan, event.key, count)
+      event.preventDefault()
       if (next === 'mine') {
-        event.preventDefault()
         onMine()
         return
       }
       if (next === scan) return
-      event.preventDefault()
       setScan(next)
     }
     window.addEventListener('keydown', handleKey)
@@ -218,7 +267,7 @@ export const LeagueScoreboard = ({
           </p>
         )
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto" role="listbox" aria-label="League matchups">
+        <div ref={listRef} className="min-h-0 flex-1 overflow-auto" role="listbox" aria-label="League matchups">
           {pairs.map((pair, index) => (
             <PairRow
               key={pair.id}

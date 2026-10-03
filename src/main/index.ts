@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut, net } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { bindAppFetch, bindEspnFetch } from './http'
+import { resetLeagueBrowse } from './leagueBrowse'
 import { espnSignInPreviewEnabled, previewEspnFetch, seedEspnSignInPreview } from './espnSignInPreview'
 import { espnSession } from './windows/espnLogin'
 import { registerIpc } from './ipc'
@@ -133,6 +134,7 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', () => {
+  resetLeagueBrowse()
   handleBeforeQuit({
     quittingForUpdate: runtime.isQuittingForUpdate(),
     setQuitting: () => runtime.setQuitting(true),

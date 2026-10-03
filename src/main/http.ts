@@ -122,6 +122,14 @@ export const resetHostBackoff = (): void => {
 
 export type FetchPriority = 'high' | 'low' | 'auto'
 
+/**
+ * `share` reads and writes the host breaker. `observe` still refuses to start
+ * while that breaker is open, but a failure here does not open it and a
+ * success does not clear it. League browse uses `observe` so a week-wide miss
+ * cannot stall the HUD's score GETs.
+ */
+export type HostBackoffRole = 'share' | 'observe'
+
 export type FetchJsonOpts = {
   url: string
   headers?: Record<string, string>
@@ -131,6 +139,7 @@ export type FetchJsonOpts = {
   useEspnSession?: boolean
   /** Breaker scope; defaults to the URL host. */
   backoffKey?: string
+  hostBackoff?: HostBackoffRole
 }
 
 export type FetchTiming = {
@@ -173,6 +182,8 @@ export const resetAppFetch = (): void => {
 export const DEFAULT_FETCH_TIMEOUT_MS = 5_000
 export const DEFAULT_FETCH_RETRIES = 0
 
+const tracksHostBackoff = (opts: FetchJsonOpts): boolean => opts.hostBackoff !== 'observe'
+
 const inflightKey = (opts: FetchJsonOpts): string => {
   const headers = opts.headers ?? {}
   return [
@@ -182,7 +193,8 @@ const inflightKey = (opts: FetchJsonOpts): string => {
     String(opts.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS),
     String(opts.retries ?? DEFAULT_FETCH_RETRIES),
     opts.priority ?? '',
-    opts.useEspnSession && espnFetch ? 'espn-session' : ''
+    opts.useEspnSession && espnFetch ? 'espn-session' : '',
+    opts.hostBackoff ?? 'share'
   ].join('\n')
 }
 
@@ -220,7 +232,7 @@ const fetchJsonOnce = async <T>(opts: FetchJsonOpts): Promise<T> => {
         recordTiming(opts.url, started, false)
         const hinted = retryAfterMs(res)
         if (attempt === retries || (hinted != null && hinted > timeoutMs)) {
-          recordHostFailure(opts, 429, '', hinted)
+          if (tracksHostBackoff(opts)) recordHostFailure(opts, 429, '', hinted)
           throw new HttpError(429, opts.url, `HTTP 429 ${opts.url}`)
         }
         await sleep(hinted ?? 1_500 * (attempt + 1))
@@ -235,7 +247,7 @@ const fetchJsonOnce = async <T>(opts: FetchJsonOpts): Promise<T> => {
         typeof res.headers?.get === 'function' ? (res.headers.get('content-type') ?? '') : ''
       if (!res.ok) {
         recordTiming(opts.url, started, false)
-        recordHostFailure(opts, res.status, contentType, retryAfterMs(res))
+        if (tracksHostBackoff(opts)) recordHostFailure(opts, res.status, contentType, retryAfterMs(res))
         throw new HttpError(res.status, opts.url, `HTTP ${res.status} ${opts.url}`)
       }
       if (contentType.includes('text/html')) {
@@ -248,7 +260,7 @@ const fetchJsonOnce = async <T>(opts: FetchJsonOpts): Promise<T> => {
           const raw = await res.text()
           if (!raw.trim()) {
             recordTiming(opts.url, started, true)
-            clearHost(opts)
+            if (tracksHostBackoff(opts)) clearHost(opts)
             return null as T
           }
           body = JSON.parse(raw) as T
@@ -261,7 +273,7 @@ const fetchJsonOnce = async <T>(opts: FetchJsonOpts): Promise<T> => {
         throw new HttpError(res.status, opts.url, `Invalid JSON ${opts.url}`)
       }
       recordTiming(opts.url, started, true)
-      clearHost(opts)
+      if (tracksHostBackoff(opts)) clearHost(opts)
       return body
     } catch (error) {
       if (error instanceof HttpError) throw error

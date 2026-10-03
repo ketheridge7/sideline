@@ -689,8 +689,13 @@ export const toMatchup = (args: {
   users: SleeperLeagueUser[]
   matchups: SleeperMatchup[]
   players: Record<string, CachedPlayer>
+  /** League browse pins a roster directly so a missing owner still renders. */
+  focusRosterId?: number
 }): Matchup | null => {
-  const myRoster = args.rosters.find((roster) => isMyRoster(roster, args.userId))
+  const myRoster =
+    args.focusRosterId != null
+      ? args.rosters.find((roster) => rosterIdOf(roster) === args.focusRosterId)
+      : args.rosters.find((roster) => isMyRoster(roster, args.userId))
   if (!myRoster) return null
   const myRosterId = rosterIdOf(myRoster)
   if (myRosterId == null) return null
@@ -733,15 +738,18 @@ const pairFromRows = (args: {
   projections?: Record<string, number> | null
   finalTeams: ReadonlySet<string>
   ticker: readonly NflTickerGame[]
+  slate?: readonly string[]
   mine: boolean
   id: string
+  focusRosterId: number
 }): LeaguePair | null => {
   const built = toMatchup({
     userId: args.userId,
     rosters: args.rosters,
     users: args.users,
     matchups: args.rows,
-    players: args.players
+    players: args.players,
+    focusRosterId: args.focusRosterId
   })
   if (!built) return null
   const matchup = applySleeperWinEstimate(built, args.projections, args.finalTeams)
@@ -749,8 +757,8 @@ const pairFromRows = (args: {
     id: args.id,
     mine: args.mine,
     matchup,
-    left: startersStillToPlay(matchup.starters, args.ticker),
-    oppLeft: startersStillToPlay(matchup.oppStarters, args.ticker)
+    left: startersStillToPlay(matchup.starters, args.ticker, args.slate),
+    oppLeft: startersStillToPlay(matchup.oppStarters, args.ticker, args.slate)
   }
 }
 
@@ -767,6 +775,7 @@ export const toSleeperLeaguePairs = (args: {
   players: Record<string, CachedPlayer>
   projections?: Record<string, number> | null
   ticker?: readonly NflTickerGame[]
+  slate?: readonly string[]
 }): LeaguePair[] => {
   const ticker = args.ticker ?? []
   const finalTeams = new Set<string>()
@@ -791,17 +800,16 @@ export const toSleeperLeaguePairs = (args: {
     groups.set(id, list)
   }
   const pairs: LeaguePair[] = []
+  let pairedAny = false
   const pushBuilt = (
     rows: SleeperMatchup[],
     focusRosterId: number | undefined,
     mine: boolean,
     id: string
   ): void => {
-    const focus = args.rosters.find((roster) => rosterIdOf(roster) === focusRosterId)
-    const userId = mine ? args.userId : focus?.owner_id
-    if (!userId || focusRosterId == null) return
+    if (focusRosterId == null) return
     const pair = pairFromRows({
-      userId,
+      userId: args.userId,
       rosters: args.rosters,
       users: args.users,
       rows,
@@ -809,8 +817,10 @@ export const toSleeperLeaguePairs = (args: {
       projections: args.projections,
       finalTeams,
       ticker,
+      slate: args.slate,
       mine,
-      id
+      id,
+      focusRosterId
     })
     if (pair) pairs.push(pair)
   }
@@ -819,6 +829,7 @@ export const toSleeperLeaguePairs = (args: {
       if (rows[0]) byes.push(rows[0])
       continue
     }
+    pairedAny = true
     const extras = rows.slice(2)
     for (const extra of extras) byes.push({ ...extra, matchup_id: null })
     const paired = rows.slice(0, 2)
@@ -827,6 +838,7 @@ export const toSleeperLeaguePairs = (args: {
     const focusId = rosterIdOf(focus)
     pushBuilt(paired, focusId, mineRow != null, `m:${id}`)
   }
+  if (!pairedAny) return []
   for (const row of byes) {
     const rosterId = rosterIdOf(row)
     pushBuilt([row], rosterId, rosterId != null && rosterId === myRosterId, `bye:${rosterId ?? 'x'}`)

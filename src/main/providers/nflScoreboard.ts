@@ -1,4 +1,5 @@
 import type { NflTickerGame } from '@shared/types'
+import { nflTeamKey } from '@shared/winPct'
 import { fetchJson } from '../http'
 import { IDLE_POLL_MS } from '../liveWindow'
 import { cacheFresh, scoreboardPollLive } from '../pollTargets'
@@ -24,6 +25,8 @@ let scoreboardCache: {
   kickoffs: number[]
   /** Every event kickoff from the last good payload, including games no longer `pre`. */
   knownKickoffs: number[]
+  /** NFL teams with a game this week, including `pre`. Used by League browse, not the ticker. */
+  slate: string[]
   ticker: NflTickerGame[]
 } | null = null
 let lastGoodScoreboardUrl: string | null = null
@@ -121,6 +124,23 @@ const clockOf = (event: Record<string, unknown>): { clock: string; final?: boole
   }
   return { clock: state === 'in' ? 'LIVE' : '' }
 }
+
+/** Every NFL team on this week's scoreboard, including games that have not kicked off. */
+export const nflSlateTeamsFromPayload = (payload: unknown): string[] => {
+  const teams = new Set<string>()
+  for (const event of collectEvents(payload)) {
+    const state = eventState(event)
+    if (state !== 'pre' && state !== 'in' && state !== 'post') continue
+    for (const row of competitorsOf(event)) {
+      const key = nflTeamKey(competitorAbbr(row))
+      if (key) teams.add(key)
+    }
+  }
+  return [...teams]
+}
+
+/** Last scoreboard's full slate. Empty until a scoreboard has landed. */
+export const nflSlateTeams = (): readonly string[] => scoreboardCache?.slate ?? []
 
 export const nflTickerFromPayload = (payload: unknown): NflTickerGame[] => {
   const out: NflTickerGame[] = []
@@ -275,6 +295,7 @@ export const nflScoreboardState = async (
       gamesIn: nflGamesInProgress(payload),
       kickoffs: nflPreKickoffs(payload),
       knownKickoffs: nflEventKickoffs(payload),
+      slate: nflSlateTeamsFromPayload(payload),
       ticker: nflTickerFromPayload(payload)
     }
     return fromCache(scoreboardCache, Date.now(), calendarLive)

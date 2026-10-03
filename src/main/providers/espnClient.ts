@@ -1,4 +1,4 @@
-import { fetchJson, HttpError, type FetchPriority } from '../http'
+import { fetchJson, HttpError, type FetchPriority, type HostBackoffRole } from '../http'
 
 export type EspnCookies = {
   espn_s2: string
@@ -76,6 +76,7 @@ type FetchOpts = {
   timeoutMs?: number
   retries?: number
   priority?: FetchPriority
+  hostBackoff?: HostBackoffRole
 }
 
 const headersFor = (opts: FetchOpts): Record<string, string> => {
@@ -96,7 +97,8 @@ const fetchEspn = async (opts: FetchOpts): Promise<unknown> => {
       timeoutMs: opts.timeoutMs ?? 5_000,
       retries: opts.retries ?? 0,
       priority: opts.priority,
-      useEspnSession: true
+      useEspnSession: true,
+      hostBackoff: opts.hostBackoff
     })
 
   const normalized = opts.cookies ? normalizeEspnCookies(opts.cookies) : null
@@ -188,6 +190,7 @@ export const fetchLeague = (args: {
   timeoutMs?: number
   retries?: number
   priority?: FetchPriority
+  hostBackoff?: HostBackoffRole
 }): Promise<unknown> => {
   if (!isEspnLeagueId(args.leagueId)) return rejectLeagueId(args.leagueId)
   return fetchEspn({
@@ -196,7 +199,8 @@ export const fetchLeague = (args: {
     filter: args.filter,
     timeoutMs: args.timeoutMs,
     retries: args.retries,
-    priority: args.priority
+    priority: args.priority,
+    hostBackoff: args.hostBackoff
   })
 }
 

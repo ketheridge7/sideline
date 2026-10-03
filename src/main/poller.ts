@@ -49,7 +49,7 @@ import {
   weekTeamScheduleFilter,
   type EspnCookies
 } from './providers/espnClient'
-import { nflKnownKickoffs, nflScoreboardReachable, nflScoreboardState, type NflScoreboardState } from './providers/nflScoreboard'
+import { nflKnownKickoffs, nflScoreboardReachable, nflScoreboardState, nflSlateTeams, type NflScoreboardState } from './providers/nflScoreboard'
 import {
   leaguesFromFanPayload,
   espnTeamsFromPayload,
@@ -86,7 +86,7 @@ import {
   replaySleeperLeagues,
   replayTransactions
 } from './providers/replay'
-import { bindLeagueBrowse, espnBrowseFetchArgs, offerSleeperMatchups, pokeLeagueBrowse, resetLeagueBrowse } from './leagueBrowse'
+import { bindLeagueBrowse, espnBrowseFetchArgs, leagueBrowseWeek, offerSleeperMatchups, pokeLeagueBrowse, resetLeagueBrowse } from './leagueBrowse'
 import { runtime } from './runtime'
 import { backoffNoticePlan, settingsFileNotice, startupErrorNotice, statusErrorPlan } from './notices'
 import { syncLanPowerSave } from './powerSave'
@@ -4725,11 +4725,12 @@ const wireLeagueBrowse = (): void => {
         provider: parsed.provider,
         leagueId: parsed.id,
         season: nfl.leagueSeason,
-        week: nfl.displayWeek,
+        week: leagueBrowseWeek(parsed.provider, nfl),
         matchupPeriod,
         pollingLive: lastState.pollingLive,
         replay: isReplayMode(),
-        ticker: lastState.nflTicker
+        ticker: lastState.nflTicker,
+        slate: nflSlateTeams()
       }
     },
     publish: (snapshot) => {
@@ -4748,7 +4749,8 @@ const wireLeagueBrowse = (): void => {
         filter: planned.filter,
         timeoutMs: planned.timeoutMs,
         retries: planned.retries,
-        priority: planned.priority
+        priority: planned.priority,
+        hostBackoff: 'observe'
       })
     },
     sleeperBuild: (leagueId, _week, rows) => {
@@ -4762,7 +4764,8 @@ const wireLeagueBrowse = (): void => {
         matchups: rows,
         players: peekPlayerMap(),
         projections: sleeperProjectionPtsFor(leagueId),
-        ticker: lastState.nflTicker
+        ticker: lastState.nflTicker,
+        slate: nflSlateTeams()
       })
     },
     replayPairs: (key) => {

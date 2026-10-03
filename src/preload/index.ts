@@ -32,7 +32,10 @@ const api: SidelineApi = {
     ipcRenderer.on('sideline:leagueBoard', listener)
     return () => ipcRenderer.removeListener('sideline:leagueBoard', listener)
   },
-  setLeagueBrowse: (args) => ipcRenderer.invoke('sideline:setLeagueBrowse', args),
+  setLeagueBrowse: (args) => {
+    if (!args || typeof args !== 'object' || typeof args.open !== 'boolean') return Promise.resolve()
+    return ipcRenderer.invoke('sideline:setLeagueBrowse', { open: args.open })
+  },
   onHud: (cb) => {
     const listener = (_event: unknown, hud: OverlayHudState): void => cb(hud)
     ipcRenderer.on('sideline:hud', listener)

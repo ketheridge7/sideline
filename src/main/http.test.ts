@@ -343,6 +343,21 @@ describe('per-host backoff', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('does not let an observe failure open the shared breaker, and still stops when that breaker is already open', async () => {
+    const url = 'https://lm-api-reads.fantasy.espn.com/league-browse'
+    const fetchMock = vi.fn().mockResolvedValue(status(429, { 'retry-after': '30' }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(fetchJson({ url, hostBackoff: 'observe' })).rejects.toMatchObject({ status: 429 })
+    expect(hostsInBackoff()).toEqual([])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await expect(fetchJson({ url })).rejects.toMatchObject({ status: 429 })
+    expect(hostsInBackoff()).toEqual(['lm-api-reads.fantasy.espn.com'])
+    await expect(fetchJson({ url, hostBackoff: 'observe' })).rejects.toBeInstanceOf(HttpBackoffError)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(hostsInBackoff()).toEqual(['lm-api-reads.fantasy.espn.com'])
+  })
+
   it('caps both the exponential delay and a huge Retry-After', () => {
     expect(hostBackoffDelayMs(1)).toBe(HOST_BACKOFF_BASE_MS)
     expect(hostBackoffDelayMs(3)).toBe(HOST_BACKOFF_BASE_MS * 4)

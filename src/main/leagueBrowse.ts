@@ -8,6 +8,7 @@ import {
   type EspnMatchupPeriod
 } from './providers/espnAdapter'
 import type { SleeperMatchup } from './providers/sleeperClient'
+import { sleeperMatchupWeek } from './providers/sleeperAdapter'
 import { HttpBackoffError, HttpError } from './http'
 
 /**
@@ -29,6 +30,8 @@ export type LeagueBrowseContext = {
   pollingLive: boolean
   replay: boolean
   ticker: readonly NflTickerGame[]
+  /** NFL teams with a game this week, including pre-kickoff. Empty when the scoreboard has not landed. */
+  slate?: readonly string[]
 }
 
 export type LeagueBrowseHost = {
@@ -73,6 +76,31 @@ export const espnBrowseFetchArgs = (
 })
 
 export const espnLeagueAllCacheKey = (leagueId: string, week: number): string => `${leagueId}:${week}:all`
+
+/**
+ * Sleeper matchups are stored under `leg` once the NFL week runs ahead in the
+ * postseason. ESPN keeps the NFL week and maps it to a matchup period separately.
+ */
+export const leagueBrowseWeek = (
+  provider: Provider,
+  nfl: { displayWeek: number; seasonType: string; leg?: number }
+): number => (provider === 'sleeper' ? sleeperMatchupWeek(nfl) : nfl.displayWeek)
+
+/** Renderer `setLeagueBrowse` payload. Anything else is ignored. */
+export const leagueBrowseOpenArg = (args: unknown): boolean | null => {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return null
+  if (!('open' in args)) return null
+  const open = (args as { open?: unknown }).open
+  if (typeof open !== 'boolean') return null
+  return open
+}
+
+/** Hidden, minimized, and destroyed windows do not poll. */
+export const leagueBrowseWindowVisible = (win: {
+  isDestroyed: () => boolean
+  isVisible: () => boolean
+  isMinimized: () => boolean
+}): boolean => !win.isDestroyed() && win.isVisible() && !win.isMinimized()
 
 export const leagueBrowseBackoff = (error: unknown): boolean => {
   if (error instanceof HttpBackoffError) return true
@@ -158,24 +186,33 @@ export const setLeagueBrowseVisible = (next: boolean): void => {
 
 export const setLeagueBrowseOpen = (next: boolean): void => {
   if (!next) {
+    if (!open) return
     open = false
     backedOff = false
     seenKey = ''
     halt()
     return
   }
+  const key = contextKey(host?.context() ?? null)
+  if (open && key === seenKey && active()) return
   open = true
   backedOff = false
-  seenKey = contextKey(host?.context() ?? null)
+  seenKey = key
   void kick()
 }
 
-/** Follow a HUD league change. Same league does not start another request. */
+/** Follow a HUD league or week change. Same context does not start another request. */
 export const pokeLeagueBrowse = (): void => {
-  if (!open || !windowVisible || backedOff || !host) return
-  const key = contextKey(host.context())
+  if (!open || !windowVisible || !host) return
+  const ctx = host.context()
+  const key = contextKey(ctx)
   if (key === seenKey) return
   seenKey = key
+  if (backedOff) {
+    if (ctx) fail(ctx, 'League scores are paused after a rate limit. Your matchup is unchanged.')
+    return
+  }
+  halt()
   void kick()
 }
 
@@ -258,7 +295,8 @@ const publishEspn = (ctx: LeagueBrowseContext, entry: EspnAllEntry | undefined):
     displayWeek: ctx.week,
     myTeamId: host.myEspnTeamId(ctx.leagueId),
     matchupPeriod: ctx.matchupPeriod,
-    ticker: ctx.ticker
+    ticker: ctx.ticker,
+    slate: ctx.slate
   })
   if (pairs.length === 0) return false
   emit({
@@ -305,7 +343,7 @@ const pumpEspn = async (token: number, ctx: LeagueBrowseContext): Promise<void> 
       week: ctx.week,
       kind
     })
-    if (token !== gen || !active()) return
+    if (token !== gen || !active() || !sameContext(ctx)) return
     const next: EspnAllEntry = { ...entry }
     const at = host.now()
     switch (kind) {
@@ -328,10 +366,10 @@ const pumpEspn = async (token: number, ctx: LeagueBrowseContext): Promise<void> 
       const snap = baseSnap(ctx, next.boxscore ? 'ready' : 'loading')
       emit(snap)
     }
-    if (token !== gen || !active()) return
+    if (token !== gen || !active() || !sameContext(ctx)) return
     arm(token, live ? LIVE_POLL_MS : IDLE_POLL_MS)
   } catch (error) {
-    if (token !== gen) return
+    if (token !== gen || !sameContext(ctx)) return
     if (leagueBrowseBackoff(error)) {
       backedOff = true
       cancelTimer()
@@ -346,6 +384,23 @@ const pumpEspn = async (token: number, ctx: LeagueBrowseContext): Promise<void> 
     fail(ctx, 'Could not load the rest of the league. Your matchup is unchanged.')
     if (token === gen && open && windowVisible && !backedOff) arm(token, IDLE_POLL_MS)
   }
+}
+
+const sameContext = (ctx: LeagueBrowseContext): boolean =>
+  contextKey(host?.context() ?? null) === contextKey(ctx)
+
+const noteSwitch = (ctx: LeagueBrowseContext): void => {
+  if (!last || (last.leagueKey === ctx.leagueKey && last.week === ctx.week)) return
+  emit({
+    leagueKey: ctx.leagueKey,
+    leagueName: ctx.leagueName,
+    provider: ctx.provider,
+    week: ctx.week,
+    status: 'loading',
+    pairs: [],
+    updatedAt: null,
+    pollingLive: ctx.pollingLive
+  })
 }
 
 const pump = async (token: number): Promise<void> => {
@@ -364,6 +419,7 @@ const pump = async (token: number): Promise<void> => {
     })
     return
   }
+  noteSwitch(ctx)
   if (ctx.replay) {
     emit({
       ...baseSnap(ctx, 'ready'),
@@ -398,7 +454,7 @@ export const offerSleeperMatchups = (leagueId: string, week: number, rows: Sleep
   const ctx = host.context()
   if (!ctx || ctx.replay || ctx.provider !== 'sleeper') return
   if (ctx.leagueId !== leagueId || ctx.week !== week) return
-  stash.set(sleeperKey(leagueId, week), rows)
+  stash.set(sleeperKey(leagueId, week), rows.slice())
   if (!windowVisible || backedOff) return
   publishSleeper(ctx)
 }

@@ -55,6 +55,13 @@ export const LeadBar = ({
         <div className="text-center font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-lime">
           {copy.header}
         </div>
+      ) : source === 'estimated' ? (
+        <div
+          className="text-center font-cond text-[10px] font-bold uppercase tracking-[0.14em] text-muted"
+          data-hud-win-pct-source="estimated"
+        >
+          Est. win%
+        </div>
       ) : null}
       {chance ? (
         <div

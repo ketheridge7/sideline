@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyAppState, toOverlayHud, type LeagueBoardSnapshot, type Matchup } from '@shared/types'
+import { espnScoreCacheKey } from './pollTargets'
 import { HttpBackoffError } from './http'
 import { EspnHttpError, weekScheduleFilter, weekTeamScheduleFilter } from './providers/espnClient'
 import { LIVE_POLL_MS, IDLE_POLL_MS } from './liveWindow'
@@ -9,8 +10,12 @@ import {
   espnLeagueAllCacheKey,
   leagueBrowseBackoff,
   leagueBrowseEspnCacheKeys,
+  leagueBrowseOpenArg,
   leagueBrowseSettled,
+  leagueBrowseWeek,
+  leagueBrowseWindowVisible,
   offerSleeperMatchups,
+  pokeLeagueBrowse,
   resetLeagueBrowse,
   setLeagueBrowseOpen,
   setLeagueBrowseScheduler,
@@ -60,6 +65,20 @@ describe('espnBrowseFetchArgs', () => {
     expect(box.retries).toBe(0)
     expect(leagueBrowseBackoff(new HttpBackoffError('https://lm-api-reads.fantasy.espn.com', Date.now()))).toBe(true)
     expect(leagueBrowseBackoff(new EspnHttpError(429, 'wrapped'))).toBe(true)
+    expect(espnLeagueAllCacheKey('1', 4)).toBe('1:4:all')
+    expect(espnLeagueAllCacheKey('1', 4)).not.toBe(espnScoreCacheKey('1', 4))
+    expect(leagueBrowseWeek('espn', { displayWeek: 16, seasonType: 'regular', leg: 16 })).toBe(16)
+    expect(leagueBrowseWeek('sleeper', { displayWeek: 19, seasonType: 'post', leg: 16 })).toBe(16)
+    expect(leagueBrowseOpenArg({ open: true })).toBe(true)
+    expect(leagueBrowseOpenArg({ open: false })).toBe(false)
+    expect(leagueBrowseOpenArg({ open: 'false' })).toBeNull()
+    expect(leagueBrowseOpenArg(true)).toBeNull()
+    expect(leagueBrowseOpenArg(null)).toBeNull()
+    const shown = { isDestroyed: () => false, isVisible: () => true, isMinimized: () => false }
+    expect(leagueBrowseWindowVisible(shown)).toBe(true)
+    expect(leagueBrowseWindowVisible({ ...shown, isMinimized: () => true })).toBe(false)
+    expect(leagueBrowseWindowVisible({ ...shown, isVisible: () => false })).toBe(false)
+    expect(leagueBrowseWindowVisible({ ...shown, isDestroyed: () => true })).toBe(false)
   })
 })
 
@@ -230,6 +249,52 @@ describe('league browse isolation', () => {
     expect(fetches).toEqual([])
     expect(published.at(-1)?.status).toBe('ready')
     expect(published.at(-1)?.pairs[0]?.matchup.myTeam.name).toBe('Alpha')
+  })
+
+  it('does not start a second fetch when open is repeated, and drops the timer when the window hides', async () => {
+    setLeagueBrowseVisible(true)
+    setLeagueBrowseOpen(true)
+    setLeagueBrowseOpen(true)
+    await leagueBrowseSettled()
+    expect(fetches).toEqual(['boxscore'])
+    expect(queued).not.toBeNull()
+    setLeagueBrowseVisible(false)
+    expect(queued).toBeNull()
+  })
+
+  it('drops a late response after the league or week changes', async () => {
+    const waits: Array<(value: unknown) => void> = []
+    bindLeagueBrowse({
+      ...host(),
+      fetchEspn: (args) => {
+        fetches.push(args.kind)
+        return new Promise((resolve) => {
+          waits.push(resolve)
+        })
+      }
+    })
+    setLeagueBrowseVisible(true)
+    setLeagueBrowseOpen(true)
+    expect(waits).toHaveLength(1)
+    ctx = { ...ctx, leagueKey: 'espn:2', leagueId: '2', leagueName: 'Other' }
+    pokeLeagueBrowse()
+    expect(waits).toHaveLength(2)
+    waits[1]?.({ ...espnBody })
+    waits[0]?.({ ...espnBody, scoringPeriodId: 99 })
+    await leagueBrowseSettled()
+    expect(published.filter((row) => row.leagueKey === 'espn:1' && row.status === 'ready')).toEqual([])
+    expect(published.at(-1)?.leagueKey).toBe('espn:2')
+    expect(published.at(-1)?.status).toBe('ready')
+
+    ctx = { ...ctx, week: 2 }
+    pokeLeagueBrowse()
+    expect(waits).toHaveLength(3)
+    waits[2]?.({ ...espnBody, scoringPeriodId: 2 })
+    await leagueBrowseSettled()
+    expect(published.at(-1)?.week).toBe(2)
+    expect(published.some((row) => row.leagueKey === 'espn:2' && row.week === 2 && row.status === 'loading' && row.pairs.length === 0)).toBe(
+      true
+    )
   })
 
   it('does not fetch in replay', async () => {
