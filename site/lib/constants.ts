@@ -5,11 +5,13 @@ export const REPO_URL = "https://github.com/ketheridge7/sideline";
 export const ISSUES_URL = "https://github.com/ketheridge7/sideline/issues";
 export const RELEASE_API_URL = "https://api.github.com/repos/ketheridge7/sideline/releases/latest";
 /**
- * Stripe Payment Link. Empty until the link exists.
- * Set NEXT_PUBLIC_SUPPORT_URL to a https://buy.stripe.com/ or https://donate.stripe.com/ link.
- * An empty or disallowed value hides every Support control.
+ * Stripe Payment Link for Support Sideline (footer, and the line under the download button).
+ * A non-empty NEXT_PUBLIC_SUPPORT_URL overrides the live link.
+ * supportHref hides every Support control when the value is empty or not an https Stripe Payment Link.
  */
-export const SUPPORT_URL = process.env.NEXT_PUBLIC_SUPPORT_URL?.trim() ?? "";
+const LIVE_SUPPORT_URL = "https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401";
+
+export const SUPPORT_URL = process.env.NEXT_PUBLIC_SUPPORT_URL?.trim() || LIVE_SUPPORT_URL;
 export const SITE_NAME = "Sideline";
 export const SITE_TAGLINE = "Your fantasy matchup. Always on the Sideline";
 export const SITE_DESCRIPTION =

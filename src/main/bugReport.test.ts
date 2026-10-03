@@ -18,6 +18,7 @@ vi.mock('electron', () => ({
 }))
 
 import { buildBugReportUrl } from '@shared/bugReport'
+import { SUPPORT_URL } from '@shared/support'
 import { collectBugReportRuntime, copyDiagnostics, openExternalUrl } from './bugReport'
 import { appendLog } from './log'
 
@@ -62,7 +63,18 @@ describe('openExternalUrl', () => {
     await expect(openExternalUrl('https://buy.stripe.com/test_example')).resolves.toEqual({ ok: true })
     expect(openExternal).toHaveBeenCalledWith('https://buy.stripe.com/test_example')
     openExternal.mockClear()
+    await expect(openExternalUrl(SUPPORT_URL)).resolves.toEqual({ ok: true })
+    expect(openExternal).toHaveBeenCalledWith('https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401')
+    openExternal.mockClear()
     await expect(openExternalUrl('https://donate.stripe.com/example')).resolves.toEqual({ ok: true })
+    await expect(openExternalUrl('http://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401')).resolves.toEqual({
+      ok: false,
+      error: 'Blocked URL'
+    })
+    await expect(openExternalUrl('https://donate.stripe.com.evil.test/3cI7sL9Ap7mI9KtbXufw401')).resolves.toEqual({
+      ok: false,
+      error: 'Blocked URL'
+    })
     await expect(openExternalUrl('https://buy.stripe.com.evil.test/test_example')).resolves.toEqual({
       ok: false,
       error: 'Blocked URL'

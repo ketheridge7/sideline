@@ -10,8 +10,12 @@ describe("site installer URL", () => {
 });
 
 describe("site support URL", () => {
-  it("ships empty so Support controls stay hidden", () => {
-    expect(SUPPORT_URL).toBe("");
+  it("ships the live donate link so Support controls render", () => {
+    expect(SUPPORT_URL).toBe("https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401");
+    expect(supportHref()).toBe("https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401");
+  });
+
+  it("stays hidden when the link is empty", () => {
     expect(supportHref("")).toBeNull();
     expect(supportHref("   ")).toBeNull();
   });
@@ -19,11 +23,18 @@ describe("site support URL", () => {
   it("allows Stripe Payment Links and rejects other URLs", () => {
     expect(supportHref("https://buy.stripe.com/test_example")).toBe("https://buy.stripe.com/test_example");
     expect(supportHref("https://donate.stripe.com/example")).toBe("https://donate.stripe.com/example");
+    expect(supportHref("https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401")).toBe(
+      "https://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401",
+    );
     expect(supportHref("https://buy.stripe.com/")).toBeNull();
     expect(supportHref("https://buy.stripe.com")).toBeNull();
+    expect(supportHref("https://donate.stripe.com/")).toBeNull();
+    expect(supportHref("https://donate.stripe.com")).toBeNull();
     expect(supportHref("http://buy.stripe.com/test_example")).toBeNull();
+    expect(supportHref("http://donate.stripe.com/3cI7sL9Ap7mI9KtbXufw401")).toBeNull();
     expect(supportHref("https://example.com/pay")).toBeNull();
     expect(supportHref("https://buy.stripe.com.evil.test/test_example")).toBeNull();
+    expect(supportHref("https://donate.stripe.com.evil.test/3cI7sL9Ap7mI9KtbXufw401")).toBeNull();
     expect(supportHref("not a url")).toBeNull();
   });
 });
