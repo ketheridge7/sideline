@@ -22,11 +22,13 @@ import {
   getSleeperProjectionPts,
   hydrateSleeperProjectionsFromDisk,
   peekSleeperProjectionPts,
-  resetSleeperProjectionsCache
+  resetSleeperProjectionsCache,
+  sleeperProjectionsSettled
 } from './sleeperProjections'
 
-afterEach(() => {
+afterEach(async () => {
   resetSleeperProjectionsCache()
+  await sleeperProjectionsSettled()
 })
 
 const week = { season: '2026', week: 3, seasonType: 'regular' }
