@@ -1,10 +1,11 @@
-import type { League, Matchup, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
+import type { League, LeaguePair, Matchup, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
 import { demoRequested, holdRequested } from '../demoMode'
 import {
   FEATURED_LEAGUE_KEY,
   REPLAY_SEASON,
   REPLAY_WEEK,
   replayBoardExtra,
+  replayLeaguePairs as worldReplayLeaguePairs,
   replayMatchupFor,
   replaySeedTape as seedTape,
   replayTickerGames,
@@ -46,6 +47,8 @@ export const replayEspnLeagues = (nfl: NflState): League[] =>
 export const replayEspnLeague = (nfl: NflState): League => replayEspnLeagues(nfl)[0]
 
 export const replayMatchup = (league: League): Matchup | null => replayMatchupFor(league, tick)
+
+export const replayLeaguePairs = (league: League): LeaguePair[] => worldReplayLeaguePairs(league, tick)
 
 export const replaySleeperMatchup = (league?: League): Matchup | null => {
   const row = league ?? replaySleeperLeagues(replayNfl())[0]

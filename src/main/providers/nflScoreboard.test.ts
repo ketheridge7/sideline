@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchNflScoreboard,
   nflGamesInProgress,
+  nflSlateTeamsFromPayload,
   nflTickerFromPayload,
   nflScoreboardHostPlan,
   nflScoreboardState,
@@ -85,6 +86,41 @@ describe('nflGamesInProgress', () => {
   it('is false on junk payloads', () => {
     expect(nflGamesInProgress(null)).toBe(false)
     expect(nflGamesInProgress({})).toBe(false)
+  })
+})
+
+describe('nflSlateTeamsFromPayload', () => {
+  it('includes pre-kickoff teams the ticker leaves off', () => {
+    const payload = {
+      events: [
+        {
+          id: 'pre-1',
+          status: { type: { state: 'pre' } },
+          competitions: [
+            {
+              competitors: [
+                { homeAway: 'away', team: { abbreviation: 'KC' } },
+                { homeAway: 'home', team: { abbreviation: 'LAC' } }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'final-1',
+          status: { type: { state: 'post' } },
+          competitions: [
+            {
+              competitors: [
+                { homeAway: 'away', team: { abbreviation: 'WSH' } },
+                { homeAway: 'home', team: { abbreviation: 'PHI' } }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    expect(nflTickerFromPayload(payload).map((game) => `${game.away}-${game.home}`)).toEqual(['WSH-PHI'])
+    expect(nflSlateTeamsFromPayload(payload).sort()).toEqual(['KC', 'LAC', 'PHI', 'WAS'])
   })
 })
 

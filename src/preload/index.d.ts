@@ -7,6 +7,7 @@ import type {
   CompanionHudPatch,
   CompanionTick,
   DiscoverableLeaguesResult,
+  LeagueBoardSnapshot,
   OverlayHudState,
   Provider,
   SetSelectedLeaguesResult,
@@ -22,6 +23,8 @@ export type SidelineApi = {
   onTick: (cb: (tick: CompanionTick) => void) => () => void
   onBoards: (cb: (patch: CompanionBoardsPatch) => void) => () => void
   onLive: (cb: (patch: CompanionHudPatch) => void) => () => void
+  onLeagueBoard: (cb: (snapshot: LeagueBoardSnapshot) => void) => () => void
+  setLeagueBrowse: (args: { open: boolean; week?: number }) => Promise<void>
   onHud: (cb: (hud: OverlayHudState) => void) => () => void
   onToast: (cb: (toast: ToastPayload) => void) => () => void
   connectSleeper: (username: string) => Promise<{ ok: boolean; error?: string }>

@@ -28,6 +28,25 @@ let flight: {
   promise: Promise<{ pts: Record<string, number> | null; refreshed: boolean }>
 } | null = null
 let flightGen = 0
+let persistGen = 0
+let persistChain: Promise<void> = Promise.resolve()
+
+/** A later reset or save drops a save that has not started writing yet. */
+const persist = (snapshot: ProjectionCacheFile): void => {
+  const ticket = ++persistGen
+  const body = JSON.stringify(snapshot)
+  persistChain = persistChain
+    .then(async () => {
+      if (ticket !== persistGen) return
+      const dir = app.getPath('userData')
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      await writeFile(cachePath(), body, 'utf8')
+    })
+    .catch(() => undefined)
+}
+
+/** Resolves after any projection file write that already started. */
+export const sleeperProjectionsSettled = (): Promise<void> => persistChain
 
 const cachePath = (): string => join(app.getPath('userData'), 'sideline-sleeper-projections.json')
 
@@ -116,9 +135,7 @@ export const getSleeperProjectionPts = async (opts: {
         seasonType: opts.seasonType,
         players
       }
-      const dir = app.getPath('userData')
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-      void writeFile(cachePath(), JSON.stringify(memory), 'utf8').catch(() => undefined)
+      persist(memory)
       return { pts: ptsForKind(players, scoring), refreshed: true }
     } finally {
       if (flight?.gen === gen) flight = null
@@ -133,5 +150,6 @@ export const resetSleeperProjectionsCache = (): void => {
   memory = null
   flight = null
   flightGen += 1
+  persistGen += 1
   ptsCache = null
 }

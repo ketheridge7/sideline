@@ -101,6 +101,35 @@ export const finalNflTeams = (games: readonly NflTickerGame[]): Set<string> => {
 }
 
 /**
+ * Starters still to play.
+ * A team that has not kicked off is still left. A final game is not.
+ * Empty slots have no NFL team and are skipped.
+ * When `slate` lists every NFL team with a game this week (including pre-kickoff),
+ * a starter whose team is absent is on a bye and is not left.
+ * Without a slate, a missing team stays left so a quiet scoreboard is not read as a bye.
+ */
+export const startersStillToPlay = (
+  starters: readonly { nflTeam?: string }[],
+  games: readonly NflTickerGame[],
+  slate?: readonly string[]
+): number => {
+  const finals = finalNflTeams(games)
+  const scheduled =
+    slate && slate.length > 0
+      ? new Set(slate.map((team) => nflTeamKey(team)).filter((team) => team !== ''))
+      : null
+  let left = 0
+  for (const player of starters) {
+    const key = nflTeamKey(player.nflTeam)
+    if (!key) continue
+    if (finals.has(key)) continue
+    if (scheduled && !scheduled.has(key)) continue
+    left += 1
+  }
+  return left
+}
+
+/**
  * Remaining-aware player final: the actual once that player's NFL game is
  * final, otherwise max(actual, weekly projection). A still-zero actual keeps
  * a negative projection (a DST at -2 before kickoff, or still at 0 mid-game).

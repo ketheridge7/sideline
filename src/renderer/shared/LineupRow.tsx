@@ -104,13 +104,16 @@ export const BoardRails = ({
   opp,
   mineBench = [],
   oppBench = [],
-  oppMissing = false
+  oppMissing = false,
+  emphasizeMine = true
 }: {
   mine: Player[]
   opp: Player[]
   mineBench?: Player[]
   oppBench?: Player[]
   oppMissing?: boolean
+  /** Lime rail on the left. Off when the pairing is not the signed-in manager. */
+  emphasizeMine?: boolean
 }): JSX.Element => {
   const rows = Math.max(mine.length, opp.length, 1)
   const [open, dispatch] = useReducer(applyBenchDismiss, { mine: false, opp: false })
@@ -140,7 +143,7 @@ export const BoardRails = ({
   return (
     <section className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden">
       <BoardRosterColumn
-        you
+        you={emphasizeMine}
         starters={mine}
         bench={mineBench}
         rows={rows}

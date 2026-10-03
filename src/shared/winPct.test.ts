@@ -5,6 +5,7 @@ import {
   estimatedChanceToWin,
   finalNflTeams,
   nflTeamKey,
+  startersStillToPlay,
   playerProjectedFinal,
   projectedFinal,
   normalCdf,
@@ -164,6 +165,20 @@ describe('playerProjectedFinal', () => {
     expect(playerProjectedFinal({ actual: -1, projected: -2, gameFinal: false })).toBe(-1)
     expect(playerProjectedFinal({ actual: 0, projected: -2, gameFinal: true })).toBe(0)
     expect(playerProjectedFinal({ actual: -3, projected: -2, gameFinal: true })).toBe(-3)
+  })
+})
+
+describe('startersStillToPlay', () => {
+  const starter = (nflTeam: string) => ({ nflTeam })
+
+  it('counts a pre-kickoff team, skips a final, an empty slot, and a bye that is off the slate', () => {
+    const games = [
+      { id: 'dal', away: 'DAL', awayScore: 28, home: 'NYG', homeScore: 14, clock: 'FINAL', final: true }
+    ]
+    const starters = [starter('DAL'), starter('KC'), starter(''), starter('NYJ')]
+    expect(startersStillToPlay(starters, games)).toBe(2)
+    expect(startersStillToPlay(starters, games, ['DAL', 'NYG', 'KC'])).toBe(1)
+    expect(startersStillToPlay(starters, games, ['DAL', 'NYG'])).toBe(0)
   })
 })
 

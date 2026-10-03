@@ -1,0 +1,61 @@
+{
+  "scoringPeriodId": 1,
+  "teams": [
+    { "id": 1, "name": "Alpha", "abbrev": "AL", "primaryOwner": "{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}" },
+    { "id": 2, "name": "Bravo", "abbrev": "BR" },
+    { "id": 3, "name": "Charlie", "abbrev": "CH" },
+    { "id": 4, "name": "Delta", "abbrev": "DE" },
+    { "id": 5, "name": "Echo", "abbrev": "EC" },
+    { "id": 6, "name": "Foxtrot", "abbrev": "FO" },
+    { "id": 7, "name": "Golf", "abbrev": "GO" }
+  ],
+  "schedule": [
+    {
+      "matchupPeriodId": 1,
+      "home": {
+        "teamId": 1,
+        "totalPointsLive": 88.4,
+        "totalProjectedPointsLive": 110,
+        "winProbability": 0.62,
+        "rosterForCurrentScoringPeriod": {
+          "entries": [
+            {
+              "lineupSlotId": 0,
+              "playerId": 11,
+              "playerPoolEntry": {
+                "player": { "fullName": "Alpha QB", "defaultPositionId": 1, "proTeamId": 6 }
+              }
+            }
+          ]
+        }
+      },
+      "away": {
+        "teamId": 2,
+        "totalPointsLive": 71.2,
+        "totalProjectedPointsLive": 99,
+        "winProbability": 0.38,
+        "rosterForCurrentScoringPeriod": {
+          "entries": [
+            {
+              "lineupSlotId": 0,
+              "playerId": 22,
+              "playerPoolEntry": {
+                "player": { "fullName": "Bravo QB", "defaultPositionId": 1, "proTeamId": 12 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "matchupPeriodId": 1,
+      "home": { "teamId": 3, "totalPointsLive": 102.1, "totalProjectedPointsLive": 115, "winProbability": 0.71 },
+      "away": { "teamId": 4, "totalPointsLive": 90.4, "totalProjectedPointsLive": 108, "winProbability": 0.29 }
+    },
+    {
+      "matchupPeriodId": 1,
+      "home": { "teamId": 5, "totalPointsLive": 64, "totalProjectedPointsLive": 100, "winProbability": 0.44 },
+      "away": { "teamId": 6, "totalPointsLive": 77.5, "totalProjectedPointsLive": 104, "winProbability": 0.56 }
+    }
+  ]
+}

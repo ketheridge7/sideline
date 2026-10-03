@@ -1,7 +1,7 @@
-import type { League, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
+import type { League, LeaguePair, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { tapePlayerLabel } from '@shared/display'
-import { estimatedChanceToWin } from '@shared/winPct'
+import { estimatedChanceToWin, startersStillToPlay } from '@shared/winPct'
 
 export const REPLAY_SEASON = '2026'
 export const REPLAY_WEEK = 3
@@ -836,6 +836,49 @@ export const replayMatchupFor = (league: League, tick: number): Matchup | null =
     }
   }
   return matchup
+}
+
+const toReplayPair = (id: string, mine: boolean, matchup: Matchup, ticker: readonly NflTickerGame[]): LeaguePair => ({
+  id,
+  mine,
+  matchup,
+  left: startersStillToPlay(matchup.starters, ticker),
+  oppLeft: startersStillToPlay(matchup.oppStarters, ticker)
+})
+
+/**
+ * Scripted pairings for the League view. The selected league's own matchup is
+ * marked mine. Other scripted leagues fill the rest of the board, plus one bye,
+ * so Replay can show the scoreboard without a network call.
+ */
+export const replayLeaguePairs = (league: League, tick: number): LeaguePair[] => {
+  const ticker = replayTickerGames(tick)
+  const pairs: LeaguePair[] = []
+  const mine = replayMatchupFor(league, tick)
+  if (mine) pairs.push(toReplayPair(`${league.provider}:${league.id}:mine`, true, mine, ticker))
+  for (const row of WORLD_LEAGUES) {
+    if (row.provider === league.provider && row.id === league.id) continue
+    const other = replayMatchupFor({ ...row, week: league.week }, tick)
+    if (!other) continue
+    pairs.push(toReplayPair(`${row.provider}:${row.id}`, false, other, ticker))
+  }
+  pairs.push({
+    id: `${league.provider}:${league.id}:bye`,
+    mine: false,
+    left: 0,
+    oppLeft: 0,
+    matchup: {
+      myTeam: { id: `${league.id}-bye`, name: 'Practice Squad', owner: '—', record: '0-2' },
+      oppTeam: null,
+      myPoints: 0,
+      oppPoints: 0,
+      starters: [],
+      bench: [],
+      oppStarters: [],
+      oppBench: []
+    }
+  })
+  return pairs
 }
 
 export const replayTransactionsFor = (league: League, _tick: number): Transaction[] => {

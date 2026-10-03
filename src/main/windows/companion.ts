@@ -7,6 +7,7 @@ import {
   NATIVE_WINDOW_TITLE,
   packagingWindowIconPath
 } from '../packagingIcon'
+import { leagueBrowseWindowVisible, setLeagueBrowseVisible } from '../leagueBrowse'
 import { runtime } from '../runtime'
 import { loadSettings } from '../store'
 import { windowClosePlan } from '../updateQuit'
@@ -74,6 +75,17 @@ export const createCompanionWindow = (): BrowserWindow => {
     if (windowClosePlan(runtime.isQuitting(), runtime.isQuittingForUpdate()) === 'close') return
     event.preventDefault()
     win.hide()
+  })
+
+  const syncLeagueBrowseWindow = (): void => {
+    setLeagueBrowseVisible(leagueBrowseWindowVisible(win))
+  }
+  win.on('show', syncLeagueBrowseWindow)
+  win.on('hide', syncLeagueBrowseWindow)
+  win.on('minimize', syncLeagueBrowseWindow)
+  win.on('restore', syncLeagueBrowseWindow)
+  win.on('closed', () => {
+    setLeagueBrowseVisible(false)
   })
 
   attachBrowserWindowPlacement(win, 'companion')

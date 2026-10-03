@@ -15,16 +15,19 @@ export const HudTeamName = ({
   tone,
   surface,
   muted,
-  fontColor = null
+  fontColor = null,
+  ink = 'tone'
 }: {
   name: string
   tone: HudTone
   surface: HudSurface
   muted?: boolean
   fontColor?: string | null
+  /** Neutral ink for a pairing that is not the signed-in manager. */
+  ink?: 'tone' | 'neutral'
 }): JSX.Element => {
   const side = tone === 'you' ? 'mine' : 'opp'
-  const color = muted ? 'text-muted' : toneClass(tone)
+  const color = muted ? 'text-muted' : ink === 'neutral' ? 'text-text' : toneClass(tone)
   if (surface === 'overlay') {
     const ink = fontColor ?? (tone === 'them' && !muted ? HUD_FROST_DIM : null)
     return (

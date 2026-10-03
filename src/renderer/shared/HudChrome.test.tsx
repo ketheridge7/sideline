@@ -99,6 +99,23 @@ describe('HudChrome parity', () => {
     expect(overlayHudRail).not.toContain('>Them</h2>')
   })
 
+  it('keeps a 0.0 on the Mine board when the opponent is a bye', () => {
+    const html = renderToStaticMarkup(
+      <HudScoreboard
+        matchup={{
+          ...matchup,
+          oppTeam: null,
+          oppPoints: 0,
+          oppStarters: [],
+          oppBench: []
+        }}
+      />
+    )
+    expect(html).toContain('0.0')
+    expect(html).toContain('BYE')
+    expect(html).not.toContain('data-hud-score="bye"')
+  })
+
   it('labels SCOREBOARD chance-to-win from the provider win% field, not score-share', () => {
     const published: Matchup = {
       ...matchup,
