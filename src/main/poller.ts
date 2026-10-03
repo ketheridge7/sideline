@@ -16,6 +16,7 @@ import {
   getSleeperProjectionPts,
   hydrateSleeperProjectionsFromDisk,
   peekSleeperProjectionPts,
+  peekSleeperUnprojectedIds,
   resetSleeperProjectionsCache
 } from './providers/sleeperProjections'
 import {
@@ -879,6 +880,20 @@ const kickPendingRosterSwr = async (limit: number, liveTick = false): Promise<vo
 
 const sleeperProjectionPtsFor = (leagueId: string): Record<string, number> | null =>
   peekSleeperProjectionPts(sleeperProjectionKindPlan(sleeperScoringKindById.get(leagueId)))
+
+/**
+ * HUD Est. win% (Mine, and the matchup the overlay / TV lead is taken from).
+ * A starter listed with no fantasy-point column counts as 0, same as League.
+ * `startedTeams` stays omitted, so a starter absent from the file is still pending.
+ */
+const sleeperHudWinEstimate = (leagueId: string, loaded: Matchup): Matchup =>
+  applySleeperWinEstimate(
+    loaded,
+    sleeperProjectionPtsFor(leagueId),
+    finalNflTeams(lastState.nflTicker),
+    undefined,
+    peekSleeperUnprojectedIds()
+  )
 
 const loadSleeperLeaguesFresh = async (
   nfl: NflState,
@@ -2812,11 +2827,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       let incoming = loaded
       switch (league.provider) {
         case 'sleeper':
-          incoming = applySleeperWinEstimate(
-            loaded,
-            sleeperProjectionPtsFor(league.id),
-            finalNflTeams(lastState.nflTicker)
-          )
+          incoming = sleeperHudWinEstimate(league.id, loaded)
           break
         case 'espn':
           break
@@ -3326,9 +3337,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     let restPrefetchDone = Promise.resolve()
     const paintSleeperEstimates = (): void => {
       if (gen !== pollGen || replay) return
-      const finalTeams = finalNflTeams(lastState.nflTicker)
-      const apply = (leagueId: string, loaded: Matchup): Matchup =>
-        applySleeperWinEstimate(loaded, sleeperProjectionPtsFor(leagueId), finalTeams)
+      const apply = (leagueId: string, loaded: Matchup): Matchup => sleeperHudWinEstimate(leagueId, loaded)
       for (const { key, row } of eachMatchup(liveNfl.displayWeek)) {
         const parsed = parseLeagueKey(key)
         if (parsed?.provider !== 'sleeper') continue
@@ -4765,6 +4774,7 @@ const wireLeagueBrowse = (): void => {
         matchups: rows,
         players: peekPlayerMap(),
         projections: sleeperProjectionPtsFor(leagueId),
+        unprojected: peekSleeperUnprojectedIds(),
         ticker: lastState.nflTicker,
         slate: nflSlateTeams()
       })

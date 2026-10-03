@@ -8,6 +8,7 @@ import {
   REPLAY_WEEK,
   replayBoardExtra,
   replayGameStatus,
+  replayLeaguePairs,
   replayMatchupFor,
   replayRosteredPlayers,
   replayScript,
@@ -236,5 +237,36 @@ describe('replayWorld (Sunday-real spec)', () => {
     expect(replayTransactionsFor(sleeper, 1)).toHaveLength(1)
     expect(replayTransactionsFor(sleeper, 1)[0]?.type).toBe('add')
     expect(replayTransactionsFor(espn, 1)).toEqual([])
+  })
+
+  it('paints every Gucci Gang week-4 matchup once unprojected starters count as zero', () => {
+    process.env.SIDELINE_REPLAY_BOARD = 'gucci-before'
+    try {
+      const before = replayLeaguePairs(featured, 0)
+      expect(before).toHaveLength(6)
+      expect(before.filter((pair) => matchupChanceToWin(pair.matchup) == null)).toHaveLength(2)
+    } finally {
+      delete process.env.SIDELINE_REPLAY_BOARD
+    }
+    process.env.SIDELINE_REPLAY_BOARD = 'gucci'
+    try {
+      const after = replayLeaguePairs(featured, 0)
+      expect(after).toHaveLength(6)
+      expect(after.every((pair) => matchupChanceToWin(pair.matchup) != null)).toBe(true)
+      const hud = replayMatchupFor(featured, 0)
+      expect(hud?.starters.some((player) => player.name === 'Terry McLaurin' && player.points === 0)).toBe(true)
+      expect(matchupChanceToWin(hud!)).not.toBeNull()
+      expect(hud?.myProjectedPoints).toEqual(expect.any(Number))
+    } finally {
+      delete process.env.SIDELINE_REPLAY_BOARD
+    }
+    process.env.SIDELINE_REPLAY_BOARD = 'gucci-before'
+    try {
+      const pending = replayMatchupFor(featured, 0)
+      expect(pending?.starters.some((player) => player.playerId === '5927')).toBe(true)
+      expect(matchupChanceToWin(pending!)).toBeNull()
+    } finally {
+      delete process.env.SIDELINE_REPLAY_BOARD
+    }
   })
 })

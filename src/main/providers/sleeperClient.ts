@@ -751,40 +751,66 @@ const projectionPtsRow = (row: Record<string, unknown>): SleeperPlayerProjection
   }
 }
 
-const addProjection = (
-  out: Record<string, SleeperPlayerProjection>,
-  id: unknown,
-  row: unknown
-): void => {
-  const obj = asJsonObject(row)
-  if (!obj) return
-  const playerId = asPlayerId(id) ?? chipPlayerId(obj)
-  if (!playerId) return
-  const pts = projectionPtsRow(obj)
-  if (!pts) return
-  out[playerId] = pts
+export type WeekProjectionFile = {
+  /** Rows that publish pts_ppr / pts_half_ppr / pts_std. */
+  players: Record<string, SleeperPlayerProjection>
+  /**
+   * Player ids present in the file with none of those columns.
+   * Sleeper still lists them (usually `{ adp_dd_ppr: 1000 }`) when it has
+   * no fantasy points for the week: doubtful, IR, or otherwise not expected
+   * to score. That is a published 0, not a missing file.
+   */
+  unprojected: string[]
 }
 
-/** Weekly projection rows with pts_ppr / pts_half_ppr / pts_std. ADP-only keys are dropped. */
-export const parseWeekProjections = (raw: unknown): Record<string, SleeperPlayerProjection> => {
-  const out: Record<string, SleeperPlayerProjection> = {}
+const classifyProjection = (
+  id: unknown,
+  row: unknown
+): { id: string; pts: SleeperPlayerProjection | null } | null => {
+  const obj = asJsonObject(row)
+  if (!obj) return null
+  const playerId = asPlayerId(id) ?? chipPlayerId(obj)
+  if (!playerId) return null
+  return { id: playerId, pts: projectionPtsRow(obj) }
+}
+
+const consumeProjection = (file: WeekProjectionFile, id: unknown, row: unknown): void => {
+  const classified = classifyProjection(id, row)
+  if (!classified) return
+  if (!classified.pts) {
+    file.unprojected.push(classified.id)
+    return
+  }
+  file.players[classified.id] = classified.pts
+}
+
+/**
+ * Weekly projection file.
+ * Scoring rows keep pts_ppr / pts_half_ppr / pts_std.
+ * A key with no scoring column stays in `unprojected` so League and the HUD
+ * can count it as 0. `parseWeekProjections` still returns only the scoring rows.
+ */
+export const parseWeekProjectionFile = (raw: unknown): WeekProjectionFile => {
+  const file: WeekProjectionFile = { players: {}, unprojected: [] }
   if (Array.isArray(raw)) {
-    for (const item of raw) addProjection(out, undefined, item)
-    return out
+    for (const item of raw) consumeProjection(file, undefined, item)
+    return file
   }
   const row = asJsonObject(raw)
-  if (!row) return out
+  if (!row) return file
   for (const key of PROJECTION_WRAP_KEYS) {
     const nested = row[key]
     if (nested == null || nested === row) continue
-    const inner = parseWeekProjections(nested)
-    if (Object.keys(inner).length > 0) return inner
+    const inner = parseWeekProjectionFile(nested)
+    if (Object.keys(inner.players).length > 0 || inner.unprojected.length > 0) return inner
   }
-  for (const [id, value] of Object.entries(row)) {
-    addProjection(out, id, value)
-  }
-  return out
+  for (const [id, value] of Object.entries(row)) consumeProjection(file, id, value)
+  return file
 }
+
+/** Weekly projection rows with pts_ppr / pts_half_ppr / pts_std. ADP-only keys are dropped. */
+export const parseWeekProjections = (raw: unknown): Record<string, SleeperPlayerProjection> =>
+  parseWeekProjectionFile(raw).players
 
 export const projectionPts = (
   row: SleeperPlayerProjection | undefined,
@@ -836,15 +862,15 @@ const sleeperSeasonType = (value: string): string => {
  * ~550KB, `s-maxage=600`, player-id map with pts_ppr / pts_half_ppr / pts_std).
  * Not live scoring — cache 10 min, never on the 3s HUD tick.
  */
-export const getWeekProjections = async (
+export const getWeekProjectionFile = async (
   season: string,
   week: number,
   seasonType = 'regular',
   opts: SleeperGetOpts = {}
-): Promise<Record<string, SleeperPlayerProjection>> => {
-  if (!isSleeperScoringWeek(week) || !season.trim()) return {}
+): Promise<WeekProjectionFile> => {
+  if (!isSleeperScoringWeek(week) || !season.trim()) return { players: {}, unprojected: [] }
   const type = sleeperSeasonType(seasonType)
-  return parseWeekProjections(
+  return parseWeekProjectionFile(
     await getJson(
       `/projections/nfl/${encodeURIComponent(type)}/${encodeURIComponent(season)}/${week}`,
       {
@@ -856,3 +882,11 @@ export const getWeekProjections = async (
     )
   )
 }
+
+export const getWeekProjections = async (
+  season: string,
+  week: number,
+  seasonType = 'regular',
+  opts: SleeperGetOpts = {}
+): Promise<Record<string, SleeperPlayerProjection>> =>
+  (await getWeekProjectionFile(season, week, seasonType, opts)).players

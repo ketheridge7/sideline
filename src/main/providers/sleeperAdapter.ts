@@ -509,21 +509,30 @@ const recordedScore = (points: number | undefined): boolean => {
  * kicked off. A kicked-off starter missing from the weekly projection file
  * counts their actual (including 0). A non-zero score counts even when the
  * NFL team did not match the ticker. Omit the set on the HUD.
+ * `unprojected` is shared by League and the HUD. Those ids are in the weekly
+ * file with no pts column (Sleeper's published "no fantasy points"). Count
+ * them as 0 before kickoff; a later score replaces that 0. An id in neither
+ * map is still unknown. On the HUD that stays pending. League can still pass
+ * `startedTeams` so a kicked-off starter absent from the file counts their actual.
  */
 export const starterProjectedFinal = (
   starters: Player[],
   projections: Record<string, number>,
   finalTeams: ReadonlySet<string> = new Set(),
-  startedTeams?: ReadonlySet<string>
+  startedTeams?: ReadonlySet<string>,
+  unprojected?: ReadonlySet<string> | null
 ): number | undefined => {
   const rows = starters.filter((player) => Boolean(player.playerId))
   if (rows.length === 0) return undefined
   let sum = 0
   for (const player of rows) {
     const team = nflTeamKey(player.nflTeam)
+    const looked = projectionOf(projections, player.playerId)
+    const projected =
+      looked ?? (unprojected && idInSet(unprojected, player.playerId) ? 0 : undefined)
     const pts = playerProjectedFinal({
       actual: player.points,
-      projected: projectionOf(projections, player.playerId),
+      projected,
       gameFinal: finalTeams.has(team),
       gameStarted: startedTeams != null && (startedTeams.has(team) || recordedScore(player.points))
     })
@@ -548,19 +557,21 @@ const withoutEstimatedWin = (matchup: Matchup): Matchup => {
 /**
  * Sleeper Est. win% from per-player remaining-aware finals + live points.
  * `finalTeams` are NFL teams whose game is final (scoreboard ticker).
- * Official REST win_probability is left alone. Missing projections stay pending.
+ * Official REST win_probability is left alone. A starter absent from the file
+ * stays pending unless `startedTeams` says the game has kicked off.
  */
 export const applySleeperWinEstimate = (
   matchup: Matchup,
   projections: Record<string, number> | null | undefined,
   finalTeams: ReadonlySet<string> = new Set(),
-  startedTeams?: ReadonlySet<string>
+  startedTeams?: ReadonlySet<string>,
+  unprojected?: ReadonlySet<string> | null
 ): Matchup => {
   if (matchup.winPctSource === 'official') return matchup
   const pending = withoutEstimatedWin(matchup)
   if (!projections || !matchup.oppTeam) return pending
-  const myProjected = starterProjectedFinal(matchup.starters, projections, finalTeams, startedTeams)
-  const oppProjected = starterProjectedFinal(matchup.oppStarters, projections, finalTeams, startedTeams)
+  const myProjected = starterProjectedFinal(matchup.starters, projections, finalTeams, startedTeams, unprojected)
+  const oppProjected = starterProjectedFinal(matchup.oppStarters, projections, finalTeams, startedTeams, unprojected)
   if (!hasProjectedFinals(myProjected, oppProjected)) return pending
   const chance = estimatedChanceToWin({
     myLive: matchup.myPoints,
@@ -749,6 +760,7 @@ const pairFromRows = (args: {
   rows: SleeperMatchup[]
   players: Record<string, CachedPlayer>
   projections?: Record<string, number> | null
+  unprojected?: ReadonlySet<string> | null
   finalTeams: ReadonlySet<string>
   startedTeams: ReadonlySet<string>
   ticker: readonly NflTickerGame[]
@@ -766,7 +778,13 @@ const pairFromRows = (args: {
     focusRosterId: args.focusRosterId
   })
   if (!built) return null
-  const matchup = applySleeperWinEstimate(built, args.projections, args.finalTeams, args.startedTeams)
+  const matchup = applySleeperWinEstimate(
+    built,
+    args.projections,
+    args.finalTeams,
+    args.startedTeams,
+    args.unprojected
+  )
   return {
     id: args.id,
     mine: args.mine,
@@ -795,6 +813,8 @@ export const toSleeperLeaguePairs = (args: {
   matchups: SleeperMatchup[]
   players: Record<string, CachedPlayer>
   projections?: Record<string, number> | null
+  /** Ids in this week's projection file with no pts column. League and HUD. */
+  unprojected?: ReadonlySet<string> | null
   ticker?: readonly NflTickerGame[]
   slate?: readonly string[]
 }): LeaguePair[] => {
@@ -846,6 +866,7 @@ export const toSleeperLeaguePairs = (args: {
       rows,
       players: args.players,
       projections: args.projections,
+      unprojected: args.unprojected,
       finalTeams,
       startedTeams,
       ticker,

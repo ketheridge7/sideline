@@ -1,7 +1,11 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import type { League, LeaguePair, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { tapePlayerLabel } from '@shared/display'
 import { estimatedChanceToWin, startersStillToPlay } from '@shared/winPct'
+import { applySleeperWinEstimate, toMatchup, toSleeperLeaguePairs } from './sleeperAdapter'
+import type { CachedPlayer, SleeperLeagueUser, SleeperMatchup, SleeperRoster } from './sleeperClient'
 
 export const REPLAY_SEASON = '2026'
 export const REPLAY_WEEK = 3
@@ -801,6 +805,15 @@ export const replayWorldLeagues = (week: number): League[] =>
   }))
 
 export const replayMatchupFor = (league: League, tick: number): Matchup | null => {
+  const board = process.env.SIDELINE_REPLAY_BOARD
+  if (
+    (board === 'gucci' || board === 'gucci-before') &&
+    league.provider === 'sleeper' &&
+    league.id === 'friday-night-gridiron'
+  ) {
+    const hud = gucciWeek4Hud(board === 'gucci')
+    if (hud) return hud
+  }
   const row = worldLeague(league)
   if (!row) return null
   const state = replayWorldAt(tick)
@@ -916,7 +929,72 @@ const replayPlayedSide = (league: League, ticker: readonly NflTickerGame[]): Lea
  * one three-club group, and one row where only one side has scored, so Replay
  * can show the scoreboard without a network call.
  */
+type GucciWeek4File = {
+  userId: string
+  rosters: SleeperRoster[]
+  users: SleeperLeagueUser[]
+  players: Record<string, CachedPlayer>
+  matchups: SleeperMatchup[]
+  projections: Record<string, number>
+  unprojected: string[]
+  ticker: NflTickerGame[]
+}
+
+const readGucciWeek4 = (): GucciWeek4File | null => {
+  try {
+    return JSON.parse(readFileSync(join(process.cwd(), 'fixtures/sleeper-gucci-week4.json'), 'utf8')) as GucciWeek4File
+  } catch {
+    return null
+  }
+}
+
+/** Dev-only board: Kevin's week-4 matchups through the real League win% path. */
+const gucciWeek4Pairs = (countUnprojected: boolean): LeaguePair[] | null => {
+  const file = readGucciWeek4()
+  if (!file) return null
+  return toSleeperLeaguePairs({
+    userId: file.userId,
+    rosters: file.rosters,
+    users: file.users,
+    players: file.players,
+    matchups: file.matchups,
+    projections: file.projections,
+    unprojected: countUnprojected ? new Set(file.unprojected) : null,
+    ticker: file.ticker
+  })
+}
+
+/**
+ * Dev-only Mine matchup. Roster 10 is the week-4 side that starts Terry McLaurin,
+ * who is in the projections file with no fantasy-point column.
+ */
+const gucciWeek4Hud = (countUnprojected: boolean): Matchup | null => {
+  const file = readGucciWeek4()
+  if (!file) return null
+  const built = toMatchup({
+    userId: file.userId,
+    rosters: file.rosters,
+    users: file.users,
+    matchups: file.matchups,
+    players: file.players,
+    focusRosterId: 10
+  })
+  if (!built) return null
+  return applySleeperWinEstimate(
+    built,
+    file.projections,
+    new Set(),
+    undefined,
+    countUnprojected ? new Set(file.unprojected) : null
+  )
+}
+
 export const replayLeaguePairs = (league: League, tick: number): LeaguePair[] => {
+  const board = process.env.SIDELINE_REPLAY_BOARD
+  if (board === 'gucci' || board === 'gucci-before') {
+    const gucci = gucciWeek4Pairs(board === 'gucci')
+    if (gucci) return gucci
+  }
   const ticker = replayTickerGames(tick)
   const pairs: LeaguePair[] = []
   const mine = replayMatchupFor(league, tick)
