@@ -3,6 +3,7 @@ import { IDLE_POLL_MS, LIVE_POLL_MS } from './liveWindow'
 import { EspnHttpError, weekScheduleFilter, type EspnFantasyFilter } from './providers/espnClient'
 import {
   espnLivePayloadIsStub,
+  mergeEspnTeams,
   overlayLiveScoring,
   toEspnLeaguePairs,
   type EspnMatchupPeriod
@@ -67,18 +68,20 @@ const defaultSchedule: Scheduler = (fn, ms) => {
 /**
  * Week-wide ESPN read. No `filterTeamIds`, so it cannot join the HUD boxscore.
  * `mRoster` supplies lineup slots and pro teams when `mMatchupScore` rows are stats-only.
+ * That view also adds a `teams` array of `{ id, roster }` with no name, so `mTeam` has to
+ * ride along or every other matchup is labeled with the team id.
  */
 export const espnBrowseFetchArgs = (
   kind: LeagueBrowseKind,
   matchupPeriodId: number
 ): {
-  views: ['mMatchupScore', 'mRoster'] | ['mLiveScoring']
+  views: ['mMatchupScore', 'mRoster', 'mTeam'] | ['mLiveScoring']
   filter: EspnFantasyFilter
   timeoutMs: number
   retries: 0
   priority: 'low'
 } => ({
-  views: kind === 'boxscore' ? ['mMatchupScore', 'mRoster'] : ['mLiveScoring'],
+  views: kind === 'boxscore' ? ['mMatchupScore', 'mRoster', 'mTeam'] : ['mLiveScoring'],
   filter: weekScheduleFilter(matchupPeriodId),
   timeoutMs: LIVE_POLL_MS,
   retries: 0,
@@ -260,11 +263,8 @@ const kick = (): void => {
 }
 
 const attachTeams = (payload: unknown, teams: Record<string, unknown>[]): unknown => {
-  if (teams.length === 0 || !payload || typeof payload !== 'object' || Array.isArray(payload)) return payload
-  const row = payload as Record<string, unknown>
-  const existing = row.teams
-  if (Array.isArray(existing) && existing.length > 0) return payload
-  return { ...row, teams }
+  if (teams.length === 0) return payload
+  return mergeEspnTeams(payload, teams)
 }
 
 const publishSleeper = (ctx: LeagueBrowseContext): void => {

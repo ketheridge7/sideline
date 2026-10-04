@@ -338,14 +338,42 @@ const teamOwnsSwid = (team: Record<string, unknown>, swid: string): boolean => {
   })
 }
 
-const teamName = (team: Record<string, unknown>): string => {
-  const named = str(team.name)
+/** A bare team id, or the `Team 5` placeholder, is not a display name. Abbrev "361" is. */
+const isRawTeamIdLabel = (label: string, id: number | undefined): boolean => {
+  if (id == null) return false
+  return label === String(id) || label === `Team ${id}`
+}
+
+const usableTeamLabel = (value: unknown, id: number | undefined): string | undefined => {
+  const label = str(value)
+  if (!label || isRawTeamIdLabel(label, id)) return undefined
+  return label
+}
+
+const teamHasDisplayName = (team: Record<string, unknown>): boolean => {
+  const id = num(team.id)
+  if (usableTeamLabel(team.name, id)) return true
+  const combined = `${str(team.location) ?? ''} ${str(team.nickname) ?? ''}`.trim()
+  if (combined && !isRawTeamIdLabel(combined, id)) return true
+  return usableTeamLabel(team.abbrev, id) != null
+}
+
+/**
+ * ESPN display order: `name`, then `location` + `nickname`, then `abbrev`, then the
+ * owner's display name. A numeric `name` (the id stringified) is skipped so a
+ * roster-only row cannot paint "5" when abbrev or the owner is known.
+ */
+const teamName = (team: Record<string, unknown>, owner = ''): string => {
+  const id = num(team.id)
+  const named = usableTeamLabel(team.name, id)
   if (named) return named
-  const location = str(team.location) ?? ''
-  const nickname = str(team.nickname) ?? ''
-  const combined = `${location} ${nickname}`.trim()
-  if (combined) return combined
-  return str(team.abbrev) || `Team ${String(team.id ?? '')}`
+  const combined = `${str(team.location) ?? ''} ${str(team.nickname) ?? ''}`.trim()
+  if (combined && !isRawTeamIdLabel(combined, id)) return combined
+  const abbrev = usableTeamLabel(team.abbrev, id)
+  if (abbrev) return abbrev
+  const ownerLabel = owner.trim()
+  if (ownerLabel && !isRawTeamIdLabel(ownerLabel, id)) return ownerLabel
+  return id != null ? `Team ${id}` : 'Team'
 }
 
 const teamRecord = (team: Record<string, unknown>): string => {
@@ -431,12 +459,15 @@ const ownerName = (team: Record<string, unknown>, members: Record<string, unknow
   return ''
 }
 
-const toTeam = (team: Record<string, unknown>, members: Record<string, unknown>[]): Team => ({
-  id: String(team.id ?? ''),
-  name: teamName(team),
-  owner: ownerName(team, members),
-  record: teamRecord(team)
-})
+const toTeam = (team: Record<string, unknown>, members: Record<string, unknown>[]): Team => {
+  const owner = ownerName(team, members)
+  return {
+    id: String(team.id ?? ''),
+    name: teamName(team, owner),
+    owner,
+    record: teamRecord(team)
+  }
+}
 
 const positiveId = (value: unknown): number | undefined => {
   const id = num(value)
@@ -1368,21 +1399,24 @@ export const mergeEspnTeams = (
   const row = unwrapEspnPayload(live, hasEspnLeagueShape)
   if (!row || !cached || cached.length === 0) return live
   const liveTeams = espnTeamsFromPayload(row)
-  if (espnTeamsHaveOwners(liveTeams)) return row
   const byId = new Map<number, Record<string, unknown>>()
   for (const team of cached) {
     const id = num(team.id)
     if (id != null) byId.set(id, team)
   }
   if (liveTeams.length === 0) return { ...row, teams: cached }
+  if (liveTeams.every(teamHasDisplayName) && espnTeamsHaveOwners(liveTeams)) return row
   return {
     ...row,
     teams: liveTeams.map((team) => {
-      const prior = num(team.id) != null ? byId.get(num(team.id) as number) : undefined
+      const id = num(team.id)
+      const prior = id != null ? byId.get(id) : undefined
       if (!prior) return team
       return {
         ...prior,
         ...team,
+        name: usableTeamLabel(team.name, id) ?? prior.name ?? team.name,
+        abbrev: usableTeamLabel(team.abbrev, id) ?? prior.abbrev ?? team.abbrev,
         primaryOwner: team.primaryOwner ?? prior.primaryOwner,
         owners: asArray(team.owners).length > 0 ? team.owners : prior.owners,
         location: team.location ?? prior.location,
