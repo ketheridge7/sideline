@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyAppState, toOverlayHud, type LeagueBoardSnapshot, type Matchup } from '@shared/types'
 import { espnScoreCacheKey } from './pollTargets'
@@ -58,7 +60,7 @@ describe('espnBrowseFetchArgs', () => {
   it('asks for a week-wide low-priority read with a 3s abort and no team filter', () => {
     const box = espnBrowseFetchArgs('boxscore', 4)
     const live = espnBrowseFetchArgs('compact', 4)
-    expect(box.views).toEqual(['mMatchupScore', 'mRoster'])
+    expect(box.views).toEqual(['mMatchupScore', 'mRoster', 'mTeam'])
     expect(live.views).toEqual(['mLiveScoring'])
     expect(box.filter).toEqual(weekScheduleFilter(4))
     expect(box.filter).not.toEqual(weekTeamScheduleFilter(4, 1))
@@ -368,5 +370,34 @@ describe('league browse isolation', () => {
     refreshSleeperLeagueBoard()
     expect(published.at(-1)?.pairs[0]?.matchup.winPctSource).toBe('estimated')
     expect(published.at(-1)?.pairs[0]?.matchup.myWinPct).toEqual(expect.any(Number))
+  })
+
+  it('fills names from cached mTeam rows when the boxscore teams are only id and roster', async () => {
+    const captured = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/espn-roster-team-names.json'), 'utf8')) as {
+      rosterOnly: unknown
+      withTeamView: { teams: Record<string, unknown>[] }
+    }
+    ctx = { ...ctx, week: 4, matchupPeriod: { matchupPeriodId: 4, scoringPeriodIds: [4] } }
+    const identity = captured.withTeamView.teams.map((team) => {
+      const { roster: _roster, ...row } = team
+      return row
+    })
+    bindLeagueBrowse({
+      ...host(),
+      fetchEspn: async (args) => {
+        fetches.push(args.kind)
+        return captured.rosterOnly
+      },
+      espnTeams: () => identity
+    })
+    setLeagueBrowseVisible(true)
+    setLeagueBrowseOpen(true)
+    await leagueBrowseSettled()
+    const names = (published.at(-1)?.pairs ?? []).flatMap((pair) => [pair.matchup.myTeam.name, pair.matchup.oppTeam?.name])
+    expect(names).toContain('The Juggernaut')
+    expect(names).toContain('Tortured Tight Ends Department')
+    expect(names).toContain('Mr. T(ony)')
+    expect(names).not.toContain('Team 5')
+    expect(names).not.toContain('5')
   })
 })

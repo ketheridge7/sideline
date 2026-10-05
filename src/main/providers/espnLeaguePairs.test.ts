@@ -2,7 +2,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { NflTickerGame } from '@shared/types'
-import { toEspnLeaguePairs, toEspnMatchup } from './espnAdapter'
+import { mergeEspnTeams, toEspnLeaguePairs, toEspnMatchup } from './espnAdapter'
 
 const payload = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/espn-league-week.json'), 'utf8')) as unknown
 
@@ -203,5 +203,105 @@ describe('toEspnLeaguePairs', () => {
     expect(mine?.matchup.starters).toHaveLength(1)
     expect(mine?.left).toBe(1)
     expect(mine?.oppLeft).toBe(0)
+  })
+
+  it('uses mTeam names when mRoster teams are only id and roster', () => {
+    const captured = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/espn-roster-team-names.json'), 'utf8')) as {
+      rosterOnly: unknown
+      withTeamView: unknown
+    }
+    const period = { matchupPeriodId: 4, scoringPeriodIds: [4] }
+    const bare = toEspnLeaguePairs({ payload: captured.rosterOnly, displayWeek: 4, myTeamId: 1, matchupPeriod: period })
+    const bareNames = bare.flatMap((pair) => [pair.matchup.myTeam.name, pair.matchup.oppTeam?.name])
+    expect(bareNames).toContain('Team 5')
+    expect(bareNames).toContain('Team 6')
+    expect(bareNames).not.toContain('5')
+    expect(bareNames).not.toContain('6')
+
+    const named = toEspnLeaguePairs({
+      payload: captured.withTeamView,
+      displayWeek: 4,
+      myTeamId: 1,
+      matchupPeriod: period
+    })
+    const juggernaut = named.find((pair) => pair.id === '5-6')
+    expect(juggernaut?.matchup.myTeam.name).toBe('The Juggernaut')
+    expect(juggernaut?.matchup.oppTeam?.name).toBe('Tortured Tight Ends Department')
+    expect(juggernaut?.matchup.myPoints).toBe(40.16)
+    expect(juggernaut?.matchup.oppPoints).toBe(48.72)
+    const mine = named.find((pair) => pair.mine)
+    expect(mine?.matchup.myTeam.name).toBe('Mr. T(ony)')
+    expect(mine?.matchup.oppTeam?.name).toBe('Big Boy Toys')
+    expect(named.flatMap((pair) => [pair.matchup.myTeam.name, pair.matchup.oppTeam?.name ?? ''])).not.toEqual(
+      expect.arrayContaining(['Team 5', 'Team 11', '11'])
+    )
+
+    const identity = (captured.withTeamView as { teams: Record<string, unknown>[] }).teams.map((team) => {
+      const { roster: _roster, ...row } = team
+      return row
+    })
+    const merged = toEspnLeaguePairs({
+      payload: mergeEspnTeams(captured.rosterOnly, identity),
+      displayWeek: 4,
+      myTeamId: 1,
+      matchupPeriod: period
+    })
+    const mergedGame = merged.find((pair) => pair.id === '5-6')
+    expect(mergedGame?.matchup.myTeam.name).toBe('The Juggernaut')
+    expect(mergedGame?.matchup.oppTeam?.name).toBe('Tortured Tight Ends Department')
+    const mergedTeams = (mergeEspnTeams(captured.rosterOnly, identity) as { teams: Record<string, unknown>[] }).teams
+    expect(mergedTeams.find((team) => team.id === 5)?.roster).toEqual(
+      (captured.rosterOnly as { teams: Record<string, unknown>[] }).teams[0]?.roster
+    )
+  })
+
+  it('falls back to abbrev, then the owner, before a raw team id', () => {
+    const period = { matchupPeriodId: 4, scoringPeriodIds: [4] }
+    const schedule = [
+      {
+        matchupPeriodId: 4,
+        home: { teamId: 11, totalPointsLive: 10 },
+        away: { teamId: 6, totalPointsLive: 8 }
+      }
+    ]
+    const abbrev = toEspnLeaguePairs({
+      payload: {
+        scoringPeriodId: 4,
+        teams: [
+          { id: 11, name: 11, abbrev: '361' },
+          { id: 6, abbrev: 'SAD', primaryOwner: '{176868CA-FA85-46A2-A868-CAFA8576A2A4}' }
+        ],
+        members: [{ id: '{176868CA-FA85-46A2-A868-CAFA8576A2A4}', displayName: 'drake iz yoda' }],
+        schedule
+      },
+      displayWeek: 4,
+      myTeamId: 11,
+      matchupPeriod: period
+    })
+    expect(abbrev[0]?.matchup.myTeam.name).toBe('361')
+    expect(abbrev[0]?.matchup.oppTeam?.name).toBe('SAD')
+    expect(abbrev[0]?.matchup.oppTeam?.owner).toBe('drake iz yoda')
+
+    const owner = toEspnLeaguePairs({
+      payload: {
+        scoringPeriodId: 4,
+        teams: [{ id: 6, name: '6', primaryOwner: '{176868CA-FA85-46A2-A868-CAFA8576A2A4}' }],
+        members: [
+          {
+            id: '{176868CA-FA85-46A2-A868-CAFA8576A2A4}',
+            displayName: 'drake iz yoda',
+            firstName: 'Drake',
+            lastName: 'Hernandez'
+          }
+        ],
+        schedule: [{ matchupPeriodId: 4, home: { teamId: 6, totalPointsLive: 1 }, away: { teamId: 1, totalPointsLive: 2 } }]
+      },
+      displayWeek: 4,
+      myTeamId: 6,
+      matchupPeriod: period
+    })
+    expect(owner[0]?.matchup.myTeam.name).toBe('drake iz yoda')
+    expect(owner[0]?.matchup.myTeam.name).not.toBe('6')
+    expect(owner[0]?.matchup.oppTeam?.name).toBe('Team 1')
   })
 })

@@ -1,0 +1,481 @@
+{
+  "captured": "2026-10-04",
+  "leagueId": 899513,
+  "season": 2026,
+  "scoringPeriodId": 4,
+  "source": "https://lm-api-reads.fantasy.espn.com public league. mMatchupScore+mRoster teams are {id, roster} only. mTeam adds name, abbrev, and primaryOwner. location and nickname are absent on this league. Roster entries trimmed to one real starter slot.",
+  "rosterOnly": {
+    "id": 899513,
+    "scoringPeriodId": 4,
+    "seasonId": 2026,
+    "status": {
+      "currentMatchupPeriod": 4,
+      "latestScoringPeriod": 4
+    },
+    "teams": [
+      {
+        "id": 1,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 2,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 3,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 4,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 5,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 6,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 8,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 9,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 10,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 11,
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      }
+    ],
+    "schedule": [
+      {
+        "id": 16,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 5,
+          "totalPointsLive": 40.16,
+          "totalPoints": 40.16
+        },
+        "away": {
+          "teamId": 6,
+          "totalPointsLive": 48.72,
+          "totalPoints": 48.72
+        }
+      },
+      {
+        "id": 17,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 11,
+          "totalPointsLive": 70.12,
+          "totalPoints": 70.12
+        },
+        "away": {
+          "teamId": 9,
+          "totalPointsLive": 28.62,
+          "totalPoints": 28.62
+        }
+      },
+      {
+        "id": 18,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 10,
+          "totalPointsLive": 29.48,
+          "totalPoints": 29.48
+        },
+        "away": {
+          "teamId": 3,
+          "totalPointsLive": 70.28,
+          "totalPoints": 70.28
+        }
+      },
+      {
+        "id": 19,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 2,
+          "totalPointsLive": 83.34,
+          "totalPoints": 83.34
+        },
+        "away": {
+          "teamId": 4,
+          "totalPointsLive": 105.48,
+          "totalPoints": 105.48
+        }
+      },
+      {
+        "id": 20,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 8,
+          "totalPointsLive": 99.28,
+          "totalPoints": 99.28
+        },
+        "away": {
+          "teamId": 1,
+          "totalPointsLive": 85.38,
+          "totalPoints": 85.38
+        }
+      }
+    ]
+  },
+  "withTeamView": {
+    "id": 899513,
+    "scoringPeriodId": 4,
+    "seasonId": 2026,
+    "status": {
+      "currentMatchupPeriod": 4,
+      "latestScoringPeriod": 4
+    },
+    "members": [
+      {
+        "id": "{176868CA-FA85-46A2-A868-CAFA8576A2A4}",
+        "displayName": "drake iz yoda",
+        "firstName": "Drake",
+        "lastName": "Hernandez"
+      }
+    ],
+    "teams": [
+      {
+        "id": 1,
+        "name": "Mr. T(ony)",
+        "abbrev": "TONY",
+        "primaryOwner": "{E29D59B3-F170-4B8A-9D59-B3F1702B8AD5}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 2,
+        "name": "ATX Cochino",
+        "abbrev": "ME",
+        "primaryOwner": "{05B95FAE-8345-4823-B95F-AE8345382379}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 3,
+        "name": "GOONERS",
+        "abbrev": "GOON",
+        "primaryOwner": "{E2B28B2E-6EE5-4A30-B28B-2E6EE5BA309F}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 4,
+        "name": "Would you like fries with that?",
+        "abbrev": "\ud83c\udf5f",
+        "primaryOwner": "{219A4C65-317E-4BD2-A5E4-D8B50AFE4FBF}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 5,
+        "name": "The Juggernaut",
+        "abbrev": "ANDY",
+        "primaryOwner": "{DB332A0C-D5A9-4215-BE6D-3FBEBBB7855E}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 6,
+        "name": "Tortured Tight Ends Department",
+        "abbrev": "SAD",
+        "primaryOwner": "{176868CA-FA85-46A2-A868-CAFA8576A2A4}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 8,
+        "name": "Big Boy Toys",
+        "abbrev": "BBT",
+        "primaryOwner": "{F7234E69-7932-479D-BAB5-6F57DEFB6FBF}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 9,
+        "name": "RAFI CUNADO",
+        "abbrev": "RAFI",
+        "primaryOwner": "{7242E214-F584-44C1-82E2-14F584C4C1D9}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 10,
+        "name": "Let's Go Aubrey",
+        "abbrev": "SLB",
+        "primaryOwner": "{2B355850-05B1-4DA3-BA19-7FEDA07BD9C2}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      },
+      {
+        "id": 11,
+        "name": "Workin' 9 to Jayden Daniels",
+        "abbrev": "361",
+        "primaryOwner": "{102D5478-BB0B-4883-AD54-78BB0BC883C0}",
+        "roster": {
+          "appliedStatTotal": 0.0,
+          "entries": [
+            {
+              "playerId": 3117251,
+              "lineupSlotId": 23
+            }
+          ],
+          "tradeReservedEntries": []
+        }
+      }
+    ],
+    "schedule": [
+      {
+        "id": 16,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 5,
+          "totalPointsLive": 40.16,
+          "totalPoints": 40.16
+        },
+        "away": {
+          "teamId": 6,
+          "totalPointsLive": 48.72,
+          "totalPoints": 48.72
+        }
+      },
+      {
+        "id": 17,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 11,
+          "totalPointsLive": 70.12,
+          "totalPoints": 70.12
+        },
+        "away": {
+          "teamId": 9,
+          "totalPointsLive": 28.62,
+          "totalPoints": 28.62
+        }
+      },
+      {
+        "id": 18,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 10,
+          "totalPointsLive": 29.48,
+          "totalPoints": 29.48
+        },
+        "away": {
+          "teamId": 3,
+          "totalPointsLive": 70.28,
+          "totalPoints": 70.28
+        }
+      },
+      {
+        "id": 19,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 2,
+          "totalPointsLive": 83.34,
+          "totalPoints": 83.34
+        },
+        "away": {
+          "teamId": 4,
+          "totalPointsLive": 105.48,
+          "totalPoints": 105.48
+        }
+      },
+      {
+        "id": 20,
+        "matchupPeriodId": 4,
+        "winner": "UNDECIDED",
+        "home": {
+          "teamId": 8,
+          "totalPointsLive": 99.28,
+          "totalPoints": 99.28
+        },
+        "away": {
+          "teamId": 1,
+          "totalPointsLive": 85.38,
+          "totalPoints": 85.38
+        }
+      }
+    ]
+  }
+}
