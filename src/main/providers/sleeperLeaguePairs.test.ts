@@ -461,4 +461,47 @@ describe('toSleeperLeaguePairs', () => {
       expect.any(Number)
     )
   })
+
+  it('keeps players who are not in starters on the League bench', () => {
+    const pairs = toSleeperLeaguePairs({
+      userId: 'u1',
+      rosters: [
+        { roster_id: 1, owner_id: 'u1', settings: { wins: 1, losses: 0 } },
+        { roster_id: 2, owner_id: 'u2', settings: { wins: 0, losses: 1 } }
+      ],
+      users: [
+        { user_id: 'u1', display_name: 'Ada', metadata: { team_name: 'Alpha' } },
+        { user_id: 'u2', display_name: 'Bo', metadata: { team_name: 'Bravo' } }
+      ],
+      players: {
+        '10': { name: 'Alpha QB', position: 'QB', nflTeam: 'DAL' },
+        '11': { name: 'Alpha Bench', position: 'WR', nflTeam: 'KC' },
+        '20': { name: 'Bravo QB', position: 'QB', nflTeam: 'KC' },
+        '21': { name: 'Bravo Bench', position: 'RB', nflTeam: 'DAL' }
+      },
+      matchups: [
+        {
+          roster_id: 1,
+          matchup_id: 1,
+          points: 10,
+          starters: ['10'],
+          players: ['10', '11'],
+          players_points: { '10': 10, '11': 4 }
+        },
+        {
+          roster_id: 2,
+          matchup_id: 1,
+          points: 8,
+          starters: ['20'],
+          players: ['20', '21'],
+          players_points: { '20': 8, '21': 2 }
+        }
+      ]
+    })
+    const mine = pairs.find((pair) => pair.mine)
+    expect(mine?.matchup.starters.map((player) => player.name)).toEqual(['Alpha QB'])
+    expect(mine?.matchup.bench.map((player) => player.name)).toEqual(['Alpha Bench'])
+    expect(mine?.matchup.oppStarters.map((player) => player.name)).toEqual(['Bravo QB'])
+    expect(mine?.matchup.oppBench.map((player) => player.name)).toEqual(['Bravo Bench'])
+  })
 })

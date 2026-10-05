@@ -269,4 +269,18 @@ describe('replayWorld (Sunday-real spec)', () => {
       delete process.env.SIDELINE_REPLAY_BOARD
     }
   })
+
+  it('uses the ESPN roster lineup for Gridiron Gurus only', () => {
+    const espn = weekLeagues.find((row) => row.id === 'gridiron-gurus')!
+    process.env.SIDELINE_REPLAY_BOARD = 'espn-roster'
+    try {
+      const pairs = replayLeaguePairs(espn, 0)
+      expect(pairs.map((pair) => pair.id)).toEqual(['5-6'])
+      expect(pairs[0]?.matchup.starters.map((player) => player.position)[0]).toBe('TQB')
+      expect(pairs[0]?.matchup.bench.length).toBeGreaterThan(0)
+      expect(replayLeaguePairs(featured, 0)[0]?.id).not.toBe('5-6')
+    } finally {
+      delete process.env.SIDELINE_REPLAY_BOARD
+    }
+  })
 })

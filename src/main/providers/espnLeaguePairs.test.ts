@@ -157,6 +157,10 @@ describe('toEspnLeaguePairs', () => {
     const mine = pairs.find((pair) => pair.mine)
     expect(mine?.matchup.starters.map((player) => player.nflTeam)).toEqual(['DAL'])
     expect(mine?.matchup.oppStarters.map((player) => player.nflTeam)).toEqual(['KC', 'DAL'])
+    expect(mine?.matchup.starters.map((player) => player.position)).toEqual(['QB'])
+    expect(mine?.matchup.oppStarters.map((player) => player.position)).toEqual(['QB', 'RB'])
+    expect(mine?.matchup.bench.map((player) => player.name)).toEqual(['Alpha Bench', 'Alpha IR'])
+    expect(mine?.matchup.oppBench.map((player) => player.name)).toEqual(['Bravo Bench'])
     expect(mine?.left).toBe(0)
     expect(mine?.oppLeft).toBe(1)
     const hud = toEspnMatchup({ payload: body, cookies, displayWeek: 1, myTeamId: 1 })
@@ -303,5 +307,140 @@ describe('toEspnLeaguePairs', () => {
     expect(owner[0]?.matchup.myTeam.name).toBe('drake iz yoda')
     expect(owner[0]?.matchup.myTeam.name).not.toBe('6')
     expect(owner[0]?.matchup.oppTeam?.name).toBe('Team 1')
+  })
+
+  it('sorts starters in the HUD slot order and keeps bench and IR from mRoster', () => {
+    const captured = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/espn-roster-lineup.json'), 'utf8')) as {
+      payload: {
+        teams: Array<{ id: number; roster: { entries: unknown[] } }>
+        schedule: Array<{ home: Record<string, unknown>; away: Record<string, unknown> }>
+      }
+    }
+    const period = { matchupPeriodId: 4, scoringPeriodIds: [4] }
+    const pairs = toEspnLeaguePairs({
+      payload: captured.payload,
+      displayWeek: 4,
+      myTeamId: 5,
+      matchupPeriod: period
+    })
+    const mine = pairs.find((pair) => pair.id === '5-6')
+    expect(mine?.matchup.starters.map((player) => player.position)).toEqual([
+      'TQB',
+      'FLEX',
+      'FLEX',
+      'FLEX',
+      'FLEX',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+    expect(mine?.matchup.starters.map((player) => player.name)).toEqual([
+      'Lions TQB',
+      'Christian McCaffrey',
+      "D'Andre Swift",
+      'Bucky Irving',
+      'Parker Washington',
+      'Jaylen Warren',
+      'Seahawks D/ST',
+      'Daniel Carlson'
+    ])
+    expect(mine?.matchup.starters[0]?.points).toBe(1.96)
+    expect(mine?.matchup.starters[1]?.points).toBe(13)
+    expect(mine?.matchup.bench.map((player) => player.name)).toEqual([
+      "De'Von Achane",
+      'Patriots TQB',
+      'Christian Watson',
+      'Kyle Monangai',
+      'Romeo Doubs',
+      'Kaelon Black',
+      'Devaughn Vele',
+      'Adonai Mitchell'
+    ])
+    expect(mine?.matchup.bench.map((player) => player.lineupSlotId)).toEqual([21, 20, 20, 20, 20, 20, 20, 20])
+    expect(mine?.matchup.oppStarters.map((player) => player.name)).toEqual([
+      'Bills TQB',
+      'Drake London',
+      'Ashton Jeanty',
+      'Quinshon Judkins',
+      'J.K. Dobbins',
+      'Jordan Addison',
+      'Broncos D/ST',
+      'Cameron Dicker'
+    ])
+    expect(mine?.matchup.oppBench.map((player) => player.name)).toEqual([
+      'Breece Hall',
+      'TreVeyon Henderson',
+      'DK Metcalf',
+      'Michael Pittman Jr.',
+      'Jakobi Meyers',
+      'George Kittle',
+      'Travis Kelce'
+    ])
+
+    const named = structuredClone(captured.payload)
+    const homeTeam = named.teams.find((team) => team.id === 5)
+    const awayTeam = named.teams.find((team) => team.id === 6)
+    named.schedule[0].home.rosterForCurrentScoringPeriod = homeTeam?.roster
+    named.schedule[0].away.rosterForCurrentScoringPeriod = awayTeam?.roster
+    const hud = toEspnMatchup({
+      payload: named,
+      cookies,
+      displayWeek: 4,
+      myTeamId: 5,
+      matchupPeriod: period
+    })
+    expect(hud?.starters.map((player) => player.name)).toEqual(mine?.matchup.starters.map((player) => player.name))
+    expect(hud?.bench.map((player) => player.name)).toEqual(mine?.matchup.bench.map((player) => player.name))
+    expect(hud?.oppStarters.map((player) => player.name)).toEqual(mine?.matchup.oppStarters.map((player) => player.name))
+    expect(hud?.oppBench.map((player) => player.name)).toEqual(mine?.matchup.oppBench.map((player) => player.name))
+
+    const standard = toEspnLeaguePairs({
+      payload: {
+        scoringPeriodId: 1,
+        teams: [
+          {
+            id: 1,
+            name: 'Alpha',
+            roster: {
+              entries: [
+                { lineupSlotId: 17, playerId: 17, playerPoolEntry: { player: { fullName: 'Kicker', defaultPositionId: 5, proTeamId: 6 } } },
+                { lineupSlotId: 23, playerId: 23, playerPoolEntry: { player: { fullName: 'Flex', defaultPositionId: 2, proTeamId: 6 } } },
+                { lineupSlotId: 16, playerId: 16, playerPoolEntry: { player: { fullName: 'Defense', defaultPositionId: 16, proTeamId: 6 } } },
+                { lineupSlotId: 6, playerId: 6, playerPoolEntry: { player: { fullName: 'Tight', defaultPositionId: 4, proTeamId: 6 } } },
+                { lineupSlotId: 4, playerId: 41, playerPoolEntry: { player: { fullName: 'Wide A', defaultPositionId: 3, proTeamId: 6 } } },
+                { lineupSlotId: 4, playerId: 42, playerPoolEntry: { player: { fullName: 'Wide B', defaultPositionId: 3, proTeamId: 6 } } },
+                { lineupSlotId: 2, playerId: 21, playerPoolEntry: { player: { fullName: 'Back A', defaultPositionId: 2, proTeamId: 6 } } },
+                { lineupSlotId: 2, playerId: 22, playerPoolEntry: { player: { fullName: 'Back B', defaultPositionId: 2, proTeamId: 6 } } },
+                { lineupSlotId: 0, playerId: 1, playerPoolEntry: { player: { fullName: 'Quarter', defaultPositionId: 1, proTeamId: 6 } } },
+                { lineupSlotId: 20, playerId: 20, playerPoolEntry: { player: { fullName: 'Bench Back', defaultPositionId: 2, proTeamId: 12 } } },
+                { lineupSlotId: 21, playerId: 99, playerPoolEntry: { player: { fullName: 'Injured', defaultPositionId: 3, proTeamId: 12 } } }
+              ]
+            }
+          },
+          { id: 2, name: 'Bravo' }
+        ],
+        schedule: [
+          {
+            matchupPeriodId: 1,
+            home: { teamId: 1, totalPointsLive: 10, rosterForCurrentScoringPeriod: { entries: [{ lineupSlotId: 0 }] } },
+            away: { teamId: 2, totalPointsLive: 4, rosterForCurrentScoringPeriod: { entries: [{ lineupSlotId: 0 }] } }
+          }
+        ]
+      },
+      displayWeek: 1,
+      myTeamId: 1
+    })
+    expect(standard[0]?.matchup.starters.map((player) => player.position)).toEqual([
+      'QB',
+      'RB',
+      'RB',
+      'WR',
+      'WR',
+      'TE',
+      'FLEX',
+      'D/ST',
+      'K'
+    ])
+    expect(standard[0]?.matchup.bench.map((player) => player.name)).toEqual(['Bench Back', 'Injured'])
   })
 })
