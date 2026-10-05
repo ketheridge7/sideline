@@ -82,6 +82,7 @@ import {
   replayLeaguePairs,
   replayMatchup,
   replayNfl,
+  replayNflScoreboard,
   replayNflSlate,
   replayNflTicker,
   replaySeedTape,
@@ -3601,15 +3602,17 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     })
     let live = seeded.live
     let nflTicker = seeded.ticker
-    let nflSlate = lastState.nflSlate.length > 0 ? lastState.nflSlate : replay ? replayNflSlate() : []
+    const captured = replay ? replayNflScoreboard() : null
+    let nflSlate =
+      lastState.nflSlate.length > 0 ? lastState.nflSlate : captured?.slate ?? (replay ? replayNflSlate() : [])
     const replayBoard = (): Promise<NflScoreboardState> =>
-      Promise.resolve({ live: true, ticker: replayNflTicker(), reachable: true })
+      Promise.resolve({ live: true, ticker: captured?.ticker ?? replayNflTicker(), reachable: true })
     const applyScoreboard = (scoreboard: NflScoreboardState): void => {
       if (gen !== pollGen) return
       const nextLive = scoreboard.live
       const sameLive = nextLive === live
       const sameTicker = scoreboard.ticker === nflTicker
-      const nextSlate = replay ? replayNflSlate() : [...nflSlateTeams()]
+      const nextSlate = captured?.slate ?? (replay ? replayNflSlate() : [...nflSlateTeams()])
       const sameSlate =
         nextSlate.length === nflSlate.length && nextSlate.every((team, index) => team === nflSlate[index])
       live = nextLive

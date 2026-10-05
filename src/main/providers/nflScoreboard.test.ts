@@ -1,4 +1,8 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { playerKickoff, shownPlayerPoints } from '@shared/playerPoints'
+import { replayNflScoreboard } from './replay'
 import {
   fetchNflScoreboard,
   nflGamesInProgress,
@@ -485,5 +489,84 @@ describe('nflScoreboardState', () => {
     expect(timeoutSpy).toHaveBeenCalledWith(NFL_SCOREBOARD_TIMEOUT_MS)
     expect(NFL_SCOREBOARD_TIMEOUT_MS).toBe(2_000)
     timeoutSpy.mockRestore()
+  })
+})
+
+describe('week 4 live scoreboard', () => {
+  const payload = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/nfl-scoreboard-week4.json'), 'utf8')) as unknown
+
+  it('keeps Monday on the slate and off the ticker, and treats Sunday night by its live state', () => {
+    const slate = nflSlateTeamsFromPayload(payload)
+    const ticker = nflTickerFromPayload(payload)
+    expect(NFL_SCOREBOARD_URLS.every((url) => !url.includes('dates='))).toBe(true)
+    expect(slate).toEqual(expect.arrayContaining(['ATL', 'NO', 'DET', 'CAR', 'GB', 'TB', 'WAS']))
+    expect(ticker.some((game) => game.home === 'NO' || game.away === 'ATL')).toBe(false)
+    const sundayNight = ticker.find((game) => game.away === 'DET' && game.home === 'CAR')
+    expect(sundayNight?.final).toBeUndefined()
+    expect(sundayNight?.clock).toContain('3rd')
+    const thursday = ticker.find((game) => game.away === 'PIT' && game.home === 'CLE')
+    expect(thursday?.final).toBe(true)
+    const commanders = ticker.find((game) => game.home === 'WSH')
+    expect(commanders?.final).toBe(true)
+
+    expect(shownPlayerPoints(0, playerKickoff('ATL', ticker, slate))).toBeNull()
+    expect(shownPlayerPoints(8.7, playerKickoff('NO', ticker, slate))).toBeNull()
+    expect(shownPlayerPoints(0, playerKickoff('DET', ticker, slate))).toBe(0)
+    expect(shownPlayerPoints(19.5, playerKickoff('CAR', ticker, slate))).toBe(19.5)
+    expect(shownPlayerPoints(6, playerKickoff('DAL', ticker, slate))).toBe(6)
+    expect(shownPlayerPoints(14.2, playerKickoff('WAS', ticker, slate))).toBe(14.2)
+  })
+
+  it('reads a header-shaped Monday game whose status is the string pre', () => {
+    const payload = {
+      sports: [
+        {
+          leagues: [
+            {
+              events: [
+                {
+                  id: '401872979',
+                  date: '2026-10-06T00:15:00Z',
+                  status: 'pre',
+                  competitors: [
+                    { abbreviation: 'ATL', homeAway: 'away', score: '' },
+                    { abbreviation: 'NO', homeAway: 'home', score: '' }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    expect(nflSlateTeamsFromPayload(payload)).toEqual(['ATL', 'NO'])
+    expect(nflTickerFromPayload(payload)).toEqual([])
+    expect(shownPlayerPoints(0, playerKickoff('ATL', [], nflSlateTeamsFromPayload(payload)))).toBeNull()
+  })
+
+  it('a today-only board drops Monday and would leave a stored 0 on the chip', () => {
+    const week = payload as { events: Array<{ status: { type: { state: string } } }> }
+    const sundayOnly = {
+      events: week.events.filter((event) => event.status.type.state !== 'pre')
+    }
+    const slate = nflSlateTeamsFromPayload(sundayOnly)
+    const ticker = nflTickerFromPayload(sundayOnly)
+    expect(slate).not.toContain('ATL')
+    expect(shownPlayerPoints(0, playerKickoff('ATL', ticker, slate))).toBe(0)
+    expect(shownPlayerPoints(6, playerKickoff('GB', ticker, slate))).toBe(6)
+  })
+
+  it('loads that captured week when replay is pointed at the fixture', () => {
+    const previous = process.env.SIDELINE_REPLAY_SCOREBOARD
+    process.env.SIDELINE_REPLAY_SCOREBOARD = join(process.cwd(), 'fixtures/nfl-scoreboard-week4.json')
+    try {
+      const board = replayNflScoreboard()
+      expect(board?.slate).toEqual(expect.arrayContaining(['ATL', 'NO']))
+      expect(board?.ticker.some((game) => game.away === 'ATL' || game.home === 'NO')).toBe(false)
+      expect(board?.ticker.some((game) => game.away === 'DET' && game.home === 'CAR' && !game.final)).toBe(true)
+    } finally {
+      if (previous == null) delete process.env.SIDELINE_REPLAY_SCOREBOARD
+      else process.env.SIDELINE_REPLAY_SCOREBOARD = previous
+    }
   })
 })
