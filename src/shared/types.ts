@@ -218,6 +218,8 @@ export type OverlayHudState = {
   layout: OverlayLayout
   overlayEditMode: boolean
   nflTicker: NflTickerGame[]
+  /** NFL teams with a game this week, including games that have not kicked off. */
+  nflSlate: string[]
 }
 
 export type ToastPayload = {
@@ -239,6 +241,8 @@ export type AppState = {
   boards: MatchupBoard[]
   tape: TapeEvent[]
   nflTicker: NflTickerGame[]
+  /** NFL teams with a game this week, including games that have not kicked off. */
+  nflSlate: string[]
   overlayPort: number
   overlayVisible: boolean
   overlayHotkey: string
@@ -278,6 +282,7 @@ export type CompanionHudPatch = Pick<
   | 'matchup'
   | 'tape'
   | 'nflTicker'
+  | 'nflSlate'
   | 'pollingLive'
   | 'overlayEditMode'
   | 'lastUpdated'
@@ -317,6 +322,7 @@ export const emptyAppState = (): AppState => ({
   boards: [],
   tape: [],
   nflTicker: [],
+  nflSlate: [],
   overlayPort: 7333,
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',
@@ -364,7 +370,8 @@ const hudShell = (state: AppState): Omit<
     : state.tape,
   layout: state.overlayLayout,
   overlayEditMode: state.overlayEditMode,
-  nflTicker: state.nflTicker
+  nflTicker: state.nflTicker,
+  nflSlate: state.nflSlate
 })
 
 const sameToast = (prev: ToastPayload | null, next: ToastPayload | null): boolean => {
@@ -403,6 +410,15 @@ const sameTape = (prev: TapeEvent[], next: TapeEvent[]): boolean =>
       row.period === other.period
     )
   })
+
+const sameSlate = (prev: readonly string[], next: readonly string[]): boolean => {
+  if (prev === next) return true
+  if (prev.length !== next.length) return false
+  for (let index = 0; index < prev.length; index += 1) {
+    if (prev[index] !== next[index]) return false
+  }
+  return true
+}
 
 const sameTicker = (prev: NflTickerGame[], next: NflTickerGame[]): boolean =>
   prev.length === next.length &&
@@ -475,7 +491,8 @@ export const overlayHudUnchanged = (prev: OverlayHudState, next: OverlayHudState
   samePlayers(prev.myBench, next.myBench) &&
   samePlayers(prev.oppBench, next.oppBench) &&
   sameTape(prev.tape, next.tape) &&
-  sameTicker(prev.nflTicker, next.nflTicker)
+  sameTicker(prev.nflTicker, next.nflTicker) &&
+  sameSlate(prev.nflSlate, next.nflSlate)
 
 const overlayLeagueName = (
   state: AppState,

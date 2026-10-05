@@ -227,6 +227,8 @@ describe('toOverlayHud', () => {
       { id: '1', away: 'KC', awayScore: 14, home: 'BUF', homeScore: 10, clock: 'Q2 4:12' }
     ]
     expect(toOverlayHud(state).nflTicker).toEqual(state.nflTicker)
+    state.nflSlate = ['GB', 'CHI', 'DAL']
+    expect(toOverlayHud(state).nflSlate).toEqual(['GB', 'CHI', 'DAL'])
   })
 })
 

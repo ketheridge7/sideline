@@ -12,10 +12,33 @@ import { overlayName } from '../shared/format'
 import { HUD_FROST, HudTeamName, HudTeamScore, LeadChip } from '../shared/HudChrome'
 import { HudCrawler, ToastChip } from '../shared/HudCrawler'
 import { HudRail } from '../shared/LineupRow'
+import { PlayerGameProvider, useShownPlayerPoints } from '../shared/playerGame'
 import { ScoreTick } from '../shared/ScoreTick'
 import { NflTicker } from '../companion/NflTicker'
 import { resolveDensity, type Density } from './density'
 import type { OverlaySurface } from './subscribe'
+
+const BenchScore = ({
+  player,
+  align,
+  playerScoreColor
+}: {
+  player: Player
+  align: 'left' | 'right'
+  playerScoreColor: string | null
+}): JSX.Element => {
+  const shownPoints = useShownPlayerPoints(player.nflTeam, player.points)
+  return (
+    <span className="shrink-0" data-text-role="playerScore" data-lineup-col="pts">
+      <ScoreTick
+        value={shownPoints}
+        restColor={playerScoreColor ?? HUD_FROST}
+        align={align === 'right' ? 'left' : 'right'}
+        className="font-cond text-[1em] font-bold"
+      />
+    </span>
+  )
+}
 
 const BenchList = ({
   players,
@@ -45,20 +68,13 @@ const BenchList = ({
         >
           {overlayName(player.name)}
         </span>
-        <span className="shrink-0" data-text-role="playerScore" data-lineup-col="pts">
-          <ScoreTick
-            value={player.points}
-            restColor={playerScoreColor ?? HUD_FROST}
-            align={align === 'right' ? 'left' : 'right'}
-            className="font-cond text-[1em] font-bold"
-          />
-        </span>
+        <BenchScore player={player} align={align} playerScoreColor={playerScoreColor} />
       </div>
     ))}
   </div>
 )
 
-export const OverlayWidgetView = ({
+const OverlayWidgetBody = ({
   id,
   hud,
   surface,
@@ -185,3 +201,30 @@ export const OverlayWidgetView = ({
     }
   }
 }
+
+export const OverlayWidgetView = ({
+  id,
+  hud,
+  surface,
+  density,
+  showCrawler,
+  textColors = EMPTY_HUD_TEXT_COLORS
+}: {
+  id: OverlayWidgetId
+  hud: OverlayHudState
+  surface: OverlaySurface
+  density: OverlayDensity
+  showCrawler: boolean
+  textColors?: HudTextColors
+}): JSX.Element => (
+  <PlayerGameProvider games={hud.nflTicker} slate={hud.nflSlate}>
+    <OverlayWidgetBody
+      id={id}
+      hud={hud}
+      surface={surface}
+      density={density}
+      showCrawler={showCrawler}
+      textColors={textColors}
+    />
+  </PlayerGameProvider>
+)

@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { NflTickerGame } from '@shared/types'
+import { playerKickoff, shownPlayerPoints } from '@shared/playerPoints'
 import { mergeEspnTeams, toEspnLeaguePairs, toEspnMatchup } from './espnAdapter'
 
 const payload = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/espn-league-week.json'), 'utf8')) as unknown
@@ -346,6 +347,22 @@ describe('toEspnLeaguePairs', () => {
     ])
     expect(mine?.matchup.starters[0]?.points).toBe(1.96)
     expect(mine?.matchup.starters[1]?.points).toBe(13)
+    expect(mine?.matchup.myPoints).toBe(54.02)
+    expect(mine?.matchup.oppPoints).toBe(74.22)
+    const swift = mine?.matchup.starters.find((player) => player.name === "D'Andre Swift")
+    const achane = mine?.matchup.bench.find((player) => player.name === "De'Von Achane")
+    expect(swift?.points).toBe(5.4)
+    expect(swift?.nflTeam).toBe('CHI')
+    expect(achane?.points).toBe(0)
+    expect(achane?.nflTeam).toBe('MIA')
+    const games: NflTickerGame[] = [
+      { id: 'buf-mia', away: 'BUF', awayScore: 24, home: 'MIA', homeScore: 17, clock: '2ND 4:03' },
+      { id: 'det-kc', away: 'DET', awayScore: 21, home: 'KC', homeScore: 20, clock: '3RD 8:14' }
+    ]
+    const slate = ['CHI', 'MIA', 'DET', 'KC', 'BUF']
+    expect(shownPlayerPoints(swift?.points, playerKickoff(swift?.nflTeam, games, slate))).toBeNull()
+    expect(shownPlayerPoints(achane?.points, playerKickoff(achane?.nflTeam, games, slate))).toBe(0)
+    expect(shownPlayerPoints(mine?.matchup.starters[0]?.points, playerKickoff('DET', games, slate))).toBe(1.96)
     expect(mine?.matchup.bench.map((player) => player.name)).toEqual([
       "De'Von Achane",
       'Patriots TQB',

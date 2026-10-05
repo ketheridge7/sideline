@@ -14,6 +14,7 @@ import {
 import { BenchFootStack, dismissBenchPointer } from './BenchFoot'
 import { overlayName } from './format'
 import { HUD_FROST } from './HudChrome'
+import { useShownPlayerPoints } from './playerGame'
 import { LastTickMark, ScoreTick } from './ScoreTick'
 
 export const HudRail = ({
@@ -249,6 +250,7 @@ export const LineupRow = ({
   playerNameColor?: string | null
   playerScoreColor?: string | null
 }): JSX.Element => {
+  const shownPoints = useShownPlayerPoints(player?.nflTeam, player?.points)
   const rowClass = hud
     ? 'lineup-row hud-rail-row'
     : `lineup-row ${compact ? (tv ? 'h-8' : 'h-[22px]') : fixed ? 'h-11' : 'min-h-11 flex-1'}`
@@ -293,9 +295,9 @@ export const LineupRow = ({
         ) : null}
       </span>
       <span className="lineup-row-pts" data-lineup-col="pts" data-text-role={hud ? 'playerScore' : undefined}>
-        {!compact ? <LastTickMark value={player.points} /> : null}
+        {!compact ? <LastTickMark value={shownPoints} /> : null}
         <ScoreTick
-          value={player.points}
+          value={shownPoints}
           restColor={hud && playerScoreColor ? playerScoreColor : HUD_FROST}
           align="right"
           className={ptsClass}

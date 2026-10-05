@@ -8,6 +8,7 @@ import {
   replayLeaguePairs as worldReplayLeaguePairs,
   replayMatchupFor,
   replaySeedTape as seedTape,
+  replaySlateTeams,
   replayTickerGames,
   replayTransactionsFor,
   replayWorldLeagues
@@ -77,6 +78,8 @@ export const replayEspnTransactions = (league?: League): Transaction[] => {
 export const replayTransactions = (league: League): Transaction[] => replayTransactionsFor(league, tick)
 
 export const replayNflTicker = (): NflTickerGame[] => replayTickerGames(tick)
+
+export const replayNflSlate = (): string[] => replaySlateTeams(tick)
 
 export const replaySeedTape = (): TapeEvent[] => seedTape()
 

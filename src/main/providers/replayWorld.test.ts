@@ -13,6 +13,7 @@ import {
   replayRosteredPlayers,
   replayScript,
   replaySeedTape,
+  replaySlateTeams,
   replayTickerGames,
   replayTransactionsFor,
   replayWorldLeagues
@@ -163,6 +164,9 @@ describe('replayWorld (Sunday-real spec)', () => {
     const ticker = replayTickerGames(0)
     expect(ticker.filter((row) => row.final)).toHaveLength(1)
     expect(ticker.length).toBeGreaterThanOrEqual(8)
+    const slate = replaySlateTeams(0)
+    expect(slate).toEqual(expect.arrayContaining(['GB', 'CHI', 'TB', 'DAL', 'DET']))
+    expect(ticker.some((row) => row.home === 'CHI' || row.away === 'GB')).toBe(false)
   })
 
   it('seeds the spec §1.3 THIS MATCHUP tape newest first, including one injury', () => {

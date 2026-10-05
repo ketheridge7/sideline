@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { NflTickerGame } from '@shared/types'
+import { playerKickoff, shownPlayerPoints } from '@shared/playerPoints'
 import type { CachedPlayer, SleeperLeagueUser, SleeperMatchup, SleeperRoster } from './sleeperClient'
 import { applySleeperWinEstimate, toMatchup, toSleeperLeaguePairs } from './sleeperAdapter'
 
@@ -428,6 +429,20 @@ describe('toSleeperLeaguePairs', () => {
     const doubtful = toMatchup({ ...base, focusRosterId: 10 })
     expect(doubtful?.myTeam.name).toBe('Jtgonzo9')
     expect(doubtful?.starters.some((player) => player.playerId === '5927' && player.points === 0)).toBe(true)
+    const terry = doubtful?.starters.find((player) => player.playerId === '5927')
+    expect(terry?.nflTeam).toBe('WAS')
+    expect(terry?.points).toBe(0)
+    expect(shownPlayerPoints(terry?.points, playerKickoff(terry?.nflTeam, [], ['WAS', 'DAL']))).toBeNull()
+    expect(
+      shownPlayerPoints(
+        terry?.points,
+        playerKickoff(
+          terry?.nflTeam,
+          [{ id: 'was-dal', away: 'WAS', awayScore: 0, home: 'DAL', homeScore: 3, clock: 'Q1 12:00' }],
+          ['WAS', 'DAL']
+        )
+      )
+    ).toBe(0)
     expect(applySleeperWinEstimate(doubtful!, gucci.projections).myWinPct).toBeUndefined()
     const hudZero = applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), undefined, unprojected)
     expect(hudZero.myWinPct).toEqual(expect.any(Number))
