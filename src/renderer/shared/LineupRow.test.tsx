@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { Player } from '@shared/types'
+import { emptyAppState, toOverlayHud, type NflTickerGame, type Player } from '@shared/types'
+import { OverlayWidgetView } from '../overlay/Widgets'
+import { HudTeamScore } from './HudChrome'
+import { HudBench } from './HudBench'
 import { BoardRails, HudRail, LineupRow } from './LineupRow'
+import { PlayerGameProvider } from './playerGame'
 
 const player = (row: Partial<Player> & Pick<Player, 'playerId' | 'name' | 'position'>): Player => ({
   nflTeam: 'SF',
@@ -67,6 +72,144 @@ describe('LineupRow', () => {
     expect(html.indexOf('data-lineup-col="pos"')).toBeLessThan(html.indexOf('data-lineup-col="pts"'))
     expect(col(html, 'pos')).toContain('QB')
     expect(col(html, 'pts')).toContain('0.0')
+  })
+})
+
+const kickedOff: NflTickerGame[] = [
+  { id: 'dal-nyg', away: 'DAL', awayScore: 28, home: 'NYG', homeScore: 14, clock: 'FINAL', final: true },
+  { id: 'buf-mia', away: 'BUF', awayScore: 24, home: 'MIA', homeScore: 17, clock: '2ND 4:03' }
+]
+
+const weekSlate = ['DAL', 'NYG', 'BUF', 'MIA', 'GB', 'CHI']
+
+const withGames = (node: ReactElement): string =>
+  renderToStaticMarkup(
+    <PlayerGameProvider games={kickedOff} slate={weekSlate}>
+      {node}
+    </PlayerGameProvider>
+  )
+
+describe('player points before kickoff', () => {
+  it('dashes a stored 0 until that NFL game starts, then shows 0.0', () => {
+    const waiting = withGames(
+      <LineupRow player={player({ playerId: 'love', name: 'Jordan Love', position: 'QB', nflTeam: 'GB', points: 0 })} you />
+    )
+    const started = withGames(
+      <LineupRow
+        player={player({ playerId: 'aubrey', name: 'Brandon Aubrey', position: 'K', nflTeam: 'DAL', points: 0 })}
+        you
+      />
+    )
+    const live = withGames(
+      <LineupRow
+        player={player({ playerId: 'achane', name: "De'Von Achane", position: 'RB', nflTeam: 'MIA', points: 0 })}
+        you
+      />
+    )
+    expect(col(waiting, 'pts')).toContain('—')
+    expect(col(waiting, 'pts')).not.toContain('0.0')
+    expect(col(started, 'pts')).toContain('0.0')
+    expect(col(live, 'pts')).toContain('0.0')
+  })
+
+  it('shows 0.0 after kickoff when the provider has not posted an actual yet', () => {
+    const html = withGames(
+      <LineupRow player={player({ playerId: 'london', name: 'Drake London', position: 'WR', nflTeam: 'MIA' })} />
+    )
+    expect(col(html, 'pts')).toContain('0.0')
+  })
+
+  it('keeps a bye dash and a Thursday final score', () => {
+    const bye = withGames(
+      <LineupRow player={player({ playerId: 'bye', name: 'Bye Back', position: 'RB', nflTeam: 'LV' })} you />
+    )
+    const thursday = withGames(
+      <LineupRow
+        player={player({ playerId: 'dak', name: 'Dak Prescott', position: 'QB', nflTeam: 'DAL', points: 18.8 })}
+        you
+      />
+    )
+    expect(col(bye, 'pts')).toContain('—')
+    expect(col(thursday, 'pts')).toContain('18.8')
+  })
+
+  it('leaves the team total numeric while a not-started starter and bench player dash', () => {
+    const html = withGames(
+      <>
+        <HudTeamScore value={54.02} tone="you" surface="board" />
+        <BoardRails
+          mine={[player({ playerId: 'love', name: 'Jordan Love', position: 'QB', nflTeam: 'GB', points: 0 })]}
+          opp={[player({ playerId: 'dak', name: 'Dak Prescott', position: 'QB', nflTeam: 'DAL', points: 18.8 })]}
+          mineBench={[player({ playerId: 'swift', name: "D'Andre Swift", position: 'RB', nflTeam: 'CHI', points: 5.4 })]}
+          oppBench={[player({ playerId: 'bye', name: 'Bye Back', position: 'RB', nflTeam: 'LV', points: 0 })]}
+        />
+        <LineupRow
+          player={player({ playerId: 'swift', name: 'Andre Swift', position: 'RB', nflTeam: 'CHI', points: 5.4 })}
+          you
+          fixed
+        />
+        <LineupRow
+          player={player({ playerId: 'bye', name: 'Bye Back', position: 'RB', nflTeam: 'LV', points: 0 })}
+          fixed
+        />
+      </>
+    )
+    const pts = (name: string): string => {
+      const chunk = html.split('data-lineup-row=').find((row) => row.includes(name))
+      expect(chunk, name).toBeTruthy()
+      return chunk?.match(/data-lineup-col="pts"[\s\S]*?<\/span>/)?.[0] ?? ''
+    }
+    expect(html).toContain('data-hud="team-score"')
+    expect(html).toContain('54.0')
+    expect(html).toContain('data-bench-foot="mine"')
+    expect(pts('Jordan Love')).toContain('—')
+    expect(pts('Jordan Love')).not.toContain('0.0')
+    expect(pts('Andre Swift')).toContain('—')
+    expect(pts('Andre Swift')).not.toContain('5.4')
+    expect(pts('Dak Prescott')).toContain('18.8')
+    expect(pts('Bye Back')).toContain('0.0')
+  })
+
+  it('dashes overlay and TV starter and bench chips from the same scoreboard', () => {
+    const hud = toOverlayHud({
+      ...emptyAppState(),
+      nflTicker: kickedOff,
+      nflSlate: weekSlate,
+      selectedLeagueKey: 'sleeper:1',
+      leagues: [{ id: '1', name: 'Friday Night Gridiron', provider: 'sleeper', season: '2026', week: 3 }],
+      matchup: {
+        myTeam: { id: 'a', name: 'Ice Box', owner: 'Maya', record: '2-0' },
+        oppTeam: { id: 'b', name: 'Hash Marks', owner: 'Owen', record: '1-1' },
+        myPoints: 98.4,
+        oppPoints: 91.2,
+        starters: [player({ playerId: 'love', name: 'Jordan Love', position: 'QB', nflTeam: 'GB', points: 0 })],
+        bench: [player({ playerId: 'jeudy', name: 'Jerry Jeudy', position: 'WR', nflTeam: 'CHI', points: 0 })],
+        oppStarters: [player({ playerId: 'aubrey', name: 'Brandon Aubrey', position: 'K', nflTeam: 'DAL', points: 0 })],
+        oppBench: []
+      }
+    })
+    const starters = renderToStaticMarkup(
+      <OverlayWidgetView id="col.mine.name" hud={hud} surface="tv" density="inherit" showCrawler={false} />
+    )
+    const bench = renderToStaticMarkup(
+      <OverlayWidgetView id="bench.mine" hud={hud} surface="tv" density="inherit" showCrawler={false} />
+    )
+    const total = renderToStaticMarkup(
+      <OverlayWidgetView id="score.mine" hud={hud} surface="tv" density="inherit" showCrawler={false} />
+    )
+    expect(col(starters, 'pts')).toContain('—')
+    expect(col(starters, 'pts')).not.toContain('0.0')
+    expect(bench).toContain('—')
+    expect(bench).not.toContain('0.0')
+    expect(total).toContain('98.4')
+    const chips = withGames(
+      <HudBench
+        label="Bench"
+        players={[player({ playerId: 'jeudy', name: 'Jerry Jeudy', position: 'WR', nflTeam: 'CHI', points: 0 })]}
+      />
+    )
+    expect(chips).toContain('tabular-nums">—')
+    expect(chips).not.toContain('tabular-nums">0.0')
   })
 })
 

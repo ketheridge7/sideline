@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { NflTickerGame } from '@shared/types'
+import { playerKickoff, shownPlayerPoints } from '@shared/playerPoints'
 import type { CachedPlayer, SleeperLeagueUser, SleeperMatchup, SleeperRoster } from './sleeperClient'
 import { applySleeperWinEstimate, toMatchup, toSleeperLeaguePairs } from './sleeperAdapter'
 
@@ -428,6 +429,20 @@ describe('toSleeperLeaguePairs', () => {
     const doubtful = toMatchup({ ...base, focusRosterId: 10 })
     expect(doubtful?.myTeam.name).toBe('Jtgonzo9')
     expect(doubtful?.starters.some((player) => player.playerId === '5927' && player.points === 0)).toBe(true)
+    const terry = doubtful?.starters.find((player) => player.playerId === '5927')
+    expect(terry?.nflTeam).toBe('WAS')
+    expect(terry?.points).toBe(0)
+    expect(shownPlayerPoints(terry?.points, playerKickoff(terry?.nflTeam, [], ['WAS', 'DAL']))).toBeNull()
+    expect(
+      shownPlayerPoints(
+        terry?.points,
+        playerKickoff(
+          terry?.nflTeam,
+          [{ id: 'was-dal', away: 'WAS', awayScore: 0, home: 'DAL', homeScore: 3, clock: 'Q1 12:00' }],
+          ['WAS', 'DAL']
+        )
+      )
+    ).toBe(0)
     expect(applySleeperWinEstimate(doubtful!, gucci.projections).myWinPct).toBeUndefined()
     const hudZero = applySleeperWinEstimate(doubtful!, gucci.projections, new Set(), undefined, unprojected)
     expect(hudZero.myWinPct).toEqual(expect.any(Number))
@@ -460,5 +475,48 @@ describe('toSleeperLeaguePairs', () => {
     expect(applySleeperWinEstimate(ir!, gucci.projections, new Set(), undefined, unprojected).myWinPct).toEqual(
       expect.any(Number)
     )
+  })
+
+  it('keeps players who are not in starters on the League bench', () => {
+    const pairs = toSleeperLeaguePairs({
+      userId: 'u1',
+      rosters: [
+        { roster_id: 1, owner_id: 'u1', settings: { wins: 1, losses: 0 } },
+        { roster_id: 2, owner_id: 'u2', settings: { wins: 0, losses: 1 } }
+      ],
+      users: [
+        { user_id: 'u1', display_name: 'Ada', metadata: { team_name: 'Alpha' } },
+        { user_id: 'u2', display_name: 'Bo', metadata: { team_name: 'Bravo' } }
+      ],
+      players: {
+        '10': { name: 'Alpha QB', position: 'QB', nflTeam: 'DAL' },
+        '11': { name: 'Alpha Bench', position: 'WR', nflTeam: 'KC' },
+        '20': { name: 'Bravo QB', position: 'QB', nflTeam: 'KC' },
+        '21': { name: 'Bravo Bench', position: 'RB', nflTeam: 'DAL' }
+      },
+      matchups: [
+        {
+          roster_id: 1,
+          matchup_id: 1,
+          points: 10,
+          starters: ['10'],
+          players: ['10', '11'],
+          players_points: { '10': 10, '11': 4 }
+        },
+        {
+          roster_id: 2,
+          matchup_id: 1,
+          points: 8,
+          starters: ['20'],
+          players: ['20', '21'],
+          players_points: { '20': 8, '21': 2 }
+        }
+      ]
+    })
+    const mine = pairs.find((pair) => pair.mine)
+    expect(mine?.matchup.starters.map((player) => player.name)).toEqual(['Alpha QB'])
+    expect(mine?.matchup.bench.map((player) => player.name)).toEqual(['Alpha Bench'])
+    expect(mine?.matchup.oppStarters.map((player) => player.name)).toEqual(['Bravo QB'])
+    expect(mine?.matchup.oppBench.map((player) => player.name)).toEqual(['Bravo Bench'])
   })
 })

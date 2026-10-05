@@ -4,6 +4,7 @@ import { espnBoardUx } from '@shared/display'
 import { tapeForLeague } from '@shared/tape'
 import { HudScoreboard } from '../shared/HudScoreboard'
 import { BoardRails } from '../shared/LineupRow'
+import { PlayerGameProvider } from '../shared/playerGame'
 import { ScoringTape } from './ScoringTape'
 import { Watchlist } from './Watchlist'
 import { NflTicker } from './NflTicker'
@@ -124,6 +125,7 @@ export const BoardScreen = ({
   }, [])
 
   return (
+    <PlayerGameProvider games={state.nflTicker} slate={state.nflSlate}>
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         <Watchlist state={state} history={history} onBoards={onBoards} />
@@ -195,5 +197,6 @@ export const BoardScreen = ({
       </div>
       {state.nflTicker.length > 0 ? <NflTicker games={state.nflTicker} /> : null}
     </div>
+    </PlayerGameProvider>
   )
 }

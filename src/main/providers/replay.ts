@@ -1,5 +1,7 @@
+import { readFileSync } from 'fs'
 import type { League, LeaguePair, Matchup, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
 import { demoRequested, holdRequested } from '../demoMode'
+import { nflSlateTeamsFromPayload, nflTickerFromPayload } from './nflScoreboard'
 import {
   FEATURED_LEAGUE_KEY,
   REPLAY_SEASON,
@@ -8,6 +10,7 @@ import {
   replayLeaguePairs as worldReplayLeaguePairs,
   replayMatchupFor,
   replaySeedTape as seedTape,
+  replaySlateTeams,
   replayTickerGames,
   replayTransactionsFor,
   replayWorldLeagues
@@ -77,6 +80,27 @@ export const replayEspnTransactions = (league?: League): Transaction[] => {
 export const replayTransactions = (league: League): Transaction[] => replayTransactionsFor(league, tick)
 
 export const replayNflTicker = (): NflTickerGame[] => replayTickerGames(tick)
+
+export const replayNflSlate = (): string[] => replaySlateTeams(tick)
+
+/**
+ * Replay usually paints the scripted Sunday slate. `SIDELINE_REPLAY_SCOREBOARD`
+ * points at a captured ESPN week scoreboard so a chip can follow that week's
+ * real kickoff state (Monday still `pre`, Sunday night `in` or `post`).
+ */
+export const replayNflScoreboard = (): { ticker: NflTickerGame[]; slate: string[] } | null => {
+  const file = process.env.SIDELINE_REPLAY_SCOREBOARD
+  if (!file) return null
+  try {
+    const payload = JSON.parse(readFileSync(file, 'utf8')) as unknown
+    return {
+      ticker: nflTickerFromPayload(payload),
+      slate: nflSlateTeamsFromPayload(payload)
+    }
+  } catch {
+    return null
+  }
+}
 
 export const replaySeedTape = (): TapeEvent[] => seedTape()
 

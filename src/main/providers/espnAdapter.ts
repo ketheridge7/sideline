@@ -1820,21 +1820,28 @@ const teamRosterEntries = (teams: Record<string, unknown>[], teamId: number | un
 
 /**
  * League browse `mMatchupScore` rows are often stats-only (no player id or pro team).
- * Count starter slots from those rows when they carry `proTeamId`, otherwise from `mRoster`.
- * The HUD matchup parser stays on named lineup rows.
+ * `mRoster` has the same `lineupSlotId`s with names. Slot 20 is bench and 21 is IR,
+ * and the array is not the website order — FLEX is 23, so a numeric sort puts it
+ * after K. Use the same slot rank as the HUD, and keep bench/IR for the detail.
  */
-const leagueSideStarters = (
-  current: Player[],
+const leagueSideLineup = (
+  current: { starters: Player[]; bench: Player[] },
   side: Record<string, unknown> | null,
   teams: Record<string, unknown>[],
   scoringPeriodId?: number
-): Player[] => {
-  if (current.some((player) => player.nflTeam)) return current
+): { starters: Player[]; bench: Player[] } => {
+  const roster = teamRosterEntries(teams, side ? num(side.teamId) : undefined)
+  if (current.starters.some((player) => player.nflTeam)) {
+    if (current.bench.length > 0 || roster.length === 0) return current
+    const fromRoster = lineupPlayers(roster, scoringPeriodId)
+    return fromRoster.bench.length > 0 ? { starters: current.starters, bench: fromRoster.bench } : current
+  }
+  if (roster.length > 0) {
+    const fromRoster = lineupPlayers(roster, scoringPeriodId)
+    if (fromRoster.starters.length > 0 || fromRoster.bench.length > 0) return fromRoster
+  }
   const live = side ? rosterEntries(side, []) : []
-  const fromLive = countableSlotStarters(live, scoringPeriodId)
-  if (fromLive.length > 0) return fromLive
-  const teamId = side ? num(side.teamId) : undefined
-  return countableSlotStarters(teamRosterEntries(teams, teamId), scoringPeriodId)
+  return { starters: orderEspnStarters(countableSlotStarters(live, scoringPeriodId), new Map()), bench: [] }
 }
 
 /**
@@ -1914,12 +1921,31 @@ export const toEspnLeaguePairs = (args: {
     if (!matchup) continue
     const mineSide = focus === homeId ? home : away
     const oppSide = focus === homeId ? away : home
-    const starters = leagueSideStarters(matchup.starters, mineSide, teams, periodId)
-    const oppStarters = leagueSideStarters(matchup.oppStarters, oppSide, teams, periodId)
+    const mineLine = leagueSideLineup(
+      { starters: matchup.starters, bench: matchup.bench },
+      mineSide,
+      teams,
+      periodId
+    )
+    const oppLine = leagueSideLineup(
+      { starters: matchup.oppStarters, bench: matchup.oppBench },
+      oppSide,
+      teams,
+      periodId
+    )
     const lined =
-      starters === matchup.starters && oppStarters === matchup.oppStarters
+      mineLine.starters === matchup.starters &&
+      oppLine.starters === matchup.oppStarters &&
+      mineLine.bench === matchup.bench &&
+      oppLine.bench === matchup.oppBench
         ? matchup
-        : { ...matchup, starters, oppStarters }
+        : {
+            ...matchup,
+            starters: mineLine.starters,
+            bench: mineLine.bench,
+            oppStarters: oppLine.starters,
+            oppBench: oppLine.bench
+          }
     pairs.push({
       id: `${homeId ?? 'x'}-${awayId ?? 'x'}`,
       mine: userInGame,

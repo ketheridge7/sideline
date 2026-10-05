@@ -3,7 +3,8 @@ import { join } from 'path'
 import type { League, LeaguePair, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { tapePlayerLabel } from '@shared/display'
-import { estimatedChanceToWin, startersStillToPlay } from '@shared/winPct'
+import { estimatedChanceToWin, nflTeamKey, startersStillToPlay } from '@shared/winPct'
+import { toEspnLeaguePairs } from './espnAdapter'
 import { applySleeperWinEstimate, toMatchup, toSleeperLeaguePairs } from './sleeperAdapter'
 import type { CachedPlayer, SleeperLeagueUser, SleeperMatchup, SleeperRoster } from './sleeperClient'
 
@@ -989,11 +990,37 @@ const gucciWeek4Hud = (countUnprojected: boolean): Matchup | null => {
   )
 }
 
+/**
+ * Dev-only ESPN board. Public league 899513 week 4 through the League parser,
+ * so Replay can show the real slot order and bench.
+ */
+const espnRosterLineupPairs = (): LeaguePair[] | null => {
+  try {
+    const file = JSON.parse(readFileSync(join(process.cwd(), 'fixtures/espn-roster-lineup.json'), 'utf8')) as {
+      payload?: unknown
+    }
+    if (!file.payload) return null
+    const pairs = toEspnLeaguePairs({
+      payload: file.payload,
+      displayWeek: 4,
+      myTeamId: 5,
+      matchupPeriod: { matchupPeriodId: 4, scoringPeriodIds: [4] }
+    })
+    return pairs.length > 0 ? pairs : null
+  } catch {
+    return null
+  }
+}
+
 export const replayLeaguePairs = (league: League, tick: number): LeaguePair[] => {
   const board = process.env.SIDELINE_REPLAY_BOARD
   if (board === 'gucci' || board === 'gucci-before') {
     const gucci = gucciWeek4Pairs(board === 'gucci')
     if (gucci) return gucci
+  }
+  if (board === 'espn-roster' && league.provider === 'espn' && league.id === 'gridiron-gurus') {
+    const espn = espnRosterLineupPairs()
+    if (espn) return espn
   }
   const ticker = replayTickerGames(tick)
   const pairs: LeaguePair[] = []
@@ -1123,6 +1150,18 @@ export const replaySeedTape = (anchor = TAPE_ANCHOR): TapeEvent[] => {
     out.push({ ...row, at: anchor - minutesAgo * 60_000 })
   }
   return out.sort((a, b) => b.at - a.at)
+}
+
+/** Every NFL team on the scripted week, including games that have not kicked off. */
+export const replaySlateTeams = (_tick = 0): string[] => {
+  const teams: string[] = []
+  for (const game of SLATE) {
+    const away = nflTeamKey(game.away)
+    const home = nflTeamKey(game.home)
+    if (away && !teams.includes(away)) teams.push(away)
+    if (home && !teams.includes(home)) teams.push(home)
+  }
+  return teams
 }
 
 export const replayTickerGames = (tick = 0): NflTickerGame[] => {

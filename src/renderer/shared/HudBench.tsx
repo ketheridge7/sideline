@@ -2,7 +2,24 @@ import type { JSX } from 'react'
 import type { Player } from '@shared/types'
 import { nflTeamLabel, visibleInjury } from '@shared/display'
 import { overlayName } from './format'
+import { useShownPlayerPoints } from './playerGame'
 import { LastTickMark, ScoreTick } from './ScoreTick'
+
+const BenchChip = ({ player }: { player: Player }): JSX.Element => {
+  const injury = visibleInjury(player.status)
+  const shownPoints = useShownPlayerPoints(player.nflTeam, player.points)
+  return (
+    <div className={`shrink-0 bg-white/[0.03] px-2 py-1 text-xs ${injury ? 'text-muted' : ''}`}>
+      <span className="font-cond uppercase text-muted">{injury || player.position || 'BN'}</span> {overlayName(player.name)}{' '}
+      <span className="uppercase text-muted">{nflTeamLabel(player.nflTeam)}</span> <LastTickMark value={shownPoints} />
+      <ScoreTick
+        value={shownPoints}
+        restColor="#94A3B8"
+        className="inline-block font-cond text-xs font-bold tabular-nums"
+      />
+    </div>
+  )
+}
 
 export const HudBench = ({
   players,
@@ -24,31 +41,11 @@ export const HudBench = ({
   }
   return (
     <div className={`border-t border-white/5 px-4 py-2 ${mirror ? 'text-right' : ''}`}>
-      <div className={`mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] ${headerClass}`}>
-        {label}
-      </div>
+      <div className={`mb-1 font-cond text-[10px] font-bold uppercase tracking-[0.2em] ${headerClass}`}>{label}</div>
       <div className={`flex gap-1.5 overflow-x-auto ${mirror ? 'flex-row-reverse' : ''}`}>
-        {players.map((player) => {
-          const injury = visibleInjury(player.status)
-          return (
-            <div
-              key={player.playerId}
-              className={`shrink-0 bg-white/[0.03] px-2 py-1 text-xs ${
-                injury ? 'text-muted' : ''
-              }`}
-            >
-              <span className="font-cond uppercase text-muted">{injury || player.position || 'BN'}</span>{' '}
-              {overlayName(player.name)}{' '}
-              <span className="uppercase text-muted">{nflTeamLabel(player.nflTeam)}</span>{' '}
-              <LastTickMark value={player.points} />
-              <ScoreTick
-                value={player.points}
-                restColor="#94A3B8"
-                className="inline-block font-cond text-xs font-bold tabular-nums"
-              />
-            </div>
-          )
-        })}
+        {players.map((player) => (
+          <BenchChip key={player.playerId} player={player} />
+        ))}
       </div>
     </div>
   )

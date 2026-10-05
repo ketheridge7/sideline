@@ -13,6 +13,7 @@ import {
   replayRosteredPlayers,
   replayScript,
   replaySeedTape,
+  replaySlateTeams,
   replayTickerGames,
   replayTransactionsFor,
   replayWorldLeagues
@@ -163,6 +164,9 @@ describe('replayWorld (Sunday-real spec)', () => {
     const ticker = replayTickerGames(0)
     expect(ticker.filter((row) => row.final)).toHaveLength(1)
     expect(ticker.length).toBeGreaterThanOrEqual(8)
+    const slate = replaySlateTeams(0)
+    expect(slate).toEqual(expect.arrayContaining(['GB', 'CHI', 'TB', 'DAL', 'DET']))
+    expect(ticker.some((row) => row.home === 'CHI' || row.away === 'GB')).toBe(false)
   })
 
   it('seeds the spec §1.3 THIS MATCHUP tape newest first, including one injury', () => {
@@ -265,6 +269,20 @@ describe('replayWorld (Sunday-real spec)', () => {
       const pending = replayMatchupFor(featured, 0)
       expect(pending?.starters.some((player) => player.playerId === '5927')).toBe(true)
       expect(matchupChanceToWin(pending!)).toBeNull()
+    } finally {
+      delete process.env.SIDELINE_REPLAY_BOARD
+    }
+  })
+
+  it('uses the ESPN roster lineup for Gridiron Gurus only', () => {
+    const espn = weekLeagues.find((row) => row.id === 'gridiron-gurus')!
+    process.env.SIDELINE_REPLAY_BOARD = 'espn-roster'
+    try {
+      const pairs = replayLeaguePairs(espn, 0)
+      expect(pairs.map((pair) => pair.id)).toEqual(['5-6'])
+      expect(pairs[0]?.matchup.starters.map((player) => player.position)[0]).toBe('TQB')
+      expect(pairs[0]?.matchup.bench.length).toBeGreaterThan(0)
+      expect(replayLeaguePairs(featured, 0)[0]?.id).not.toBe('5-6')
     } finally {
       delete process.env.SIDELINE_REPLAY_BOARD
     }
