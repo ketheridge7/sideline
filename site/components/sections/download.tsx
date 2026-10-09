@@ -22,7 +22,7 @@ export async function DownloadSection() {
       <div className="relative mx-auto max-w-6xl px-5 sm:px-6">
         <div className="border border-line bg-card p-8 sm:p-10">
           <SectionEyebrow>Download</SectionEyebrow>
-          <SectionTitle>Get the Windows companion.</SectionTitle>
+          <SectionTitle>Get the Windows desktop overlay.</SectionTitle>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
             One installer. It adds a desktop shortcut and a Start menu entry for your user account.
             No administrator prompt.

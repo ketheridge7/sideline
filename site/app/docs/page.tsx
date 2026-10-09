@@ -10,7 +10,7 @@ import { fetchLatestRelease, formatInstallerSize } from "@/lib/release";
 export const metadata: Metadata = {
   title: "Connect & shortcuts",
   description:
-    "Connect Sleeper and ESPN, HUD shortcuts, OBS localhost overlay, and optional TV pairing for Sideline.",
+    "Connect Sleeper and ESPN, HUD shortcuts, and the OBS localhost overlay for Sideline on Windows.",
   alternates: { canonical: "/docs" },
 };
 
@@ -91,14 +91,6 @@ export default async function DocsPage() {
           <h2 className="text-xl font-semibold tracking-tight text-text">OBS / localhost overlay</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Browser Source: <code className="text-text">http://127.0.0.1:7333/overlay</code>
-          </p>
-        </section>
-
-        <section className="mt-12">
-          <h2 className="text-xl font-semibold tracking-tight text-text">TV / LAN pairing</h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            Connect → Allow devices on this Wi-Fi. Enter the 6-digit code on the TV, or open the
-            phone URL.
           </p>
         </section>
 

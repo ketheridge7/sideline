@@ -78,9 +78,12 @@ describe('hydrateSettings', () => {
     expect(defaultSettings().overlayLayout.schemaVersion).toBe(OVERLAY_LAYOUT_SCHEMA_VERSION)
   })
 
-  it('keeps a persisted LAN token and drops junk', () => {
+  it('turns a saved Wi-Fi toggle and token off while TV overlay is shelved', () => {
     expect(defaultSettings().lanOverlayToken).toBeNull()
-    expect(hydrateSettings({ lanOverlayToken: 'deadbeefcafebabe' }).lanOverlayToken).toBe('deadbeefcafebabe')
+    expect(defaultSettings().lanOverlayEnabled).toBe(false)
+    const shelved = hydrateSettings({ lanOverlayEnabled: true, lanOverlayToken: 'deadbeefcafebabe' })
+    expect(shelved.lanOverlayEnabled).toBe(false)
+    expect(shelved.lanOverlayToken).toBeNull()
     expect(hydrateSettings({ lanOverlayToken: 'nope' }).lanOverlayToken).toBeNull()
     expect(hydrateSettings({}).lanOverlayToken).toBeNull()
   })

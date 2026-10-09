@@ -1,7 +1,7 @@
 import { HERO_HUD } from "@/lib/demo";
 
 /**
- * Product stills. Companion, leagues, studio, and connect are window captures of
+ * Product stills. Companion, leagues, and studio are window captures of
  * the pinned Replay Sunday with Replay chrome hidden (`SIDELINE_CAPTURE=1`).
  * Hero and frost-hud are the real HUD composited on the head-on broadcast plate.
  * Mobile files are crops of those stills for a 390px column.
@@ -69,16 +69,6 @@ export const PRODUCT_STILLS = {
     mobileWidth: 304,
     mobileHeight: 860,
     caption: "Overlay Studio. Pick a placement, then nudge it.",
-  },
-  connect: {
-    src: "/images/connect-hub.jpg",
-    mobileSrc: "/images/connect-hub-mobile.jpg",
-    alt: "Connect hub: ESPN and Sleeper league lists, a TV pairing card, and the updates section.",
-    width: 1440,
-    height: 760,
-    mobileWidth: 1040,
-    mobileHeight: 648,
-    caption: "Sleeper is a username. ESPN is your own sign-in.",
   },
 } as const satisfies Record<string, ProductStill>;
 

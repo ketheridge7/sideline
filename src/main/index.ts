@@ -11,6 +11,7 @@ import { applyLanOverlay, startPoller, warmupPollerCaches, publishWarmupState } 
 import { releaseLanPowerSave } from './powerSave'
 import { runtime } from './runtime'
 import { isLanOverlayToken } from '@shared/settings'
+import { lanOverlayRequested } from '@shared/tvOverlay'
 import { shortcutRegistrationError } from '@shared/shortcuts'
 import { bindLanTokenPersistence, shutdownOverlayServerForQuit, startOverlayServer, publishOverlay } from './server'
 import { loadSettings, saveSettings } from './store'
@@ -92,7 +93,7 @@ app.whenReady().then(async () => {
     registerIpc,
     warmupPollerCaches,
     publishWarmupState,
-    startOverlayServer: () => startOverlayServer(7333, loadSettings().lanOverlayEnabled),
+    startOverlayServer: () => startOverlayServer(7333, lanOverlayRequested(loadSettings().lanOverlayEnabled)),
     onOverlayPort: (port) => {
       runtime.setOverlayPort(port)
       applyLanOverlay()

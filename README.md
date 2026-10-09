@@ -1,6 +1,6 @@
 # Sideline
 
-Second-screen fantasy companion for NFL Sundays. One Electron app, two windows: a glanceable companion board and a compact always-on-top overlay. Same live data, no backend. Visual language is **Sunday Tape** — ice / lime / alert on near-black, not gold Booth.
+Windows desktop and laptop overlay for NFL Sundays. One Electron app: a glanceable companion board and a compact always-on-top HUD over the game stream on this PC. Same live data, no backend. Visual language is **Sunday Tape** — ice / lime / alert on near-black, not gold Booth. Google TV and the LAN overlay are shelved.
 
 **Sleeper** uses the official read-only HTTP API. **ESPN** access is unofficial, uses your own login, and is for personal companion use only.
 
@@ -36,7 +36,7 @@ Replay is fixture-only. It never calls a sports-data API, never touches ESPN coo
 
 ## Connect
 
-Connect is a hub with three peer cards: **ESPN**, **Sleeper**, and **TV**. Shortcuts and update settings sit in a quiet footer on the hub. How-to copy is on each path.
+Connect is a hub with two peer cards: **ESPN** and **Sleeper**. Shortcuts and update settings sit in a quiet footer on the hub. How-to copy is on each path.
 
 ### Sleeper
 
@@ -51,10 +51,6 @@ Those cookies expire (often after a few weeks). When they do, sign in again the 
 League discovery is best-effort and unofficial. The path shows a checklist (all on). Uncheck unwanted leagues, then **Add selected**. If a league is missing, open **Advanced** and **paste the numeric league ID** from the ESPN fantasy URL (`.../football/league?leagueId=XXXX`).
 
 Public leagues sometimes work with no cookies. Private leagues need `espn_s2` + `SWID`. Remove a league from the hub, or **Sign out** of ESPN.
-
-### TV
-
-Open the TV card. **Allow devices on this Wi-Fi to load the overlay** binds the overlay server on all interfaces, shows a **6-digit pairing code**, and requires a session token (`?k=`). On the Google TV app (`tv/`), type that code — you do not enter the IP or hex token.
 
 ## Overlay
 
@@ -80,15 +76,11 @@ Chorded shortcuts are global (work even when Sideline is not focused). A binding
 
 Companion still has `O` (HUD), `E` (Studio panel), and `Esc` (close Studio) on the Scoreboard.
 
-### TV / LAN
+### TV
 
-Connect → **Allow devices on this Wi-Fi to load the overlay**. Sideline then binds the overlay server on all interfaces, shows a **6-digit pairing code**, and requires a session token (`?k=`). On the Google TV app (`tv/`), type that code — you do not enter the IP or hex token. Paste the phone URL into a browser to confirm. Loopback OBS use is unchanged while this toggle is off.
-
-The PC saves that token and reuses it across restarts, so a paired TV keeps working after Sideline relaunches. Turning the Wi-Fi toggle off forgets the token; turn it back on and pair the TV again. The 6-digit code still refreshes about every 10 minutes.
+Google TV and the LAN overlay are shelved. There is no Play Store app, no Wi-Fi toggle, and no pairing code. Sideline is a Windows desktop and laptop overlay. The overlay server binds `127.0.0.1` only. OBS Browser Source stays `http://127.0.0.1:7333/overlay` with no token. A saved “Allow devices on this Wi-Fi” setting is turned off on upgrade and its token is cleared, so the network does not reopen if that work returns later. The Android project and pairing code stay in the tree behind `TV_OVERLAY_ENABLED` in [`src/shared/tvOverlay.ts`](src/shared/tvOverlay.ts).
 
 Windows is the first-class overlay target. macOS uses `type: 'panel'`, `setAlwaysOnTop(..., 'screen-saver')`, `setVisibleOnAllWorkspaces({ visibleOnFullScreen: true })`, and accessory activation policy so it can sit above fullscreen video. That last setting **hides the Dock icon**; use the tray icon to show the companion.
-
-Google TV overlay app: see [`tv/README.md`](tv/README.md).
 
 ## Polling
 

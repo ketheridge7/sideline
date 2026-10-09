@@ -114,7 +114,7 @@ describe('runStartup', () => {
 describe('startupErrorMessage', () => {
   it('names the port range and errno for an overlay bind failure', () => {
     expect(startupErrorMessage('overlay-server', new OverlayListenError('EACCES', 7333, 7362))).toBe(
-      'Overlay server could not start on ports 7333-7362 (EACCES). The HUD window still works; OBS and TV links are offline.'
+      'Overlay server could not start on ports 7333-7362 (EACCES). The HUD window still works; the OBS browser source is offline.'
     )
   })
 })

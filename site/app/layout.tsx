@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://sideline-three.vercel.app",
   ),
   title: {
-    default: `${SITE_NAME} — Live Sleeper and ESPN on a second screen`,
+    default: `${SITE_NAME} — Windows overlay for live Sleeper and ESPN`,
     template: `%s · ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,

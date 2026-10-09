@@ -5,6 +5,7 @@ import { is } from '@electron-toolkit/utils'
 import type { OverlayHudState } from '@shared/types'
 import { emptyAppState, overlayHudUnchanged, toOverlayHud } from '@shared/types'
 import { isLanOverlayToken } from '@shared/settings'
+import { lanOverlayRequested } from '@shared/tvOverlay'
 import {
   generateOverlayToken,
   lanBindHost,
@@ -256,29 +257,33 @@ const tryListen = (port: number, host: string): Promise<number> =>
 const listen = (startPort: number, host: string): Promise<number> =>
   listenOnFreePort(startPort, host, tryListen)
 
+const resolveLanListen = (enabled: boolean, host: string | undefined): { lan: boolean; host: string } => {
+  const lan = host === undefined ? lanOverlayRequested(enabled) : enabled
+  return { lan, host: host ?? lanBindHost(lan) }
+}
+
 export const startOverlayServer = async (
   startPort = 7333,
   enabled = false,
-  host = lanBindHost(enabled)
+  host?: string
 ): Promise<number> => {
-  lanEnabled = enabled
-  if (enabled) armLanSession()
+  const listenOn = resolveLanListen(enabled, host)
+  lanEnabled = listenOn.lan
+  if (listenOn.lan) armLanSession()
   else disarmLanSession()
-  boundPort = await listen(startPort, host)
+  boundPort = await listen(startPort, listenOn.host)
   return boundPort
 }
 
-export const setOverlayLanEnabled = async (
-  enabled: boolean,
-  host = lanBindHost(enabled)
-): Promise<number> => {
+export const setOverlayLanEnabled = async (enabled: boolean, host?: string): Promise<number> => {
+  const listenOn = resolveLanListen(enabled, host)
   const port = boundPort
-  lanEnabled = enabled
-  if (enabled) armLanSession()
+  lanEnabled = listenOn.lan
+  if (listenOn.lan) armLanSession()
   else forgetLanToken()
   await closeServer()
   await new Promise((resolve) => setTimeout(resolve, 100))
-  boundPort = await listen(port, host)
+  boundPort = await listen(port, listenOn.host)
   return boundPort
 }
 

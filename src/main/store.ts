@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { overlayLayoutDidMigrate } from '@shared/overlayLayout'
 import { defaultSettings, hydrateSettings, settingsHadLegacyCompanionBounds, type Settings } from '@shared/settings'
+import { settingsHadShelvedLan, shelfLanSettings } from '@shared/tvOverlay'
 import { writeAtomicSync } from './atomicFile'
 import { reportSettingsNotice, settingsFileNotice } from './notices'
 
@@ -82,7 +83,12 @@ export const loadSettings = (): Settings => {
     cache = defaultSettings()
     return cache
   }
-  if (parsed && (overlayLayoutDidMigrate(parsed.overlayLayout) || settingsHadLegacyCompanionBounds(parsed))) {
+  if (
+    parsed &&
+    (overlayLayoutDidMigrate(parsed.overlayLayout) ||
+      settingsHadLegacyCompanionBounds(parsed) ||
+      settingsHadShelvedLan(parsed))
+  ) {
     try {
       persist(cache)
     } catch {
@@ -94,7 +100,7 @@ export const loadSettings = (): Settings => {
 
 export const saveSettings = (patch: Partial<Settings>): Settings => {
   const prev = loadSettings()
-  const next = { ...prev, ...patch }
+  const next = shelfLanSettings({ ...prev, ...patch })
   if (leagueSettingsChanged(prev, next)) leagueRevision += 1
   cache = next
   persist(next)

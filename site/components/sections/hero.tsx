@@ -18,8 +18,8 @@ export function Hero() {
             Always on the Sideline
           </h1>
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted sm:text-lg">
-            A Windows companion for live Sleeper and ESPN matchups. Keep the board on a second
-            screen, or lay the HUD on the game you are already watching.
+            A Windows desktop and laptop overlay for live Sleeper and ESPN matchups. Lay the
+            HUD over the game stream you are already watching.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <CtaLink href={DOWNLOAD_URL} external sameTab>

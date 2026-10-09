@@ -32,6 +32,25 @@ describe('settings store', () => {
     expect(parsed.sleeperUsername).toBe('keeper')
   })
 
+  it('writes a previously enabled Wi-Fi toggle off on load', () => {
+    writeFileSync(
+      settingsPath(),
+      JSON.stringify({ lanOverlayEnabled: true, lanOverlayToken: 'deadbeefcafebabe', sleeperUsername: 'ada' }),
+      'utf8'
+    )
+    resetStoreForTests()
+    const loaded = loadSettings()
+    expect(loaded.lanOverlayEnabled).toBe(false)
+    expect(loaded.lanOverlayToken).toBeNull()
+    expect(loaded.sleeperUsername).toBe('ada')
+    const stored = JSON.parse(readFileSync(settingsPath(), 'utf8')) as {
+      lanOverlayEnabled: boolean
+      lanOverlayToken: string | null
+    }
+    expect(stored.lanOverlayEnabled).toBe(false)
+    expect(stored.lanOverlayToken).toBeNull()
+  })
+
   it('bumps the league revision only when league or provider fields change', () => {
     const start = leagueSettingsRevision()
     saveSettings({ lanOverlayEnabled: true })

@@ -120,6 +120,19 @@ describe('writeOverlayPing', () => {
 })
 
 describe('overlay server LAN gate', () => {
+  it('keeps a requested LAN bind on loopback while TV overlay is shelved', async () => {
+    const port = await startOverlayServer(18280, true)
+    const overlay = await fetch(`http://127.0.0.1:${port}/overlay`, { redirect: 'manual' })
+    expect(overlay.status).toBe(302)
+    expect(overlay.headers.get('location')).toBe('/overlay/index.html')
+    const events = await fetch(`http://127.0.0.1:${port}/events`)
+    expect(events.status).toBe(200)
+    events.body?.cancel()
+    expect(overlayLanState().enabled).toBe(false)
+    expect(overlayLanState().pairingCode).toBeNull()
+    await stopOverlayServer()
+  })
+
   it('serves SSE without a token when bound to loopback', async () => {
     const port = await startOverlayServer(18300, false)
     const res = await fetch(`http://127.0.0.1:${port}/events`)
