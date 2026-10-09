@@ -5,6 +5,7 @@ import { runtime } from './runtime'
 import { setOverlayLanEnabled } from './server'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { parseProvider } from '@shared/types'
+import { lanOverlayRequested } from '@shared/tvOverlay'
 import { collectBugReportRuntime, copyDiagnostics, openExternalUrl } from './bugReport'
 import { DEMO_LOCKED_MESSAGE, demoDevHint, demoRelaunchArgs, demoSwitchPlan } from './demoMode'
 import { isReplayMode } from './providers/replay'
@@ -127,7 +128,7 @@ export const registerIpc = (): void => {
     setShortcutCapture(Boolean(active))
   })
   ipcMain.handle('sideline:setLanOverlay', async (_event, enabled: boolean) => {
-    const on = Boolean(enabled)
+    const on = lanOverlayRequested(Boolean(enabled))
     saveSettings(on ? { lanOverlayEnabled: true } : { lanOverlayEnabled: false, lanOverlayToken: null })
     try {
       const port = await setOverlayLanEnabled(on)

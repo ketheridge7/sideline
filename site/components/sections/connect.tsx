@@ -1,4 +1,3 @@
-import { ProductStill } from "@/components/product-still";
 import { SectionEyebrow, SectionTitle } from "@/components/ui";
 
 export function ConnectSection() {
@@ -30,12 +29,6 @@ export function ConnectSection() {
             </p>
           </article>
         </div>
-        <ProductStill
-          still="connect"
-          className="mt-8"
-          frameClassName="shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
-          sizes="(min-width: 1152px) 1152px, 100vw"
-        />
       </div>
     </section>
   );

@@ -94,7 +94,7 @@ export const startupErrorMessage = (step: StartupStep, error: unknown): string =
         error instanceof OverlayListenError
           ? ` on ports ${error.startPort}-${error.endPort}${error.code ? ` (${error.code})` : ''}`
           : ''
-      return `Overlay server could not start${range}. The HUD window still works; OBS and TV links are offline.`
+      return `Overlay server could not start${range}. The HUD window still works; the OBS browser source is offline.`
     }
     case 'overlay-port':
       return `Overlay server started but its port could not be published: ${errorMessage(error)}`

@@ -14,12 +14,9 @@ import {
 } from './overlayAccess'
 
 describe('lanBindHost', () => {
-  it('binds loopback when LAN is off', () => {
+  it('binds loopback while the TV overlay is shelved, even if LAN was requested', () => {
     expect(lanBindHost(false)).toBe('127.0.0.1')
-  })
-
-  it('binds all interfaces when LAN is on', () => {
-    expect(lanBindHost(true)).toBe('0.0.0.0')
+    expect(lanBindHost(true)).toBe('127.0.0.1')
   })
 })
 

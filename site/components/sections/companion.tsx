@@ -9,8 +9,9 @@ export function CompanionSection() {
           <SectionEyebrow>Companion</SectionEyebrow>
           <SectionTitle>Real-time scoring. One board. No app-switching.</SectionTitle>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
-            Starters, the bench, and the scoring tape stay on the Scoreboard while the game is on
-            the other screen. The watchlist keeps the rest of your leagues in the corner.
+            Starters, the bench, and the scoring tape stay on the Scoreboard. The same matchup
+            lays over the game stream on this Windows PC. The watchlist keeps the rest of your
+            leagues in the corner.
           </p>
         </div>
         <ProductStill

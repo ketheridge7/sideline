@@ -55,7 +55,7 @@ describe('ConnectScreen hub', () => {
     expect(html).toContain('Check for updates')
     expect(html).toContain('data-update-state="idle"')
     expect(html).toContain('data-connect-footer="settings"')
-    expect(html.indexOf('data-connect-footer="settings"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
+    expect(html.indexOf('data-connect-footer="settings"')).toBeGreaterThan(html.indexOf('data-connect-card="sleeper"'))
   })
 
   it('puts a text Report a bug control under Updates and shortcuts', () => {
@@ -63,7 +63,7 @@ describe('ConnectScreen hub', () => {
     expect(html).toContain('Report a bug')
     expect(html).toContain('data-connect-report="bug"')
     expect(html.indexOf('data-connect-report="bug"')).toBeGreaterThan(html.indexOf('Keyboard shortcuts'))
-    expect(html.indexOf('data-connect-report="bug"')).toBeGreaterThan(html.indexOf('data-connect-card="tv"'))
+    expect(html.indexOf('data-connect-report="bug"')).toBeGreaterThan(html.indexOf('data-connect-card="sleeper"'))
     const marker = 'data-connect-report="bug"'
     const start = html.lastIndexOf('<button', html.indexOf(marker))
     const end = html.indexOf('</button>', start)
@@ -161,19 +161,24 @@ describe('ConnectScreen hub', () => {
     expect(html).not.toContain('cursor-pointer rounded-sm border border-line px-3 py-2')
   })
 
-  it('shows ESPN, Sleeper, and TV as peer hub cards with status', () => {
-    const html = htmlOf()
+  it('shows ESPN and Sleeper as peer hub cards and hides the shelved TV card', () => {
+    const html = htmlOf({ lanOverlayEnabled: true, overlayPairingCode: '418302', overlayToken: 'deadbeefcafebabe' })
     expect(html).toContain('data-connect-card="espn"')
     expect(html).toContain('data-connect-card="sleeper"')
-    expect(html).toContain('data-connect-card="tv"')
+    expect(html).not.toContain('data-connect-card="tv"')
+    expect(html).not.toContain('Allow devices on this Wi-Fi')
+    expect(html).not.toContain('pairing code')
+    expect(html).not.toContain('Phone / browser URL')
+    expect(html).not.toContain('tv=1')
+    expect(html).not.toContain('Google TV')
     expect(html.indexOf('data-connect-card="espn"')).toBeLessThan(html.indexOf('data-connect-card="sleeper"'))
-    expect(html.indexOf('data-connect-card="sleeper"')).toBeLessThan(html.indexOf('data-connect-card="tv"'))
     expect(html).toContain('Not connected')
+    expect(html).toContain('Windows desktop and laptop')
     expect(html).not.toContain('id="sleeper-username"')
     expect(html).not.toContain('id="espn-league-id"')
   })
 
-  it('paints ESPN, Sleeper, and TV hub actions with the ESPN red fill', () => {
+  it('paints ESPN and Sleeper hub actions with the ESPN red fill', () => {
     const html = htmlOf({
       espnConnected: true,
       sleeperConnected: true,
@@ -190,9 +195,7 @@ describe('ConnectScreen hub', () => {
     expect(card('sleeper')).toContain('bg-espn')
     expect(card('sleeper')).toContain('Add leagues')
     expect(card('sleeper')).not.toContain('bg-you')
-    expect(card('tv')).toContain('bg-espn')
-    expect(card('tv')).toContain('Manage')
-    expect(card('tv')).not.toContain('bg-you')
+    expect(html).not.toContain('data-connect-card="tv"')
   })
 
   it('reports connected league counts and needs re-login on hub cards', () => {
@@ -250,36 +253,32 @@ describe('ConnectScreen first-run help', () => {
     expect(html).not.toContain('data-howto="overlay"')
   })
 
-  it('adds How to disclosures on ESPN, Sleeper, and TV paths', () => {
+  it('adds How to disclosures on ESPN and Sleeper paths', () => {
     const sleeper = htmlOf({}, { path: 'sleeper' })
     const espn = htmlOf({}, { path: 'espn' })
-    const tv = htmlOf({}, { path: 'tv' })
+    const tv = htmlOf({ lanOverlayEnabled: true }, { path: 'tv' })
     expect(sleeper).toContain('data-howto="sleeper"')
     expect(espn).toContain('data-howto="espn"')
-    expect(tv).toContain('data-howto="overlay"')
+    expect(tv).not.toContain('data-howto="overlay"')
+    expect(tv).toContain('data-connect-path="hub"')
+    expect(tv).not.toContain('Allow devices on this Wi-Fi')
     expect(sleeper).toContain('data-connect-back="hub"')
     expect(espn).toContain('data-connect-back="hub"')
-    expect(tv).toContain('data-connect-back="hub"')
-    expect(htmlOf().indexOf('Keyboard shortcuts')).toBeGreaterThan(htmlOf().indexOf('data-connect-card="tv"'))
+    expect(htmlOf().indexOf('Keyboard shortcuts')).toBeGreaterThan(htmlOf().indexOf('data-connect-card="sleeper"'))
   })
 
-  it('defaults How to open for first-time connect, closed once connected or LAN is on', () => {
+  it('defaults How to open for first-time connect, closed once connected', () => {
     expect(howtoDefault(htmlOf({}, { path: 'sleeper' }), 'sleeper')).toBe('open')
     expect(howtoDefault(htmlOf({}, { path: 'espn' }), 'espn')).toBe('open')
-    expect(howtoDefault(htmlOf({}, { path: 'tv' }), 'overlay')).toBe('open')
     expect(howtoIsOpen(htmlOf({}, { path: 'sleeper' }), 'sleeper')).toBe(true)
     expect(howtoIsOpen(htmlOf({}, { path: 'espn' }), 'espn')).toBe(true)
-    expect(howtoIsOpen(htmlOf({}, { path: 'tv' }), 'overlay')).toBe(true)
 
     const sleeper = htmlOf({ sleeperConnected: true, sleeperUsername: 'ke' }, { path: 'sleeper' })
     const espn = htmlOf({ espnConnected: true }, { path: 'espn' })
-    const tv = htmlOf({ lanOverlayEnabled: true }, { path: 'tv' })
     expect(howtoDefault(sleeper, 'sleeper')).toBe('closed')
     expect(howtoDefault(espn, 'espn')).toBe('closed')
-    expect(howtoDefault(tv, 'overlay')).toBe('closed')
     expect(howtoIsOpen(sleeper, 'sleeper')).toBe(false)
     expect(howtoIsOpen(espn, 'espn')).toBe(false)
-    expect(howtoIsOpen(tv, 'overlay')).toBe(false)
   })
 
   it('reopens ESPN How to when cookies expired so sign-in steps stay visible', () => {
@@ -288,7 +287,7 @@ describe('ConnectScreen first-run help', () => {
     expect(howtoIsOpen(html, 'espn')).toBe(true)
   })
 
-  it('covers the real connect and overlay paths without APK install steps', () => {
+  it('covers the real connect paths without LAN or TV install steps', () => {
     const sleeper = htmlOf({}, { path: 'sleeper' })
     const espn = htmlOf({}, { path: 'espn' })
     const tv = htmlOf({}, { path: 'tv' })
@@ -298,11 +297,9 @@ describe('ConnectScreen first-run help', () => {
     expect(espn).toContain('leagueId=')
     expect(espn).toContain('data-connect-advanced="espn"')
     expect(espn).toContain('Advanced')
-    expect(tv).toContain('This PC')
-    expect(tv).toContain('Phone / browser URL')
-    expect(tv).toContain('127.0.0.1')
-    expect(tv).toContain('6-digit pairing code')
-    expect(tv).toContain('derived scores')
+    expect(tv).not.toContain('Phone / browser URL')
+    expect(tv).not.toContain('6-digit pairing code')
+    expect(tv).not.toContain('tv=1')
     expect(sleeper).not.toContain('Wireless debugging')
     expect(tv).not.toContain('sideload')
     expect(tv).not.toContain('adb ')
@@ -398,7 +395,8 @@ describe('Connect Replay arming', () => {
     expect(html).not.toContain('Arm Replay')
     expect(html).not.toContain('Disarm Replay')
     expect(html).toContain('Replay · 1 fake league')
-    expect(html).toContain('Ready to pair')
+    expect(html).not.toContain('Ready to pair')
+    expect(html).not.toContain('data-connect-card="tv"')
   })
 
   it('uses connected labels and hides the dev update note during a marketing capture', () => {

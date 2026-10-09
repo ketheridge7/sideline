@@ -221,7 +221,7 @@ export const StudioStyleTab = ({ layout, commit }: { layout: OverlayLayout; comm
       </section>
 
       <section className="grid gap-2">
-        <SectionHeader title="Text size" hint="Auto follows each preset. TV always runs large." />
+        <SectionHeader title="Text size" hint="Auto follows each preset." />
         <Segmented
           name="size"
           label="Text size"

@@ -12,6 +12,7 @@ import {
   shortcutSettingsPatch,
   type ShortcutMap
 } from './shortcuts'
+import { shelfLanSettings } from './tvOverlay'
 
 export type Settings = {
   sleeperUsername: string | null
@@ -119,7 +120,7 @@ export const hydrateSettings = (parsed: StoredSettings): Settings => {
   const base = defaultSettings()
   const shortcuts = shortcutsFromParsed(parsed)
   const { companionBounds: legacyCompanionBounds, windowPlacements: rawPlacements, ...rest } = parsed
-  return {
+  return shelfLanSettings({
     ...base,
     ...rest,
     sleeperUserId: typeof parsed.sleeperUserId === 'string' && parsed.sleeperUserId ? parsed.sleeperUserId : null,
@@ -133,7 +134,7 @@ export const hydrateSettings = (parsed: StoredSettings): Settings => {
     windowPlacements: migrateLegacyCompanionBounds(parseWindowPlacements(rawPlacements), legacyCompanionBounds),
     overlayOpen: parsed.overlayOpen === true,
     ...shortcutSettingsPatch(shortcuts)
-  }
+  })
 }
 
 export const settingsHotkeys = (settings: SettingsHotkeys): SettingsHotkeys => ({

@@ -22,7 +22,7 @@ Pinned frame (tick 0, `src/main/providers/replayWorld.ts`, mirrored in `site/lib
 | — | `leagues-board.jpg` | Leagues grid, six boards, all-leagues tape | Window capture, 1440×900 |
 | C | `frost-hud.jpg` | Frost HUD over a Sunday broadcast: Ice Box and Hash Marks on the sidelines. | head-on plate + `compose.py frost` |
 | D | `overlay-studio.jpg` | Scoreboard with Overlay Studio, preview over the game plate | Window capture, 1440×900 |
-| E | `connect-hub.jpg` | ESPN / Sleeper / TV cards and the always-open Updates section (no Replay block) | Window capture, cropped to the hub |
+| E | `connect-hub.jpg` | Removed from the site. The capture showed the shelved TV card. Do not put it back until `TV_OVERLAY_ENABLED` is on. | — |
 
 Alt text and captions live in `site/lib/stills.ts` (spec §2 wording).
 
@@ -45,8 +45,7 @@ broadcast for `frost-hud.jpg`. Replace either file and rerun that `compose.py` s
    Optional bench proof (docs only, not the site): open the Hash Marks bench and capture →
    `docs/marketing/bench-proof.jpg`.
 4. **Leagues** — click Leagues and capture → `leagues-board.jpg`.
-5. **E** — click Connect and capture, then crop to the hub (provider cards through the
-   always-open Updates section; there is no Replay block) → `connect-hub.jpg`.
+5. **E** — skipped while the TV card is shelved. `connect-hub.jpg` showed that card and is not on the site.
 6. **D** — Scoreboard, turn on HUD (Overlay Studio opens with it). Move the overlay to another display
    (or capture only the companion window) so the rails don't cover it → `overlay-studio.jpg`.
 7. **HUD render** — with the app still running, in a second terminal:

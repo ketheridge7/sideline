@@ -15,7 +15,7 @@ npm run lint
 ## Routes
 
 - `/` — marketing homepage
-- `/docs` — Connect, shortcuts, OBS overlay, TV pairing (secondary)
+- `/docs` — Connect, shortcuts, OBS localhost overlay
 
 Primary download CTA: [GitHub Releases latest](https://github.com/ketheridge7/sideline/releases/latest).
 

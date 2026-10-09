@@ -15,7 +15,7 @@ export const SUPPORT_URL = process.env.NEXT_PUBLIC_SUPPORT_URL?.trim() || LIVE_S
 export const SITE_NAME = "Sideline";
 export const SITE_TAGLINE = "Your fantasy matchup. Always on the Sideline";
 export const SITE_DESCRIPTION =
-  "A Windows companion for live Sleeper and ESPN fantasy matchups. Second screen, or a HUD on the game you're already watching. No betting.";
+  "A Windows desktop and laptop overlay for live Sleeper and ESPN fantasy matchups. The HUD sits over the game stream you are already watching. No betting.";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sideline-three.vercel.app";
 
 export const NAV_LINKS = [

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { SITE_DESCRIPTION } from "@/lib/constants";
 
-export const alt = "Sideline — live Sleeper and ESPN matchups on a second screen";
+export const alt = "Sideline — Windows desktop and laptop overlay for live Sleeper and ESPN";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

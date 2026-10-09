@@ -1,10 +1,11 @@
 import { randomBytes, timingSafeEqual } from 'crypto'
 import { isAbsolute, join, normalize, relative } from 'path'
 import { networkInterfaces } from 'os'
+import { bindHostForOverlay, TV_OVERLAY_ENABLED } from '@shared/tvOverlay'
 
 export const generateOverlayToken = (): string => randomBytes(8).toString('hex')
 
-export const lanBindHost = (lanEnabled: boolean): string => (lanEnabled ? '0.0.0.0' : '127.0.0.1')
+export const lanBindHost = (lanEnabled: boolean): string => bindHostForOverlay(TV_OVERLAY_ENABLED, lanEnabled)
 
 const isRoutableLanIPv4 = (family: string | number, internal: boolean, address: string): boolean => {
   if (String(family) !== 'IPv4' && String(family) !== '4') return false

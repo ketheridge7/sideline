@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { submitBugReport } from '@shared/bugReport'
 import { isAllowedSupportUrl } from '@shared/support'
+import { TV_OVERLAY_ENABLED } from '@shared/tvOverlay'
 import type { AppState, League, Provider } from '@shared/types'
 import { chromeFillPillClass, chromePillClass } from './chrome'
 import { ShortcutSettings } from './ShortcutSettings'
@@ -568,12 +569,13 @@ export const ConnectScreen = ({
       >
         <summary className="text-base font-semibold">Getting started</summary>
         <p className="mt-2 text-sm text-muted">
-          Sideline is a companion for live fantasy while you watch. Connect ESPN and/or Sleeper, pick leagues, then
-          show the HUD on this PC — or share it to a phone/TV on your Wi-Fi.
+          {TV_OVERLAY_ENABLED
+            ? 'Sideline is a companion for live fantasy while you watch. Connect ESPN and/or Sleeper, pick leagues, then show the HUD on this PC — or share it to a phone/TV on your Wi-Fi.'
+            : 'Sideline is a Windows desktop and laptop companion for live fantasy while you watch. Connect ESPN and/or Sleeper, pick leagues, then show the HUD over the game on this PC.'}
         </p>
       </details>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className={TV_OVERLAY_ENABLED ? 'grid gap-4 md:grid-cols-3' : 'grid gap-4 md:grid-cols-2'}>
         <HubCard
           id="espn"
           title="ESPN"
@@ -618,14 +620,16 @@ export const ConnectScreen = ({
               : undefined
           }
         />
-        <HubCard
-          id="tv"
-          title="TV"
-          status={tvHubStatus(state)}
-          onOpen={() => setPath('tv')}
-          openLabel={state.lanOverlayEnabled ? 'Manage' : 'Connect'}
-          leagues={[]}
-        />
+        {TV_OVERLAY_ENABLED ? (
+          <HubCard
+            id="tv"
+            title="TV"
+            status={tvHubStatus(state)}
+            onOpen={() => setPath('tv')}
+            openLabel={state.lanOverlayEnabled ? 'Manage' : 'Connect'}
+            leagues={[]}
+          />
+        ) : null}
       </div>
 
       <footer className="grid gap-2" data-connect-footer="settings">
@@ -823,8 +827,9 @@ export const ConnectScreen = ({
     </section>
   )
 
+  const shownPath: ConnectPath = path === 'tv' && !TV_OVERLAY_ENABLED ? 'hub' : path
   let body: JSX.Element
-  switch (path) {
+  switch (shownPath) {
     case 'hub':
       body = hub
       break
@@ -838,13 +843,13 @@ export const ConnectScreen = ({
       body = <TvPath state={state} onBack={() => setPath('hub')} />
       break
     default: {
-      const _never: never = path
+      const _never: never = shownPath
       throw new Error(`Unhandled connect path: ${String(_never)}`)
     }
   }
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-4 p-6" data-connect-path={path}>
+    <div className="mx-auto grid max-w-5xl gap-4 p-6" data-connect-path={shownPath}>
       {body}
       {message ? <p className="text-sm text-muted">{message}</p> : null}
       {state.error ? <p className="text-sm text-air">{state.error}</p> : null}
