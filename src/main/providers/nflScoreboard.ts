@@ -1,4 +1,5 @@
-import type { NflTickerGame } from '@shared/types'
+import { nflBallReadingsFromPayload, stabilizeNflBall } from '@shared/possession'
+import type { NflBall, NflTickerGame } from '@shared/types'
 import { nflTeamKey } from '@shared/winPct'
 import { fetchJson } from '../http'
 import { IDLE_POLL_MS } from '../liveWindow'
@@ -28,6 +29,7 @@ let scoreboardCache: {
   /** NFL teams with a game this week, including `pre`. Used by League browse, not the ticker. */
   slate: string[]
   ticker: NflTickerGame[]
+  ball: NflBall[]
 } | null = null
 let lastGoodScoreboardUrl: string | null = null
 
@@ -258,6 +260,8 @@ export type NflScoreboardState = {
   /** Poll at the live cadence: a game is `in` or kicks off soon; calendar window only when unreachable. */
   live: boolean
   ticker: NflTickerGame[]
+  /** Teams with the ball. Held through short gaps; empty at halftime, between quarters, and when final. */
+  ball: NflBall[]
   reachable: boolean
 }
 
@@ -273,6 +277,7 @@ const fromCache = (
     calendarLive
   }),
   ticker: cache.ticker,
+  ball: cache.ball,
   reachable: true
 })
 
@@ -290,22 +295,34 @@ export const nflScoreboardState = async (
   }
   try {
     const payload = await fetchNflScoreboard(liveTick)
+    const now = Date.now()
     scoreboardCache = {
-      at: Date.now(),
+      at: now,
       gamesIn: nflGamesInProgress(payload),
       kickoffs: nflPreKickoffs(payload),
       knownKickoffs: nflEventKickoffs(payload),
       slate: nflSlateTeamsFromPayload(payload),
-      ticker: nflTickerFromPayload(payload)
+      ticker: nflTickerFromPayload(payload),
+      ball: stabilizeNflBall(scoreboardCache?.ball ?? [], nflBallReadingsFromPayload(payload), now)
     }
     return fromCache(scoreboardCache, Date.now(), calendarLive)
   } catch {
     if (scoreboardCache && nflScoreboardReachable(Date.now())) {
-      return fromCache(scoreboardCache, Date.now(), calendarLive)
+      const now = Date.now()
+      scoreboardCache = {
+        ...scoreboardCache,
+        ball: stabilizeNflBall(
+          scoreboardCache.ball,
+          scoreboardCache.ball.map((row) => ({ gameId: row.gameId, kind: 'gap' as const })),
+          now
+        )
+      }
+      return fromCache(scoreboardCache, now, calendarLive)
     }
     return {
       live: scoreboardPollLive({ gamesIn: false, kickoffSoon: false, reachable: false, calendarLive }),
       ticker: scoreboardCache?.ticker ?? [],
+      ball: [],
       reachable: false
     }
   }

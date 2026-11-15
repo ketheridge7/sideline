@@ -327,6 +327,7 @@ describe('nflScoreboardState', () => {
     await expect(nflScoreboardState(false)).resolves.toEqual({
       live: true,
       reachable: true,
+      ball: [],
       ticker: [
         { id: 'live-1', away: 'DET', awayScore: 14, home: 'KC', homeScore: 21, clock: 'Q2 4:12' }
       ]
@@ -338,8 +339,8 @@ describe('nflScoreboardState', () => {
       'fetch',
       vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({}) })
     )
-    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [], reachable: false })
-    await expect(nflScoreboardState(false)).resolves.toEqual({ live: false, ticker: [], reachable: false })
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [], ball: [], reachable: false })
+    await expect(nflScoreboardState(false)).resolves.toEqual({ live: false, ticker: [], ball: [], reachable: false })
     expect(nflScoreboardReachable()).toBe(false)
   })
 
@@ -355,7 +356,7 @@ describe('nflScoreboardState', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-13T13:00:00Z'))
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(preSlate('2026-09-13T17:00Z')))
-    await expect(nflScoreboardState(true)).resolves.toEqual({ live: false, ticker: [], reachable: true })
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: false, ticker: [], ball: [], reachable: true })
     expect(nflScoreboardReachable()).toBe(true)
     vi.useRealTimers()
   })
@@ -429,9 +430,9 @@ describe('nflScoreboardState', () => {
     await nflScoreboardState(true)
     fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
     vi.advanceTimersByTime(NFL_SCOREBOARD_PRE_TTL_MS)
-    await expect(nflScoreboardState(true)).resolves.toEqual({ live: false, ticker: [], reachable: true })
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: false, ticker: [], ball: [], reachable: true })
     vi.advanceTimersByTime(NFL_SCOREBOARD_REACHABLE_MS)
-    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [], reachable: false })
+    await expect(nflScoreboardState(true)).resolves.toEqual({ live: true, ticker: [], ball: [], reachable: false })
     vi.useRealTimers()
   })
 
@@ -564,9 +565,61 @@ describe('week 4 live scoreboard', () => {
       expect(board?.slate).toEqual(expect.arrayContaining(['ATL', 'NO']))
       expect(board?.ticker.some((game) => game.away === 'ATL' || game.home === 'NO')).toBe(false)
       expect(board?.ticker.some((game) => game.away === 'DET' && game.home === 'CAR' && !game.final)).toBe(true)
+      expect(board?.ball).toEqual([])
     } finally {
       if (previous == null) delete process.env.SIDELINE_REPLAY_SCOREBOARD
       else process.env.SIDELINE_REPLAY_SCOREBOARD = previous
     }
+  })
+})
+
+describe('scoreboard possession', () => {
+  const body = (state: string, detail: string, possession?: string, redZone = false) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      events: [
+        {
+          id: 'g1',
+          status: {
+            type: {
+              state,
+              shortDetail: detail,
+              name: detail === 'Halftime' ? 'STATUS_HALFTIME' : 'STATUS_IN_PROGRESS'
+            }
+          },
+          competitions: [
+            {
+              competitors: [
+                { homeAway: 'away', score: '7', team: { id: '8', abbreviation: 'DET' } },
+                { homeAway: 'home', score: '3', team: { id: '12', abbreviation: 'KC' } }
+              ],
+              ...(possession ? { situation: { possession, isRedZone: redZone, downDistanceText: '2nd & 7' } } : {})
+            }
+          ]
+        }
+      ]
+    })
+  })
+
+  it('publishes the team with the ball, holds one blank poll, and clears at halftime', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-15T18:00:00Z'))
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(body('in', 'Q2 4:12', '8', true))
+      .mockResolvedValueOnce(body('in', 'Q2 3:58'))
+      .mockResolvedValueOnce(body('in', 'Halftime', '8', true))
+    vi.stubGlobal('fetch', fetchMock)
+    const first = await nflScoreboardState(false)
+    expect(first.ball).toEqual([
+      { gameId: 'g1', offense: 'DET', defense: 'KC', redZone: true, seenAt: Date.now() }
+    ])
+    vi.advanceTimersByTime(NFL_SCOREBOARD_TTL_MS + 1)
+    const held = await nflScoreboardState(false)
+    expect(held.ball).toEqual(first.ball)
+    vi.advanceTimersByTime(NFL_SCOREBOARD_TTL_MS + 1)
+    const half = await nflScoreboardState(false)
+    expect(half.ball).toEqual([])
   })
 })

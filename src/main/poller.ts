@@ -1,5 +1,5 @@
 import type { AppState, DiscoverableLeaguesResult, League, Matchup, NflState, OverlayHudState, Provider, SetSelectedLeaguesResult, TapeEvent, ToastPayload, Transaction } from '@shared/types'
-import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, toOverlayHud } from '@shared/types'
+import { emptyAppState, leagueKey, overlayHudUnchanged, parseLeagueKey, sameNflBall, toOverlayHud } from '@shared/types'
 import { sanitizeLeagueIds } from '@shared/settings'
 import { parseOverlayLayout } from '@shared/overlayLayout'
 import { transactionKindLabel } from '@shared/transactionKind'
@@ -82,6 +82,7 @@ import {
   replayLeaguePairs,
   replayMatchup,
   replayNfl,
+  replayNflBall,
   replayNflScoreboard,
   replayNflSlate,
   replayNflTicker,
@@ -335,8 +336,10 @@ export const setOverlayEditMode = (edit: boolean): void => {
 export const applyOverlayLayout = (layout: AppState['overlayLayout']): void => {
   const next = parseOverlayLayout(layout)
   saveSettings({ overlayLayout: next })
-  lastState = { ...lastState, overlayLayout: next }
-  broadcast(lastState)
+  const state = { ...lastState, overlayLayout: next }
+  broadcast(state)
+  // The live patch omits layout. The roster reads the possession toggle from it.
+  runtime.sendState(state)
 }
 
 export const applyLanOverlay = (): void => {
@@ -410,6 +413,7 @@ const broadcast = (state: AppState): void => {
             tape: state.tape,
             nflTicker: state.nflTicker,
             nflSlate: state.nflSlate,
+            nflBall: state.nflBall,
             pollingLive: state.pollingLive,
             overlayEditMode: state.overlayEditMode,
             lastUpdated: state.lastUpdated,
@@ -3602,11 +3606,17 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
     })
     let live = seeded.live
     let nflTicker = seeded.ticker
+    let nflBall = lastState.nflBall
     const captured = replay ? replayNflScoreboard() : null
     let nflSlate =
       lastState.nflSlate.length > 0 ? lastState.nflSlate : captured?.slate ?? (replay ? replayNflSlate() : [])
     const replayBoard = (): Promise<NflScoreboardState> =>
-      Promise.resolve({ live: true, ticker: captured?.ticker ?? replayNflTicker(), reachable: true })
+      Promise.resolve({
+        live: true,
+        ticker: captured?.ticker ?? replayNflTicker(),
+        ball: captured?.ball ?? replayNflBall(),
+        reachable: true
+      })
     const applyScoreboard = (scoreboard: NflScoreboardState): void => {
       if (gen !== pollGen) return
       const nextLive = scoreboard.live
@@ -3615,9 +3625,12 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
       const nextSlate = captured?.slate ?? (replay ? replayNflSlate() : [...nflSlateTeams()])
       const sameSlate =
         nextSlate.length === nflSlate.length && nextSlate.every((team, index) => team === nflSlate[index])
+      const nextBall = scoreboard.ball
+      const sameBall = sameNflBall(nflBall, nextBall)
       live = nextLive
       nflTicker = scoreboard.ticker
       nflSlate = nextSlate
+      nflBall = nextBall
       const scheduledLive = lastState.pollingLive || calendarLive
       const settleSchedule = restSettleSchedulePlan({
         hudScheduled: hudPainted,
@@ -3635,17 +3648,18 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
           void _never
         }
       }
-      if (sameLive && sameTicker && sameSlate) return
+      if (sameLive && sameTicker && sameSlate && sameBall) return
       broadcast({
         ...lastState,
         nflTicker,
         nflSlate,
+        nflBall,
         pollingLive: live,
         lastUpdated: Date.now()
       })
     }
     let scoreboardPromise: Promise<NflScoreboardState> =
-      Promise.resolve({ live: calendarLive, ticker: [], reachable: false })
+      Promise.resolve({ live: calendarLive, ticker: [], ball: [], reachable: false })
     const scoreboardOrder = nflScoreboardSettleOrder(boardPlan)
     switch (scoreboardOrder) {
       case 'before-lists':
@@ -3988,6 +4002,7 @@ const runRefresh = async (opts?: { waitForBoards?: boolean }): Promise<AppState>
         tape,
         nflTicker,
         nflSlate,
+        nflBall,
         overlayPort: runtime.overlayPort(),
         overlayVisible,
         ...hotkeysAtPublish(settings, loadSettings()),

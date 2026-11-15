@@ -46,6 +46,8 @@ export type HudDisplay = {
   ticker: boolean
   lead: boolean
   rails: boolean
+  /** Possession football on roster rows and the HUD. Default on. */
+  ball: boolean
 }
 
 export type HudTheme = {
@@ -82,7 +84,8 @@ export const DEFAULT_HUD_DISPLAY: HudDisplay = {
   size: 'auto',
   ticker: true,
   lead: true,
-  rails: true
+  rails: true,
+  ball: true
 }
 
 export const emptyStudioLibrary = (): StudioLibrary => ({ savedThemes: [], recentColors: [] })
@@ -220,7 +223,8 @@ export const parseHudDisplay = (raw: unknown): HudDisplay => {
     size: pick(HUD_SIZES, rec.size, DEFAULT_HUD_DISPLAY.size),
     ticker: bool(rec.ticker, DEFAULT_HUD_DISPLAY.ticker),
     lead: bool(rec.lead, DEFAULT_HUD_DISPLAY.lead),
-    rails: bool(rec.rails, DEFAULT_HUD_DISPLAY.rails)
+    rails: bool(rec.rails, DEFAULT_HUD_DISPLAY.rails),
+    ball: bool(rec.ball, DEFAULT_HUD_DISPLAY.ball)
   }
 }
 
@@ -278,7 +282,11 @@ export const sameHudStyle = (left: HudStyle, right: HudStyle): boolean =>
   left.shadow === right.shadow
 
 export const sameHudDisplay = (left: HudDisplay, right: HudDisplay): boolean =>
-  left.size === right.size && left.ticker === right.ticker && left.lead === right.lead && left.rails === right.rails
+  left.size === right.size &&
+  left.ticker === right.ticker &&
+  left.lead === right.lead &&
+  left.rails === right.rails &&
+  left.ball === right.ball
 
 export const sameStudioLibrary = (left: StudioLibrary, right: StudioLibrary): boolean =>
   left === right || JSON.stringify(left) === JSON.stringify(right)

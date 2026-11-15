@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs'
-import type { League, LeaguePair, Matchup, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
+import { nflBallReadingsFromPayload, stabilizeNflBall } from '@shared/possession'
+import type { League, LeaguePair, Matchup, NflBall, NflState, NflTickerGame, TapeEvent, Transaction } from '@shared/types'
 import { demoRequested, holdRequested } from '../demoMode'
 import { nflSlateTeamsFromPayload, nflTickerFromPayload } from './nflScoreboard'
 import {
@@ -9,6 +10,7 @@ import {
   replayBoardExtra,
   replayLeaguePairs as worldReplayLeaguePairs,
   replayMatchupFor,
+  replayNflBall as worldReplayNflBall,
   replaySeedTape as seedTape,
   replaySlateTeams,
   replayTickerGames,
@@ -81,6 +83,8 @@ export const replayTransactions = (league: League): Transaction[] => replayTrans
 
 export const replayNflTicker = (): NflTickerGame[] => replayTickerGames(tick)
 
+export const replayNflBall = (): NflBall[] => worldReplayNflBall(tick)
+
 export const replayNflSlate = (): string[] => replaySlateTeams(tick)
 
 /**
@@ -88,14 +92,15 @@ export const replayNflSlate = (): string[] => replaySlateTeams(tick)
  * points at a captured ESPN week scoreboard so a chip can follow that week's
  * real kickoff state (Monday still `pre`, Sunday night `in` or `post`).
  */
-export const replayNflScoreboard = (): { ticker: NflTickerGame[]; slate: string[] } | null => {
+export const replayNflScoreboard = (): { ticker: NflTickerGame[]; slate: string[]; ball: NflBall[] } | null => {
   const file = process.env.SIDELINE_REPLAY_SCOREBOARD
   if (!file) return null
   try {
     const payload = JSON.parse(readFileSync(file, 'utf8')) as unknown
     return {
       ticker: nflTickerFromPayload(payload),
-      slate: nflSlateTeamsFromPayload(payload)
+      slate: nflSlateTeamsFromPayload(payload),
+      ball: stabilizeNflBall([], nflBallReadingsFromPayload(payload), Date.now())
     }
   } catch {
     return null

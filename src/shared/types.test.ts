@@ -229,6 +229,8 @@ describe('toOverlayHud', () => {
     expect(toOverlayHud(state).nflTicker).toEqual(state.nflTicker)
     state.nflSlate = ['GB', 'CHI', 'DAL']
     expect(toOverlayHud(state).nflSlate).toEqual(['GB', 'CHI', 'DAL'])
+    state.nflBall = [{ gameId: '1', offense: 'KC', defense: 'BUF', redZone: true, seenAt: 5 }]
+    expect(toOverlayHud(state).nflBall).toEqual(state.nflBall)
   })
 })
 
@@ -284,6 +286,11 @@ describe('overlayHudUnchanged', () => {
       overlayLayout: { ...state.overlayLayout, style: { ...state.overlayLayout.style, backdrop: 'glass' } }
     })
     expect(overlayHudUnchanged(first, plated)).toBe(false)
+    const moved = toOverlayHud({
+      ...state,
+      nflBall: [{ gameId: '1', offense: 'PHI', defense: 'DAL', redZone: false, seenAt: 1 }]
+    })
+    expect(overlayHudUnchanged(first, moved)).toBe(false)
     const noTicker = toOverlayHud({
       ...state,
       overlayLayout: { ...state.overlayLayout, display: { ...state.overlayLayout.display, ticker: false } }

@@ -275,6 +275,13 @@ export const StudioLayoutTab = ({
             checked={layout.display.ticker}
             onChange={(ticker) => setDisplay({ ticker }, 'display:ticker')}
           />
+          <Toggle
+            name="ball"
+            label="Possession"
+            hint="Ball and red zone on the roster and the HUD"
+            checked={layout.display.ball}
+            onChange={(ball) => setDisplay({ ball }, 'display:ball')}
+          />
         </div>
       </section>
     </div>

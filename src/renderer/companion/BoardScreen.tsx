@@ -125,7 +125,12 @@ export const BoardScreen = ({
   }, [])
 
   return (
-    <PlayerGameProvider games={state.nflTicker} slate={state.nflSlate}>
+    <PlayerGameProvider
+      games={state.nflTicker}
+      slate={state.nflSlate}
+      ball={state.nflBall}
+      marks={state.overlayLayout.display.ball}
+    >
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         <Watchlist state={state} history={history} onBoards={onBoards} />

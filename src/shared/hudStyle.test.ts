@@ -68,6 +68,8 @@ describe('parseHudDisplay', () => {
       ticker: false
     })
     expect(parseHudDisplay({ size: 'huge' }).size).toBe('auto')
+    expect(parseHudDisplay({}).ball).toBe(true)
+    expect(parseHudDisplay({ ball: false }).ball).toBe(false)
   })
 })
 

@@ -284,6 +284,40 @@ select {
   min-width: 0;
 }
 
+/* Possession: leather gold on offense, alert red inside the 20. No motion. */
+.lineup-row[data-ball='ball'],
+[data-ball='ball'] {
+  box-shadow: inset 3px 0 0 #e7c36a, inset 4px 0 0 rgba(7, 8, 10, 0.9);
+}
+
+.lineup-row[data-ball='redzone'],
+[data-ball='redzone'] {
+  box-shadow: inset 3px 0 0 #ff4d4d, inset 4px 0 0 rgba(7, 8, 10, 0.9);
+}
+
+.ball-glyph {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.62em;
+  margin-right: 0.28em;
+  vertical-align: -0.05em;
+  color: #e7c36a;
+  -webkit-text-stroke: 0;
+}
+
+.ball-glyph[data-kind='redzone'] {
+  color: #ff4d4d;
+}
+
+.hud-frost .hud-type-player .ball-glyph {
+  color: #e7c36a;
+  -webkit-text-stroke: 0;
+}
+
+.hud-frost .hud-type-player .ball-glyph[data-kind='redzone'] {
+  color: #ff4d4d;
+}
+
 .lineup-row-pos {
   min-width: 0;
   overflow: hidden;
@@ -313,11 +347,39 @@ select {
 }
 
 .hud-rail-row {
+  position: relative;
   flex: 1;
   min-height: 0;
-  padding: 0;
+  /* 3px bar + 1px edge + clear air, reserved on every row so labels stay aligned. */
+  padding: 0 0 0 8px;
   /* Rail type scales with density; em columns on the row font clip "26.0" at TV size. */
   grid-template-columns: calc(var(--hud-pos, 12px) * 2.6) minmax(0, 1fr) calc(var(--hud-pts, 15px) * 2.4);
+}
+
+/* The inset row shadow would run through the position label. Both rails (you and them)
+   keep the bar in this leading gutter, at every density and preset width. */
+.lineup-row.hud-rail-row[data-ball='ball'],
+.lineup-row.hud-rail-row[data-ball='redzone'] {
+  box-shadow: none;
+}
+
+.lineup-row.hud-rail-row[data-ball='ball']::before,
+.lineup-row.hud-rail-row[data-ball='redzone']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  box-shadow: 1px 0 0 rgba(7, 8, 10, 0.9);
+}
+
+.lineup-row.hud-rail-row[data-ball='ball']::before {
+  background: #e7c36a;
+}
+
+.lineup-row.hud-rail-row[data-ball='redzone']::before {
+  background: #ff4d4d;
 }
 
 .hud-type-pos,
