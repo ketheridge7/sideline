@@ -14,7 +14,7 @@ import {
 import { BenchFootStack, dismissBenchPointer } from './BenchFoot'
 import { overlayName } from './format'
 import { HUD_FROST } from './HudChrome'
-import { useShownPlayerPoints } from './playerGame'
+import { useBallMark, useShownPlayerPoints } from './playerGame'
 import { LastTickMark, ScoreTick } from './ScoreTick'
 
 export const HudRail = ({
@@ -193,6 +193,26 @@ export const BoardRails = ({
   )
 }
 
+export const BallGlyph = ({ kind }: { kind: 'ball' | 'redzone' }): JSX.Element => (
+  <svg
+    className="ball-glyph"
+    data-ball-glyph=""
+    data-kind={kind}
+    viewBox="0 0 16 10"
+    role="img"
+    aria-label={kind === 'redzone' ? 'Red zone' : 'Has the ball'}
+  >
+    <ellipse cx="8" cy="5" rx="6.4" ry="3.6" fill="currentColor" stroke="#07080A" strokeWidth="0.9" />
+    <path
+      d="M8 2.3v5.4M6.5 3.5h3M6.3 5h3.4M6.5 6.5h3"
+      fill="none"
+      stroke="#07080A"
+      strokeWidth="0.7"
+      strokeLinecap="round"
+    />
+  </svg>
+)
+
 const StarterColumn = ({
   players,
   you,
@@ -251,6 +271,7 @@ export const LineupRow = ({
   playerScoreColor?: string | null
 }): JSX.Element => {
   const shownPoints = useShownPlayerPoints(player?.nflTeam, player?.points)
+  const ball = useBallMark(player)
   const rowClass = hud
     ? 'lineup-row hud-rail-row'
     : `lineup-row ${compact ? (tv ? 'h-8' : 'h-[22px]') : fixed ? 'h-11' : 'min-h-11 flex-1'}`
@@ -275,7 +296,7 @@ export const LineupRow = ({
     : `w-full font-cond font-bold ${compact ? (tv ? 'text-lg' : 'text-[13px]') : 'text-xl'}`
   const nameInk = hud && playerNameColor ? { color: playerNameColor } : undefined
   return (
-    <div className={rowClass} data-lineup-row={you ? 'mine' : 'opp'}>
+    <div className={rowClass} data-lineup-row={you ? 'mine' : 'opp'} data-ball={ball ?? 'off'}>
       <span className={`lineup-row-pos ${posClass}`} data-lineup-col="pos">
         {lineupPositionLabel(player.position)}
       </span>
@@ -285,6 +306,7 @@ export const LineupRow = ({
         data-text-role={hud ? 'playerName' : undefined}
         style={nameInk}
       >
+        {ball ? <BallGlyph kind={ball} /> : null}
         {name}
         {injury ? <span className="ml-1 text-[10px] font-semibold uppercase text-air">{injury}</span> : null}
         {!compact && player.lastPlay ? (

@@ -284,6 +284,40 @@ select {
   min-width: 0;
 }
 
+/* Possession: leather gold on offense, alert red inside the 20. No motion. */
+.lineup-row[data-ball='ball'],
+[data-ball='ball'] {
+  box-shadow: inset 3px 0 0 #e7c36a, inset 4px 0 0 rgba(7, 8, 10, 0.9);
+}
+
+.lineup-row[data-ball='redzone'],
+[data-ball='redzone'] {
+  box-shadow: inset 3px 0 0 #ff4d4d, inset 4px 0 0 rgba(7, 8, 10, 0.9);
+}
+
+.ball-glyph {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.62em;
+  margin-right: 0.28em;
+  vertical-align: -0.05em;
+  color: #e7c36a;
+  -webkit-text-stroke: 0;
+}
+
+.ball-glyph[data-kind='redzone'] {
+  color: #ff4d4d;
+}
+
+.hud-frost .hud-type-player .ball-glyph {
+  color: #e7c36a;
+  -webkit-text-stroke: 0;
+}
+
+.hud-frost .hud-type-player .ball-glyph[data-kind='redzone'] {
+  color: #ff4d4d;
+}
+
 .lineup-row-pos {
   min-width: 0;
   overflow: hidden;

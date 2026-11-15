@@ -56,6 +56,8 @@ When a player's points **increase**, that pts cell (and the team total if the su
 
 When points **drop**, the same beat runs in alert red `#FF4D4D` with `-N` (e.g. `-0.3`). Drops are a first-class tick (`kind: 'down'`), not idle. Zero-change / noise never flash. Shared `scoreTickChange` / `ScoreTick` drive overlay rails, overlay team scores, Board starter/team totals, and tape rows that are a pts delta.
 
+**Possession.** A roster row whose NFL team has the ball gets a leather-gold football (`#E7C36A`) in front of the name and a 3px inset bar. Inside the opponent 20 the same mark uses alert red `#FF4D4D`. It is not lime, so it does not read as a score tick. Skill players and kickers light up on offense. D/ST and IDP slots light up when the other team has the ball. Pregame, halftime, the break between quarters, and final stay dark. A blank possession holds for 45 seconds so one missed scoreboard does not flicker, then clears. Studio → Layout → Possession turns the marks off on the roster and the HUD (default on). The mark does not animate.
+
 Default **Preset 1** (far sides): dual skinny frost rails — **you left, them right** — with enlarged centered names + centered scores above each rail. Lead chip stays next to your total and uses lime `#B6FF3B` when ahead (same token as my team name). No framed card. Each starter row is a CSS grid `POS | NAME | PTS`. Center video stays clear.
 
 Studio has **exactly five** placements (same you/them chrome, different screen regions):

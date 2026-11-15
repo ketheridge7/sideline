@@ -197,6 +197,35 @@ export type NflTickerGame = {
   final?: boolean
 }
 
+/** Which NFL team currently has the ball. Abbreviations are `nflTeamKey` values. */
+export type NflBall = {
+  gameId: string
+  offense: string
+  defense: string
+  redZone: boolean
+  /** Epoch ms of the scoreboard reading that confirmed this possession. */
+  seenAt: number
+}
+
+export const sameNflBall = (prev: readonly NflBall[], next: readonly NflBall[]): boolean => {
+  if (prev === next) return true
+  if (prev.length !== next.length) return false
+  for (let index = 0; index < prev.length; index += 1) {
+    const left = prev[index]
+    const right = next[index]
+    if (!left || !right) return false
+    if (
+      left.gameId !== right.gameId ||
+      left.offense !== right.offense ||
+      left.defense !== right.defense ||
+      left.redZone !== right.redZone
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 export type OverlayHudState = {
   leagueName: string
   provider: Provider | null
@@ -220,6 +249,8 @@ export type OverlayHudState = {
   nflTicker: NflTickerGame[]
   /** NFL teams with a game this week, including games that have not kicked off. */
   nflSlate: string[]
+  /** In-progress NFL possessions. Empty at halftime, between quarters, and when nothing is live. */
+  nflBall: NflBall[]
 }
 
 export type ToastPayload = {
@@ -243,6 +274,8 @@ export type AppState = {
   nflTicker: NflTickerGame[]
   /** NFL teams with a game this week, including games that have not kicked off. */
   nflSlate: string[]
+  /** In-progress NFL possessions. Empty at halftime, between quarters, and when nothing is live. */
+  nflBall: NflBall[]
   overlayPort: number
   overlayVisible: boolean
   overlayHotkey: string
@@ -283,6 +316,7 @@ export type CompanionHudPatch = Pick<
   | 'tape'
   | 'nflTicker'
   | 'nflSlate'
+  | 'nflBall'
   | 'pollingLive'
   | 'overlayEditMode'
   | 'lastUpdated'
@@ -323,6 +357,7 @@ export const emptyAppState = (): AppState => ({
   tape: [],
   nflTicker: [],
   nflSlate: [],
+  nflBall: [],
   overlayPort: 7333,
   overlayVisible: false,
   overlayHotkey: 'CommandOrControl+Shift+O',
@@ -371,7 +406,8 @@ const hudShell = (state: AppState): Omit<
   layout: state.overlayLayout,
   overlayEditMode: state.overlayEditMode,
   nflTicker: state.nflTicker,
-  nflSlate: state.nflSlate
+  nflSlate: state.nflSlate,
+  nflBall: state.nflBall
 })
 
 const sameToast = (prev: ToastPayload | null, next: ToastPayload | null): boolean => {
@@ -492,7 +528,8 @@ export const overlayHudUnchanged = (prev: OverlayHudState, next: OverlayHudState
   samePlayers(prev.oppBench, next.oppBench) &&
   sameTape(prev.tape, next.tape) &&
   sameTicker(prev.nflTicker, next.nflTicker) &&
-  sameSlate(prev.nflSlate, next.nflSlate)
+  sameSlate(prev.nflSlate, next.nflSlate) &&
+  sameNflBall(prev.nflBall, next.nflBall)
 
 const overlayLeagueName = (
   state: AppState,

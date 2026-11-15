@@ -38,6 +38,7 @@ describe('Studio tabs', () => {
     expect(tag(html, 'data-studio-undo')).toContain('disabled')
     expect(tag(html, 'data-studio-redo')).toContain('disabled')
     expect(html).toContain('data-studio-wide="false"')
+    expect(tag(html, 'data-studio-toggle="ball"')).toContain('aria-checked="true"')
     expect(render(layoutFromPreset('1'), 'layout', true)).toContain('data-studio-wide="true"')
   })
 

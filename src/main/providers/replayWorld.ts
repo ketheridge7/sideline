@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import type { League, LeaguePair, Matchup, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
+import type { League, LeaguePair, Matchup, NflBall, NflTickerGame, Player, TapeEvent, Team, Transaction } from '@shared/types'
 import { leagueKey } from '@shared/types'
 import { tapePlayerLabel } from '@shared/display'
 import { estimatedChanceToWin, nflTeamKey, startersStillToPlay } from '@shared/winPct'
@@ -1162,6 +1162,41 @@ export const replaySlateTeams = (_tick = 0): string[] => {
     if (home && !teams.includes(home)) teams.push(home)
   }
   return teams
+}
+
+/**
+ * Scripted ball for the demo slate. DET is in the red zone at the open so the
+ * featured Sleeper rail shows the mark; halftime (PIT) and final (DAL/NYG) stay dark.
+ * Home gets the ball once a late window kicks off and this table has no row.
+ */
+const REPLAY_POSSESSION: Record<string, { side: 'away' | 'home'; redZone?: boolean }> = {
+  'det-kc': { side: 'away', redZone: true },
+  'buf-mia': { side: 'away' },
+  'phi-atl': { side: 'away' },
+  'hou-ind': { side: 'away' },
+  'ari-sea': { side: 'away' },
+  'cin-bal': { side: 'away' },
+  'sf-lar': { side: 'home' }
+}
+
+export const replayNflBall = (tick = 0): NflBall[] => {
+  const out: NflBall[] = []
+  for (const game of SLATE) {
+    if (phaseAt(game, tick).status !== 'live') continue
+    const script = REPLAY_POSSESSION[game.id]
+    const side = script?.side ?? 'home'
+    const offense = nflTeamKey(side === 'away' ? game.away : game.home)
+    const defense = nflTeamKey(side === 'away' ? game.home : game.away)
+    if (!offense || !defense) continue
+    out.push({
+      gameId: game.id,
+      offense,
+      defense,
+      redZone: script?.redZone === true,
+      seenAt: 0
+    })
+  }
+  return out
 }
 
 export const replayTickerGames = (tick = 0): NflTickerGame[] => {

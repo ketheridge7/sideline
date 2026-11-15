@@ -8,6 +8,7 @@ import {
   REPLAY_WEEK,
   replayBoardExtra,
   replayGameStatus,
+  replayNflBall,
   replayLeaguePairs,
   replayMatchupFor,
   replayRosteredPlayers,
@@ -223,6 +224,12 @@ describe('replayWorld (Sunday-real spec)', () => {
     expect(replayGameStatus('GB', 5000)).toBe('pre')
     expect(replayTickerGames(0).some((row) => row.home === 'TB')).toBe(false)
     expect(replayTickerGames(400).some((row) => row.home === 'TB')).toBe(true)
+    const open = replayNflBall(0)
+    expect(open.find((row) => row.gameId === 'det-kc')).toMatchObject({ offense: 'DET', defense: 'KC', redZone: true })
+    expect(open.some((row) => row.offense === 'PIT' || row.defense === 'PIT')).toBe(false)
+    expect(open.some((row) => row.offense === 'DAL' || row.defense === 'DAL')).toBe(false)
+    expect(replayNflBall(60).some((row) => row.gameId === 'pit-lac')).toBe(true)
+    expect(replayNflBall(400).some((row) => row.gameId === 'det-kc')).toBe(false)
   })
 
   it('draws a lead sparkline that ends on the current lead', () => {

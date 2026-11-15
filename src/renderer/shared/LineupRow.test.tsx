@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { emptyAppState, toOverlayHud, type NflTickerGame, type Player } from '@shared/types'
+import { emptyAppState, toOverlayHud, type NflBall, type NflTickerGame, type Player } from '@shared/types'
 import { OverlayWidgetView } from '../overlay/Widgets'
 import { HudTeamScore } from './HudChrome'
 import { HudBench } from './HudBench'
@@ -279,5 +279,37 @@ describe('BoardRails', () => {
     expect(html.indexOf('data-lineup-col="name"')).toBeLessThan(html.indexOf('data-lineup-col="pts"'))
     expect(html).toContain('Aaron Jones')
     expect(html).toContain('data-bench-foot="opp"')
+  })
+})
+
+describe('possession marks', () => {
+  const balls: NflBall[] = [
+    { gameId: 'det-kc', offense: 'DET', defense: 'KC', redZone: true, seenAt: 0 },
+    { gameId: 'buf-mia', offense: 'BUF', defense: 'MIA', redZone: false, seenAt: 0 }
+  ]
+  const paint = (marks = true): string =>
+    renderToStaticMarkup(
+      <PlayerGameProvider games={kickedOff} slate={weekSlate} ball={balls} marks={marks}>
+        <LineupRow player={player({ playerId: 'gibbs', name: 'Jahmyr Gibbs', position: 'RB', nflTeam: 'DET', points: 16.2 })} />
+        <LineupRow player={player({ playerId: 'allen', name: 'Josh Allen', position: 'QB', nflTeam: 'BUF', points: 21 })} />
+        <LineupRow player={player({ playerId: 'chiefs', name: 'Chiefs', position: 'D/ST', nflTeam: 'KC', points: 2 })} />
+        <LineupRow player={player({ playerId: 'fields', name: 'Justin Fields', position: 'QB', nflTeam: 'PIT', points: 18 })} />
+        <HudRail
+          you
+          players={[player({ playerId: 'arsb', name: 'Amon-Ra St. Brown', position: 'WR', nflTeam: 'DET', points: 14 })]}
+        />
+      </PlayerGameProvider>
+    )
+
+  it('marks the offense, the red zone, and a defense, and stays quiet when the toggle is off', () => {
+    const html = paint()
+    expect(html).toContain('data-ball="redzone"')
+    expect(html).toContain('aria-label="Red zone"')
+    expect(html).toContain('data-ball="ball"')
+    expect(html).toContain('aria-label="Has the ball"')
+    expect(html).toContain('data-ball="off"')
+    const off = paint(false)
+    expect(off).not.toContain('data-ball-glyph')
+    expect(off).not.toContain('data-ball="redzone"')
   })
 })
